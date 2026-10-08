@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { REPLAY_EVENT, createTradeStore } from '../utils/trade-capture.js';
-import { updateTradeSummaries } from '../utils/trade-summary.js';
+import { REPLAY_EVENT, createTradeStore } from '../utils/trade-capture';
+import { updateTradeSummaries } from '../utils/trade-summary';
 
 const db = {
   's-card': { price: 1.25, rank: 'S' },

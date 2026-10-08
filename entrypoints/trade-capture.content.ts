@@ -1,5 +1,5 @@
 import { defineContentScript } from '#imports';
-import { installCapture } from '@/utils/trade-capture.js';
+import { installCapture } from '@/utils/trade-capture';
 
 export default defineContentScript({
   matches: ['*://*.senkuro.com/*', '*://*.senkuro.me/*'],

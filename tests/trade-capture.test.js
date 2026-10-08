@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { Window } from 'happy-dom';
 
-import { REPLAY_EVENT, TRADES_EVENT, captureServerPayload, captureTrades, createTradeStore, installCapture, listenForTrades } from '../utils/trade-capture.js';
+import { REPLAY_EVENT, TRADES_EVENT, captureServerPayload, captureTrades, createTradeStore, installCapture, listenForTrades } from '../utils/trade-capture';
 
 const preview = (slug, quantity = 1, shard = false) => ({
   __typename: 'CardPreview',

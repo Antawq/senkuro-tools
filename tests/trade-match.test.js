@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { matchOffer, matchTrade, matchTradeByCounts } from '../utils/trade-match.js';
+import { matchOffer, matchTrade, matchTradeByCounts } from '../utils/trade-match';
 
 const card = (slug, quantity = 1) => ({ slug, quantity, shard: false });
 const trade = (id, offer, request, source = 'Он', destination = 'Я') => ({

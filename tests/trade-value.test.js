@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { compareShards, compareSides, formatByRank, valueSide } from '../utils/trade-value.js';
+import { compareShards, compareSides, formatByRank, valueSide } from '../utils/trade-value';
 
 const db = {
   's-card': { price: 1.25, rank: 'S' },
