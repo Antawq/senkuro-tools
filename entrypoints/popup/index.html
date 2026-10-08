@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SenkuTools</title>
   <meta name="manifest.default_icon" content="{ '16': '/icon-16.png', '32': '/icon-32.png', '48': '/icon-48.png', '128': '/icon-128.png' }">
-  <!-- FIX: @import блокирует рендер popup — заменяем на неблокирующие link-теги -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
@@ -22,7 +21,6 @@
       overflow-x: hidden;
     }
     
-    /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: #1a1a24; }
     ::-webkit-scrollbar-thumb { background: #3b3b4f; border-radius: 4px; }
@@ -39,7 +37,6 @@
     }
     .toggle-container:hover { opacity: 0.9; }
     
-    /* Custom Checkbox */
     input[type="checkbox"] {
       appearance: none;
       -webkit-appearance: none;
@@ -68,7 +65,6 @@
     input[type="checkbox"]:checked { background: #6366f1; }
     input[type="checkbox"]:checked::after { transform: translateX(20px); }
 
-    /* Layout Helpers */
     .field-group {
       display: flex;
       flex-direction: column;
@@ -92,7 +88,6 @@
       font-size: 11px;
     }
 
-    /* Selects */
     select {
       width: 100%;
       padding: 8px 12px;
@@ -115,7 +110,6 @@
     select:hover { border-color: #6366f1; }
     select:focus { border-color: #818cf8; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2); }
     
-    /* Range Sliders */
     input[type="range"] {
       -webkit-appearance: none;
       width: 100%;
@@ -139,7 +133,6 @@
     input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
     input[type="range"]::-webkit-slider-thumb:active { transform: scale(1.1); background: #818cf8; }
 
-    /* Accordions */
     details.setting-group {
       background: #18181f;
       border: 1px solid #2d2d35;
@@ -158,7 +151,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      list-style: none; /* Hide default triangle */
+      list-style: none;
     }
     details.setting-group > summary::-webkit-details-marker {
       display: none;
@@ -216,11 +209,9 @@
       transform: translateY(-2px);
     }
     
-    /* Hover for links */
     a:hover { filter: brightness(1.2); transform: translateY(-1px); }
     a:active { transform: translateY(1px); }
 
-    /* Reset Button */
     button {
       margin-top: 20px;
       width: 100%;

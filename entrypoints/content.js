@@ -8,7 +8,7 @@ export default defineContentScript({
         let useCommission = true;
         let badgeOpacity = 75;
         let badgeStyle = "background";
-        let badgeFontSize = 16; // FIX: совпадает с дефолтом popup (16)
+        let badgeFontSize = 16;
         let badgePosition = "bottom-right";
         let showCopyBtn = false;
         let copyBtnSize = 18;
@@ -19,41 +19,30 @@ export default defineContentScript({
         let effectGreen = "price-effect-pulse";
         let effectWhite = "";
 
-        // Тач-устройство (мобилка)?
         const isTouchDevice = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
 
-        // Кэш декодирования src → charId
         const srcCache = new Map();
 
-        // WeakSet: img-элементы, на которые уже повешен обработчик load (вместо _senkuroLoadBound)
         const loadBoundImgs = new WeakSet();
 
-        // WeakSet: target-элементы, у которых уже проверили/выставили position:relative
-        // Избегаем повторных getComputedStyle (reflow) на каждом проходе
         const positionedTargets = new WeakSet();
 
-        // Флаг первого лога (не в window — не засоряем глобальный namespace)
         let senkuroLogged = false;
 
-        // SPA-навигация: отслеживаем смену URL
         let _lastPathname = location.pathname;
 
-        // Флаг: идёт рендер — MutationObserver не должен запускать новый цикл
         let _isRendering = false;
 
-        // ─── CSS ──────────────────────────────────────────────────────────────────
         if (!document.getElementById("senkuro-price-effects")) {
             const style = document.createElement("style");
             style.id = "senkuro-price-effects";
             style.textContent = `
-                /* Песочница для рендера (изолирует баги видеокарты в Firefox) */
                 .card-collect-preview__front[data-senkuro-price],
                 .card-collect-preview[data-senkuro-price],
                 a.card-collect[data-senkuro-price] {
                     isolation: isolate;
                 }
 
-                /* Базовые стили для псевдоэлемента-ценника */
                 .card-collect-preview__front[data-senkuro-price]::after,
                 .card-collect-preview[data-senkuro-price]::after,
                 a.card-collect[data-senkuro-price]::after {
@@ -78,12 +67,10 @@ export default defineContentScript({
                     overflow: hidden;
                     will-change: transform, opacity;
                     transform: translateZ(0);
-                    /* Скрываем ценник на задней стороне 3D-флипа */
                     backface-visibility: hidden;
                     -webkit-backface-visibility: hidden;
                 }
 
-                /* Стиль: Фон */
                 .card-collect-preview__front[data-senkuro-style="background"]::after,
                 .card-collect-preview[data-senkuro-style="background"]::after,
                 a.card-collect[data-senkuro-style="background"]::after {
@@ -92,7 +79,6 @@ export default defineContentScript({
                     border-radius: 4px;
                 }
 
-                /* Стиль: Обводка */
                 .card-collect-preview__front[data-senkuro-style="outline"]::after,
                 .card-collect-preview[data-senkuro-style="outline"]::after,
                 a.card-collect[data-senkuro-style="outline"]::after {
@@ -101,9 +87,7 @@ export default defineContentScript({
                     text-shadow: var(--s-outline, none);
                 }
 
-                /* ── Анимации ────────────────────────────────────────────────────── */
 
-                /* FIX: @keyframes были объявлены, но senkuro-pulse-text отсутствовал */
                 @keyframes senkuro-pulse-text {
                     0%   { transform: translateZ(0) scale(1);    opacity: 1;   }
                     100% { transform: translateZ(0) scale(1.15); opacity: 0.7; }
@@ -124,7 +108,6 @@ export default defineContentScript({
                     animation: senkuro-rgb 2.5s linear infinite 0.15s;
                 }
 
-                /* translateZ(0) в keyframes — сохраняем 3D-слой при анимации transform */
                 @keyframes senkuro-tilt {
                     0%   { transform: translateZ(0) rotate(-4deg); }
                     100% { transform: translateZ(0) rotate(4deg);  }
@@ -142,7 +125,6 @@ export default defineContentScript({
                     animation: senkuro-bg-pulse 0.8s infinite alternate ease-in-out 0.15s;
                 }
 
-                /* Кнопка копирования */
                 .senkuro-copy-btn {
                     position: absolute;
                     background: rgba(0, 0, 0, 0.6);
@@ -152,7 +134,6 @@ export default defineContentScript({
                     cursor: pointer;
                     z-index: 100;
                     pointer-events: auto;
-                    /* Всплываем поверх 3D-флипа, не рендеримся на задней стороне */
                     transform: translateZ(1px);
                     backface-visibility: hidden;
                     -webkit-backface-visibility: hidden;
@@ -178,8 +159,6 @@ export default defineContentScript({
             document.head.appendChild(style);
         }
 
-        // ─── Lookup-таблица позиций ───────────────────────────────────────────────
-        // ВАЖНО: объявляем ДО updatePricesOnPage — const не поднимается (TDZ)
         const POSITION_MAP = {
             "top-right":    { "--s-top": "5px",    "--s-right":  "5px", "--s-align": "right"  },
             "bottom-right": { "--s-bottom": "5px", "--s-right":  "5px", "--s-align": "right"  },
@@ -199,8 +178,6 @@ export default defineContentScript({
             }
         }
 
-        // ─── Кэш строк rgba ───────────────────────────────────────────────────────
-        // Объявляем ДО updatePricesOnPage по той же причине (TDZ)
         let _lastOpacity = -1;
         let _cachedBgColor = "";
         let _cachedOutline = "";
@@ -213,7 +190,6 @@ export default defineContentScript({
             _cachedOutline = `1px 1px 0 rgba(0,0,0,${op}),-1px -1px 0 rgba(0,0,0,${op}),1px -1px 0 rgba(0,0,0,${op}),-1px 1px 0 rgba(0,0,0,${op}),0px 2px 4px rgba(0,0,0,${op})`;
         }
 
-        // ─── Загрузка базы данных (ленивая) ───────────────────────────────────────
         let dbLoadPromise = null;
         async function loadDatabase() {
             if (database !== null) return database;
@@ -223,12 +199,10 @@ export default defineContentScript({
                 try {
                     const url = chrome.runtime.getURL("database.json");
                     const response = await fetch(url);
-                    // FIX: fetch не бросает исключение на HTTP-ошибках (404/500) — проверяем явно
                     if (!response.ok) throw new Error(`Senkuro DB fetch failed: HTTP ${response.status}`);
                     database = await response.json();
                 } catch (err) {
                     console.error("Senkuro Card Price: Ошибка загрузки database.json", err);
-                    // FIX: не записываем database = {}, иначе повторная попытка никогда не сработает
                     database = null;
                     dbLoadPromise = null;
                     return {};
@@ -239,9 +213,6 @@ export default defineContentScript({
             return dbLoadPromise;
         }
 
-        // ─── Загрузка настроек ────────────────────────────────────────────────────
-        // FIX: scheduleUpdate вызывается ВНУТРИ callback'а storage,
-        // гарантируя что первый рендер использует сохранённые настройки (а не дефолты)
         function updateCommissionSetting() {
             chrome.storage.local.get({
                 commission: true, copyBtn: true, copyBtnSize: 18, position: "top-right",
@@ -263,14 +234,11 @@ export default defineContentScript({
                 showCopyBtn   = result.copyBtn !== undefined ? result.copyBtn : true;
                 copyBtnSize   = result.copyBtnSize || 18;
                 showToken     = result.showToken !== undefined ? result.showToken : false;
-                // Запускаем рендер только ПОСЛЕ того как настройки загружены
                 scheduleUpdate();
-                // Токен-бейдж обновляем отдельно (не зависит от рендера карточек)
                 updateTokenDisplay();
             });
         }
 
-        // ─── Реакция на изменения настроек из popup ───────────────────────────────
         chrome.storage.onChanged.addListener((changes, area) => {
             if (area !== 'local') return;
 
@@ -289,11 +257,10 @@ export default defineContentScript({
             if (changes.copyBtnSize !== undefined) { copyBtnSize   = changes.copyBtnSize.newValue; needsUpdate = true; }
             if (changes.showToken   !== undefined) {
                 showToken = changes.showToken.newValue;
-                updateTokenDisplay(); // Не нужен полный ре-рендер карточек — только бейдж
+                updateTokenDisplay();
             }
 
             if (needsUpdate) {
-                // Сносим атрибуты со ВСЕХ target-элементов, а не только флаги на карточках
                 document.querySelectorAll("[data-senkuro-price]").forEach(el => {
                     el.removeAttribute("data-senkuro-price");
                     el.removeAttribute("data-senkuro-style");
@@ -304,7 +271,6 @@ export default defineContentScript({
             }
         });
 
-        // ─── Декодирование Base64 src → charId ───────────────────────────────────
         function extractCharIdFromSrc(src) {
             if (srcCache.has(src)) return srcCache.get(src);
 
@@ -313,25 +279,18 @@ export default defineContentScript({
                 const startIndex = src.indexOf('aHR0cHM');
                 if (startIndex !== -1) {
                     let base64Part = src.substring(startIndex);
-                    // FIX: URL-энкодинг '%2B'='+', '%2F'='/', '%3D'='=' — валидные base64 символы.
-                    // Без decode сплит по '%' ниже их обрезает → неверный paдинг → ошибка atob.
                     try { base64Part = decodeURIComponent(base64Part); } catch (_) {}
                     base64Part = base64Part.split('.')[0].split('&')[0];
                     while (base64Part.length % 4 !== 0) base64Part += '=';
 
-                    // FIX: escape() deprecated + не работает с Unicode > U+00FF (японские имена).
-                    // TextDecoder правильно декодирует UTF-8 байты из base64.
                     const bytes = Uint8Array.from(atob(base64Part), c => c.charCodeAt(0));
                     const decoded = new TextDecoder('utf-8').decode(bytes);
                     const match = decoded.match(/\/characters?\/(\d+)/i);
                     if (match && match[1]) {
                         result = match[1];
                     } else {
-                        // Жадный матч верный — берём весь base64-токен целиком.
                         const innerMatch = decoded.match(/\/characters?\/([A-Za-z0-9+/=]+)/i);
                         if (innerMatch && innerMatch[1]) {
-                            // FIX: убран жадный fallback /:(.+)/ — матчил порты, версии и т.д.
-                            // FIX: TextDecoder для вложенного base64 (как и на первом уровне)
                             const innerRaw = atob(innerMatch[1]);
                             let innerText = innerRaw;
                             try {
@@ -351,12 +310,9 @@ export default defineContentScript({
             return result;
         }
 
-        // ─── Основная функция отрисовки ценников ─────────────────────────────────
         async function updatePricesOnPage() {
             const db = await loadDatabase();
 
-            // Запрашиваем карточки ПОСЛЕ загрузки БД:
-            // React может добавить их во время await — не хотим пропустить
             const cards = document.querySelectorAll("a.card-collect");
             if (cards.length === 0) return;
 
@@ -366,13 +322,10 @@ export default defineContentScript({
             }
 
             cards.forEach(card => {
-                // 1. Получаем src (fallback на srcset для lazy-loading на мобиле)
                 const img = card.querySelector("img");
                 if (!img) return;
 
                 let imgSrc = img.src || "";
-                // Chrome: img без атрибута src возвращает URL текущей страницы через IDL.
-                // Проверяем на совпадение с базовым URL чтобы не кэшировать мусорный null.
                 if (imgSrc && imgSrc === document.baseURI) imgSrc = "";
                 if (!imgSrc || imgSrc.startsWith("data:")) {
                     const srcset = img.getAttribute("srcset") || img.getAttribute("data-srcset") || "";
@@ -380,7 +333,6 @@ export default defineContentScript({
                 }
 
                 if (!imgSrc || imgSrc.startsWith("data:")) {
-                    // Картинка ещё не загрузилась — подписываемся на load (WeakSet вместо _senkuroLoadBound)
                     if (!loadBoundImgs.has(img)) {
                         loadBoundImgs.add(img);
                         img.addEventListener("load", scheduleUpdate, { once: true });
@@ -388,33 +340,26 @@ export default defineContentScript({
                     return;
                 }
 
-                // 2. Достаем SLUG из ссылки
                 const href = card.getAttribute("href");
                 if (!href) return;
         
-                // Например: "/cards/sce-lloyd-frontera-r" -> "sce-lloyd-frontera-r"
                 const parts = href.split('/');
                 const slug = parts[parts.length - 1];
                 if (!slug) return;
 
-                // 3. Пропускаем если ценник уже на месте
                 if (card.dataset.priceBadgeAdded === slug) return;
 
-                // 4. Проверяем базу
                 if (!db[slug]) return;
 
-                // 5. Цена
                 let price = db[slug].price;
                 const charName = db[slug].name || "Неизвестно";
-                // Защита от некорректных данных в БД (строка/Infinity/NaN → toFixed → TypeError или "Infinity")
                 if (price === undefined || typeof price !== 'number' || !isFinite(price)) return;
 
                 if (useCommission) price *= 0.8;
 
                 const priceStr = price.toFixed(2);
-                const priceNum = +priceStr; // унарный + быстрее parseFloat
+                const priceNum = +priceStr;
 
-                // 6. Цвет и эффект по диапазону
                 let priceColor, textEffect = "", badgeEffect = "";
                 const applyEffect = (eff) => {
                     if (eff === "price-effect-bg") badgeEffect = eff;
@@ -427,12 +372,10 @@ export default defineContentScript({
                 else if (priceNum >= 1.60) { priceColor = "#4ade80"; applyEffect(effectGreen);  }
                 else                       { priceColor = "#ffffff"; applyEffect(effectWhite);  }
 
-                // 7. Находим target — кэшируем closest() чтобы не вызывать дважды
                 const frontEl   = card.closest('.card-collect-preview__front');
                 const previewEl = frontEl ? null : card.closest('.card-collect-preview');
                 const target    = frontEl || previewEl || card;
 
-                // 8. position:relative — getComputedStyle вызываем только 1 раз на элемент (WeakSet)
                 if (!positionedTargets.has(target)) {
                     if (getComputedStyle(target).position === "static") {
                         target.style.position = "relative";
@@ -440,7 +383,6 @@ export default defineContentScript({
                     positionedTargets.add(target);
                 }
 
-                // 9. Маленькая карточка?
                 const cardWidth = card.offsetWidth || card.getBoundingClientRect().width;
                 const isSmallCard = cardWidth > 0 && cardWidth < 60;
 
@@ -451,19 +393,16 @@ export default defineContentScript({
                     finalPadding  = "1px 3px";
                 }
 
-                // 10. Чистим атрибуты и кнопки с ВСЕХ возможных предков кроме нового target
-                //     Устраняет баг с двойным ценником при смене target между рендерами
                 const possibleTargets = [card, frontEl, previewEl];
                 for (const el of possibleTargets) {
                     if (el && el !== target) {
                         el.removeAttribute("data-senkuro-price");
                         el.removeAttribute("data-senkuro-style");
                         el.removeAttribute("data-senkuro-eff");
-                        el.querySelector(".senkuro-copy-btn")?.remove(); // убираем дубль кнопки
+                        el.querySelector(".senkuro-copy-btn")?.remove();
                     }
                 }
 
-                // 11. Применяем атрибуты на правильный target
                 target.setAttribute("data-senkuro-price", priceStr);
                 target.setAttribute("data-senkuro-style", badgeStyle);
                 target.setAttribute("data-senkuro-eff",   badgeEffect || textEffect || "none");
@@ -474,19 +413,17 @@ export default defineContentScript({
 
                 if (badgeStyle === "background") {
                     target.style.setProperty("--s-bg-color", _cachedBgColor);
-                    target.style.removeProperty("--s-outline"); // убираем стейл от прошлого стиля
+                    target.style.removeProperty("--s-outline");
                 } else {
                     target.style.setProperty("--s-outline", _cachedOutline);
-                    target.style.removeProperty("--s-bg-color"); // убираем стейл от прошлого стиля
+                    target.style.removeProperty("--s-bg-color");
                 }
 
-                // Пропускаем applyPosition если позиция не изменилась (7 DOM-операций на карточку)
                 if (target.dataset.badgePos !== badgePosition) {
                     target.dataset.badgePos = badgePosition;
                     applyPosition(target, badgePosition);
                 }
 
-                // 12. Кнопка копирования
                 if (showCopyBtn && !isSmallCard) {
                     let copyBtn = target.querySelector(".senkuro-copy-btn");
                     if (!copyBtn) {
@@ -496,10 +433,8 @@ export default defineContentScript({
                         target.appendChild(copyBtn);
                     }
 
-                    // btnSize один раз на весь блок кнопки
                     const btnSize = copyBtnSize;
 
-                    // Перерисовываем SVG + padding только при изменении размера
                     if (copyBtn.dataset.btnSize !== String(btnSize)) {
                         copyBtn.dataset.btnSize = String(btnSize);
                         copyBtn.style.padding = Math.max(2, Math.round(btnSize / 3.5)) + "px";
@@ -551,13 +486,10 @@ export default defineContentScript({
 
                 card.dataset.priceBadgeAdded = slug;
             });
-            // _isRendering сбрасывается в finally-блоке scheduleUpdate — не здесь
         }
 
-        // ─── Токен аккаунта ───────────────────────────────────────────────────────
         async function updateTokenDisplay() {
             console.log('[Senkuro Token] updateTokenDisplay вызван, showToken =', showToken);
-            // Убираем старый бейдж
             document.getElementById('senkuro-token-badge')?.remove();
             if (!showToken) {
                 console.log('[Senkuro Token] showToken=false — выходим');
@@ -566,14 +498,12 @@ export default defineContentScript({
 
             let token = null;
 
-            // Попытка 1: document.cookie (работает если куки НЕ HttpOnly)
             try {
                 const m = document.cookie.match(/(?:^|;\s*)access_token=([^;]+)/);
                 if (m) token = decodeURIComponent(m[1]);
                 console.log('[Senkuro Token] document.cookie:', token ? 'найден (' + token.substring(0,20) + '...)' : 'не найден');
             } catch (e) { console.warn('[Senkuro Token] document.cookie ошибка:', e); }
 
-            // Попытка 2: background.js через chrome.cookies API (работает с HttpOnly)
             if (!token) {
                 console.log('[Senkuro Token] Пробуем background.js...');
                 try {
@@ -602,7 +532,6 @@ export default defineContentScript({
             const badge = document.createElement('div');
             badge.id = 'senkuro-token-badge';
 
-            // Фиксированная полоса снизу — всегда видна независимо от структуры SPA
             Object.assign(badge.style, {
                 position:       'fixed',
                 bottom:         '0',
@@ -622,12 +551,10 @@ export default defineContentScript({
                 backdropFilter: 'blur(8px)',
             });
 
-            // Иконка + метка
             const label = document.createElement('span');
             label.textContent = '\uD83D\uDD11 Токен аккаунта:';
             label.style.cssText = 'color:#818cf8; font-weight:600; white-space:nowrap;';
 
-            // Статус — не сам токен, только факт наличия
             const statusSpan = document.createElement('span');
             if (token) {
                 statusSpan.textContent = 'обнаружен \u2713';
@@ -640,7 +567,6 @@ export default defineContentScript({
             badge.appendChild(label);
             badge.appendChild(statusSpan);
 
-            // Кнопка копирования — только если токен найден
             if (token) {
                 const copyBtn = document.createElement('button');
                 copyBtn.textContent = 'Копировать токен';
@@ -682,13 +608,11 @@ export default defineContentScript({
             document.body.appendChild(badge);
         }
 
-        // ─── Планировщик обновлений ───────────────────────────────────────────────
         let updateScheduled = false;
         function scheduleUpdate() {
             if (updateScheduled) return;
             updateScheduled = true;
 
-            // FIX: run() async — гарантируем сброс _isRendering даже при исключении (finally)
             const run = async () => {
                 updateScheduled = false;
                 _isRendering = true;
@@ -700,10 +624,6 @@ export default defineContentScript({
                 }
             };
 
-            // ПРИЧИНА бага «работает только при клике на popup»:
-            // requestIdleCallback на мобильных браузерах (Kiwi, Firefox for Android)
-            // откладывается до первого взаимодействия пользователя — то есть до открытия popup.
-            // Фикс: на тач-устройствах всегда используем setTimeout(0), который срабатывает сразу.
             if (!isTouchDevice && typeof requestIdleCallback !== 'undefined') {
                 requestIdleCallback(run, { timeout: 500 });
             } else {
@@ -711,16 +631,13 @@ export default defineContentScript({
             }
         }
 
-        // ─── MutationObserver ─────────────────────────────────────────────────────
         let debounceTimer = null;
         const DEBOUNCE_MS = 250;
 
         const observer = new MutationObserver((mutations) => {
-            // Игнорируем мутации которые сами же вызвали (_isRendering)
             if (_isRendering) return;
             let relevant = false;
             for (const m of mutations) {
-                // Новые узлы (React рендер) ИЛИ смена src/srcset lazy-loader'ом
                 if (m.addedNodes.length > 0 || m.type === 'attributes') {
                     relevant = true;
                     break;
@@ -735,20 +652,15 @@ export default defineContentScript({
         observer.observe(document.body, {
             childList:       true,
             subtree:         true,
-            // FIX: ловим смену img.src lazy-loaders (MutationObserver с childList
-            // не реагирует на изменение атрибутов — img может сменить src без добавления узлов)
             attributes:      true,
             attributeFilter: ['src', 'srcset', 'data-srcset'],
         });
 
-        // ─── SPA-навигация (React router / pushState) ─────────────────────────────
-        // Сбрасываем кэш src при переходе между страницами
         function onNavigate() {
             if (location.pathname === _lastPathname) return;
             _lastPathname = location.pathname;
             srcCache.clear();
             senkuroLogged = false;
-            // Сбрасываем все атрибуты на target-элементах (если React не удалил их при навигации)
             document.querySelectorAll("[data-senkuro-price]").forEach(el => {
                 el.removeAttribute("data-senkuro-price");
                 el.removeAttribute("data-senkuro-style");
@@ -758,34 +670,25 @@ export default defineContentScript({
             document.querySelectorAll(".senkuro-copy-btn").forEach(el => el.remove());
             document.querySelectorAll("a.card-collect").forEach(el => delete el.dataset.priceBadgeAdded);
             scheduleUpdate();
-            // Токен-бейдж: удаляем сразу, потом переинджектируем после React-рендера нового футера
             document.getElementById('senkuro-token-badge')?.remove();
             if (showToken) setTimeout(updateTokenDisplay, 800);
         }
 
-        // FIX: проверяем не обёрнут ли уже (при reinject content-scriptа)
         if (!history.pushState._senkuroPatched) {
             const _origPushState = history.pushState.bind(history);
             history.pushState = function (...args) { _origPushState(...args); onNavigate(); };
             history.pushState._senkuroPatched = true;
         }
-        // FIX: popstate тоже дублируется при reinject — снимаем старый обработчик
         if (window._senkuroNavHandler) {
             window.removeEventListener('popstate', window._senkuroNavHandler);
         }
         window._senkuroNavHandler = onNavigate;
         window.addEventListener('popstate', onNavigate);
 
-        // ─── Запуск ───────────────────────────────────────────────────────────────
         function _init() {
-            // Загружаем настройки и сразу запускаем первый рендер внутри callback'а
             updateCommissionSetting();
-            // Резервные попытки: React SPA рендерит карточки асинхронно.
-            // Если MutationObserver пропустил первый рендер — эти таймеры подхватят.
-            // scheduleUpdate() сам защищён от двойного запуска через updateScheduled.
             setTimeout(scheduleUpdate, 1500);
             setTimeout(scheduleUpdate, 4000);
-            // Токен-бейдж: небольшая задержка чтобы footer успел появиться
             setTimeout(updateTokenDisplay, 600);
         }
 

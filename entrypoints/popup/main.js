@@ -20,14 +20,11 @@ document.addEventListener("DOMContentLoaded", () => {
     showToken: false
   };
 
-  // FIX: дебаунс для слайдеров — предотвращает 20-50 полных перерисовок
-  // при быстром движении ползунка (каждый storage.set → полный ре-рендер всех карт)
   function debounce(fn, ms) {
     let t;
     return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
   }
 
-  // Загружаем состояние при открытии popup
   chrome.storage.local.get(defaults, (result) => {
     if (toggle)            toggle.checked           = result.commission;
     if (copyBtnToggle)     copyBtnToggle.checked     = result.copyBtn;
@@ -52,7 +49,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // Чекбоксы — мгновенно (не требуют дебаунса)
   if (toggle) {
     toggle.addEventListener("change", (e) => {
       chrome.storage.local.set({ commission: e.target.checked });
@@ -76,7 +72,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Слайдеры — с дебаунсом 150мс
   if (copyBtnSizeSlider) {
     const save = debounce((v) => chrome.storage.local.set({ copyBtnSize: v }), 150);
     copyBtnSizeSlider.addEventListener("input", (e) => {
@@ -101,7 +96,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Селекты — мгновенно
   if (posSelect) {
     posSelect.addEventListener("change", (e) => {
       chrome.storage.local.set({ position: e.target.value });
@@ -113,7 +107,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Эффекты — мгновенно
   ["Red","Purple","Yellow","Green","White"].forEach(color => {
     const el = document.getElementById("effect" + color);
     if (el) {
@@ -123,7 +116,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Сброс настроек
   if (resetBtn) {
     resetBtn.addEventListener("click", () => {
       chrome.storage.local.set(defaults, () => {
