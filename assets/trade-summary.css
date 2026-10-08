@@ -6,6 +6,7 @@
   --senkuro-step: 50ms;
   --senkuro-blur: 4px;
   --senkuro-shift: -4px;
+  --senkuro-touch: 36px;
   --senkuro-delay: calc(var(--senkuro-order, 0) * var(--senkuro-step));
   display: grid;
   grid-template-rows: 1fr;
@@ -76,6 +77,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .senkuro-trade-summary {
+    --senkuro-enter: 0ms;
+    --senkuro-exit: 0ms;
     --senkuro-blur: 0px;
     --senkuro-shift: 0px;
     animation: none;
@@ -89,6 +92,52 @@
 
 .senkuro-trade-summary--end .senkuro-trade-summary__content {
   padding-top: var(--senkuro-spacing);
+}
+
+.senkuro-trade-summary__details {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows var(--senkuro-enter) var(--senkuro-ease-out),
+    visibility 0s;
+}
+
+.senkuro-trade-summary__details > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.senkuro-trade-summary__toggle {
+  display: none;
+  align-self: center;
+  min-height: var(--senkuro-touch);
+  padding: 0 var(--senkuro-spacing);
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+@media (width < 576px), (height <= 480px) {
+  .senkuro-trade-summary--collapsible .senkuro-trade-summary__toggle {
+    display: block;
+  }
+
+  .senkuro-trade-summary--collapsible:not(.senkuro-trade-summary--expanded) .senkuro-trade-summary__details {
+    grid-template-rows: 0fr;
+    visibility: hidden;
+    transition:
+      grid-template-rows var(--senkuro-exit) var(--senkuro-ease-out),
+      visibility 0s linear var(--senkuro-exit);
+  }
+}
+
+@media (width < 576px) {
+  .senkuro-trade-summary {
+    --senkuro-spacing: 8px;
+  }
 }
 
 .senkuro-trade-summary__table {

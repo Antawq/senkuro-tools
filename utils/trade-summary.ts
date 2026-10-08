@@ -6,8 +6,12 @@ import { compareShards, compareSides, formatAmount, formatByRank, valueSide, typ
 
 const SUMMARY = 'senkuro-trade-summary';
 const CLOSED = `${SUMMARY}--closed`;
+const COLLAPSIBLE = `${SUMMARY}--collapsible`;
+const EXPANDED = `${SUMMARY}--expanded`;
 const STAGGER_LIMIT = 6;
 const UNKNOWN = `${SUMMARY}__unknown`;
+const EXPAND_LABEL = 'Раскрыть полностью';
+const COLLAPSE_LABEL = 'Скрыть';
 
 type RowKey = 'value' | 'bank' | 'count' | 'shards';
 
@@ -91,6 +95,24 @@ function table(sides: SideView[]): HTMLElement {
   return grid;
 }
 
+function expandToggle(summary: HTMLElement): HTMLButtonElement {
+  const button = element('button', `${SUMMARY}__toggle`);
+  button.type = 'button';
+  const sync = () => {
+    const expanded = summary.classList.contains(EXPANDED);
+    button.textContent = expanded ? COLLAPSE_LABEL : EXPAND_LABEL;
+    button.setAttribute('aria-expanded', String(expanded));
+  };
+  button.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    summary.classList.toggle(EXPANDED);
+    sync();
+  });
+  sync();
+  return button;
+}
+
 function mount(host: Element, placement: Placement, order: number): HTMLElement {
   const summary = element('div', `${SUMMARY} ${SUMMARY}--${placement}`);
   const gap = getComputedStyle(host).rowGap;
@@ -120,9 +142,12 @@ function render(host: Element, placement: Placement, caption: string | undefined
   summary.classList.remove(CLOSED);
   if (summary.dataset.signature === signature) return;
   summary.dataset.signature = signature;
+  summary.classList.toggle(COLLAPSIBLE, Boolean(verdict));
 
   const parts: HTMLElement[] = caption ? [element('div', `${SUMMARY}__label`, caption)] : [];
-  parts.push(table(sides));
+  const details = element('div', `${SUMMARY}__details`);
+  details.append(table(sides));
+  parts.push(details);
   const verdicts: [Verdict | null, string][] = [
     [verdict, ''],
     [shardVerdict, ` ${SUMMARY}__verdict--shards`],
@@ -132,6 +157,7 @@ function render(host: Element, placement: Placement, caption: string | undefined
     const state = result.complete ? `${SUMMARY}__verdict--${result.kind}` : UNKNOWN;
     parts.push(element('div', `${SUMMARY}__verdict ${state}${extra}`, result.text));
   }
+  if (verdict) parts.push(expandToggle(summary));
   summary.querySelector(`.${SUMMARY}__content`)?.replaceChildren(...parts);
 }
 

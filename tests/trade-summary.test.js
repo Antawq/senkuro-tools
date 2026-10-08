@@ -231,6 +231,23 @@ describe('updateTradeSummaries', () => {
     expect(summaryOf(el).sides[1]).toBe('Отдаёшь 1F банк 1F карты 1F');
   });
 
+  it('hides the table behind a toggle that keeps its state across redraws', () => {
+    const el = modal('', constructorFooter([card('a-card')], [card('s-card')]));
+    updateTradeSummaries(db, { commission: true }, store);
+    const summary = el.querySelector('.senkuro-trade-summary');
+    const toggle = () => summary.querySelector('.senkuro-trade-summary__toggle');
+    expect(summary.classList.contains('senkuro-trade-summary--collapsible')).toBe(true);
+    expect([toggle().textContent, toggle().getAttribute('aria-expanded')]).toEqual(['Раскрыть полностью', 'false']);
+    let bubbled = false;
+    el.addEventListener('click', () => (bubbled = true));
+    toggle().click();
+    expect(bubbled).toBe(false);
+    expect(summary.classList.contains('senkuro-trade-summary--expanded')).toBe(true);
+    el.querySelectorAll('.modal-trade__preview-cnt')[1].insertAdjacentHTML('beforeend', card('f-card'));
+    updateTradeSummaries(db, { commission: true }, store);
+    expect([toggle().textContent, toggle().getAttribute('aria-expanded')]).toEqual(['Скрыть', 'true']);
+  });
+
   it('does not touch the summary when nothing changed', () => {
     const el = modal('', constructorFooter([card('a-card')], [card('s-card')]));
     updateTradeSummaries(db, { commission: true }, store);
@@ -276,6 +293,8 @@ describe('trade lists outside the modal', () => {
       verdict: null,
       grayVerdict: false,
     });
+    expect(el.querySelector('.senkuro-trade-summary__toggle')).toBeNull();
+    expect(el.querySelector('.senkuro-trade-summary--collapsible')).toBeNull();
   });
 
   it('lets summaries that appear together come in one after another', () => {
