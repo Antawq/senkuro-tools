@@ -1,3 +1,5 @@
+import { copyFile } from 'node:fs/promises';
+
 import { defineConfig } from 'wxt';
 
 const SENKURO_HOSTS = ['*://*.senkuro.com/*', '*://*.senkuro.me/*'];
@@ -5,6 +7,12 @@ const SENKURO_HOSTS = ['*://*.senkuro.com/*', '*://*.senkuro.me/*'];
 export default defineConfig({
   imports: false,
   manifestVersion: 3,
+  zip: { excludeSources: ['**/*.local.*'] },
+  hooks: {
+    'zip:extension:done': async (wxt, zipPath) => {
+      if (wxt.config.browser === 'firefox') await copyFile(zipPath, zipPath.replace(/-firefox\.zip$/, '.xpi'));
+    },
+  },
   manifest: ({ browser }) => ({
     name: 'SenkuTools',
     permissions: ['storage', 'clipboardWrite', 'cookies'],

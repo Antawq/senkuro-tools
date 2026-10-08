@@ -1,0 +1,126 @@
+.senkuro-trade-summary {
+  --senkuro-spacing: 12px;
+  --senkuro-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --senkuro-enter: 300ms;
+  --senkuro-exit: 200ms;
+  --senkuro-step: 50ms;
+  --senkuro-blur: 4px;
+  --senkuro-shift: -4px;
+  --senkuro-delay: calc(var(--senkuro-order, 0) * var(--senkuro-step));
+  display: grid;
+  grid-template-rows: 1fr;
+  font-size: 1.4rem;
+  line-height: 143%;
+  color: var(--text-primary);
+  animation: senkuro-summary-grow var(--senkuro-enter) var(--senkuro-ease-out) var(--senkuro-delay) backwards;
+  transition:
+    grid-template-rows var(--senkuro-enter) var(--senkuro-ease-out),
+    visibility 0s;
+}
+
+.senkuro-trade-summary--start {
+  margin-bottom: calc(-1 * var(--senkuro-host-gap, 0px));
+}
+
+.senkuro-trade-summary--end {
+  margin-top: calc(-1 * var(--senkuro-host-gap, 0px));
+}
+
+.senkuro-trade-summary--closed {
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition:
+    grid-template-rows var(--senkuro-exit) var(--senkuro-ease-out) var(--senkuro-step),
+    visibility 0s linear calc(var(--senkuro-exit) + var(--senkuro-step));
+}
+
+.senkuro-trade-summary__body {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.senkuro-trade-summary__content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: senkuro-summary-reveal var(--senkuro-enter) var(--senkuro-ease-out) calc(var(--senkuro-delay) + var(--senkuro-step)) backwards;
+  transition:
+    opacity var(--senkuro-enter) var(--senkuro-ease-out) var(--senkuro-step),
+    filter var(--senkuro-enter) var(--senkuro-ease-out) var(--senkuro-step),
+    transform var(--senkuro-enter) var(--senkuro-ease-out) var(--senkuro-step);
+}
+
+.senkuro-trade-summary--closed .senkuro-trade-summary__content {
+  opacity: 0;
+  filter: blur(var(--senkuro-blur));
+  transform: translateY(var(--senkuro-shift));
+  transition:
+    opacity var(--senkuro-exit) var(--senkuro-ease-out),
+    filter var(--senkuro-exit) var(--senkuro-ease-out),
+    transform var(--senkuro-exit) var(--senkuro-ease-out);
+}
+
+@keyframes senkuro-summary-grow {
+  from {
+    grid-template-rows: 0fr;
+  }
+}
+
+@keyframes senkuro-summary-reveal {
+  from {
+    opacity: 0;
+    filter: blur(var(--senkuro-blur));
+    transform: translateY(var(--senkuro-shift));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .senkuro-trade-summary {
+    --senkuro-blur: 0px;
+    --senkuro-shift: 0px;
+    animation: none;
+    transition: visibility 0s;
+  }
+}
+
+.senkuro-trade-summary--start .senkuro-trade-summary__content {
+  padding-bottom: var(--senkuro-spacing);
+}
+
+.senkuro-trade-summary--end .senkuro-trade-summary__content {
+  padding-top: var(--senkuro-spacing);
+}
+
+.senkuro-trade-summary__table {
+  display: grid;
+  grid-template-columns: max-content repeat(var(--senkuro-columns, 2), minmax(0, 1fr));
+  column-gap: var(--senkuro-spacing);
+  align-items: baseline;
+  font-variant-numeric: tabular-nums;
+}
+
+.senkuro-trade-summary__side {
+  font-weight: 600;
+}
+
+.senkuro-trade-summary__label,
+.senkuro-trade-summary__unknown {
+  color: var(--text-tertiary);
+}
+
+.senkuro-trade-summary__verdict {
+  font-weight: 600;
+  text-align: center;
+}
+
+.senkuro-trade-summary__verdict--shards {
+  font-weight: 500;
+}
+
+.senkuro-trade-summary__verdict--gain {
+  color: var(--success);
+}
+
+.senkuro-trade-summary__verdict--loss {
+  color: var(--error);
+}

@@ -1,4 +1,8 @@
+import '@/assets/trade-summary.css';
 import { defineContentScript } from '#imports';
+import { effectivePrice, slugFromHref } from '@/utils/cards.js';
+import { createTradeStore, listenForTrades } from '@/utils/trade-capture.js';
+import { isTradeMutation, updateTradeSummaries } from '@/utils/trade-summary.js';
 
 export default defineContentScript({
   matches: ['*://*.senkuro.com/*', '*://*.senkuro.me/*'],
@@ -20,6 +24,8 @@ export default defineContentScript({
     let effectWhite = '';
 
     const isTouchDevice = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
+
+    const tradeStore = createTradeStore();
 
     const srcCache = new Map();
 
@@ -390,11 +396,7 @@ export default defineContentScript({
           return;
         }
 
-        const href = card.getAttribute('href');
-        if (!href) return;
-
-        const parts = href.split('/');
-        const slug = parts[parts.length - 1];
+        const slug = slugFromHref(card.getAttribute('href'));
         if (!slug) return;
 
         if (card.dataset.priceBadgeAdded === slug) return;
@@ -405,7 +407,7 @@ export default defineContentScript({
         const charName = db[slug].name || 'Неизвестно';
         if (price === undefined || typeof price !== 'number' || !isFinite(price)) return;
 
-        if (useCommission) price *= 0.8;
+        price = effectivePrice(price, useCommission);
 
         const priceStr = price.toFixed(2);
         const priceNum = +priceStr;
@@ -703,6 +705,7 @@ export default defineContentScript({
         try {
           rebuildOpacityCache();
           await updatePricesOnPage();
+          updateTradeSummaries(await loadDatabase(), { commission: useCommission }, tradeStore);
         } finally {
           _isRendering = false;
         }
@@ -722,7 +725,7 @@ export default defineContentScript({
       if (_isRendering) return;
       let relevant = false;
       for (const m of mutations) {
-        if (m.addedNodes.length > 0 || m.type === 'attributes') {
+        if (m.addedNodes.length > 0 || m.type === 'attributes' || isTradeMutation(m)) {
           relevant = true;
           break;
         }
@@ -736,6 +739,7 @@ export default defineContentScript({
     observer.observe(document.body, {
       childList: true,
       subtree: true,
+      characterData: true,
       attributes: true,
       attributeFilter: ['src', 'srcset', 'data-srcset'],
     });
@@ -773,6 +777,7 @@ export default defineContentScript({
     window.addEventListener('popstate', onNavigate);
 
     function _init() {
+      listenForTrades(tradeStore, scheduleUpdate);
       updateCommissionSetting();
       setTimeout(scheduleUpdate, 1500);
       setTimeout(scheduleUpdate, 4000);

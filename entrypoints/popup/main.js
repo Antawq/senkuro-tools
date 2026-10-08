@@ -11,6 +11,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const fontSizeSlider = document.getElementById('fontSizeSlider');
   const fontSizeValue = document.getElementById('fontSizeValue');
   const resetBtn = document.getElementById('resetBtn');
+  const versionLabel = document.getElementById('version');
+
+  if (versionLabel) versionLabel.textContent = `v${chrome.runtime.getManifest().version}`;
 
   const defaults = {
     commission: true,
