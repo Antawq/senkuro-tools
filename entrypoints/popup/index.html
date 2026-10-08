@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Senkuro Card Price</title>
+  <title>SenkuTools</title>
+  <meta name="manifest.default_icon" content="{ '16': '/icon-16.png', '32': '/icon-32.png', '48': '/icon-48.png', '128': '/icon-128.png' }">
   <!-- FIX: @import блокирует рендер popup — заменяем на неблокирующие link-теги -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -244,7 +245,7 @@
 </head>
 <body>
   <div class="header" style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px; justify-content: center;">
-    <img src="icon.png" width="32" height="32" alt="icon" style="border-radius: 6px;">
+    <img src="/icon.png" width="32" height="32" alt="icon" style="border-radius: 6px;">
     <h1 style="margin: 0; font-size: 18px; color: #f1f5f9; background: linear-gradient(90deg, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700;">SenkuTools</h1>
   </div>
 
@@ -399,6 +400,6 @@
     Сброс настроек
   </button>
   
-  <script src="popup.js"></script>
+  <script type="module" src="./main.js"></script>
 </body>
 </html>

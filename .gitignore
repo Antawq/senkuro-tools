@@ -1,3 +1,11 @@
-node_modules/
-.wxt/
-.output/
+node_modules
+.output
+.wxt
+stats.html
+stats-*.json
+web-ext.config.ts
+*.log
+
+.vscode/*
+!.vscode/extensions.json
+.idea
