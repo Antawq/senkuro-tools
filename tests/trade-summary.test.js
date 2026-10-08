@@ -257,6 +257,8 @@ describe('updateTradeSummaries', () => {
     expect(el.querySelector('.senkuro-trade-summary__table')).toBe(first);
     updateTradeSummaries(db, { commission: false }, store);
     expect(el.querySelector('.senkuro-trade-summary__table')).not.toBe(first);
+    updateTradeSummaries(db, { commission: false, valueBySplit: true }, store);
+    expect(summaryOf(el).sides).toEqual(['Получаешь 24F банк 1.5A карты 1A', 'Отдаёшь 40F банк 1.25S карты 1S']);
     expect(el.querySelector('.senkuro-trade-summary__content')).toBe(content);
   });
 });

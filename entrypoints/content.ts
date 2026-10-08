@@ -32,7 +32,7 @@ export default defineContentScript({
       try {
         const db = await loadDatabase();
         badges.update(db, settings);
-        updateTradeSummaries(db, { commission: settings.commission }, tradeStore);
+        updateTradeSummaries(db, { commission: settings.commission, valueBySplit: settings.valueBySplit }, tradeStore);
       } finally {
         rendering = false;
       }

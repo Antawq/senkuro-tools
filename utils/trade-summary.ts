@@ -2,7 +2,17 @@ import type { Database } from './database';
 import type { TradeStore } from './trade-capture';
 import { MODAL, readTradePlaces, type Column, type Placement, type Role } from './trade-dom';
 import { totalOf } from './trade-match';
-import { compareShards, compareSides, formatAmount, formatByRank, valueSide, type SideValue, type Verdict } from './trade-value';
+import {
+  CRAFT_PER_RANK,
+  SPLIT_PER_RANK,
+  compareShards,
+  compareSides,
+  formatAmount,
+  formatByRank,
+  valueSide,
+  type SideValue,
+  type Verdict,
+} from './trade-value';
 
 const SUMMARY = 'senkuro-trade-summary';
 const CLOSED = `${SUMMARY}--closed`;
@@ -24,6 +34,7 @@ const ROWS: [RowKey, string][] = [
 
 export interface SummarySettings {
   commission: boolean;
+  valueBySplit: boolean;
 }
 
 interface SideView {
@@ -39,8 +50,8 @@ interface SideView {
   shardF: string;
 }
 
-const describe = (column: Column, db: Database, { commission }: SummarySettings): SideView => {
-  const value = valueSide(column, db, commission);
+const describe = (column: Column, db: Database, { commission, valueBySplit }: SummarySettings): SideView => {
+  const value = valueSide(column, db, commission, valueBySplit ? SPLIT_PER_RANK : CRAFT_PER_RANK);
   return {
     role: column.role,
     label: column.label,

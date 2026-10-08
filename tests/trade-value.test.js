@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { compareShards, compareSides, formatByRank, valueSide } from '../utils/trade-value';
+import { SPLIT_PER_RANK, compareShards, compareSides, formatByRank, valueSide } from '../utils/trade-value';
 
 const db = {
   's-card': { price: 1.25, rank: 'S' },
@@ -19,6 +19,13 @@ describe('valueSide', () => {
     expect(formatByRank(side.bank)).toEqual(['1S', '2.4A', '1.6D', '1F']);
     expect(formatByRank(side.count)).toEqual(['1S', '2A', '1D', '1F']);
     expect(side.complete).toBe(true);
+  });
+
+  it('converts at two cards per step when the value follows splitting', () => {
+    const side = valueSide({ cards: [card('s-card'), card('d-card'), card('s-card', 1, true)], hidden: 0 }, db, true, SPLIT_PER_RANK);
+    expect(side.f).toBeCloseTo(32 + 1.6 * 2);
+    expect(formatByRank(side.bank)).toEqual(['1S', '1.6D']);
+    expect(side.shardF).toBeCloseTo(32);
   });
 
   it('uses the raw base price when the commission is off', () => {

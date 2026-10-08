@@ -18,6 +18,7 @@ export interface Settings {
   effectGreen: PriceEffect;
   effectWhite: PriceEffect;
   showToken: boolean;
+  valueBySplit: boolean;
 }
 
 export type SettingKey = keyof Settings;
@@ -36,6 +37,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = {
   effectGreen: 'price-effect-pulse',
   effectWhite: '',
   showToken: false,
+  valueBySplit: false,
 };
 
 const KEYS = Object.keys(DEFAULT_SETTINGS) as SettingKey[];

@@ -6,7 +6,7 @@ const SAVE_DELAY_MS = 150;
 const TOKEN_WARNING =
   'ВНИМАНИЕ!\nТокен дает полный доступ к вашему аккаунту Senkuro. \nНикогда не передавайте его третьим лицам! \nВы уверены, что хотите отобразить токен?';
 
-type ToggleKey = 'commission' | 'copyBtn' | 'showToken';
+type ToggleKey = 'commission' | 'copyBtn' | 'showToken' | 'valueBySplit';
 type SliderKey = 'copyBtnSize' | 'opacity' | 'fontSize';
 type ChoiceKey = 'position' | 'badgeStyle' | 'effectRed' | 'effectPurple' | 'effectYellow' | 'effectGreen' | 'effectWhite';
 
@@ -69,6 +69,7 @@ const bindings = [
   toggle('commissionToggle', 'commission'),
   toggle('copyBtnToggle', 'copyBtn'),
   toggle('showTokenToggle', 'showToken', TOKEN_WARNING),
+  toggle('valueBySplitToggle', 'valueBySplit'),
   slider('copyBtnSizeSlider', 'copyBtnSizeValue', 'px', 'copyBtnSize'),
   slider('opacitySlider', 'opacityValue', '%', 'opacity'),
   slider('fontSizeSlider', 'fontSizeValue', 'px', 'fontSize'),

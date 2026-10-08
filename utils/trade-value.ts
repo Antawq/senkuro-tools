@@ -34,12 +34,14 @@ export interface Verdict {
 }
 
 const FORGE_LADDER = ['F', 'D', 'C', 'B', 'A', 'S'];
-const CARDS_PER_FORGE = 3;
 const RANK_ORDER = ['R', 'S', 'A', 'B', 'C', 'D', 'F'];
 
-const rateInF = (rank: string | undefined): number | null => {
+export const CRAFT_PER_RANK = 3;
+export const SPLIT_PER_RANK = 2;
+
+const rateInF = (rank: string | undefined, perRank: number): number | null => {
   const step = rank ? FORGE_LADDER.indexOf(rank) : -1;
-  return step === -1 ? null : CARDS_PER_FORGE ** step;
+  return step === -1 ? null : perRank ** step;
 };
 
 const rankPosition = (rank: string): number => {
@@ -52,7 +54,7 @@ const addTo = (map: Map<string, number>, rank: string, amount: number) => map.se
 const priceOf = (entry: { price?: unknown } | undefined): number | null =>
   typeof entry?.price === 'number' && Number.isFinite(entry.price) ? entry.price : null;
 
-export function valueSide({ cards, hidden }: Side, db: Database, commission: boolean): SideValue {
+export function valueSide({ cards, hidden }: Side, db: Database, commission: boolean, perRank = CRAFT_PER_RANK): SideValue {
   const side = {
     f: 0,
     bank: new Map<string, number>(),
@@ -68,7 +70,7 @@ export function valueSide({ cards, hidden }: Side, db: Database, commission: boo
   for (const { slug, quantity, shard } of cards) {
     const entry = slug ? db[slug] : undefined;
     const price = priceOf(entry);
-    const rate = rateInF(entry?.rank);
+    const rate = rateInF(entry?.rank, perRank);
     if (shard) {
       if (price === null || !entry) {
         side.shardUnknown += quantity;
