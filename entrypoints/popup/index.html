@@ -1,396 +1,508 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SenkuTools</title>
-  <meta name="manifest.default_icon" content="{ '16': '/icon-16.png', '32': '/icon-32.png', '48': '/icon-48.png', '128': '/icon-128.png' }">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-  <style>
-    
-    body {
-      width: 270px;
-      padding: 16px;
-      margin: 0;
-      font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      font-size: 13px;
-      background-color: #121216;
-      color: #e2e8f0;
-      overflow-x: hidden;
-    }
-    
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: #1a1a24; }
-    ::-webkit-scrollbar-thumb { background: #3b3b4f; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #525270; }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SenkuTools</title>
+    <meta name="manifest.default_icon" content="{ '16': '/icon-16.png', '32': '/icon-32.png', '48': '/icon-48.png', '128': '/icon-128.png' }" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+    <style>
+      body {
+        width: 270px;
+        padding: 16px;
+        margin: 0;
+        font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-size: 13px;
+        background-color: #121216;
+        color: #e2e8f0;
+        overflow-x: hidden;
+      }
 
-    .toggle-container {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      cursor: pointer;
-      padding: 8px 0;
-      transition: opacity 0.2s;
-      font-weight: 500;
-    }
-    .toggle-container:hover { opacity: 0.9; }
-    
-    input[type="checkbox"] {
-      appearance: none;
-      -webkit-appearance: none;
-      width: 40px;
-      height: 20px;
-      background: #3f3f46;
-      border-radius: 20px;
-      position: relative;
-      cursor: pointer;
-      outline: none;
-      transition: background 0.3s ease;
-      flex-shrink: 0;
-    }
-    input[type="checkbox"]::after {
-      content: '';
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 16px;
-      height: 16px;
-      background: #fff;
-      border-radius: 50%;
-      transition: transform 0.3s ease;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    }
-    input[type="checkbox"]:checked { background: #6366f1; }
-    input[type="checkbox"]:checked::after { transform: translateX(20px); }
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #1a1a24;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #3b3b4f;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #525270;
+      }
 
-    .field-group {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 8px;
-      margin-top: 15px;
-    }
-    .field-title {
-      display: flex;
-      justify-content: space-between;
-      width: 100%;
-      font-weight: 500;
-      color: #94a3b8;
-    }
-    .field-value {
-      color: #f8fafc;
-      font-weight: 600;
-      background: #2d2d35;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 11px;
-    }
+      .toggle-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        padding: 8px 0;
+        transition: opacity 0.2s;
+        font-weight: 500;
+      }
+      .toggle-container:hover {
+        opacity: 0.9;
+      }
 
-    select {
-      width: 100%;
-      padding: 8px 12px;
-      border-radius: 6px;
-      background-color: #1e1e24;
-      border: 1px solid #3f3f46;
-      color: #f8fafc;
-      font-family: 'Inter', sans-serif;
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      outline: none;
-      transition: all 0.2s;
-      appearance: none;
-      background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2394a3b8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
-      background-repeat: no-repeat;
-      background-position: right 12px top 50%;
-      background-size: 10px auto;
-    }
-    select:hover { border-color: #6366f1; }
-    select:focus { border-color: #818cf8; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2); }
-    
-    input[type="range"] {
-      -webkit-appearance: none;
-      width: 100%;
-      height: 6px;
-      background: #3f3f46;
-      border-radius: 3px;
-      outline: none;
-      margin-top: 4px;
-    }
-    input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: #6366f1;
-      cursor: pointer;
-      transition: transform 0.1s;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    }
-    input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
-    input[type="range"]::-webkit-slider-thumb:active { transform: scale(1.1); background: #818cf8; }
+      input[type='checkbox'] {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 40px;
+        height: 20px;
+        background: #3f3f46;
+        border-radius: 20px;
+        position: relative;
+        cursor: pointer;
+        outline: none;
+        transition: background 0.3s ease;
+        flex-shrink: 0;
+      }
+      input[type='checkbox']::after {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 16px;
+        height: 16px;
+        background: #fff;
+        border-radius: 50%;
+        transition: transform 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
+      input[type='checkbox']:checked {
+        background: #6366f1;
+      }
+      input[type='checkbox']:checked::after {
+        transform: translateX(20px);
+      }
 
-    details.setting-group {
-      background: #18181f;
-      border: 1px solid #2d2d35;
-      border-radius: 8px;
-      margin-bottom: 12px;
-      overflow: hidden;
-    }
-    details.setting-group > summary {
-      padding: 12px 14px;
-      font-weight: 600;
-      cursor: pointer;
-      background: #1e1e24;
-      user-select: none;
-      outline: none;
-      color: #f1f5f9;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      list-style: none;
-    }
-    details.setting-group > summary::-webkit-details-marker {
-      display: none;
-    }
-    details.setting-group > summary::after {
-      content: '▼';
-      font-size: 10px;
-      color: #64748b;
-      transition: transform 0.2s;
-    }
-    details.setting-group[open] > summary::after {
-      transform: rotate(180deg);
-    }
-    details.setting-group > summary:hover {
-      background: #25252c;
-    }
-    .details-content {
-      padding: 12px;
-      border-top: 1px solid #2d2d35;
-    }
+      .field-group {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        margin-top: 15px;
+      }
+      .field-title {
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+        font-weight: 500;
+        color: #94a3b8;
+      }
+      .field-value {
+        color: #f8fafc;
+        font-weight: 600;
+        background: #2d2d35;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 11px;
+      }
 
-    hr { margin: 20px 0; border: 0; border-top: 1px solid #2d2d35; display: none; }
-    
-    h3 {
-      margin: 0 0 12px 0;
-      font-size: 14px;
-      text-align: center;
-      color: #f1f5f9;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      background: linear-gradient(90deg, #818cf8, #c084fc);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    
-    .anim-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-    .anim-grid label {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      font-size: 12px;
-      background: #18181f;
-      padding: 10px;
-      border-radius: 8px;
-      border: 1px solid #2d2d35;
-      transition: border-color 0.2s, transform 0.2s;
-    }
-    .anim-grid label:hover {
-      border-color: #4b5563;
-      transform: translateY(-2px);
-    }
-    
-    a:hover { filter: brightness(1.2); transform: translateY(-1px); }
-    a:active { transform: translateY(1px); }
+      select {
+        width: 100%;
+        padding: 8px 12px;
+        border-radius: 6px;
+        background-color: #1e1e24;
+        border: 1px solid #3f3f46;
+        color: #f8fafc;
+        font-family: 'Inter', sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        outline: none;
+        transition: all 0.2s;
+        appearance: none;
+        background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2394a3b8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
+        background-repeat: no-repeat;
+        background-position: right 12px top 50%;
+        background-size: 10px auto;
+      }
+      select:hover {
+        border-color: #6366f1;
+      }
+      select:focus {
+        border-color: #818cf8;
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+      }
 
-    button {
-      margin-top: 20px;
-      width: 100%;
-      padding: 10px;
-      background: #334155;
-      color: white;
-      border: 1px solid #475569;
-      border-radius: 6px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      font-size: 14px;
-      font-weight: 600;
-      transition: all 0.2s;
-      font-family: 'Inter', sans-serif;
-    }
-    button:hover { background: #475569; border-color: #64748b; }
-    button:active { transform: scale(0.98); }
-  </style>
-</head>
-<body>
-  <div class="header" style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px; justify-content: center;">
-    <img src="/icon.png" width="32" height="32" alt="icon" style="border-radius: 6px;">
-    <h1 style="margin: 0; font-size: 18px; color: #f1f5f9; background: linear-gradient(90deg, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700;">SenkuTools</h1>
-  </div>
+      input[type='range'] {
+        -webkit-appearance: none;
+        width: 100%;
+        height: 6px;
+        background: #3f3f46;
+        border-radius: 3px;
+        outline: none;
+        margin-top: 4px;
+      }
+      input[type='range']::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #6366f1;
+        cursor: pointer;
+        transition: transform 0.1s;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+      input[type='range']::-webkit-slider-thumb:hover {
+        transform: scale(1.2);
+      }
+      input[type='range']::-webkit-slider-thumb:active {
+        transform: scale(1.1);
+        background: #818cf8;
+      }
 
-  <details class="setting-group" open>
-    <summary>Связь и Поддержка</summary>
-    <div class="details-content" style="display: flex; flex-direction: column; gap: 10px;">
-      <a href="https://t.me/SenkuTools" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; color: #818cf8; text-decoration: none; font-weight: 500; padding: 8px; background: #25252c; border-radius: 6px; border: 1px solid #3b3b4f; transition: all 0.2s;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"></path><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-        Telegram @SenkuTools
-      </a>
-      
-      <div style="font-size: 11px; color: #94a3b8; text-align: center; margin-bottom: -4px;">Поддержать автора карточкой:</div>
-      <div style="display: flex; gap: 8px;">
-        <a href="https://senkuro.com/users/phaivroh" target="_blank" style="flex: 1; text-align: center; color: #4ade80; text-decoration: none; font-weight: 600; padding: 6px; background: rgba(74, 222, 128, 0.1); border-radius: 6px; border: 1px solid rgba(74, 222, 128, 0.2); transition: all 0.2s;">.COM</a>
-        <a href="https://senkuro.me/users/phaivroh" target="_blank" style="flex: 1; text-align: center; color: #4ade80; text-decoration: none; font-weight: 600; padding: 6px; background: rgba(74, 222, 128, 0.1); border-radius: 6px; border: 1px solid rgba(74, 222, 128, 0.2); transition: all 0.2s;">.ME</a>
-      </div>
+      details.setting-group {
+        background: #18181f;
+        border: 1px solid #2d2d35;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        overflow: hidden;
+      }
+      details.setting-group > summary {
+        padding: 12px 14px;
+        font-weight: 600;
+        cursor: pointer;
+        background: #1e1e24;
+        user-select: none;
+        outline: none;
+        color: #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        list-style: none;
+      }
+      details.setting-group > summary::-webkit-details-marker {
+        display: none;
+      }
+      details.setting-group > summary::after {
+        content: '▼';
+        font-size: 10px;
+        color: #64748b;
+        transition: transform 0.2s;
+      }
+      details.setting-group[open] > summary::after {
+        transform: rotate(180deg);
+      }
+      details.setting-group > summary:hover {
+        background: #25252c;
+      }
+      .details-content {
+        padding: 12px;
+        border-top: 1px solid #2d2d35;
+      }
+
+      hr {
+        margin: 20px 0;
+        border: 0;
+        border-top: 1px solid #2d2d35;
+        display: none;
+      }
+
+      h3 {
+        margin: 0 0 12px 0;
+        font-size: 14px;
+        text-align: center;
+        color: #f1f5f9;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        background: linear-gradient(90deg, #818cf8, #c084fc);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .anim-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .anim-grid label {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 12px;
+        background: #18181f;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid #2d2d35;
+        transition:
+          border-color 0.2s,
+          transform 0.2s;
+      }
+      .anim-grid label:hover {
+        border-color: #4b5563;
+        transform: translateY(-2px);
+      }
+
+      a:hover {
+        filter: brightness(1.2);
+        transform: translateY(-1px);
+      }
+      a:active {
+        transform: translateY(1px);
+      }
+
+      button {
+        margin-top: 20px;
+        width: 100%;
+        padding: 10px;
+        background: #334155;
+        color: white;
+        border: 1px solid #475569;
+        border-radius: 6px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        transition: all 0.2s;
+        font-family: 'Inter', sans-serif;
+      }
+      button:hover {
+        background: #475569;
+        border-color: #64748b;
+      }
+      button:active {
+        transform: scale(0.98);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header" style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px; justify-content: center">
+      <img src="/icon.png" width="32" height="32" alt="icon" style="border-radius: 6px" />
+      <h1
+        style="
+          margin: 0;
+          font-size: 18px;
+          color: #f1f5f9;
+          background: linear-gradient(90deg, #818cf8, #c084fc);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          font-weight: 700;
+        "
+      >
+        SenkuTools
+      </h1>
     </div>
-  </details>
 
-  <details class="setting-group" open>
-    <summary>Основные & Внешний вид</summary>
-    <div class="details-content">
-      <label class="toggle-container" style="margin-top: 0; padding-top: 0;">
-        <input type="checkbox" id="commissionToggle" checked>
-        <span style="color: #cbd5e1;">Учитывать комиссию (-20%)</span>
-      </label>
+    <details class="setting-group" open>
+      <summary>Связь и Поддержка</summary>
+      <div class="details-content" style="display: flex; flex-direction: column; gap: 10px">
+        <a
+          href="https://t.me/SenkuTools"
+          target="_blank"
+          style="
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: #818cf8;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 8px;
+            background: #25252c;
+            border-radius: 6px;
+            border: 1px solid #3b3b4f;
+            transition: all 0.2s;
+          "
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 2L11 13"></path>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+          Telegram @SenkuTools
+        </a>
 
-      <div class="field-group">
-        <div class="field-title">Расположение цены:</div>
-        <select id="positionSelect">
-          <option value="bottom-right">Снизу справа</option>
-          <option value="top-right">Сверху справа</option>
-          <option value="center-right">По центру справа</option>
-          <option value="top-left">Сверху слева</option>
-          <option value="center-left">По центру слева</option>
-          <option value="bottom-left">Снизу слева</option>
-          <option value="center">Прямо по центру</option>
-        </select>
+        <div style="font-size: 11px; color: #94a3b8; text-align: center; margin-bottom: -4px">Поддержать автора карточкой:</div>
+        <div style="display: flex; gap: 8px">
+          <a
+            href="https://senkuro.com/users/phaivroh"
+            target="_blank"
+            style="
+              flex: 1;
+              text-align: center;
+              color: #4ade80;
+              text-decoration: none;
+              font-weight: 600;
+              padding: 6px;
+              background: rgba(74, 222, 128, 0.1);
+              border-radius: 6px;
+              border: 1px solid rgba(74, 222, 128, 0.2);
+              transition: all 0.2s;
+            "
+            >.COM</a
+          >
+          <a
+            href="https://senkuro.me/users/phaivroh"
+            target="_blank"
+            style="
+              flex: 1;
+              text-align: center;
+              color: #4ade80;
+              text-decoration: none;
+              font-weight: 600;
+              padding: 6px;
+              background: rgba(74, 222, 128, 0.1);
+              border-radius: 6px;
+              border: 1px solid rgba(74, 222, 128, 0.2);
+              transition: all 0.2s;
+            "
+            >.ME</a
+          >
+        </div>
       </div>
-      
-      <div class="field-group">
-        <div class="field-title">Оформление текста:</div>
-        <select id="styleSelect">
-          <option value="background">Черный фон</option>
-          <option value="outline">Черный контур (обводка)</option>
-        </select>
-      </div>
+    </details>
 
-      <div class="field-group">
-        <div class="field-title">Прозрачность фона: <span class="field-value" id="opacityValue">75%</span></div>
-        <input type="range" id="opacitySlider" min="0" max="100" value="75">
-      </div>
-      
-      <div class="field-group">
-        <div class="field-title">Размер текста: <span class="field-value" id="fontSizeValue">16px</span></div>
-        <input type="range" id="fontSizeSlider" min="9" max="24" value="16">
-      </div>
-    </div>
-  </details>
-
-  <details class="setting-group">
-    <summary>Копирование имени</summary>
-    <div class="details-content">
-      <label class="toggle-container" style="margin-top: 0; padding-top: 0;">
-        <input type="checkbox" id="copyBtnToggle">
-        <span style="color: #cbd5e1;">Показывать кнопку</span>
-      </label>
-      <div class="field-group">
-        <div class="field-title">Размер кнопки: <span class="field-value" id="copyBtnSizeValue">18px</span></div>
-        <input type="range" id="copyBtnSizeSlider" min="10" max="24" value="18">
-      </div>
-    </div>
-  </details>
-  
-  <details class="setting-group">
-    <summary>Анимации (по редкости)</summary>
-    <div class="details-content">
-      <div class="anim-grid">
-        <label>
-          <span style="color: #f87171; font-weight: 600;">Красные (3.0+)</span>
-          <select id="effectRed">
-            <option value="">Нет</option>
-            <option value="price-effect-pulse">Пульсация</option>
-            <option value="price-effect-rgb">Радуга</option>
-            <option value="price-effect-tilt">Маятник</option>
-            <option value="price-effect-bg">Фон</option>
-          </select>
+    <details class="setting-group" open>
+      <summary>Основные & Внешний вид</summary>
+      <div class="details-content">
+        <label class="toggle-container" style="margin-top: 0; padding-top: 0">
+          <input type="checkbox" id="commissionToggle" checked />
+          <span style="color: #cbd5e1">Учитывать комиссию (-20%)</span>
         </label>
-        
-        <label>
-          <span style="color: #fbbf24; font-weight: 600;">Желтые (2.4+)</span>
-          <select id="effectYellow">
-            <option value="">Нет</option>
-            <option value="price-effect-pulse">Пульсация</option>
-            <option value="price-effect-rgb">Радуга</option>
-            <option value="price-effect-tilt">Маятник</option>
-            <option value="price-effect-bg">Фон</option>
+
+        <div class="field-group">
+          <div class="field-title">Расположение цены:</div>
+          <select id="positionSelect">
+            <option value="bottom-right">Снизу справа</option>
+            <option value="top-right">Сверху справа</option>
+            <option value="center-right">По центру справа</option>
+            <option value="top-left">Сверху слева</option>
+            <option value="center-left">По центру слева</option>
+            <option value="bottom-left">Снизу слева</option>
+            <option value="center">Прямо по центру</option>
           </select>
-        </label>
-        
-        <label>
-          <span style="color: #c084fc; font-weight: 600;">Фиолетовые (2.0+)</span>
-          <select id="effectPurple">
-            <option value="">Нет</option>
-            <option value="price-effect-pulse">Пульсация</option>
-            <option value="price-effect-rgb">Радуга</option>
-            <option value="price-effect-tilt">Маятник</option>
-            <option value="price-effect-bg">Фон</option>
+        </div>
+
+        <div class="field-group">
+          <div class="field-title">Оформление текста:</div>
+          <select id="styleSelect">
+            <option value="background">Черный фон</option>
+            <option value="outline">Черный контур (обводка)</option>
           </select>
-        </label>
-        
-        <label>
-          <span style="color: #4ade80; font-weight: 600;">Зеленые (1.6+)</span>
-          <select id="effectGreen">
-            <option value="">Нет</option>
-            <option value="price-effect-pulse">Пульсация</option>
-            <option value="price-effect-rgb">Радуга</option>
-            <option value="price-effect-tilt">Маятник</option>
-            <option value="price-effect-bg">Фон</option>
-          </select>
-        </label>
-        
-        <label style="grid-column: span 2;">
-          <span style="color: #e2e8f0; font-weight: 600;">Белые (&lt; 1.6)</span>
-          <select id="effectWhite">
-            <option value="">Нет</option>
-            <option value="price-effect-pulse">Пульсация</option>
-            <option value="price-effect-rgb">Радуга</option>
-            <option value="price-effect-tilt">Маятник</option>
-            <option value="price-effect-bg">Фон</option>
-          </select>
-        </label>
+        </div>
+
+        <div class="field-group">
+          <div class="field-title">Прозрачность фона: <span class="field-value" id="opacityValue">75%</span></div>
+          <input type="range" id="opacitySlider" min="0" max="100" value="75" />
+        </div>
+
+        <div class="field-group">
+          <div class="field-title">Размер текста: <span class="field-value" id="fontSizeValue">16px</span></div>
+          <input type="range" id="fontSizeSlider" min="9" max="24" value="16" />
+        </div>
       </div>
-    </div>
-  </details>
+    </details>
 
-  <details class="setting-group">
-    <summary>Скрытые настройки</summary>
-    <div class="details-content">
-      <label class="toggle-container" style="margin-top: 0; padding-top: 0;">
-        <input type="checkbox" id="showTokenToggle">
-        <span style="color: #cbd5e1;">Показывать токен аккаунта</span>
-      </label>
-      <p style="font-size: 11px; color: #94a3b8; line-height: 1.4; margin-top: 8px;">
-        Этот токен может быть использован для входа в ваш аккаунт. <strong>Никогда не передавайте его третьим лицам!</strong>
-      </p>
-    </div>
-  </details>
+    <details class="setting-group">
+      <summary>Копирование имени</summary>
+      <div class="details-content">
+        <label class="toggle-container" style="margin-top: 0; padding-top: 0">
+          <input type="checkbox" id="copyBtnToggle" />
+          <span style="color: #cbd5e1">Показывать кнопку</span>
+        </label>
+        <div class="field-group">
+          <div class="field-title">Размер кнопки: <span class="field-value" id="copyBtnSizeValue">18px</span></div>
+          <input type="range" id="copyBtnSizeSlider" min="10" max="24" value="18" />
+        </div>
+      </div>
+    </details>
 
-  <button id="resetBtn">
-    <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-    Сброс настроек
-  </button>
-  
-  <script type="module" src="./main.js"></script>
-</body>
+    <details class="setting-group">
+      <summary>Анимации (по редкости)</summary>
+      <div class="details-content">
+        <div class="anim-grid">
+          <label>
+            <span style="color: #f87171; font-weight: 600">Красные (3.0+)</span>
+            <select id="effectRed">
+              <option value="">Нет</option>
+              <option value="price-effect-pulse">Пульсация</option>
+              <option value="price-effect-rgb">Радуга</option>
+              <option value="price-effect-tilt">Маятник</option>
+              <option value="price-effect-bg">Фон</option>
+            </select>
+          </label>
+
+          <label>
+            <span style="color: #fbbf24; font-weight: 600">Желтые (2.4+)</span>
+            <select id="effectYellow">
+              <option value="">Нет</option>
+              <option value="price-effect-pulse">Пульсация</option>
+              <option value="price-effect-rgb">Радуга</option>
+              <option value="price-effect-tilt">Маятник</option>
+              <option value="price-effect-bg">Фон</option>
+            </select>
+          </label>
+
+          <label>
+            <span style="color: #c084fc; font-weight: 600">Фиолетовые (2.0+)</span>
+            <select id="effectPurple">
+              <option value="">Нет</option>
+              <option value="price-effect-pulse">Пульсация</option>
+              <option value="price-effect-rgb">Радуга</option>
+              <option value="price-effect-tilt">Маятник</option>
+              <option value="price-effect-bg">Фон</option>
+            </select>
+          </label>
+
+          <label>
+            <span style="color: #4ade80; font-weight: 600">Зеленые (1.6+)</span>
+            <select id="effectGreen">
+              <option value="">Нет</option>
+              <option value="price-effect-pulse">Пульсация</option>
+              <option value="price-effect-rgb">Радуга</option>
+              <option value="price-effect-tilt">Маятник</option>
+              <option value="price-effect-bg">Фон</option>
+            </select>
+          </label>
+
+          <label style="grid-column: span 2">
+            <span style="color: #e2e8f0; font-weight: 600">Белые (&lt; 1.6)</span>
+            <select id="effectWhite">
+              <option value="">Нет</option>
+              <option value="price-effect-pulse">Пульсация</option>
+              <option value="price-effect-rgb">Радуга</option>
+              <option value="price-effect-tilt">Маятник</option>
+              <option value="price-effect-bg">Фон</option>
+            </select>
+          </label>
+        </div>
+      </div>
+    </details>
+
+    <details class="setting-group">
+      <summary>Скрытые настройки</summary>
+      <div class="details-content">
+        <label class="toggle-container" style="margin-top: 0; padding-top: 0">
+          <input type="checkbox" id="showTokenToggle" />
+          <span style="color: #cbd5e1">Показывать токен аккаунта</span>
+        </label>
+        <p style="font-size: 11px; color: #94a3b8; line-height: 1.4; margin-top: 8px">
+          Этот токен может быть использован для входа в ваш аккаунт. <strong>Никогда не передавайте его третьим лицам!</strong>
+        </p>
+      </div>
+    </details>
+
+    <button id="resetBtn">
+      <svg style="width: 16px; height: 16px" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+        ></path>
+      </svg>
+      Сброс настроек
+    </button>
+
+    <script type="module" src="./main.js"></script>
+  </body>
 </html>
