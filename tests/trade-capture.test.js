@@ -115,6 +115,56 @@ describe('installCapture', () => {
     await win.happyDOM.close();
   });
 
+  const answer = () => new Response(JSON.stringify({ data: { cardTrade: trade } }), { headers: { 'content-type': 'application/json' } });
+
+  it.each([
+    ['as bytes', (response) => response.arrayBuffer()],
+    ['through a clone', (response) => response.clone().json()],
+    [
+      'through the body stream',
+      async (response) => {
+        const reader = response.body.getReader();
+        while (!(await reader.read()).done);
+      },
+    ],
+    ['never', async () => undefined],
+  ])('takes the answer whichever way the site reads it: %s', async (_name, read) => {
+    const { win, seen } = page(async () => answer());
+    await read(await win.fetch('https://api.senkuro.me/graphql', { method: 'POST' }));
+    await settle();
+    expect(seen.at(-1).items.map((item) => item.id)).toEqual(['t1']);
+    await win.happyDOM.close();
+  });
+
+  it('does not touch the answer the site is given', async () => {
+    const { win } = page(async () => answer());
+    const given = await win.fetch('https://api.senkuro.me/graphql', { method: 'POST' });
+    expect((await given.json()).data.cardTrade.id).toBe('t1');
+    await win.happyDOM.close();
+  });
+
+  it('stays silent unless the debug switch is set, then tells what it sees', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const quiet = page(async () => answer());
+    await quiet.win.fetch('https://api.senkuro.me/graphql', { method: 'POST' });
+    await settle();
+    expect(log).not.toHaveBeenCalled();
+    await quiet.win.happyDOM.close();
+
+    const loud = new Window({ url: 'https://senkuro.me/notifications/all' });
+    loud.localStorage.setItem('senkutoolsDebug', '1');
+    loud.fetch = async () => answer();
+    installCapture(loud);
+    await loud.fetch('https://api.senkuro.me/graphql', { method: 'POST' });
+    await settle();
+    const lines = log.mock.calls.map(([, ...rest]) => JSON.stringify(rest));
+    expect(lines.some((line) => line.includes('capture installed'))).toBe(true);
+    expect(lines.some((line) => line.includes('"streamed":false'))).toBe(true);
+    expect(lines.some((line) => line.includes('"items":1'))).toBe(true);
+    await loud.happyDOM.close();
+    log.mockRestore();
+  });
+
   it('leaves other requests alone', async () => {
     const { win, seen } = page(async () => new Response(JSON.stringify({ cardTrade: trade })));
     await (await win.fetch('https://senkuro.me/assets/data.json')).json();

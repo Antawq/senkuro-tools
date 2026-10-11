@@ -1,4 +1,5 @@
 import { slugFromHref } from './cards';
+import { debugLogger } from './debug';
 import { REPLAY_EVENT, type Trade, type TradeStore } from './trade-capture';
 import { matchOffer, matchTrade, matchTradeByCounts, shows } from './trade-match';
 import type { CardRef, Side } from './trade-value';
@@ -151,14 +152,36 @@ const surfaceOf = (card: Element): Element => {
   return surface;
 };
 
-const readOffers = (store: TradeStore): Place[] =>
-  [...document.querySelectorAll('.offer-card')].map((card) => {
+const unmatched = new Set<string>();
+
+const readOffers = (store: TradeStore): Place[] => {
+  const debug = debugLogger();
+  return [...document.querySelectorAll('.offer-card')].map((card) => {
     const host = surfaceOf(card);
     const top = { cards: readCards(card.querySelector('.offer-card__top-list')), hidden: numberIn(card.querySelector('.offer-card__top-more')) };
     const middle = { cards: readCards(card.querySelector('.offer-card__cnt-list')), hidden: numberIn(card.querySelector('.offer-card__cnt-el-more')) };
     const author = card.querySelector('.offer-card__top h3 span')?.textContent?.trim() ?? '';
     const offer = matchOffer(store.offers(), author, top, middle);
-    if (!offer) return { host, placement: 'end', variant: 'offer', columns: null };
+    if (!offer) {
+      const key = `${author}|${store.offers().length}`;
+      if (!unmatched.has(key)) {
+        unmatched.add(key);
+        const first = (side: Side) => ({ shown: side.cards.map(({ slug, quantity }) => `${slug}x${quantity}`), hidden: side.hidden });
+        const stored = store.offers().filter((candidate) => candidate.author.name === author);
+        debug('offer not matched', {
+          author,
+          top: first(top),
+          middle: first(middle),
+          captured: store.offers().length,
+          sameAuthor: stored.map((candidate) => ({
+            offer: candidate.offer.length,
+            request: candidate.request.length,
+            first: [candidate.offer[0]?.slug, candidate.request[0]?.slug],
+          })),
+        });
+      }
+      return { host, placement: 'end', variant: 'offer', columns: null };
+    }
     const [give, get] = offer.viewerDidAuthor ? [offer.offer, offer.request] : [offer.request, offer.offer];
     return {
       host,
@@ -168,6 +191,7 @@ const readOffers = (store: TradeStore): Place[] =>
       columns: [column('give', whole(give)), column('get', whole(get))],
     };
   });
+};
 
 const readNotifications = (store: TradeStore): Place[] =>
   [...document.querySelectorAll('.card-notif__info')].flatMap((host) => {

@@ -1,3 +1,4 @@
+import { debugLogger } from './debug';
 import type { CardRef } from './trade-value';
 
 export const TRADES_EVENT = 'senkutools:trades';
@@ -155,6 +156,7 @@ export const isGraphqlRequest = (input: unknown, base: string): boolean => {
 };
 
 export function installCapture(win: CapturingWindow): void {
+  const debug = debugLogger(win);
   const store = createTradeStore();
   const publish = (found: Capture) => win.document.dispatchEvent(new win.CustomEvent(TRADES_EVENT, { detail: JSON.stringify(found) }));
   const take = (found: Capture) => {
@@ -163,27 +165,22 @@ export function installCapture(win: CapturingWindow): void {
     publish(found);
   };
   const handle = (json: unknown) => {
-    if (json) take(captureTrades(json));
-  };
-  const later = (json: unknown) => {
-    Promise.resolve(json)
-      .then(handle)
-      .catch(() => null);
+    if (!json) return;
+    const found = captureTrades(json);
+    debug('answer read', { top: Object.keys((json as { data?: object }).data ?? json), items: found.items.length, viewer: Boolean(found.viewerId) });
+    take(found);
   };
 
   const observe = (response: Response): Response => {
-    const readJson = response.json.bind(response);
-    const readText = response.text.bind(response);
-    response.json = () =>
-      readJson().then((value: unknown) => {
-        later(value);
-        return value;
-      });
-    response.text = () =>
-      readText().then((value) => {
-        later(parseJson(value));
-        return value;
-      });
+    try {
+      response
+        .clone()
+        .text()
+        .then((text) => handle(parseJson(text)))
+        .catch(() => null);
+    } catch {
+      return response;
+    }
     return response;
   };
 
@@ -191,8 +188,13 @@ export function installCapture(win: CapturingWindow): void {
   win.fetch = (...args: Parameters<typeof fetch>) => {
     const pending = nativeFetch(...args);
     if (!isGraphqlRequest(args[0], win.location.href)) return pending;
-    return pending.then((response) => (STREAMED.test(response.headers.get('content-type') ?? '') ? response : observe(response)));
+    return pending.then((response) => {
+      const type = response.headers.get('content-type') ?? '';
+      debug('graphql answer', { status: response.status, type, streamed: STREAMED.test(type) });
+      return STREAMED.test(type) ? response : observe(response);
+    });
   };
+  debug('capture installed', win.document.readyState);
 
   win.document.addEventListener(REPLAY_EVENT, () => {
     captureServerPayload(win.__SENKURO__).forEach((found) => store.add(found));
