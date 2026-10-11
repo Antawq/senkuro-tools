@@ -97,9 +97,8 @@ function readReview(modal: Element, store: TradeStore): Column[] | null {
   const incoming = modal.querySelector('header')?.textContent?.includes(INCOMING_SUBTITLE) ?? false;
   const known = incoming ? undefined : selections.get(modal);
 
-  const pair = modal.querySelector('.modal-trade__swap--col');
-  if (pair) {
-    const panels = [...pair.children].filter((el) => el.matches('.modal-trade__swap-el'));
+  const panels = [...modal.querySelectorAll('.modal-trade__swap-el')];
+  if (panels.length >= 2) {
     const [left, right] = panels.map(readPanel);
     if (!left || !right) return null;
     if (known && shows(known.give.cards, left) && shows(known.get.cards, right)) return [column('give', known.give), column('get', known.get)];

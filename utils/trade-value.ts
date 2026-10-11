@@ -19,12 +19,9 @@ export interface SideValue {
   unknown: number;
   beyondF: boolean;
   shards: Map<string, number>;
-  shardF: number;
   shardUnknown: number;
-  shardBeyondF: boolean;
   hasShards: boolean;
   complete: boolean;
-  shardsComplete: boolean;
 }
 
 export interface Verdict {
@@ -38,6 +35,8 @@ const RANK_ORDER = ['R', 'S', 'A', 'B', 'C', 'D', 'F'];
 
 export const CRAFT_PER_RANK = 3;
 export const SPLIT_PER_RANK = 2;
+
+const SHARDS_REQUIRED: Record<string, number> = { S: 10, A: 8, B: 6, C: 4, D: 2 };
 
 const rateInF = (rank: string | undefined, perRank: number): number | null => {
   const step = rank ? FORGE_LADDER.indexOf(rank) : -1;
@@ -62,9 +61,7 @@ export function valueSide({ cards, hidden }: Side, db: Database, commission: boo
     unknown: hidden,
     beyondF: false,
     shards: new Map<string, number>(),
-    shardF: 0,
     shardUnknown: 0,
-    shardBeyondF: false,
   };
 
   for (const { slug, quantity, shard } of cards) {
@@ -77,8 +74,11 @@ export function valueSide({ cards, hidden }: Side, db: Database, commission: boo
         continue;
       }
       addTo(side.shards, entry.rank, quantity);
-      if (rate === null) side.shardBeyondF = true;
-      else side.shardF += effectivePrice(price, commission) * quantity * rate;
+      if (rate === null) side.beyondF = true;
+      else {
+        const required = SHARDS_REQUIRED[entry.rank] || 1;
+        side.f += (effectivePrice(price, commission) * quantity * rate) / required;
+      }
       continue;
     }
     if (price === null || !entry) {
@@ -96,8 +96,7 @@ export function valueSide({ cards, hidden }: Side, db: Database, commission: boo
   return {
     ...side,
     hasShards,
-    complete: side.unknown === 0 && !side.beyondF,
-    shardsComplete: side.shardUnknown === 0 && !side.shardBeyondF,
+    complete: side.unknown === 0 && side.shardUnknown === 0 && !side.beyondF,
   };
 }
 
@@ -105,6 +104,9 @@ export const formatAmount = (amount: number): string => String(+amount.toFixed(2
 
 export const formatByRank = (map: Map<string, number>): string[] =>
   [...map.keys()].sort((a, b) => rankPosition(a) - rankPosition(b)).map((rank) => `${formatAmount(map.get(rank) ?? 0)}${rank}`);
+
+export const formatShardsByRank = (map: Map<string, number>): string[] =>
+  [...map.keys()].sort((a, b) => rankPosition(a) - rankPosition(b)).map((rank) => `${formatAmount(map.get(rank) ?? 0)}o${rank}`);
 
 function compare(given: number, got: number, complete: boolean, prefix: string): Verdict {
   const diff = got - given;
@@ -117,8 +119,3 @@ function compare(given: number, got: number, complete: boolean, prefix: string):
 
 export const compareSides = (give: Pick<SideValue, 'f' | 'complete'>, get: Pick<SideValue, 'f' | 'complete'>): Verdict =>
   compare(give.f, get.f, give.complete && get.complete, '');
-
-type ShardPart = Pick<SideValue, 'hasShards' | 'shardF' | 'shardsComplete'>;
-
-export const compareShards = (give: ShardPart, get: ShardPart): Verdict | null =>
-  give.hasShards || get.hasShards ? compare(give.shardF, get.shardF, give.shardsComplete && get.shardsComplete, 'Осколки: ') : null;

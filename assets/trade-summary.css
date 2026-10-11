@@ -10,7 +10,7 @@
   --senkuro-delay: calc(var(--senkuro-order, 0) * var(--senkuro-step));
   display: grid;
   grid-template-rows: 1fr;
-  font-size: 1.4rem;
+  font-size: var(--senkuro-summary-font-size, 1.2rem);
   line-height: 143%;
   color: var(--text-primary);
   animation: senkuro-summary-grow var(--senkuro-enter) var(--senkuro-ease-out) var(--senkuro-delay) backwards;

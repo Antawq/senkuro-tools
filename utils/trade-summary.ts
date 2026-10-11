@@ -5,10 +5,10 @@ import { totalOf } from './trade-match';
 import {
   CRAFT_PER_RANK,
   SPLIT_PER_RANK,
-  compareShards,
   compareSides,
   formatAmount,
   formatByRank,
+  formatShardsByRank,
   valueSide,
   type SideValue,
   type Verdict,
@@ -23,18 +23,21 @@ const UNKNOWN = `${SUMMARY}__unknown`;
 const EXPAND_LABEL = 'Раскрыть полностью';
 const COLLAPSE_LABEL = 'Скрыть';
 
-type RowKey = 'value' | 'bank' | 'count' | 'shards';
+type RowKey = 'value' | 'bank' | 'count';
 
 const ROWS: [RowKey, string][] = [
-  ['value', 'ценность'],
-  ['bank', 'банк'],
-  ['count', 'карты'],
-  ['shards', 'осколки'],
+  ['value', 'Ценность'],
+  ['bank', 'Банк'],
+  ['count', 'Карты'],
 ];
 
 export interface SummarySettings {
   commission: boolean;
   valueBySplit: boolean;
+  showSummaryF: boolean;
+  showSummaryBank: boolean;
+  showSummaryCards: boolean;
+  showSummaryVerdict: boolean;
 }
 
 interface SideView {
@@ -45,24 +48,26 @@ interface SideView {
   bank: string[];
   count: string[];
   unknown: string;
-  shards: string[] | null;
-  shardUnknown: string;
-  shardF: string;
 }
 
 const describe = (column: Column, db: Database, { commission, valueBySplit }: SummarySettings): SideView => {
   const value = valueSide(column, db, commission, valueBySplit ? SPLIT_PER_RANK : CRAFT_PER_RANK);
+  
+  const countArray = formatByRank(value.count);
+  const shardsArray = formatShardsByRank(value.shards);
+  
+  let unknownStr = '';
+  if (value.unknown > 0) unknownStr += `${value.unknown}X`;
+  if (value.shardUnknown > 0) unknownStr += (unknownStr ? ' ' : '') + `${value.shardUnknown}oX`;
+
   return {
     role: column.role,
     label: column.label,
     value,
     f: `${formatAmount(value.f)}F`,
     bank: formatByRank(value.bank),
-    count: formatByRank(value.count),
-    unknown: value.unknown ? `${value.unknown}X` : '',
-    shards: value.hasShards ? formatByRank(value.shards) : null,
-    shardUnknown: value.shardUnknown ? `${value.shardUnknown}X` : '',
-    shardF: value.hasShards ? `${formatAmount(value.shardF)}F` : '',
+    count: [...countArray, ...shardsArray],
+    unknown: unknownStr,
   };
 };
 
@@ -89,18 +94,17 @@ function cellOf(side: SideView, key: RowKey): HTMLElement {
   }
   if (key === 'bank') return amounts(cell, side.bank, side.unknown);
   if (key === 'count') return amounts(cell, side.count, side.unknown);
-  if (!side.shards) return amounts(cell, [], '');
-  amounts(cell, side.shards, side.shardUnknown);
-  cell.append(' · ', element('span', side.value.shardsComplete ? '' : UNKNOWN, side.shardF));
   return cell;
 }
 
-function table(sides: SideView[]): HTMLElement {
+function table(sides: SideView[], settings: SummarySettings): HTMLElement {
   const grid = element('div', `${SUMMARY}__table`);
   grid.style.setProperty('--senkuro-columns', String(sides.length));
   grid.append(element('span'), ...sides.map((side) => element('span', `${SUMMARY}__side`, side.label)));
   for (const [key, label] of ROWS) {
-    if (key === 'shards' && !sides.some((side) => side.shards)) continue;
+    if (key === 'value' && !settings.showSummaryF) continue;
+    if (key === 'bank' && !settings.showSummaryBank) continue;
+    if (key === 'count' && !settings.showSummaryCards) continue;
     grid.append(element('span', `${SUMMARY}__label`, label), ...sides.map((side) => cellOf(side, key)));
   }
   return grid;
@@ -137,16 +141,17 @@ function mount(host: Element, placement: Placement, order: number): HTMLElement 
   return summary;
 }
 
-function render(host: Element, placement: Placement, caption: string | undefined, sides: SideView[], nextOrder: () => number): void {
+function render(host: Element, placement: Placement, caption: string | undefined, sides: SideView[], settings: SummarySettings, nextOrder: () => number): void {
   const give = sides.find((side) => side.role === 'give')?.value;
   const get = sides.find((side) => side.role === 'get')?.value;
-  const verdict = give && get ? compareSides(give, get) : null;
-  const shardVerdict = give && get ? compareShards(give, get) : null;
+  const verdict = settings.showSummaryVerdict && give && get ? compareSides(give, get) : null;
   const signature = JSON.stringify([
     caption,
-    sides.map(({ label, f, bank, count, unknown, shards, shardUnknown, shardF }) => [label, f, bank, count, unknown, shards, shardUnknown, shardF]),
+    sides.map(({ label, f, bank, count, unknown }) => [label, f, bank, count, unknown]),
     verdict,
-    shardVerdict,
+    settings.showSummaryF,
+    settings.showSummaryBank,
+    settings.showSummaryCards,
   ]);
 
   const summary = host.querySelector<HTMLElement>(`:scope > .${SUMMARY}`) ?? mount(host, placement, nextOrder());
@@ -157,18 +162,13 @@ function render(host: Element, placement: Placement, caption: string | undefined
 
   const parts: HTMLElement[] = caption ? [element('div', `${SUMMARY}__label`, caption)] : [];
   const details = element('div', `${SUMMARY}__details`);
-  details.append(table(sides));
+  details.append(table(sides, settings));
   parts.push(details);
-  const verdicts: [Verdict | null, string][] = [
-    [verdict, ''],
-    [shardVerdict, ` ${SUMMARY}__verdict--shards`],
-  ];
-  for (const [result, extra] of verdicts) {
-    if (!result) continue;
-    const state = result.complete ? `${SUMMARY}__verdict--${result.kind}` : UNKNOWN;
-    parts.push(element('div', `${SUMMARY}__verdict ${state}${extra}`, result.text));
+  if (verdict) {
+    const state = verdict.complete ? `${SUMMARY}__verdict--${verdict.kind}` : UNKNOWN;
+    parts.push(element('div', `${SUMMARY}__verdict ${state}`, verdict.text));
+    parts.push(expandToggle(summary));
   }
-  if (verdict) parts.push(expandToggle(summary));
   summary.querySelector(`.${SUMMARY}__content`)?.replaceChildren(...parts);
 }
 
@@ -185,6 +185,7 @@ export function updateTradeSummaries(db: Database, settings: SummarySettings, st
       placement,
       caption,
       columns.map((column) => describe(column, db, settings)),
+      settings,
       nextOrder
     );
   }

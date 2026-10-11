@@ -16,7 +16,7 @@ const LATE_RENDER_DELAYS_MS = [1500, 4000];
 const WATCHED_ATTRIBUTES = ['src', 'srcset', 'data-srcset'];
 
 export default defineContentScript({
-  matches: ['*://*.senkuro.com/*', '*://*.senkuro.me/*'],
+  matches: ['*://*.senkuro.com/*', '*://*.senkuro.me/*', '*://*.shiruho.com/*', '*://*.shiruho.me/*', '*://*.senkognito.com/*', '*://*.senkognito.me/*'],
   runAt: 'document_idle',
   async main(ctx) {
     const touch = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
@@ -24,6 +24,8 @@ export default defineContentScript({
     const tradeStore = createTradeStore();
     const tokenBar = createTokenBar(ctx);
     let scheduled = false;
+    
+    document.documentElement.style.setProperty('--senkuro-summary-font-size', `${settings.summaryFontSize}px`);
     let rendering = false;
 
     const render = async () => {
@@ -32,7 +34,18 @@ export default defineContentScript({
       try {
         const db = await loadDatabase();
         badges.update(db, settings);
-        updateTradeSummaries(db, { commission: settings.commission, valueBySplit: settings.valueBySplit }, tradeStore);
+        updateTradeSummaries(
+          db,
+          {
+            commission: settings.commission,
+            valueBySplit: settings.valueBySplit,
+            showSummaryF: settings.showSummaryF,
+            showSummaryBank: settings.showSummaryBank,
+            showSummaryCards: settings.showSummaryCards,
+            showSummaryVerdict: settings.showSummaryVerdict,
+          },
+          tradeStore
+        );
       } finally {
         rendering = false;
       }
@@ -62,6 +75,10 @@ export default defineContentScript({
         settings = next;
         if (key === 'showToken') {
           void tokenBar.sync(next.showToken);
+          return;
+        }
+        if (key === 'summaryFontSize') {
+          document.documentElement.style.setProperty('--senkuro-summary-font-size', `${next.summaryFontSize}px`);
           return;
         }
         badges.reset();

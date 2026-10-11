@@ -284,53 +284,142 @@
         color: #cbd5e1;
       }
       .hint {
-        margin: 8px 0 0;
+        margin-top: 8px;
         font-size: 11px;
         line-height: 1.4;
         color: #94a3b8;
       }
+      .header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 16px;
+        justify-content: center;
+      }
+      .logo {
+        border-radius: 6px;
+      }
+      .title {
+        margin: 0;
+        font-size: 18px;
+        color: #f1f5f9;
+        background: linear-gradient(90deg, #818cf8, #c084fc);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 700;
+      }
+      .support {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .support-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        color: #818cf8;
+        text-decoration: none;
+        font-weight: 500;
+        padding: 8px;
+        background: #25252c;
+        border-radius: 6px;
+        border: 1px solid #3b3b4f;
+        transition: all 0.2s;
+      }
+      .support-caption {
+        font-size: 11px;
+        color: #94a3b8;
+        text-align: center;
+        margin-bottom: -4px;
+      }
+      .support-row {
+        display: flex;
+        gap: 8px;
+      }
+      .support-card {
+        flex: 1;
+        text-align: center;
+        color: #4ade80;
+        text-decoration: none;
+        font-weight: 600;
+        padding: 6px;
+        background: rgba(74, 222, 128, 0.1);
+        border-radius: 6px;
+        border: 1px solid rgba(74, 222, 128, 0.2);
+        transition: all 0.2s;
+      }
+      .tier {
+        font-weight: 600;
+      }
+      .tier--red {
+        color: #f87171;
+      }
+      .tier--yellow {
+        color: #fbbf24;
+      }
+      .tier--purple {
+        color: #c084fc;
+      }
+      .tier--green {
+        color: #4ade80;
+      }
+      .tier--white {
+        color: #e2e8f0;
+      }
+      .anim-grid .wide {
+        grid-column: span 2;
+      }
+      .icon {
+        width: 16px;
+        height: 16px;
+      }
+      .special-thanks {
+        margin-top: 16px;
+        padding: 10px;
+        background: #1e1e24;
+        border: 1px dashed #3f3f46;
+        border-radius: 8px;
+        text-align: center;
+      }
+      .special-thanks-title {
+        font-size: 11px;
+        color: #94a3b8;
+        margin-bottom: 4px;
+      }
+      .special-thanks strong {
+        color: #f1f5f9;
+      }
+      .thanks-card {
+        flex: 1;
+        text-align: center;
+        color: #4ade80;
+        text-decoration: none;
+        font-weight: 500;
+        padding: 2px 4px;
+        font-size: 10px;
+        background: rgba(74, 222, 128, 0.1);
+        border-radius: 4px;
+        border: 1px solid rgba(74, 222, 128, 0.2);
+        transition: all 0.2s;
+      }
+      .thanks-card:hover {
+        background: rgba(74, 222, 128, 0.2);
+        color: #86efac;
+      }
     </style>
   </head>
   <body>
-    <div class="header" style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px; justify-content: center">
-      <img src="/icon.png" width="32" height="32" alt="icon" style="border-radius: 6px" />
-      <h1
-        style="
-          margin: 0;
-          font-size: 18px;
-          color: #f1f5f9;
-          background: linear-gradient(90deg, #818cf8, #c084fc);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          font-weight: 700;
-        "
-      >
-        SenkuTools
-      </h1>
+    <div class="header">
+      <img class="logo" src="/icon-128.png" width="32" height="32" alt="icon" />
+      <h1 class="title">SenkuTools</h1>
       <span class="version" id="version"></span>
     </div>
 
     <details class="setting-group" open>
       <summary>Связь и Поддержка</summary>
-      <div class="details-content" style="display: flex; flex-direction: column; gap: 10px">
-        <a
-          href="https://t.me/SenkuTools"
-          target="_blank"
-          style="
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            color: #818cf8;
-            text-decoration: none;
-            font-weight: 500;
-            padding: 8px;
-            background: #25252c;
-            border-radius: 6px;
-            border: 1px solid #3b3b4f;
-            transition: all 0.2s;
-          "
-        >
+      <div class="details-content support">
+        <a class="support-link" href="https://t.me/SenkuTools" target="_blank">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M22 2L11 13"></path>
             <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
@@ -338,64 +427,37 @@
           Telegram @SenkuTools
         </a>
 
-        <div style="font-size: 11px; color: #94a3b8; text-align: center; margin-bottom: -4px">Поддержать автора карточкой:</div>
-        <div style="display: flex; gap: 8px">
-          <a
-            href="https://senkuro.com/users/phaivroh"
-            target="_blank"
-            style="
-              flex: 1;
-              text-align: center;
-              color: #4ade80;
-              text-decoration: none;
-              font-weight: 600;
-              padding: 6px;
-              background: rgba(74, 222, 128, 0.1);
-              border-radius: 6px;
-              border: 1px solid rgba(74, 222, 128, 0.2);
-              transition: all 0.2s;
-            "
-            >.COM</a
-          >
-          <a
-            href="https://senkuro.me/users/phaivroh"
-            target="_blank"
-            style="
-              flex: 1;
-              text-align: center;
-              color: #4ade80;
-              text-decoration: none;
-              font-weight: 600;
-              padding: 6px;
-              background: rgba(74, 222, 128, 0.1);
-              border-radius: 6px;
-              border: 1px solid rgba(74, 222, 128, 0.2);
-              transition: all 0.2s;
-            "
-            >.ME</a
-          >
+        <div class="support-caption">Поддержать автора карточкой:</div>
+        <div class="support-row">
+          <a class="support-card" href="https://senkuro.com/users/phaivroh" target="_blank">.COM</a>
+          <a class="support-card" href="https://senkuro.me/users/phaivroh" target="_blank">.ME</a>
         </div>
       </div>
     </details>
 
-    <details class="setting-group" open>
+    <details class="setting-group">
       <summary>Основные & Внешний вид</summary>
       <div class="details-content">
-        <label class="toggle-container" style="margin-top: 0; padding-top: 0">
+        <label class="toggle-container">
           <input type="checkbox" id="commissionToggle" checked />
-          <span style="color: #cbd5e1">Учитывать комиссию (-20%)</span>
+          <span class="toggle-text">Учитывать комиссию (-20%)</span>
         </label>
 
         <div class="field-group">
-          <div class="field-title">Расположение цены:</div>
-          <select id="positionSelect">
-            <option value="bottom-right">Снизу справа</option>
-            <option value="top-right">Сверху справа</option>
-            <option value="center-right">По центру справа</option>
-            <option value="top-left">Сверху слева</option>
-            <option value="center-left">По центру слева</option>
-            <option value="bottom-left">Снизу слева</option>
-            <option value="center">Прямо по центру</option>
+          <div class="field-title">Позиция (горизонталь):</div>
+          <select id="positionXSelect">
+            <option value="left">Слева</option>
+            <option value="center">По центру</option>
+            <option value="right">Справа</option>
+          </select>
+        </div>
+
+        <div class="field-group">
+          <div class="field-title">Позиция (вертикаль):</div>
+          <select id="positionYSelect">
+            <option value="top">Сверху</option>
+            <option value="center">По центру</option>
+            <option value="bottom">Снизу</option>
           </select>
         </div>
 
@@ -415,6 +477,31 @@
         <div class="field-group">
           <div class="field-title">Размер текста: <span class="field-value" id="fontSizeValue">16px</span></div>
           <input type="range" id="fontSizeSlider" min="9" max="24" value="16" />
+      </div>
+    </details>
+
+    <details class="setting-group">
+      <summary>Таблица выгоды</summary>
+      <div class="details-content">
+        <label class="toggle-container">
+          <input type="checkbox" id="showSummaryFToggle" />
+          <span class="toggle-text">Показывать ценность в F</span>
+        </label>
+        <label class="toggle-container">
+          <input type="checkbox" id="showSummaryBankToggle" />
+          <span class="toggle-text">Показывать ценность по Банку</span>
+        </label>
+        <label class="toggle-container">
+          <input type="checkbox" id="showSummaryCardsToggle" />
+          <span class="toggle-text">Показывать ценность по Картам</span>
+        </label>
+        <label class="toggle-container">
+          <input type="checkbox" id="showSummaryVerdictToggle" />
+          <span class="toggle-text">Показывать Выгоду/Потерю</span>
+        </label>
+        <div class="field-group" style="margin-top: 12px;">
+          <div class="field-title">Размер текста в таблице: <span class="field-value" id="summaryFontSizeValue">12px</span></div>
+          <input type="range" id="summaryFontSizeSlider" min="6" max="24" value="12" />
         </div>
       </div>
     </details>
@@ -422,9 +509,9 @@
     <details class="setting-group">
       <summary>Копирование имени</summary>
       <div class="details-content">
-        <label class="toggle-container" style="margin-top: 0; padding-top: 0">
+        <label class="toggle-container">
           <input type="checkbox" id="copyBtnToggle" />
-          <span style="color: #cbd5e1">Показывать кнопку</span>
+          <span class="toggle-text">Показывать кнопку</span>
         </label>
         <div class="field-group">
           <div class="field-title">Размер кнопки: <span class="field-value" id="copyBtnSizeValue">18px</span></div>
@@ -438,7 +525,7 @@
       <div class="details-content">
         <div class="anim-grid">
           <label>
-            <span style="color: #f87171; font-weight: 600">Красные (3.0+)</span>
+            <span class="tier tier--red">Красные (3.0+)</span>
             <select id="effectRed">
               <option value="">Нет</option>
               <option value="price-effect-pulse">Пульсация</option>
@@ -449,7 +536,7 @@
           </label>
 
           <label>
-            <span style="color: #fbbf24; font-weight: 600">Желтые (2.4+)</span>
+            <span class="tier tier--yellow">Желтые (2.4+)</span>
             <select id="effectYellow">
               <option value="">Нет</option>
               <option value="price-effect-pulse">Пульсация</option>
@@ -460,7 +547,7 @@
           </label>
 
           <label>
-            <span style="color: #c084fc; font-weight: 600">Фиолетовые (2.0+)</span>
+            <span class="tier tier--purple">Фиолетовые (2.0+)</span>
             <select id="effectPurple">
               <option value="">Нет</option>
               <option value="price-effect-pulse">Пульсация</option>
@@ -471,7 +558,7 @@
           </label>
 
           <label>
-            <span style="color: #4ade80; font-weight: 600">Зеленые (1.6+)</span>
+            <span class="tier tier--green">Зеленые (1.6+)</span>
             <select id="effectGreen">
               <option value="">Нет</option>
               <option value="price-effect-pulse">Пульсация</option>
@@ -481,8 +568,8 @@
             </select>
           </label>
 
-          <label style="grid-column: span 2">
-            <span style="color: #e2e8f0; font-weight: 600">Белые (&lt; 1.6)</span>
+          <label class="wide">
+            <span class="tier tier--white">Белые (&lt; 1.6)</span>
             <select id="effectWhite">
               <option value="">Нет</option>
               <option value="price-effect-pulse">Пульсация</option>
@@ -505,24 +592,25 @@
         <p class="hint">
           Выключено: по крафту, 3 карты в 1 рангом выше, ×3 за ранг. Включено: по расколу, 1 карта в 2 рангом ниже, ×2 за ранг. Влияет на итог обмена и осколки.
         </p>
+
+        <label class="toggle-container" style="margin-top: 12px;">
+          <input type="checkbox" id="showTokenToggle" />
+          <span class="toggle-text">Показывать токен аккаунта</span>
+        </label>
+        <p class="hint">Этот токен может быть использован для входа в ваш аккаунт. <strong>Никогда не передавайте его третьим лицам!</strong></p>
       </div>
     </details>
 
-    <details class="setting-group">
-      <summary>Скрытые настройки</summary>
-      <div class="details-content">
-        <label class="toggle-container" style="margin-top: 0; padding-top: 0">
-          <input type="checkbox" id="showTokenToggle" />
-          <span style="color: #cbd5e1">Показывать токен аккаунта</span>
-        </label>
-        <p style="font-size: 11px; color: #94a3b8; line-height: 1.4; margin-top: 8px">
-          Этот токен может быть использован для входа в ваш аккаунт. <strong>Никогда не передавайте его третьим лицам!</strong>
-        </p>
+    <div class="special-thanks">
+      <div class="special-thanks-title">Отдельная благодарность: <strong>Anta</strong></div>
+      <div class="support-row" style="margin-top: 6px;">
+        <a class="thanks-card" href="https://senkuro.com/users/chu" target="_blank">.COM</a>
+        <a class="thanks-card" href="https://senkuro.me/users/chu" target="_blank">.ME</a>
       </div>
-    </details>
+    </div>
 
     <button id="resetBtn">
-      <svg style="width: 16px; height: 16px" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path
           stroke-linecap="round"
           stroke-linejoin="round"

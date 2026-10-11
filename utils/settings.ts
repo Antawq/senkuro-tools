@@ -1,6 +1,7 @@
 import { storage, type WxtStorageItem } from 'wxt/utils/storage';
 
-export type BadgePosition = 'top-right' | 'bottom-right' | 'center-right' | 'top-left' | 'bottom-left' | 'center-left' | 'center';
+export type BadgePositionX = 'left' | 'center' | 'right';
+export type BadgePositionY = 'top' | 'center' | 'bottom';
 export type BadgeStyle = 'background' | 'outline';
 export type PriceEffect = '' | 'price-effect-rgb' | 'price-effect-tilt' | 'price-effect-bg' | 'price-effect-pulse';
 
@@ -8,10 +9,12 @@ export interface Settings {
   commission: boolean;
   copyBtn: boolean;
   copyBtnSize: number;
-  position: BadgePosition;
+  positionX: BadgePositionX;
+  positionY: BadgePositionY;
   opacity: number;
   badgeStyle: BadgeStyle;
   fontSize: number;
+  summaryFontSize: number;
   effectRed: PriceEffect;
   effectPurple: PriceEffect;
   effectYellow: PriceEffect;
@@ -19,6 +22,10 @@ export interface Settings {
   effectWhite: PriceEffect;
   showToken: boolean;
   valueBySplit: boolean;
+  showSummaryF: boolean;
+  showSummaryBank: boolean;
+  showSummaryCards: boolean;
+  showSummaryVerdict: boolean;
 }
 
 export type SettingKey = keyof Settings;
@@ -27,10 +34,12 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = {
   commission: true,
   copyBtn: false,
   copyBtnSize: 18,
-  position: 'bottom-right',
+  positionX: 'right',
+  positionY: 'bottom',
   opacity: 75,
   badgeStyle: 'background',
   fontSize: 16,
+  summaryFontSize: 12,
   effectRed: 'price-effect-rgb',
   effectPurple: 'price-effect-tilt',
   effectYellow: 'price-effect-bg',
@@ -38,6 +47,10 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = {
   effectWhite: '',
   showToken: false,
   valueBySplit: false,
+  showSummaryF: true,
+  showSummaryBank: true,
+  showSummaryCards: true,
+  showSummaryVerdict: true,
 };
 
 const KEYS = Object.keys(DEFAULT_SETTINGS) as SettingKey[];

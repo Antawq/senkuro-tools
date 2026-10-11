@@ -2,7 +2,7 @@
   "name": "senkutools",
   "description": "Показывает цены на карточки и инструменты аккаунта",
   "private": true,
-  "version": "1.9.0",
+  "version": "2.1.2",
   "type": "module",
   "scripts": {
     "dev": "wxt",
