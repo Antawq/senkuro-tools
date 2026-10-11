@@ -16,17 +16,18 @@ const IDLE_TIMEOUT_MS = 500;
 const LATE_RENDER_DELAYS_MS = [1500, 4000];
 const WATCHED_ATTRIBUTES = ['src', 'srcset', 'data-srcset'];
 
+const applySummaryFontSize = (size: number) => document.documentElement.style.setProperty('--senkuro-summary-font-size', `${size}px`);
+
 export default defineContentScript({
   matches: SENKURO_MATCHES,
   runAt: 'document_idle',
   async main(ctx) {
     const touch = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
     let settings = await loadSettings();
+    applySummaryFontSize(settings.summaryFontSize);
     const tradeStore = createTradeStore();
     const tokenBar = createTokenBar(ctx);
     let scheduled = false;
-    
-    document.documentElement.style.setProperty('--senkuro-summary-font-size', `${settings.summaryFontSize}px`);
     let rendering = false;
 
     const render = async () => {
@@ -79,7 +80,7 @@ export default defineContentScript({
           return;
         }
         if (key === 'summaryFontSize') {
-          document.documentElement.style.setProperty('--senkuro-summary-font-size', `${next.summaryFontSize}px`);
+          applySummaryFontSize(next.summaryFontSize);
           return;
         }
         badges.reset();

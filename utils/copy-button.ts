@@ -48,7 +48,7 @@ const doneIcon = (size: number) => icon(size, COPIED_COLOR, [['polyline', { poin
 function place(button: HTMLElement, positionX: BadgePositionX, positionY: BadgePositionY): void {
   const right = positionX === 'right';
   const bottom = positionY === 'bottom';
-  
+
   if (positionX === 'center') {
     button.style.left = '50%';
     button.style.right = 'auto';

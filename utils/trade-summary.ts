@@ -52,10 +52,10 @@ interface SideView {
 
 const describe = (column: Column, db: Database, { commission, valueBySplit }: SummarySettings): SideView => {
   const value = valueSide(column, db, commission, valueBySplit ? SPLIT_PER_RANK : CRAFT_PER_RANK);
-  
+
   const countArray = formatByRank(value.count);
   const shardsArray = formatShardsByRank(value.shards);
-  
+
   let unknownStr = '';
   if (value.unknown > 0) unknownStr += `${value.unknown}X`;
   if (value.shardUnknown > 0) unknownStr += (unknownStr ? ' ' : '') + `${value.shardUnknown}oX`;
