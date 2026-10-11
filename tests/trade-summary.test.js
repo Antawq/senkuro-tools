@@ -8,6 +8,8 @@ const db = {
   's-card': { price: 1.25, rank: 'S' },
   'a-card': { price: 1.5, rank: 'A' },
   'f-card': { price: 1.25, rank: 'F' },
+  'r-card': { price: 1.25, rank: 'R' },
+  'r-rare': { price: 2, rank: 'R' },
   atiss: { price: 1.25, rank: 'D' },
   mikhail: { price: 1.25, rank: 'F' },
   soran: { price: 1.25, rank: 'F' },
@@ -320,6 +322,98 @@ describe('summary settings', () => {
     updateTradeSummaries(db, settings, store);
     expect(summaryOf(el).verdict).toBe('Потеря -145.8F (-60%)');
     expect(el.querySelector('.senkuro-trade-summary__toggle')).not.toBeNull();
+  });
+});
+
+describe('R window', () => {
+  const composing = (requests, offers) => modal('', constructorFooter(requests, offers));
+  const windowOf = (el) => {
+    const window = el.querySelector('.senkuro-trade-summary__window');
+    if (!window) return null;
+    const table = window.querySelector('.senkuro-trade-summary__table');
+    const width = Number(table.style.getPropertyValue('--senkuro-columns')) + 1;
+    const cells = [...table.children].map((cell) => cell.textContent);
+    return {
+      title: window.querySelector('.senkuro-trade-summary__window-title').textContent,
+      rows: Array.from({ length: cells.length / width }, (_, index) => cells.slice(index * width, (index + 1) * width)),
+      verdict: el.querySelector('.senkuro-trade-summary__verdict--r')?.textContent ?? null,
+    };
+  };
+
+  it('stays away when no R card is involved', () => {
+    const el = composing([card('a-card')], [card('s-card')]);
+    updateTradeSummaries(db, settings, store);
+    expect(windowOf(el)).toBeNull();
+    expect(el.querySelector('.senkuro-trade-summary__verdict--r')).toBeNull();
+  });
+
+  it('opens with the R value and the R cards when one side has R', () => {
+    const el = composing([card('r-card', 2)], [card('s-card')]);
+    updateTradeSummaries(db, settings, store);
+    expect(windowOf(el)).toEqual({
+      title: 'R',
+      rows: [
+        ['Ценность', '2R', '-'],
+        ['Карты', '2R', '-'],
+      ],
+      verdict: 'R: Выгода +2R',
+    });
+  });
+
+  it('keeps the F verdict settled while R is counted on its own', () => {
+    const el = composing([card('r-card', 2)], [card('s-card')]);
+    updateTradeSummaries(db, settings, store);
+    expect(summaryOf(el)).toMatchObject({ verdict: 'Потеря -243F (-100%)', grayVerdict: false });
+    expect(summaryOf(el).sides[0]).toBe('Получаешь 0F Банк 2R Карты 2R');
+    expect(el.querySelector('.senkuro-trade-summary__verdict--r').classList.contains('senkuro-trade-summary__verdict--gain')).toBe(true);
+  });
+
+  it('compares the R of both sides', () => {
+    const el = composing([card('r-rare')], [card('r-card', 2)]);
+    updateTradeSummaries(db, settings, store);
+    expect(windowOf(el)).toEqual({
+      title: 'R',
+      rows: [
+        ['Ценность', '1.6R', '2R'],
+        ['Карты', '1R', '2R'],
+      ],
+      verdict: 'R: Потеря -0.4R (-20%)',
+    });
+    expect(summaryOf(el).verdict).toBe('Равноценно');
+  });
+
+  it('lists R shards and marks the R value as not settled', () => {
+    const el = composing([card('r-card', 3, true)], [card('s-card')]);
+    updateTradeSummaries(db, settings, store);
+    expect(windowOf(el).rows).toEqual([
+      ['Ценность', '0R', '-'],
+      ['Карты', '3oR', '-'],
+    ]);
+    expect(el.querySelector('.senkuro-trade-summary__window strong').classList.contains('senkuro-trade-summary__unknown')).toBe(true);
+    expect(el.querySelector('.senkuro-trade-summary__verdict--r').classList.contains('senkuro-trade-summary__unknown')).toBe(true);
+  });
+
+  it('folds together with the table', () => {
+    const el = composing([card('r-card')], [card('s-card')]);
+    updateTradeSummaries(db, settings, store);
+    expect(el.querySelector('.senkuro-trade-summary__details .senkuro-trade-summary__window')).not.toBeNull();
+    expect(el.querySelector('.senkuro-trade-summary__details .senkuro-trade-summary__verdict--r')).toBeNull();
+  });
+
+  it('keeps the window but drops the R verdict when the verdict is switched off', () => {
+    const el = composing([card('r-card')], [card('s-card')]);
+    updateTradeSummaries(db, { ...settings, showSummaryVerdict: false }, store);
+    expect(windowOf(el).verdict).toBeNull();
+    expect(windowOf(el).rows[0]).toEqual(['Ценность', '1R', '-']);
+  });
+
+  it('closes the window when the R card is taken out of the trade', () => {
+    const el = composing([card('r-card')], [card('s-card')]);
+    updateTradeSummaries(db, settings, store);
+    expect(windowOf(el)).not.toBeNull();
+    el.querySelectorAll('.modal-trade__preview-cnt')[0].replaceChildren(...[...document.createRange().createContextualFragment(card('a-card')).children]);
+    updateTradeSummaries(db, settings, store);
+    expect(windowOf(el)).toBeNull();
   });
 });
 

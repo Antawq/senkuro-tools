@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { SPLIT_PER_RANK, compareSides, formatByRank, formatShardsByRank, valueSide } from '../utils/trade-value';
+import { SPLIT_PER_RANK, compareR, compareSides, formatByRank, formatShardsByRank, hasR, valueSide } from '../utils/trade-value';
 
 const db = {
   's-card': { price: 1.25, rank: 'S' },
@@ -69,11 +69,12 @@ describe('valueSide', () => {
     expect(side.complete).toBe(false);
   });
 
-  it('keeps shards of R out of the F total like R cards', () => {
+  it('keeps shards of R out of the F total and lists them on the R branch', () => {
     const side = valueSide({ cards: [card('r-card', 2, true)], hidden: 0 }, db, true);
     expect(side.f).toBe(0);
     expect(formatShardsByRank(side.shards)).toEqual(['2oR']);
-    expect(side.complete).toBe(false);
+    expect(side.r).toEqual({ value: 0, count: 0, shards: 2, complete: false });
+    expect(side.complete).toBe(true);
   });
 
   it('marks hidden cards and cards missing from the database as unknown', () => {
@@ -83,11 +84,40 @@ describe('valueSide', () => {
     expect(side.complete).toBe(false);
   });
 
-  it('keeps R out of the F total because the forge never yields it', () => {
-    const side = valueSide({ cards: [card('r-card')], hidden: 0 }, db, true);
+  it('keeps R out of the F total and counts it as a branch of its own', () => {
+    const side = valueSide({ cards: [card('r-card', 3)], hidden: 0 }, db, true);
     expect(side.f).toBe(0);
-    expect(formatByRank(side.bank)).toEqual(['1R']);
+    expect(formatByRank(side.bank)).toEqual(['3R']);
+    expect(formatByRank(side.count)).toEqual(['3R']);
+    expect(side.r).toEqual({ value: 3, count: 3, shards: 0, complete: true });
+    expect(side.complete).toBe(true);
+  });
+
+  it('values R at its own price whatever the forge ratio is', () => {
+    const cards = [card('r-card', 2)];
+    expect(valueSide({ cards, hidden: 0 }, db, true).r.value).toBeCloseTo(2);
+    expect(valueSide({ cards, hidden: 0 }, db, false).r.value).toBeCloseTo(2.5);
+    expect(valueSide({ cards, hidden: 0 }, db, true, SPLIT_PER_RANK).r.value).toBeCloseTo(2);
+  });
+
+  it('keeps the other ranks in F when R sits beside them', () => {
+    const side = valueSide({ cards: [card('s-card'), card('r-card', 2)], hidden: 0 }, db, true);
+    expect(side.f).toBeCloseTo(243);
+    expect(side.r.value).toBeCloseTo(2);
+    expect(formatByRank(side.bank)).toEqual(['2R', '1S']);
+  });
+
+  it('cannot settle R while a card of an unknown rank is on the side', () => {
+    const side = valueSide({ cards: [card('r-card'), card('missing')], hidden: 0 }, db, true);
+    expect(side.r.complete).toBe(false);
     expect(side.complete).toBe(false);
+  });
+
+  it('still flags a rank the forge and R both do not know', () => {
+    const side = valueSide({ cards: [card('x-card')], hidden: 0 }, { 'x-card': { price: 1.25, rank: 'X' } }, true);
+    expect(side.beyondF).toBe(true);
+    expect(side.complete).toBe(false);
+    expect(hasR(side)).toBe(false);
   });
 });
 
@@ -132,5 +162,40 @@ describe('formatShardsByRank', () => {
         ])
       )
     ).toEqual(['1oS', '2oA', '0.5oF']);
+  });
+});
+
+describe('hasR', () => {
+  it('is true for R cards or R shards and false otherwise', () => {
+    expect(hasR(valueSide({ cards: [card('r-card')], hidden: 0 }, db, true))).toBe(true);
+    expect(hasR(valueSide({ cards: [card('r-card', 1, true)], hidden: 0 }, db, true))).toBe(true);
+    expect(hasR(valueSide({ cards: [card('s-card')], hidden: 0 }, db, true))).toBe(false);
+    expect(hasR(valueSide({ cards: [], hidden: 0 }, db, true))).toBe(false);
+  });
+});
+
+describe('compareR', () => {
+  const sideOf = (cards) => valueSide({ cards, hidden: 0 }, db, true);
+
+  it('says nothing when neither side has R', () => {
+    expect(compareR(sideOf([card('s-card')]), sideOf([card('a-card')]))).toBeNull();
+  });
+
+  it('reports the gain and the loss in R', () => {
+    expect(compareR(sideOf([card('r-card')]), sideOf([card('r-card', 3)]))).toEqual({ kind: 'gain', text: 'R: Выгода +2R (+200%)', complete: true });
+    expect(compareR(sideOf([card('r-card', 4)]), sideOf([card('r-card')])).text).toBe('R: Потеря -3R (-75%)');
+  });
+
+  it('drops the percentage when no R is given', () => {
+    expect(compareR(sideOf([card('s-card')]), sideOf([card('r-card', 2)])).text).toBe('R: Выгода +2R');
+  });
+
+  it('calls equal R amounts even', () => {
+    expect(compareR(sideOf([card('r-card')]), sideOf([card('r-card')])).kind).toBe('even');
+  });
+
+  it('is incomplete when R shards or unknown cards are involved', () => {
+    expect(compareR(sideOf([card('r-card')]), sideOf([card('r-card', 1, true)])).complete).toBe(false);
+    expect(compareR(sideOf([card('r-card'), card('missing')]), sideOf([card('r-card')])).complete).toBe(false);
   });
 });

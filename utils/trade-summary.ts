@@ -5,10 +5,12 @@ import { totalOf } from './trade-match';
 import {
   CRAFT_PER_RANK,
   SPLIT_PER_RANK,
+  compareR,
   compareSides,
   formatAmount,
   formatByRank,
   formatShardsByRank,
+  hasR,
   valueSide,
   type SideValue,
   type Verdict,
@@ -31,6 +33,11 @@ const ROWS: [RowKey, string][] = [
   ['count', 'Карты'],
 ];
 
+const R_ROWS: [RowKey, string][] = [
+  ['value', 'Ценность'],
+  ['count', 'Карты'],
+];
+
 export interface SummarySettings {
   commission: boolean;
   valueBySplit: boolean;
@@ -38,6 +45,12 @@ export interface SummarySettings {
   showSummaryBank: boolean;
   showSummaryCards: boolean;
   showSummaryVerdict: boolean;
+}
+
+interface RView {
+  value: string;
+  cards: string[];
+  complete: boolean;
 }
 
 interface SideView {
@@ -48,7 +61,14 @@ interface SideView {
   bank: string[];
   count: string[];
   unknown: string;
+  r: RView | null;
 }
+
+const describeR = ({ r }: SideValue): RView => ({
+  value: `${formatAmount(r.value)}R`,
+  cards: [...(r.count > 0 ? [`${formatAmount(r.count)}R`] : []), ...(r.shards > 0 ? [`${formatAmount(r.shards)}oR`] : [])],
+  complete: r.complete,
+});
 
 const describe = (column: Column, db: Database, { commission, valueBySplit }: SummarySettings): SideView => {
   const value = valueSide(column, db, commission, valueBySplit ? SPLIT_PER_RANK : CRAFT_PER_RANK);
@@ -68,6 +88,7 @@ const describe = (column: Column, db: Database, { commission, valueBySplit }: Su
     bank: formatByRank(value.bank),
     count: [...countArray, ...shardsArray],
     unknown: unknownStr,
+    r: hasR(value) ? describeR(value) : null,
   };
 };
 
@@ -95,6 +116,32 @@ function cellOf(side: SideView, key: RowKey): HTMLElement {
   if (key === 'bank') return amounts(cell, side.bank, side.unknown);
   if (key === 'count') return amounts(cell, side.count, side.unknown);
   return cell;
+}
+
+function rCell(side: SideView, key: RowKey): HTMLElement {
+  const cell = element('span', `${SUMMARY}__cell`);
+  if (!side.r) return amounts(cell, [], '');
+  if (key === 'value') cell.append(element('strong', side.r.complete ? '' : UNKNOWN, side.r.value));
+  else amounts(cell, side.r.cards, '');
+  return cell;
+}
+
+function rWindow(sides: SideView[]): HTMLElement | null {
+  if (!sides.some((side) => side.r)) return null;
+  const grid = element('div', `${SUMMARY}__table`);
+  grid.style.setProperty('--senkuro-columns', String(sides.length));
+  for (const [key, label] of R_ROWS) grid.append(element('span', `${SUMMARY}__label`, label), ...sides.map((side) => rCell(side, key)));
+  const window = element('div', `${SUMMARY}__window`);
+  window.append(element('div', `${SUMMARY}__window-title`, 'R'), grid);
+  return window;
+}
+
+function panel(sides: SideView[], settings: SummarySettings): HTMLElement {
+  const wrapper = element('div', `${SUMMARY}__panel`);
+  wrapper.append(table(sides, settings));
+  const window = rWindow(sides);
+  if (window) wrapper.append(window);
+  return wrapper;
 }
 
 function table(sides: SideView[], settings: SummarySettings): HTMLElement {
@@ -145,10 +192,12 @@ function render(host: Element, placement: Placement, caption: string | undefined
   const give = sides.find((side) => side.role === 'give')?.value;
   const get = sides.find((side) => side.role === 'get')?.value;
   const verdict = settings.showSummaryVerdict && give && get ? compareSides(give, get) : null;
+  const rVerdict = settings.showSummaryVerdict && give && get ? compareR(give, get) : null;
   const signature = JSON.stringify([
     caption,
-    sides.map(({ label, f, bank, count, unknown }) => [label, f, bank, count, unknown]),
+    sides.map(({ label, f, bank, count, unknown, r }) => [label, f, bank, count, unknown, r]),
     verdict,
+    rVerdict,
     settings.showSummaryF,
     settings.showSummaryBank,
     settings.showSummaryCards,
@@ -162,11 +211,15 @@ function render(host: Element, placement: Placement, caption: string | undefined
 
   const parts: HTMLElement[] = caption ? [element('div', `${SUMMARY}__label`, caption)] : [];
   const details = element('div', `${SUMMARY}__details`);
-  details.append(table(sides, settings));
+  details.append(panel(sides, settings));
   parts.push(details);
   if (verdict) {
     const state = verdict.complete ? `${SUMMARY}__verdict--${verdict.kind}` : UNKNOWN;
     parts.push(element('div', `${SUMMARY}__verdict ${state}`, verdict.text));
+    if (rVerdict) {
+      const rState = rVerdict.complete ? `${SUMMARY}__verdict--${rVerdict.kind}` : UNKNOWN;
+      parts.push(element('div', `${SUMMARY}__verdict ${rState} ${SUMMARY}__verdict--r`, rVerdict.text));
+    }
     parts.push(expandToggle(summary));
   }
   summary.querySelector(`.${SUMMARY}__content`)?.replaceChildren(...parts);

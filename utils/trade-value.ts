@@ -12,6 +12,13 @@ export interface Side {
   hidden: number;
 }
 
+export interface RValue {
+  value: number;
+  count: number;
+  shards: number;
+  complete: boolean;
+}
+
 export interface SideValue {
   f: number;
   bank: Map<string, number>;
@@ -21,6 +28,7 @@ export interface SideValue {
   shards: Map<string, number>;
   shardUnknown: number;
   hasShards: boolean;
+  r: RValue;
   complete: boolean;
 }
 
@@ -31,6 +39,7 @@ export interface Verdict {
 }
 
 const FORGE_LADDER = ['F', 'D', 'C', 'B', 'A', 'S'];
+const R_RANK = 'R';
 const RANK_ORDER = ['R', 'S', 'A', 'B', 'C', 'D', 'F'];
 
 export const CRAFT_PER_RANK = 3;
@@ -62,6 +71,7 @@ export function valueSide({ cards, hidden }: Side, db: Database, commission: boo
     beyondF: false,
     shards: new Map<string, number>(),
     shardUnknown: 0,
+    r: { value: 0, count: 0, shards: 0 },
   };
 
   for (const { slug, quantity, shard } of cards) {
@@ -74,7 +84,8 @@ export function valueSide({ cards, hidden }: Side, db: Database, commission: boo
         continue;
       }
       addTo(side.shards, entry.rank, quantity);
-      if (rate === null) side.beyondF = true;
+      if (entry.rank === R_RANK) side.r.shards += quantity;
+      else if (rate === null) side.beyondF = true;
       else {
         const required = SHARDS_REQUIRED[entry.rank] || 1;
         side.f += (effectivePrice(price, commission) * quantity * rate) / required;
@@ -88,17 +99,24 @@ export function valueSide({ cards, hidden }: Side, db: Database, commission: boo
     const value = effectivePrice(price, commission) * quantity;
     addTo(side.bank, entry.rank, value);
     addTo(side.count, entry.rank, quantity);
-    if (rate === null) side.beyondF = true;
+    if (entry.rank === R_RANK) {
+      side.r.value += value;
+      side.r.count += quantity;
+    } else if (rate === null) side.beyondF = true;
     else side.f += value * rate;
   }
 
   const hasShards = side.shards.size > 0 || side.shardUnknown > 0;
+  const settled = side.unknown === 0 && side.shardUnknown === 0;
   return {
     ...side,
     hasShards,
-    complete: side.unknown === 0 && side.shardUnknown === 0 && !side.beyondF,
+    r: { ...side.r, complete: settled && side.r.shards === 0 },
+    complete: settled && !side.beyondF,
   };
 }
+
+export const hasR = ({ r }: Pick<SideValue, 'r'>): boolean => r.count > 0 || r.shards > 0;
 
 export const formatAmount = (amount: number): string => String(+amount.toFixed(2));
 
@@ -108,14 +126,17 @@ export const formatByRank = (map: Map<string, number>): string[] =>
 export const formatShardsByRank = (map: Map<string, number>): string[] =>
   [...map.keys()].sort((a, b) => rankPosition(a) - rankPosition(b)).map((rank) => `${formatAmount(map.get(rank) ?? 0)}o${rank}`);
 
-function compare(given: number, got: number, complete: boolean, prefix: string): Verdict {
+function compare(given: number, got: number, complete: boolean, prefix: string, unit: string): Verdict {
   const diff = got - given;
   const shown = formatAmount(Math.abs(diff));
   const percent = given > 0 ? ` (${diff > 0 ? '+' : '-'}${Math.round(Math.abs(diff / given) * 100)}%)` : '';
   if (shown === '0') return { kind: 'even', text: `${prefix}Равноценно`, complete };
-  if (diff > 0) return { kind: 'gain', text: `${prefix}Выгода +${shown}F${percent}`, complete };
-  return { kind: 'loss', text: `${prefix}Потеря -${shown}F${percent}`, complete };
+  if (diff > 0) return { kind: 'gain', text: `${prefix}Выгода +${shown}${unit}${percent}`, complete };
+  return { kind: 'loss', text: `${prefix}Потеря -${shown}${unit}${percent}`, complete };
 }
 
 export const compareSides = (give: Pick<SideValue, 'f' | 'complete'>, get: Pick<SideValue, 'f' | 'complete'>): Verdict =>
-  compare(give.f, get.f, give.complete && get.complete, '');
+  compare(give.f, get.f, give.complete && get.complete, '', 'F');
+
+export const compareR = (give: Pick<SideValue, 'r'>, get: Pick<SideValue, 'r'>): Verdict | null =>
+  hasR(give) || hasR(get) ? compare(give.r.value, get.r.value, give.r.complete && get.r.complete, 'R: ', R_RANK) : null;
