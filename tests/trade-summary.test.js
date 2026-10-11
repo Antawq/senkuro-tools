@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { DEFAULT_SETTINGS } from '../utils/settings';
 import { REPLAY_EVENT, createTradeStore } from '../utils/trade-capture';
 import { updateTradeSummaries } from '../utils/trade-summary';
 
@@ -41,7 +42,9 @@ const skyTrade = {
   offer: previews(phaivroh),
   request: previews(sky),
 };
-const skySides = ['Получаешь 19F банк 5D 4F карты 5D 4F', 'Отдаёшь 86.6F банк 1.6B 4.6C 2F карты 1B 3C 2F'];
+const skySides = ['Получаешь 19F Банк 5D 4F Карты 5D 4F', 'Отдаёшь 86.6F Банк 1.6B 4.6C 2F Карты 1B 3C 2F'];
+
+const settings = { ...DEFAULT_SETTINGS };
 
 let store;
 
@@ -72,7 +75,7 @@ const panel = (name, total, cards) => `
 const reviewFooter = `
   <div class="modal-trade__footer">
     <div class="modal-trade__footer-widjet"></div>
-    <div class="modal-trade__footer-info">После отправки карты изменить не получится</div>
+    <div class="modal-trade__footer-info">После отправки Карты изменить не получится</div>
     <div class="modal-trade__actions"></div>
   </div>`;
 
@@ -103,7 +106,7 @@ const summaryOf = (el) => {
       .map((title, index) =>
         [
           title.textContent,
-          ...body.map(([label, ...values]) => `${label.textContent === 'ценность' ? '' : `${label.textContent} `}${values[index].textContent}`),
+          ...body.map(([label, ...values]) => `${label.textContent === 'Ценность' ? '' : `${label.textContent} `}${values[index].textContent}`),
         ].join(' ')
       ),
     verdict: summary.querySelector('.senkuro-trade-summary__verdict')?.textContent ?? null,
@@ -119,9 +122,9 @@ beforeEach(() => {
 describe('updateTradeSummaries', () => {
   it('sums every selected card while the trade is being composed', () => {
     const el = modal('Выбери до 50 карт', constructorFooter([card('a-card', 2)], [card('s-card')]));
-    updateTradeSummaries(db, { commission: true }, store);
+    updateTradeSummaries(db, settings, store);
     expect(summaryOf(el)).toEqual({
-      sides: ['Получаешь 194.4F банк 2.4A карты 2A', 'Отдаёшь 243F банк 1S карты 1S'],
+      sides: ['Получаешь 194.4F Банк 2.4A Карты 2A', 'Отдаёшь 243F Банк 1S Карты 1S'],
       verdict: 'Потеря -48.6F (-20%)',
       grayVerdict: false,
     });
@@ -130,30 +133,30 @@ describe('updateTradeSummaries', () => {
   it('keeps the exact selection on the own review step where only three cards per side are drawn', () => {
     const offers = [card('s-card'), card('s-card'), card('s-card'), card('f-card'), card('f-card')];
     const el = modal('Выбери до 50 карт', constructorFooter([card('a-card')], offers));
-    updateTradeSummaries(db, { commission: true }, store);
+    updateTradeSummaries(db, settings, store);
     el.querySelector('.modal-trade__footer').remove();
     el.insertAdjacentHTML('beforeend', reviewBody(panel('Я', 5, offers), panel('Он', 1, [card('a-card')])) + reviewFooter);
-    updateTradeSummaries(db, { commission: true }, store);
-    expect(summaryOf(el).sides).toEqual(['Отдаёшь 731F банк 3S 2F карты 3S 2F', 'Получаешь 97.2F банк 1.2A карты 1A']);
+    updateTradeSummaries(db, settings, store);
+    expect(summaryOf(el).sides).toEqual(['Отдаёшь 731F Банк 3S 2F Карты 3S 2F', 'Получаешь 97.2F Банк 1.2A Карты 1A']);
   });
 
   it('drops a remembered selection that no longer matches the drawn cards', () => {
     const offers = [card('s-card'), card('s-card'), card('s-card'), card('f-card'), card('f-card')];
     const el = modal('Выбери до 50 карт', constructorFooter([card('a-card')], offers));
-    updateTradeSummaries(db, { commission: true }, store);
+    updateTradeSummaries(db, settings, store);
     el.querySelector('.modal-trade__footer').remove();
     const drawn = [card('s-card', 2), card('s-card'), card('s-card')];
     el.insertAdjacentHTML('beforeend', reviewBody(panel('Я', 5, drawn), panel('Он', 1, [card('a-card')])) + reviewFooter);
-    updateTradeSummaries(db, { commission: true }, store);
-    expect(summaryOf(el).sides[0]).toBe('Отдаёшь 972F банк 4S 2X карты 4S 2X');
+    updateTradeSummaries(db, settings, store);
+    expect(summaryOf(el).sides[0]).toBe('Отдаёшь 972F Банк 4S 2X Карты 4S 2X');
   });
 
   it('asks the page for the trades again once when an incoming trade has no data', () => {
     const asked = vi.fn();
     document.addEventListener(REPLAY_EVENT, asked);
     const el = modal('Прими решение обмена', reviewBody(panel('Отправитель', 6, [card('s-card')]), panel('Я', 1, [card('s-card')])) + reviewFooter);
-    updateTradeSummaries(db, { commission: true }, store);
-    updateTradeSummaries(db, { commission: true }, store);
+    updateTradeSummaries(db, settings, store);
+    updateTradeSummaries(db, settings, store);
     document.removeEventListener(REPLAY_EVENT, asked);
     expect(asked).toHaveBeenCalledOnce();
     expect(summaryOf(el).sides[0]).toContain('5X');
@@ -168,16 +171,16 @@ describe('updateTradeSummaries', () => {
     list.className = 'modal-content modal-content--review';
     list.innerHTML = `<div class="modal-trade__review"><div class="modal-trade__review-header"><div class="modal-trade__review-text">Которые ты просишь у Phaivroh | WL</div></div><div class="modal-trade__review-slider">${cardsOf(phaivroh).join('')}</div></div>`;
     document.body.append(list);
-    updateTradeSummaries(db, { commission: true }, store);
-    expect(summaryOf(el).sides).toEqual([skySides[0], 'Отдаёшь 63F банк 1.6B 2.2C 2X карты 1B 2C 2X']);
+    updateTradeSummaries(db, settings, store);
+    expect(summaryOf(el).sides).toEqual([skySides[0], 'Отдаёшь 63F Банк 1.6B 2.2C 2X Карты 1B 2C 2X']);
   });
 
   it('marks the cards an incoming trade does not draw as gray X', () => {
     const offers = [card('s-card'), card('s-card'), card('f-card')];
     const el = modal('Прими решение обмена', reviewBody(panel('Отправитель', 6, offers), panel('Я', 1, [card('s-card')])) + reviewFooter);
-    updateTradeSummaries(db, { commission: true }, store);
+    updateTradeSummaries(db, settings, store);
     expect(summaryOf(el)).toEqual({
-      sides: ['Получаешь 487F банк 2S 1F 3X карты 2S 1F 3X', 'Отдаёшь 243F банк 1S карты 1S'],
+      sides: ['Получаешь 487F Банк 2S 1F 3X Карты 2S 1F 3X', 'Отдаёшь 243F Банк 1S Карты 1S'],
       verdict: 'Выгода +244F (+100%)',
       grayVerdict: true,
     });
@@ -190,21 +193,26 @@ describe('updateTradeSummaries', () => {
       'Прими решение обмена',
       reviewBody(panel('Phaivroh | WL', 4, cardsOf(phaivroh)), panel('Молюсь на Sky | WS', 5, cardsOf(sky))) + reviewFooter
     );
-    updateTradeSummaries(db, { commission: true }, store);
+    updateTradeSummaries(db, settings, store);
     expect(summaryOf(el)).toEqual({ sides: skySides, verdict: 'Потеря -67.6F (-78%)', grayVerdict: false });
   });
 
-  it('shows shards as their own line outside F, bank and cards', () => {
+  it('folds shards into F and lists them with the cards', () => {
     const el = modal('', constructorFooter([card('s-card', 5, true), card('a-card')], [card('missing')]));
-    updateTradeSummaries(db, { commission: true }, store);
+    updateTradeSummaries(db, settings, store);
     expect(summaryOf(el)).toEqual({
-      sides: ['Получаешь 97.2F банк 1.2A карты 1A осколки 5S · 1215F', 'Отдаёшь 0F банк 1X карты 1X осколки -'],
-      verdict: 'Выгода +97.2F',
+      sides: ['Получаешь 218.7F Банк 1.2A Карты 1A 5oS', 'Отдаёшь 0F Банк 1X Карты 1X'],
+      verdict: 'Выгода +218.7F',
       grayVerdict: true,
     });
-    const shardLine = el.querySelector('.senkuro-trade-summary__verdict--shards');
-    expect(shardLine.textContent).toBe('Осколки: Выгода +1215F');
-    expect(shardLine.classList.contains('senkuro-trade-summary__verdict--gain')).toBe(true);
+    expect(el.querySelector('.senkuro-trade-summary__verdict--shards')).toBeNull();
+  });
+
+  it('marks shards of a card missing from the database as gray oX', () => {
+    const el = modal('', constructorFooter([card('missing', 3, true), card('missing')], [card('f-card')]));
+    updateTradeSummaries(db, settings, store);
+    expect(summaryOf(el).sides[0]).toContain('Карты 1X 3oX');
+    expect(summaryOf(el).grayVerdict).toBe(true);
   });
 
   it('stays away from the forge, which has no trade partner', () => {
@@ -212,28 +220,28 @@ describe('updateTradeSummaries', () => {
       'Выбери 3 одинаковые карты',
       `<div class="modal-trade__footer"><div class="modal-trade__preview"><div class="modal-trade__preview-el"><div class="modal-trade__preview-list">${card('s-card')}</div></div></div></div>`
     );
-    updateTradeSummaries(db, { commission: true }, store);
+    updateTradeSummaries(db, settings, store);
     expect(summaryOf(el)).toBeNull();
   });
 
   it('folds the summary when every card is unselected and unfolds the same block again', () => {
     const el = modal('', constructorFooter([card('a-card')], [card('s-card')]));
-    updateTradeSummaries(db, { commission: true }, store);
+    updateTradeSummaries(db, settings, store);
     const summary = el.querySelector('.senkuro-trade-summary');
     const lists = el.querySelectorAll('.modal-trade__preview-cnt');
     lists.forEach((list) => list.replaceChildren());
-    updateTradeSummaries(db, { commission: true }, store);
+    updateTradeSummaries(db, settings, store);
     expect(summary.classList.contains('senkuro-trade-summary--closed')).toBe(true);
     lists[1].insertAdjacentHTML('beforeend', card('f-card'));
-    updateTradeSummaries(db, { commission: true }, store);
+    updateTradeSummaries(db, settings, store);
     expect(el.querySelector('.senkuro-trade-summary')).toBe(summary);
     expect(summary.classList.contains('senkuro-trade-summary--closed')).toBe(false);
-    expect(summaryOf(el).sides[1]).toBe('Отдаёшь 1F банк 1F карты 1F');
+    expect(summaryOf(el).sides[1]).toBe('Отдаёшь 1F Банк 1F Карты 1F');
   });
 
   it('hides the table behind a toggle that keeps its state across redraws', () => {
     const el = modal('', constructorFooter([card('a-card')], [card('s-card')]));
-    updateTradeSummaries(db, { commission: true }, store);
+    updateTradeSummaries(db, settings, store);
     const summary = el.querySelector('.senkuro-trade-summary');
     const toggle = () => summary.querySelector('.senkuro-trade-summary__toggle');
     expect(summary.classList.contains('senkuro-trade-summary--collapsible')).toBe(true);
@@ -244,22 +252,74 @@ describe('updateTradeSummaries', () => {
     expect(bubbled).toBe(false);
     expect(summary.classList.contains('senkuro-trade-summary--expanded')).toBe(true);
     el.querySelectorAll('.modal-trade__preview-cnt')[1].insertAdjacentHTML('beforeend', card('f-card'));
-    updateTradeSummaries(db, { commission: true }, store);
+    updateTradeSummaries(db, settings, store);
     expect([toggle().textContent, toggle().getAttribute('aria-expanded')]).toEqual(['Скрыть', 'true']);
   });
 
   it('does not touch the summary when nothing changed', () => {
     const el = modal('', constructorFooter([card('a-card')], [card('s-card')]));
-    updateTradeSummaries(db, { commission: true }, store);
+    updateTradeSummaries(db, settings, store);
     const first = el.querySelector('.senkuro-trade-summary__table');
     const content = el.querySelector('.senkuro-trade-summary__content');
-    updateTradeSummaries(db, { commission: true }, store);
+    updateTradeSummaries(db, settings, store);
     expect(el.querySelector('.senkuro-trade-summary__table')).toBe(first);
-    updateTradeSummaries(db, { commission: false }, store);
+    updateTradeSummaries(db, { ...settings, commission: false }, store);
     expect(el.querySelector('.senkuro-trade-summary__table')).not.toBe(first);
-    updateTradeSummaries(db, { commission: false, valueBySplit: true }, store);
-    expect(summaryOf(el).sides).toEqual(['Получаешь 24F банк 1.5A карты 1A', 'Отдаёшь 40F банк 1.25S карты 1S']);
+    updateTradeSummaries(db, { ...settings, commission: false, valueBySplit: true }, store);
+    expect(summaryOf(el).sides).toEqual(['Получаешь 24F Банк 1.5A Карты 1A', 'Отдаёшь 40F Банк 1.25S Карты 1S']);
     expect(el.querySelector('.senkuro-trade-summary__content')).toBe(content);
+  });
+});
+
+describe('summary settings', () => {
+  const labelsOf = (el) => [...el.querySelectorAll('.senkuro-trade-summary__table > .senkuro-trade-summary__label')].map((label) => label.textContent);
+  const composing = () => modal('', constructorFooter([card('a-card')], [card('s-card')]));
+
+  it('shows the value, bank and cards rows by default', () => {
+    const el = composing();
+    updateTradeSummaries(db, settings, store);
+    expect(labelsOf(el)).toEqual(['Ценность', 'Банк', 'Карты']);
+  });
+
+  it.each([
+    ['showSummaryF', 'Ценность'],
+    ['showSummaryBank', 'Банк'],
+    ['showSummaryCards', 'Карты'],
+  ])('leaves out the row switched off by %s', (key, label) => {
+    const el = composing();
+    updateTradeSummaries(db, { ...settings, [key]: false }, store);
+    const labels = labelsOf(el);
+    expect(labels).toHaveLength(2);
+    expect(labels).not.toContain(label);
+  });
+
+  it('redraws the table when a row is switched off and on again', () => {
+    const el = composing();
+    updateTradeSummaries(db, settings, store);
+    const first = el.querySelector('.senkuro-trade-summary__table');
+    updateTradeSummaries(db, { ...settings, showSummaryBank: false }, store);
+    expect(el.querySelector('.senkuro-trade-summary__table')).not.toBe(first);
+    expect(labelsOf(el)).toEqual(['Ценность', 'Карты']);
+    updateTradeSummaries(db, settings, store);
+    expect(labelsOf(el)).toEqual(['Ценность', 'Банк', 'Карты']);
+  });
+
+  it('leaves out the verdict together with the toggle that unfolds the table', () => {
+    const el = composing();
+    updateTradeSummaries(db, { ...settings, showSummaryVerdict: false }, store);
+    const summary = el.querySelector('.senkuro-trade-summary');
+    expect(summaryOf(el).verdict).toBeNull();
+    expect(summary.querySelector('.senkuro-trade-summary__toggle')).toBeNull();
+    expect(summary.classList.contains('senkuro-trade-summary--collapsible')).toBe(false);
+    expect(summaryOf(el).sides).toHaveLength(2);
+  });
+
+  it('brings the verdict back when it is switched on again', () => {
+    const el = composing();
+    updateTradeSummaries(db, { ...settings, showSummaryVerdict: false }, store);
+    updateTradeSummaries(db, settings, store);
+    expect(summaryOf(el).verdict).toBe('Потеря -145.8F (-60%)');
+    expect(el.querySelector('.senkuro-trade-summary__toggle')).not.toBeNull();
   });
 });
 
@@ -282,16 +342,16 @@ describe('trade lists outside the modal', () => {
   it('sums a collapsed history entry from your side', () => {
     store.add({ viewerId: 'u2', items: [skyTrade] });
     const el = historyItem(true);
-    updateTradeSummaries(db, { commission: true }, store);
+    updateTradeSummaries(db, settings, store);
     expect(summaryOf(el)).toEqual({ sides: skySides, verdict: 'Потеря -67.6F (-78%)', grayVerdict: false });
   });
 
   it('names both sides and skips the verdict in somebody else history', () => {
     store.add({ viewerId: 'u9', items: [skyTrade] });
     const el = historyItem(false);
-    updateTradeSummaries(db, { commission: true }, store);
+    updateTradeSummaries(db, settings, store);
     expect(summaryOf(el)).toEqual({
-      sides: ['Phaivroh | WL 19F банк 5D 4F карты 5D 4F', 'Молюсь на Sky | WS 86.6F банк 1.6B 4.6C 2F карты 1B 3C 2F'],
+      sides: ['Phaivroh | WL 19F Банк 5D 4F Карты 5D 4F', 'Молюсь на Sky | WS 86.6F Банк 1.6B 4.6C 2F Карты 1B 3C 2F'],
       verdict: null,
       grayVerdict: false,
     });
@@ -302,14 +362,14 @@ describe('trade lists outside the modal', () => {
   it('lets summaries that appear together come in one after another', () => {
     store.add({ viewerId: 'u2', items: [skyTrade] });
     const items = [1, 2, 3, 4, 5, 6, 7, 8].map(() => historyItem(true));
-    updateTradeSummaries(db, { commission: true }, store);
+    updateTradeSummaries(db, settings, store);
     const orders = items.map((item) => item.querySelector('.senkuro-trade-summary').style.getPropertyValue('--senkuro-order'));
     expect(orders).toEqual(['0', '1', '2', '3', '4', '5', '6', '6']);
   });
 
   it('leaves a history entry alone when the trade never reached the page', () => {
     const el = historyItem(true);
-    updateTradeSummaries(db, { commission: true }, store);
+    updateTradeSummaries(db, settings, store);
     expect(summaryOf(el)).toBeNull();
   });
 
@@ -335,10 +395,10 @@ describe('trade lists outside the modal', () => {
       <div class="offer-card__top"><h3><span>Smile</span></h3><div class="offer-card__top-list">${card('s-card')}<div class="offer-card__top-more">+1</div></div></div>
       <div class="offer-card__cnt"><div class="offer-card__cnt-list">${card('f-card')}</div></div>`;
     document.body.append(el);
-    updateTradeSummaries(db, { commission: true }, store);
+    updateTradeSummaries(db, settings, store);
     expect(el.querySelector('.senkuro-trade-summary__content > .senkuro-trade-summary__label').textContent).toBe('Если примешь');
     expect(summaryOf(el)).toEqual({
-      sides: ['Отдаёшь 340.2F банк 1S 1.2A карты 1S 1A', 'Получаешь 1F банк 1F карты 1F'],
+      sides: ['Отдаёшь 340.2F Банк 1S 1.2A Карты 1S 1A', 'Получаешь 1F Банк 1F Карты 1F'],
       verdict: 'Потеря -339.2F (-100%)',
       grayVerdict: false,
     });
@@ -352,7 +412,7 @@ describe('trade lists outside the modal', () => {
       <div class="card-notif__source-title">Phaivroh | WL</div>
       <div class="card-notif__info"><div class="card-notif__info-hint">Получишь 4 • Отдашь 5</div></div>`;
     document.body.append(el);
-    updateTradeSummaries(db, { commission: true }, store);
+    updateTradeSummaries(db, settings, store);
     expect(summaryOf(el)).toBeNull();
   });
 
@@ -364,7 +424,7 @@ describe('trade lists outside the modal', () => {
       <div class="card-notif__source-title">Phaivroh | WL</div>
       <div class="card-notif__info"><div class="card-notif__info-caption">Хочет обменяться картами</div><div class="card-notif__info-hint">Получишь 4 • Отдашь 5</div></div>`;
     document.body.append(el);
-    updateTradeSummaries(db, { commission: true }, store);
+    updateTradeSummaries(db, settings, store);
     expect(summaryOf(el)).toEqual({ sides: skySides, verdict: 'Потеря -67.6F (-78%)', grayVerdict: false });
   });
 });
