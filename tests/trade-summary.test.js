@@ -422,7 +422,7 @@ describe('R window', () => {
 });
 
 describe('summary variants', () => {
-  const offerCard = () => {
+  const offerCard = (markup) => {
     store.add({
       items: [
         {
@@ -437,19 +437,43 @@ describe('summary variants', () => {
     });
     const el = document.createElement('div');
     el.className = 'offer-card';
-    el.innerHTML = `
-      <div class="offer-card__top"><h3><span>Smile</span></h3><div class="offer-card__top-list">${card('f-card')}</div></div>
-      <div class="offer-card__cnt"><div class="offer-card__cnt-list">${card('s-card')}</div></div>`;
+    el.innerHTML = markup;
     document.body.append(el);
     return el;
   };
 
-  it('marks the summary of a fast trade so that it can be a block of its own', () => {
-    const el = offerCard();
+  const top = `<div class="offer-card__top"><h3><span>Smile</span></h3><div class="offer-card__top-list">${card('f-card')}</div></div>`;
+  const list = `<div class="offer-card__cnt-list">${card('s-card')}</div>`;
+
+  it('puts the summary of a fast trade at the end of the surface of the card', () => {
+    const el = offerCard(`${top}<div class="offer-card__cnt">${list}<button>Предложить карты</button></div>`);
     updateTradeSummaries(db, settings, store);
-    const classes = el.querySelector('.senkuro-trade-summary').classList;
-    expect(classes.contains('senkuro-trade-summary--offer')).toBe(true);
-    expect(classes.contains('senkuro-trade-summary--end')).toBe(true);
+    const summary = el.querySelector('.offer-card__cnt > .senkuro-trade-summary');
+    expect(summary).not.toBeNull();
+    expect(summary.parentElement.lastElementChild).toBe(summary);
+    expect(summary.classList.contains('senkuro-trade-summary--offer')).toBe(true);
+    expect(summary.classList.contains('senkuro-trade-summary--end')).toBe(true);
+    expect(el.querySelector(':scope > .senkuro-trade-summary')).toBeNull();
+  });
+
+  it('stays below the header when a wrapper holds the header and the surface together', () => {
+    const el = offerCard(`<div class="wrapper">${top}<div class="offer-card__cnt"><div class="inner">${list}</div></div></div>`);
+    updateTradeSummaries(db, settings, store);
+    expect(el.querySelector('.offer-card__cnt > .senkuro-trade-summary')).not.toBeNull();
+    expect(el.querySelector('.wrapper > .senkuro-trade-summary')).toBeNull();
+  });
+
+  it('falls back to the card itself when it has no surface of its own inside', () => {
+    const el = offerCard(`${top}${list}`);
+    updateTradeSummaries(db, settings, store);
+    expect(el.querySelector(':scope > .senkuro-trade-summary')).not.toBeNull();
+  });
+
+  it('keeps a single summary in the card across updates', () => {
+    const el = offerCard(`${top}<div class="offer-card__cnt">${list}</div>`);
+    updateTradeSummaries(db, settings, store);
+    updateTradeSummaries(db, settings, store);
+    expect(el.querySelectorAll('.senkuro-trade-summary')).toHaveLength(1);
   });
 
   it('leaves the summaries of modals, history entries and notifications as they are', () => {

@@ -196,7 +196,6 @@
 
 .senkuro-trade-summary--offer {
   --senkuro-line: var(--border-tertiary, color-mix(in srgb, var(--text-primary) 12%, transparent));
-  --senkuro-fill: var(--bg-tertiary, color-mix(in srgb, var(--text-primary) 5%, transparent));
   --senkuro-radius: var(--border-radius-md, 12px);
   --senkuro-gain-fill: var(--success-tertiary, color-mix(in srgb, var(--success) 18%, transparent));
   --senkuro-loss-fill: var(--error-tertiary, color-mix(in srgb, var(--error) 18%, transparent));
@@ -212,10 +211,7 @@
   align-items: center;
   gap: calc(var(--senkuro-spacing) * 2 / 3);
   margin-top: var(--senkuro-spacing);
-  padding: calc(var(--senkuro-spacing) - 2px) var(--senkuro-spacing) var(--senkuro-spacing);
-  border: 1px solid var(--senkuro-line);
-  border-radius: var(--senkuro-radius);
-  background: var(--senkuro-fill);
+  border-top: 1px solid var(--senkuro-line);
 }
 
 .senkuro-trade-summary--offer .senkuro-trade-summary__content > .senkuro-trade-summary__label {
@@ -270,11 +266,6 @@
 .senkuro-trade-summary--offer .senkuro-trade-summary__content > .senkuro-trade-summary__toggle {
   order: 5;
   flex: 1 0 100%;
-}
-
-.senkuro-trade-summary--offer .senkuro-trade-summary__panel > .senkuro-trade-summary__table:first-child {
-  padding-top: calc(var(--senkuro-spacing) * 2 / 3);
-  border-top: 1px solid var(--senkuro-line);
 }
 
 .senkuro-trade-summary--offer .senkuro-trade-summary__table {

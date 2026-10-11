@@ -144,11 +144,19 @@ const readHistory = (store: TradeStore): Place[] =>
     return { host, placement: 'end', columns: trade ? viewerColumns(trade, store.viewerId(), names) : null };
   });
 
+const surfaceOf = (card: Element): Element => {
+  const top = card.querySelector('.offer-card__top');
+  let surface = card;
+  for (let el = card.querySelector('.offer-card__cnt-list')?.parentElement; el && el !== card && !el.contains(top); el = el.parentElement) surface = el;
+  return surface;
+};
+
 const readOffers = (store: TradeStore): Place[] =>
-  [...document.querySelectorAll('.offer-card')].map((host) => {
-    const top = { cards: readCards(host.querySelector('.offer-card__top-list')), hidden: numberIn(host.querySelector('.offer-card__top-more')) };
-    const middle = { cards: readCards(host.querySelector('.offer-card__cnt-list')), hidden: numberIn(host.querySelector('.offer-card__cnt-el-more')) };
-    const author = host.querySelector('.offer-card__top h3 span')?.textContent?.trim() ?? '';
+  [...document.querySelectorAll('.offer-card')].map((card) => {
+    const host = surfaceOf(card);
+    const top = { cards: readCards(card.querySelector('.offer-card__top-list')), hidden: numberIn(card.querySelector('.offer-card__top-more')) };
+    const middle = { cards: readCards(card.querySelector('.offer-card__cnt-list')), hidden: numberIn(card.querySelector('.offer-card__cnt-el-more')) };
+    const author = card.querySelector('.offer-card__top h3 span')?.textContent?.trim() ?? '';
     const offer = matchOffer(store.offers(), author, top, middle);
     if (!offer) return { host, placement: 'end', variant: 'offer', columns: null };
     const [give, get] = offer.viewerDidAuthor ? [offer.offer, offer.request] : [offer.request, offer.offer];
