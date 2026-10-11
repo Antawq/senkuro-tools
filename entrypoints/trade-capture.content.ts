@@ -1,8 +1,9 @@
 import { defineContentScript } from '#imports';
+import { SENKURO_MATCHES } from '@/utils/hosts';
 import { installCapture } from '@/utils/trade-capture';
 
 export default defineContentScript({
-  matches: ['*://*.senkuro.com/*', '*://*.senkuro.me/*', '*://*.shiruho.com/*', '*://*.shiruho.me/*', '*://*.senkognito.com/*', '*://*.senkognito.me/*'],
+  matches: SENKURO_MATCHES,
   runAt: 'document_start',
   world: 'MAIN',
   main() {

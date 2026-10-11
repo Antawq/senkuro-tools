@@ -4,6 +4,7 @@ import '@/assets/trade-summary.css';
 import { defineContentScript } from '#imports';
 
 import { loadDatabase } from '@/utils/database';
+import { SENKURO_MATCHES } from '@/utils/hosts';
 import { createPriceBadges } from '@/utils/price-badges';
 import { loadSettings, watchSettings } from '@/utils/settings';
 import { createTokenBar } from '@/utils/token-bar';
@@ -16,7 +17,7 @@ const LATE_RENDER_DELAYS_MS = [1500, 4000];
 const WATCHED_ATTRIBUTES = ['src', 'srcset', 'data-srcset'];
 
 export default defineContentScript({
-  matches: ['*://*.senkuro.com/*', '*://*.senkuro.me/*', '*://*.shiruho.com/*', '*://*.shiruho.me/*', '*://*.senkognito.com/*', '*://*.senkognito.me/*'],
+  matches: SENKURO_MATCHES,
   runAt: 'document_idle',
   async main(ctx) {
     const touch = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;

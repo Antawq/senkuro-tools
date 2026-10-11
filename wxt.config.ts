@@ -2,7 +2,8 @@ import { copyFile, readFile } from 'node:fs/promises';
 
 import { defineConfig } from 'wxt';
 
-const SENKURO_HOSTS = ['*://*.senkuro.com/*', '*://*.senkuro.me/*', '*://*.shiruho.com/*', '*://*.shiruho.me/*', '*://*.senkognito.com/*', '*://*.senkognito.me/*'];
+import { SENKURO_MATCHES } from './utils/hosts';
+
 const DATABASE = 'database.json';
 
 export default defineConfig({
@@ -23,8 +24,8 @@ export default defineConfig({
   manifest: ({ browser }) => ({
     name: 'SenkuTools',
     permissions: ['storage', 'clipboardWrite', 'cookies'],
-    host_permissions: SENKURO_HOSTS,
-    web_accessible_resources: [{ resources: [DATABASE], matches: SENKURO_HOSTS }],
+    host_permissions: SENKURO_MATCHES,
+    web_accessible_resources: [{ resources: [DATABASE], matches: SENKURO_MATCHES }],
     ...(browser === 'firefox' && {
       browser_specific_settings: {
         gecko: {
