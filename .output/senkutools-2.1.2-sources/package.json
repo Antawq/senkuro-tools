@@ -1,0 +1,29 @@
+{
+  "name": "senkutools",
+  "description": "Показывает цены на карточки и инструменты аккаунта",
+  "private": true,
+  "version": "2.1.2",
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox",
+    "build": "wxt build",
+    "build:firefox": "wxt build -b firefox",
+    "zip": "wxt zip",
+    "zip:firefox": "wxt zip -b firefox",
+    "release:patch": "npm version patch --no-git-tag-version && npm run zip && npm run zip:firefox",
+    "release:minor": "npm version minor --no-git-tag-version && npm run zip && npm run zip:firefox",
+    "release:major": "npm version major --no-git-tag-version && npm run zip && npm run zip:firefox",
+    "compile": "tsc --noEmit",
+    "postinstall": "wxt prepare",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "happy-dom": "^20.14.5",
+    "typescript": "~6.0.3",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.3",
+    "web-ext": "^10.7.0",
+    "wxt": "^0.21.4"
+  }
+}
