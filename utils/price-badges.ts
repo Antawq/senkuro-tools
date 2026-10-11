@@ -12,6 +12,7 @@ const PADDING = '2px 6px';
 const SMALL_PADDING = '1px 3px';
 const BACK_FACE = '.card-collect-preview__back';
 const TRADE_FAN = '.modal-trade__swap-cards';
+const TRADE_FAN_POSITION: { x: BadgePositionX; y: BadgePositionY } = { x: 'left', y: 'center' };
 
 const POSITION_PROPS = ['--s-top', '--s-bottom', '--s-left', '--s-right', '--s-mt', '--s-ml', '--s-align'];
 
@@ -131,13 +132,14 @@ export function createPriceBadges({ onImageLoad, touch }: { onImageLoad: () => v
       target.style.removeProperty('--s-bg-color');
     }
 
-    const posKey = `${settings.positionX}-${settings.positionY}`;
+    const { x: positionX, y: positionY } = target.closest(TRADE_FAN) ? TRADE_FAN_POSITION : { x: settings.positionX, y: settings.positionY };
+    const posKey = `${positionX}-${positionY}`;
     if (target.dataset.badgePos !== posKey) {
       target.dataset.badgePos = posKey;
-      applyPosition(target, settings.positionX, settings.positionY);
+      applyPosition(target, positionX, positionY);
     }
 
-    if (settings.copyBtn && !small) syncCopyButton(target, { name: entry.name || 'Неизвестно', size: settings.copyBtnSize, positionX: settings.positionX, positionY: settings.positionY, touch });
+    if (settings.copyBtn && !small) syncCopyButton(target, { name: entry.name || 'Неизвестно', size: settings.copyBtnSize, positionX, positionY, touch });
     else removeCopyButton(target);
 
     card.dataset.priceBadgeAdded = slug;
