@@ -1,3 +1,5 @@
+import type { CardOffersData, CardTradesData } from '@antawq/senkuro';
+
 import type { CardRef } from './trade-value';
 
 export const TRADES_EVENT = 'senkutools:trades';
@@ -41,20 +43,19 @@ export interface TradeStore {
   snapshot(): Capture;
 }
 
-interface GraphUser {
-  id?: string;
-  name?: string | null;
-}
+type TradeNode = CardTradesData['cardTrades']['edges'][number]['node'];
+type OfferNode = CardOffersData['cardOffers']['edges'][number]['node'];
+type PreviewNode = TradeNode['offer'][number];
 
-interface GraphPreview {
-  quantity?: number;
-  shard?: boolean | number;
-  card?: { slug?: string };
-}
+type Optional<T> = { -readonly [Key in keyof T]?: T[Key] };
+
+type GraphUser = Optional<Pick<TradeNode['source'] & OfferNode['user'], 'id' | 'name'>>;
+
+type GraphPreview = Optional<Pick<PreviewNode, 'quantity' | 'shard'>> & { card?: Optional<Pick<PreviewNode['card'], 'slug'>> };
 
 interface GraphNode {
   __typename?: string;
-  id?: string;
+  id?: TradeNode['id'] & OfferNode['id'];
   offer?: unknown;
   request?: unknown;
   source?: GraphUser;
