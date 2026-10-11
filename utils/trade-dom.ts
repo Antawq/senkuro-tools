@@ -19,9 +19,12 @@ export interface Column extends Side {
 
 export type Placement = 'start' | 'end';
 
+export type Variant = 'offer';
+
 export interface Place {
   host: Element;
   placement: Placement;
+  variant?: Variant;
   caption?: string;
   columns: Column[] | null;
 }
@@ -97,9 +100,8 @@ function readReview(modal: Element, store: TradeStore): Column[] | null {
   const incoming = modal.querySelector('header')?.textContent?.includes(INCOMING_SUBTITLE) ?? false;
   const known = incoming ? undefined : selections.get(modal);
 
-  const pair = modal.querySelector('.modal-trade__swap--col');
-  if (pair) {
-    const panels = [...pair.children].filter((el) => el.matches('.modal-trade__swap-el'));
+  const panels = [...modal.querySelectorAll('.modal-trade__swap-el')];
+  if (panels.length >= 2) {
     const [left, right] = panels.map(readPanel);
     if (!left || !right) return null;
     if (known && shows(known.give.cards, left) && shows(known.get.cards, right)) return [column('give', known.give), column('get', known.get)];
@@ -148,11 +150,12 @@ const readOffers = (store: TradeStore): Place[] =>
     const middle = { cards: readCards(host.querySelector('.offer-card__cnt-list')), hidden: numberIn(host.querySelector('.offer-card__cnt-el-more')) };
     const author = host.querySelector('.offer-card__top h3 span')?.textContent?.trim() ?? '';
     const offer = matchOffer(store.offers(), author, top, middle);
-    if (!offer) return { host, placement: 'end', columns: null };
+    if (!offer) return { host, placement: 'end', variant: 'offer', columns: null };
     const [give, get] = offer.viewerDidAuthor ? [offer.offer, offer.request] : [offer.request, offer.offer];
     return {
       host,
       placement: 'end',
+      variant: 'offer',
       caption: offer.viewerDidAuthor ? 'Если примут' : 'Если примешь',
       columns: [column('give', whole(give)), column('get', whole(get))],
     };

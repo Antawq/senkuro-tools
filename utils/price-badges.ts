@@ -1,7 +1,7 @@
 import { effectivePrice, slugFromHref } from './cards';
 import { removeCopyButton, syncCopyButton } from './copy-button';
 import type { Database } from './database';
-import type { BadgePosition, PriceEffect, Settings } from './settings';
+import type { BadgePositionX, BadgePositionY, PriceEffect, Settings } from './settings';
 
 const BADGE_ATTRIBUTES = ['data-senkuro-price', 'data-senkuro-style', 'data-senkuro-eff'];
 const SMALL_CARD_WIDTH = 60;
@@ -12,17 +12,8 @@ const PADDING = '2px 6px';
 const SMALL_PADDING = '1px 3px';
 const BACK_FACE = '.card-collect-preview__back';
 const TRADE_FAN = '.modal-trade__swap-cards';
-const TRADE_FAN_POSITION: BadgePosition = 'center-left';
+const TRADE_FAN_POSITION: { x: BadgePositionX; y: BadgePositionY } = { x: 'left', y: 'center' };
 
-const POSITION_VARS: Record<BadgePosition, Record<string, string>> = {
-  'top-right': { '--s-top': '5px', '--s-right': '5px', '--s-align': 'right' },
-  'bottom-right': { '--s-bottom': '5px', '--s-right': '5px', '--s-align': 'right' },
-  'center-right': { '--s-top': '50%', '--s-right': '5px', '--s-mt': '-12px', '--s-align': 'right' },
-  'top-left': { '--s-top': '5px', '--s-left': '5px', '--s-align': 'left' },
-  'bottom-left': { '--s-bottom': '5px', '--s-left': '5px', '--s-align': 'left' },
-  'center-left': { '--s-top': '50%', '--s-left': '5px', '--s-mt': '-12px', '--s-align': 'left' },
-  center: { '--s-top': '50%', '--s-left': '50%', '--s-ml': '-15px', '--s-mt': '-12px', '--s-align': 'center' },
-};
 const POSITION_PROPS = ['--s-top', '--s-bottom', '--s-left', '--s-right', '--s-mt', '--s-ml', '--s-align'];
 
 type EffectKey = 'effectRed' | 'effectYellow' | 'effectPurple' | 'effectGreen' | 'effectWhite';
@@ -55,9 +46,27 @@ function imageSource(img: HTMLImageElement): string {
   return source.startsWith('data:') ? '' : source;
 }
 
-function applyPosition(target: HTMLElement, position: BadgePosition): void {
+function applyPosition(target: HTMLElement, positionX: BadgePositionX, positionY: BadgePositionY): void {
   POSITION_PROPS.forEach((prop) => target.style.removeProperty(prop));
-  Object.entries(POSITION_VARS[position]).forEach(([prop, value]) => target.style.setProperty(prop, value));
+
+  if (positionY === 'top') target.style.setProperty('--s-top', '5px');
+  else if (positionY === 'bottom') target.style.setProperty('--s-bottom', '5px');
+  else if (positionY === 'center') {
+    target.style.setProperty('--s-top', '50%');
+    target.style.setProperty('--s-mt', '-12px');
+  }
+
+  if (positionX === 'left') {
+    target.style.setProperty('--s-left', '5px');
+    target.style.setProperty('--s-align', 'left');
+  } else if (positionX === 'right') {
+    target.style.setProperty('--s-right', '5px');
+    target.style.setProperty('--s-align', 'right');
+  } else if (positionX === 'center') {
+    target.style.setProperty('--s-left', '50%');
+    target.style.setProperty('--s-ml', '-15px');
+    target.style.setProperty('--s-align', 'center');
+  }
 }
 
 const clearBadge = (el: Element) => BADGE_ATTRIBUTES.forEach((attribute) => el.removeAttribute(attribute));
@@ -88,8 +97,8 @@ export function createPriceBadges({ onImageLoad, touch }: { onImageLoad: () => v
     const effect: PriceEffect = tier ? settings[tier.effect] : '';
 
     const front = card.closest<HTMLElement>('.card-collect-preview__front');
-    const preview = front ? null : card.closest<HTMLElement>('.card-collect-preview');
-    const target = front ?? preview ?? card;
+    const preview = card.closest<HTMLElement>('.card-collect-preview');
+    const target = preview ?? card;
 
     if (!positioned.has(target)) {
       if (getComputedStyle(target).position === 'static') target.style.position = 'relative';
@@ -123,13 +132,14 @@ export function createPriceBadges({ onImageLoad, touch }: { onImageLoad: () => v
       target.style.removeProperty('--s-bg-color');
     }
 
-    const position = target.closest(TRADE_FAN) ? TRADE_FAN_POSITION : settings.position;
-    if (target.dataset.badgePos !== position) {
-      target.dataset.badgePos = position;
-      applyPosition(target, position);
+    const { x: positionX, y: positionY } = target.closest(TRADE_FAN) ? TRADE_FAN_POSITION : { x: settings.positionX, y: settings.positionY };
+    const posKey = `${positionX}-${positionY}`;
+    if (target.dataset.badgePos !== posKey) {
+      target.dataset.badgePos = posKey;
+      applyPosition(target, positionX, positionY);
     }
 
-    if (settings.copyBtn && !small) syncCopyButton(target, { name: entry.name || 'Неизвестно', size: settings.copyBtnSize, position, touch });
+    if (settings.copyBtn && !small) syncCopyButton(target, { name: entry.name || 'Неизвестно', size: settings.copyBtnSize, positionX, positionY, touch });
     else removeCopyButton(target);
 
     card.dataset.priceBadgeAdded = slug;

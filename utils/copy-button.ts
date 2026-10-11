@@ -1,4 +1,4 @@
-import type { BadgePosition } from './settings';
+import type { BadgePositionX, BadgePositionY } from './settings';
 
 const SVG = 'http://www.w3.org/2000/svg';
 const BUTTON = 'senkuro-copy-btn';
@@ -11,7 +11,8 @@ const MIN_PADDING = 2;
 export interface CopyButtonOptions {
   name: string;
   size: number;
-  position: BadgePosition;
+  positionX: BadgePositionX;
+  positionY: BadgePositionY;
   touch: boolean;
 }
 
@@ -44,18 +45,34 @@ const copyIcon = (size: number) =>
 
 const doneIcon = (size: number) => icon(size, COPIED_COLOR, [['polyline', { points: '20 6 9 17 4 12' }]]);
 
-function place(button: HTMLElement, position: BadgePosition): void {
-  const right = position.includes('right');
-  const bottom = position.includes('bottom');
-  button.style.left = right ? OFFSET : 'auto';
-  button.style.right = right ? 'auto' : OFFSET;
-  button.style.bottom = bottom ? OFFSET : 'auto';
-  button.style.top = bottom ? 'auto' : OFFSET;
+function place(button: HTMLElement, positionX: BadgePositionX, positionY: BadgePositionY): void {
+  const right = positionX === 'right';
+  const bottom = positionY === 'bottom';
+
+  if (positionX === 'center') {
+    button.style.left = '50%';
+    button.style.right = 'auto';
+    button.style.transform = 'translateX(-50%)';
+  } else {
+    button.style.transform = 'none';
+    button.style.left = right ? OFFSET : 'auto';
+    button.style.right = right ? 'auto' : OFFSET;
+  }
+
+  if (positionY === 'center') {
+    button.style.top = '50%';
+    button.style.bottom = 'auto';
+    button.style.marginTop = '-12px';
+  } else {
+    button.style.marginTop = '0';
+    button.style.bottom = bottom ? OFFSET : 'auto';
+    button.style.top = bottom ? 'auto' : OFFSET;
+  }
 }
 
 export const removeCopyButton = (root: ParentNode): void => root.querySelector(`.${BUTTON}`)?.remove();
 
-export function syncCopyButton(target: HTMLElement, { name, size, position, touch }: CopyButtonOptions): void {
+export function syncCopyButton(target: HTMLElement, { name, size, positionX, positionY, touch }: CopyButtonOptions): void {
   let button = target.querySelector<HTMLElement>(`.${BUTTON}`);
   if (!button) {
     button = document.createElement('div');
@@ -70,9 +87,10 @@ export function syncCopyButton(target: HTMLElement, { name, size, position, touc
     current.replaceChildren(copyIcon(size));
   }
 
-  if (current.dataset.btnPos !== position) {
-    current.dataset.btnPos = position;
-    place(current, position);
+  const posKey = `${positionX}-${positionY}`;
+  if (current.dataset.btnPos !== posKey) {
+    current.dataset.btnPos = posKey;
+    place(current, positionX, positionY);
   }
 
   if (current.dataset.charName === name) return;

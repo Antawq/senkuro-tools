@@ -1,14 +1,16 @@
 import type { Database } from './database';
 import type { TradeStore } from './trade-capture';
-import { MODAL, readTradePlaces, type Column, type Placement, type Role } from './trade-dom';
+import { MODAL, readTradePlaces, type Column, type Placement, type Role, type Variant } from './trade-dom';
 import { totalOf } from './trade-match';
 import {
   CRAFT_PER_RANK,
   SPLIT_PER_RANK,
-  compareShards,
+  compareR,
   compareSides,
   formatAmount,
   formatByRank,
+  formatShardsByRank,
+  hasR,
   valueSide,
   type SideValue,
   type Verdict,
@@ -23,18 +25,32 @@ const UNKNOWN = `${SUMMARY}__unknown`;
 const EXPAND_LABEL = 'Раскрыть полностью';
 const COLLAPSE_LABEL = 'Скрыть';
 
-type RowKey = 'value' | 'bank' | 'count' | 'shards';
+type RowKey = 'value' | 'bank' | 'count';
 
 const ROWS: [RowKey, string][] = [
-  ['value', 'ценность'],
-  ['bank', 'банк'],
-  ['count', 'карты'],
-  ['shards', 'осколки'],
+  ['value', 'Ценность'],
+  ['bank', 'Банк'],
+  ['count', 'Карты'],
+];
+
+const R_ROWS: [RowKey, string][] = [
+  ['value', 'Ценность'],
+  ['count', 'Карты'],
 ];
 
 export interface SummarySettings {
   commission: boolean;
   valueBySplit: boolean;
+  showSummaryF: boolean;
+  showSummaryBank: boolean;
+  showSummaryCards: boolean;
+  showSummaryVerdict: boolean;
+}
+
+interface RView {
+  value: string;
+  cards: string[];
+  complete: boolean;
 }
 
 interface SideView {
@@ -45,24 +61,34 @@ interface SideView {
   bank: string[];
   count: string[];
   unknown: string;
-  shards: string[] | null;
-  shardUnknown: string;
-  shardF: string;
+  r: RView | null;
 }
+
+const describeR = ({ r }: SideValue): RView => ({
+  value: `${formatAmount(r.value)}R`,
+  cards: [...(r.count > 0 ? [`${formatAmount(r.count)}R`] : []), ...(r.shards > 0 ? [`${formatAmount(r.shards)}oR`] : [])],
+  complete: r.complete,
+});
 
 const describe = (column: Column, db: Database, { commission, valueBySplit }: SummarySettings): SideView => {
   const value = valueSide(column, db, commission, valueBySplit ? SPLIT_PER_RANK : CRAFT_PER_RANK);
+
+  const countArray = formatByRank(value.count);
+  const shardsArray = formatShardsByRank(value.shards);
+
+  let unknownStr = '';
+  if (value.unknown > 0) unknownStr += `${value.unknown}X`;
+  if (value.shardUnknown > 0) unknownStr += (unknownStr ? ' ' : '') + `${value.shardUnknown}oX`;
+
   return {
     role: column.role,
     label: column.label,
     value,
     f: `${formatAmount(value.f)}F`,
     bank: formatByRank(value.bank),
-    count: formatByRank(value.count),
-    unknown: value.unknown ? `${value.unknown}X` : '',
-    shards: value.hasShards ? formatByRank(value.shards) : null,
-    shardUnknown: value.shardUnknown ? `${value.shardUnknown}X` : '',
-    shardF: value.hasShards ? `${formatAmount(value.shardF)}F` : '',
+    count: [...countArray, ...shardsArray],
+    unknown: unknownStr,
+    r: hasR(value) ? describeR(value) : null,
   };
 };
 
@@ -89,18 +115,43 @@ function cellOf(side: SideView, key: RowKey): HTMLElement {
   }
   if (key === 'bank') return amounts(cell, side.bank, side.unknown);
   if (key === 'count') return amounts(cell, side.count, side.unknown);
-  if (!side.shards) return amounts(cell, [], '');
-  amounts(cell, side.shards, side.shardUnknown);
-  cell.append(' · ', element('span', side.value.shardsComplete ? '' : UNKNOWN, side.shardF));
   return cell;
 }
 
-function table(sides: SideView[]): HTMLElement {
+function rCell(side: SideView, key: RowKey): HTMLElement {
+  const cell = element('span', `${SUMMARY}__cell`);
+  if (!side.r) return amounts(cell, [], '');
+  if (key === 'value') cell.append(element('strong', side.r.complete ? '' : UNKNOWN, side.r.value));
+  else amounts(cell, side.r.cards, '');
+  return cell;
+}
+
+function rWindow(sides: SideView[]): HTMLElement | null {
+  if (!sides.some((side) => side.r)) return null;
+  const grid = element('div', `${SUMMARY}__table`);
+  grid.style.setProperty('--senkuro-columns', String(sides.length));
+  for (const [key, label] of R_ROWS) grid.append(element('span', `${SUMMARY}__label`, label), ...sides.map((side) => rCell(side, key)));
+  const window = element('div', `${SUMMARY}__window`);
+  window.append(element('div', `${SUMMARY}__window-title`, 'R'), grid);
+  return window;
+}
+
+function panel(sides: SideView[], settings: SummarySettings): HTMLElement {
+  const wrapper = element('div', `${SUMMARY}__panel`);
+  wrapper.append(table(sides, settings));
+  const window = rWindow(sides);
+  if (window) wrapper.append(window);
+  return wrapper;
+}
+
+function table(sides: SideView[], settings: SummarySettings): HTMLElement {
   const grid = element('div', `${SUMMARY}__table`);
   grid.style.setProperty('--senkuro-columns', String(sides.length));
   grid.append(element('span'), ...sides.map((side) => element('span', `${SUMMARY}__side`, side.label)));
   for (const [key, label] of ROWS) {
-    if (key === 'shards' && !sides.some((side) => side.shards)) continue;
+    if (key === 'value' && !settings.showSummaryF) continue;
+    if (key === 'bank' && !settings.showSummaryBank) continue;
+    if (key === 'count' && !settings.showSummaryCards) continue;
     grid.append(element('span', `${SUMMARY}__label`, label), ...sides.map((side) => cellOf(side, key)));
   }
   return grid;
@@ -124,8 +175,8 @@ function expandToggle(summary: HTMLElement): HTMLButtonElement {
   return button;
 }
 
-function mount(host: Element, placement: Placement, order: number): HTMLElement {
-  const summary = element('div', `${SUMMARY} ${SUMMARY}--${placement}`);
+function mount(host: Element, placement: Placement, variant: Variant | undefined, order: number): HTMLElement {
+  const summary = element('div', `${SUMMARY} ${SUMMARY}--${placement}${variant ? ` ${SUMMARY}--${variant}` : ''}`);
   const gap = getComputedStyle(host).rowGap;
   summary.style.setProperty('--senkuro-host-gap', gap.endsWith('px') ? gap : '0px');
   summary.style.setProperty('--senkuro-order', String(Math.min(order, STAGGER_LIMIT)));
@@ -137,19 +188,30 @@ function mount(host: Element, placement: Placement, order: number): HTMLElement 
   return summary;
 }
 
-function render(host: Element, placement: Placement, caption: string | undefined, sides: SideView[], nextOrder: () => number): void {
+function render(
+  host: Element,
+  placement: Placement,
+  variant: Variant | undefined,
+  caption: string | undefined,
+  sides: SideView[],
+  settings: SummarySettings,
+  nextOrder: () => number
+): void {
   const give = sides.find((side) => side.role === 'give')?.value;
   const get = sides.find((side) => side.role === 'get')?.value;
-  const verdict = give && get ? compareSides(give, get) : null;
-  const shardVerdict = give && get ? compareShards(give, get) : null;
+  const verdict = settings.showSummaryVerdict && give && get ? compareSides(give, get) : null;
+  const rVerdict = settings.showSummaryVerdict && give && get ? compareR(give, get) : null;
   const signature = JSON.stringify([
     caption,
-    sides.map(({ label, f, bank, count, unknown, shards, shardUnknown, shardF }) => [label, f, bank, count, unknown, shards, shardUnknown, shardF]),
+    sides.map(({ label, f, bank, count, unknown, r }) => [label, f, bank, count, unknown, r]),
     verdict,
-    shardVerdict,
+    rVerdict,
+    settings.showSummaryF,
+    settings.showSummaryBank,
+    settings.showSummaryCards,
   ]);
 
-  const summary = host.querySelector<HTMLElement>(`:scope > .${SUMMARY}`) ?? mount(host, placement, nextOrder());
+  const summary = host.querySelector<HTMLElement>(`:scope > .${SUMMARY}`) ?? mount(host, placement, variant, nextOrder());
   summary.classList.remove(CLOSED);
   if (summary.dataset.signature === signature) return;
   summary.dataset.signature = signature;
@@ -157,25 +219,24 @@ function render(host: Element, placement: Placement, caption: string | undefined
 
   const parts: HTMLElement[] = caption ? [element('div', `${SUMMARY}__label`, caption)] : [];
   const details = element('div', `${SUMMARY}__details`);
-  details.append(table(sides));
+  details.append(panel(sides, settings));
   parts.push(details);
-  const verdicts: [Verdict | null, string][] = [
-    [verdict, ''],
-    [shardVerdict, ` ${SUMMARY}__verdict--shards`],
-  ];
-  for (const [result, extra] of verdicts) {
-    if (!result) continue;
-    const state = result.complete ? `${SUMMARY}__verdict--${result.kind}` : UNKNOWN;
-    parts.push(element('div', `${SUMMARY}__verdict ${state}${extra}`, result.text));
+  if (verdict) {
+    const state = verdict.complete ? `${SUMMARY}__verdict--${verdict.kind}` : UNKNOWN;
+    parts.push(element('div', `${SUMMARY}__verdict ${state}`, verdict.text));
+    if (rVerdict) {
+      const rState = rVerdict.complete ? `${SUMMARY}__verdict--${rVerdict.kind}` : UNKNOWN;
+      parts.push(element('div', `${SUMMARY}__verdict ${rState} ${SUMMARY}__verdict--r`, rVerdict.text));
+    }
+    parts.push(expandToggle(summary));
   }
-  if (verdict) parts.push(expandToggle(summary));
   summary.querySelector(`.${SUMMARY}__content`)?.replaceChildren(...parts);
 }
 
 export function updateTradeSummaries(db: Database, settings: SummarySettings, store: TradeStore): void {
   let mounted = 0;
   const nextOrder = () => mounted++;
-  for (const { host, placement, caption, columns } of readTradePlaces(store)) {
+  for (const { host, placement, variant, caption, columns } of readTradePlaces(store)) {
     if (!columns || columns.every((column) => totalOf(column) === 0)) {
       host.querySelector(`:scope > .${SUMMARY}`)?.classList.add(CLOSED);
       continue;
@@ -183,8 +244,10 @@ export function updateTradeSummaries(db: Database, settings: SummarySettings, st
     render(
       host,
       placement,
+      variant,
       caption,
       columns.map((column) => describe(column, db, settings)),
+      settings,
       nextOrder
     );
   }

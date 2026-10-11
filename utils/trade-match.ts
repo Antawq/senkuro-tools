@@ -6,7 +6,20 @@ export const sameCard = (a: CardRef | undefined, b: CardRef | undefined): boolea
 
 export const totalOf = (side: Side): number => side.cards.length + side.hidden;
 
-export const shows = (list: CardRef[], side: Side): boolean => list.length === totalOf(side) && side.cards.every((card, index) => sameCard(card, list[index]));
+const copiesOf = (cards: CardRef[]): string[] | null =>
+  cards.some(({ slug }) => slug === null)
+    ? null
+    : cards.flatMap(({ slug, quantity, shard }) => Array.from({ length: Math.max(1, Math.floor(quantity) || 1) }, () => `${slug}:${shard}`));
+
+const showsEntries = (list: CardRef[], side: Side): boolean => list.length === totalOf(side) && side.cards.every((card, index) => sameCard(card, list[index]));
+
+const showsCopies = (list: CardRef[], side: Side): boolean => {
+  const listed = copiesOf(list);
+  const drawn = copiesOf(side.cards);
+  return listed !== null && drawn !== null && listed.length === drawn.length + side.hidden && drawn.every((copy, index) => copy === listed[index]);
+};
+
+export const shows = (list: CardRef[], side: Side): boolean => showsEntries(list, side) || showsCopies(list, side);
 
 const single = <T extends Trade | Offer>(hits: T[]): T | null => {
   const contents = new Set(hits.map((hit) => JSON.stringify([hit.offer, hit.request])));

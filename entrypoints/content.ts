@@ -4,6 +4,7 @@ import '@/assets/trade-summary.css';
 import { defineContentScript } from '#imports';
 
 import { loadDatabase } from '@/utils/database';
+import { SENKURO_MATCHES } from '@/utils/hosts';
 import { createPriceBadges } from '@/utils/price-badges';
 import { loadSettings, watchSettings } from '@/utils/settings';
 import { createTokenBar } from '@/utils/token-bar';
@@ -15,12 +16,15 @@ const IDLE_TIMEOUT_MS = 500;
 const LATE_RENDER_DELAYS_MS = [1500, 4000];
 const WATCHED_ATTRIBUTES = ['src', 'srcset', 'data-srcset'];
 
+const applySummaryFontSize = (size: number) => document.documentElement.style.setProperty('--senkuro-summary-font-size', `${size}px`);
+
 export default defineContentScript({
-  matches: ['*://*.senkuro.com/*', '*://*.senkuro.me/*'],
+  matches: SENKURO_MATCHES,
   runAt: 'document_idle',
   async main(ctx) {
     const touch = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
     let settings = await loadSettings();
+    applySummaryFontSize(settings.summaryFontSize);
     const tradeStore = createTradeStore();
     const tokenBar = createTokenBar(ctx);
     let scheduled = false;
@@ -32,7 +36,18 @@ export default defineContentScript({
       try {
         const db = await loadDatabase();
         badges.update(db, settings);
-        updateTradeSummaries(db, { commission: settings.commission, valueBySplit: settings.valueBySplit }, tradeStore);
+        updateTradeSummaries(
+          db,
+          {
+            commission: settings.commission,
+            valueBySplit: settings.valueBySplit,
+            showSummaryF: settings.showSummaryF,
+            showSummaryBank: settings.showSummaryBank,
+            showSummaryCards: settings.showSummaryCards,
+            showSummaryVerdict: settings.showSummaryVerdict,
+          },
+          tradeStore
+        );
       } finally {
         rendering = false;
       }
@@ -62,6 +77,10 @@ export default defineContentScript({
         settings = next;
         if (key === 'showToken') {
           void tokenBar.sync(next.showToken);
+          return;
+        }
+        if (key === 'summaryFontSize') {
+          applySummaryFontSize(next.summaryFontSize);
           return;
         }
         badges.reset();

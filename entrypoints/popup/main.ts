@@ -1,14 +1,19 @@
 import { browser } from 'wxt/browser';
 
-import { DEFAULT_SETTINGS, loadSettings, resetSettings, saveSetting, type Settings } from '@/utils/settings';
+import { readAccessToken } from '@/utils/access-token';
+import { clearSnapshot, loadSnapshot, saveSnapshot } from '@/utils/account-cache';
+import { fetchAccountCards } from '@/utils/account-cards';
+import { mountAccountPanel } from '@/utils/account-panel';
+import { loadDatabase } from '@/utils/database';
+import { DEFAULT_SETTINGS, loadSettings, resetSettings, saveSetting, watchSettings, type Settings } from '@/utils/settings';
 
 const SAVE_DELAY_MS = 150;
 const TOKEN_WARNING =
   'ВНИМАНИЕ!\nТокен дает полный доступ к вашему аккаунту Senkuro. \nНикогда не передавайте его третьим лицам! \nВы уверены, что хотите отобразить токен?';
 
-type ToggleKey = 'commission' | 'copyBtn' | 'showToken' | 'valueBySplit';
-type SliderKey = 'copyBtnSize' | 'opacity' | 'fontSize';
-type ChoiceKey = 'position' | 'badgeStyle' | 'effectRed' | 'effectPurple' | 'effectYellow' | 'effectGreen' | 'effectWhite';
+type ToggleKey = 'commission' | 'copyBtn' | 'showToken' | 'valueBySplit' | 'showSummaryF' | 'showSummaryBank' | 'showSummaryCards' | 'showSummaryVerdict';
+type SliderKey = 'copyBtnSize' | 'opacity' | 'fontSize' | 'summaryFontSize';
+type ChoiceKey = 'positionX' | 'positionY' | 'badgeStyle' | 'effectRed' | 'effectPurple' | 'effectYellow' | 'effectGreen' | 'effectWhite';
 
 interface Binding {
   show(settings: Settings): void;
@@ -70,10 +75,16 @@ const bindings = [
   toggle('copyBtnToggle', 'copyBtn'),
   toggle('showTokenToggle', 'showToken', TOKEN_WARNING),
   toggle('valueBySplitToggle', 'valueBySplit'),
+  toggle('showSummaryFToggle', 'showSummaryF'),
+  toggle('showSummaryBankToggle', 'showSummaryBank'),
+  toggle('showSummaryCardsToggle', 'showSummaryCards'),
+  toggle('showSummaryVerdictToggle', 'showSummaryVerdict'),
   slider('copyBtnSizeSlider', 'copyBtnSizeValue', 'px', 'copyBtnSize'),
   slider('opacitySlider', 'opacityValue', '%', 'opacity'),
   slider('fontSizeSlider', 'fontSizeValue', 'px', 'fontSize'),
-  choice('positionSelect', 'position'),
+  slider('summaryFontSizeSlider', 'summaryFontSizeValue', 'px', 'summaryFontSize'),
+  choice('positionXSelect', 'positionX'),
+  choice('positionYSelect', 'positionY'),
   choice('styleSelect', 'badgeStyle'),
   choice('effectRed', 'effectRed'),
   choice('effectPurple', 'effectPurple'),
@@ -91,4 +102,22 @@ byId('resetBtn')?.addEventListener('click', () => {
   void resetSettings().then(() => showAll(DEFAULT_SETTINGS));
 });
 
-void loadSettings().then(showAll);
+void loadSettings().then((settings) => {
+  showAll(settings);
+  let commission = settings.commission;
+  const panel = mountAccountPanel(document, {
+    readToken: () => readAccessToken(),
+    fetchCards: (token, onProgress) => fetchAccountCards(token, onProgress),
+    loadDatabase,
+    loadSnapshot,
+    saveSnapshot,
+    clearSnapshot,
+    commission: () => commission,
+    now: Date.now,
+  });
+  watchSettings(settings, (next, key) => {
+    if (key !== 'commission') return;
+    commission = next.commission;
+    void panel.refresh();
+  });
+});

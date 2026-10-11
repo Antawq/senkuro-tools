@@ -1,14 +1,22 @@
-import { copyFile } from 'node:fs/promises';
+import { copyFile, readFile } from 'node:fs/promises';
 
 import { defineConfig } from 'wxt';
 
-const SENKURO_HOSTS = ['*://*.senkuro.com/*', '*://*.senkuro.me/*'];
+import { SENKURO_MATCHES } from './utils/hosts';
+
+const DATABASE = 'database.json';
 
 export default defineConfig({
   imports: false,
   manifestVersion: 3,
   zip: { excludeSources: ['**/*.local.*'] },
   hooks: {
+    'build:publicAssets': async (_wxt, files) => {
+      const index = files.findIndex((file) => file.relativeDest === DATABASE);
+      const file = files[index];
+      if (!file || !('absoluteSrc' in file)) return;
+      files[index] = { relativeDest: DATABASE, contents: JSON.stringify(JSON.parse(await readFile(file.absoluteSrc, 'utf8'))) };
+    },
     'zip:extension:done': async (wxt, zipPath) => {
       if (wxt.config.browser === 'firefox') await copyFile(zipPath, zipPath.replace(/-firefox\.zip$/, '.xpi'));
     },
@@ -16,8 +24,8 @@ export default defineConfig({
   manifest: ({ browser }) => ({
     name: 'SenkuTools',
     permissions: ['storage', 'clipboardWrite', 'cookies'],
-    host_permissions: SENKURO_HOSTS,
-    web_accessible_resources: [{ resources: ['database.json'], matches: SENKURO_HOSTS }],
+    host_permissions: SENKURO_MATCHES,
+    web_accessible_resources: [{ resources: [DATABASE], matches: SENKURO_MATCHES }],
     ...(browser === 'firefox' && {
       browser_specific_settings: {
         gecko: {
