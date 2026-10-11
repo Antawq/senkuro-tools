@@ -19,6 +19,7 @@
     "test": "vitest run"
   },
   "devDependencies": {
+    "@antawq/senkuro": "file:vendor/antawq-senkuro-0.1.0.tgz",
     "happy-dom": "^20.14.5",
     "typescript": "~6.0.3",
     "vite": "^8.3.4",
