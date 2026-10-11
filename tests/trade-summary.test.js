@@ -498,6 +498,36 @@ describe('trade lists outside the modal', () => {
     });
   });
 
+  it('tells what a fast trade costs when the card draws a stack copy by copy', () => {
+    store.add({
+      items: [
+        {
+          kind: 'offer',
+          id: 'o2',
+          author: { id: 'u4', name: 'Токунбек' },
+          viewerDidAuthor: false,
+          offer: previews([
+            ['s-card', 1],
+            ['a-card', 1],
+          ]),
+          request: previews([['f-card', 2]]),
+        },
+      ],
+    });
+    const el = document.createElement('div');
+    el.className = 'offer-card';
+    el.innerHTML = `
+      <div class="offer-card__top"><h3><span>Токунбек</span></h3><div class="offer-card__top-list">${card('s-card')}<div class="offer-card__top-more">+1</div></div></div>
+      <div class="offer-card__cnt"><div class="offer-card__cnt-list">${card('f-card')}${card('f-card')}</div></div>`;
+    document.body.append(el);
+    updateTradeSummaries(db, settings, store);
+    expect(summaryOf(el)).toEqual({
+      sides: ['Отдаёшь 2F Банк 2F Карты 2F', 'Получаешь 340.2F Банк 1S 1.2A Карты 1S 1A'],
+      verdict: 'Выгода +338.2F (+16910%)',
+      grayVerdict: false,
+    });
+  });
+
   it('stays silent on a notification two trades of the sender could explain', () => {
     store.add({ items: [skyTrade, { ...skyTrade, id: 't2', offer: [...skyTrade.offer].reverse() }] });
     const el = document.createElement('div');
