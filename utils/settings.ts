@@ -3,6 +3,7 @@ import { storage, type WxtStorageItem } from 'wxt/utils/storage';
 export type BadgePositionX = 'left' | 'center' | 'right';
 export type BadgePositionY = 'top' | 'center' | 'bottom';
 export type BadgeStyle = 'background' | 'outline';
+export type ValueBasis = 'bank' | 'cards';
 export type PriceEffect = '' | 'price-effect-rgb' | 'price-effect-tilt' | 'price-effect-bg' | 'price-effect-pulse';
 
 export interface Settings {
@@ -22,6 +23,7 @@ export interface Settings {
   effectWhite: PriceEffect;
   showToken: boolean;
   valueBySplit: boolean;
+  valueBasis: ValueBasis;
   showSummaryF: boolean;
   showSummaryBank: boolean;
   showSummaryCards: boolean;
@@ -47,6 +49,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = {
   effectWhite: '',
   showToken: false,
   valueBySplit: false,
+  valueBasis: 'bank',
   showSummaryF: true,
   showSummaryBank: true,
   showSummaryCards: true,

@@ -734,6 +734,18 @@
           Выключено: по крафту, 3 карты в 1 рангом выше, ×3 за ранг. Включено: по расколу, 1 карта в 2 рангом ниже, ×2 за ранг. Влияет на итог обмена и осколки.
         </p>
 
+        <div class="field-group">
+          <div class="field-title">Ценность в F считать по:</div>
+          <select id="valueBasisSelect">
+            <option value="bank">Банку (цены карт)</option>
+            <option value="cards">Картам (количество)</option>
+          </select>
+        </div>
+        <p class="hint">
+          По банку: цена каждой карты (с комиссией, если она включена) × её ранг. По картам: каждая карта считается по рангу, цены не учитываются. Влияет на
+          итог обмена и осколки. Для R итог считается в монетах или в штуках.
+        </p>
+
         <label class="toggle-container toggle-container--separated">
           <input type="checkbox" id="showTokenToggle" />
           <span class="toggle-text">Показывать токен аккаунта</span>

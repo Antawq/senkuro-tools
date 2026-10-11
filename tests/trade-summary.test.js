@@ -136,6 +136,26 @@ describe('updateTradeSummaries', () => {
     });
   });
 
+  it('sums the cards by their rank alone when the value follows the cards', () => {
+    const el = modal('Выбери до 50 карт', constructorFooter([card('a-card', 2)], [card('s-card')]));
+    updateTradeSummaries(db, { ...settings, valueBasis: 'cards' }, store);
+    expect(summaryOf(el)).toEqual({
+      sides: ['Получаешь 162F Банк 2.4A Карты 2A', 'Отдаёшь 243F Банк 1S Карты 1S'],
+      verdict: 'Потеря -81F (-33%)',
+      grayVerdict: false,
+    });
+  });
+
+  it('draws the total again when the basis is switched', () => {
+    const el = modal('Выбери до 50 карт', constructorFooter([card('a-card', 2)], [card('s-card')]));
+    updateTradeSummaries(db, settings, store);
+    expect(summaryOf(el).verdict).toBe('Потеря -48.6F (-20%)');
+    updateTradeSummaries(db, { ...settings, valueBasis: 'cards' }, store);
+    expect(summaryOf(el).verdict).toBe('Потеря -81F (-33%)');
+    updateTradeSummaries(db, { ...settings, valueBasis: 'bank' }, store);
+    expect(summaryOf(el).verdict).toBe('Потеря -48.6F (-20%)');
+  });
+
   it('keeps the exact selection on the own review step where only three cards per side are drawn', () => {
     const offers = [card('s-card'), card('s-card'), card('s-card'), card('f-card'), card('f-card')];
     const el = modal('Выбери до 50 карт', constructorFooter([card('a-card')], offers));

@@ -43,6 +43,7 @@ export default defineContentScript({
           {
             commission: settings.commission,
             valueBySplit: settings.valueBySplit,
+            valueBasis: settings.valueBasis,
             showSummaryF: settings.showSummaryF,
             showSummaryBank: settings.showSummaryBank,
             showSummaryCards: settings.showSummaryCards,

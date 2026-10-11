@@ -13,7 +13,7 @@ const TOKEN_WARNING =
 
 type ToggleKey = 'commission' | 'copyBtn' | 'showToken' | 'valueBySplit' | 'showSummaryF' | 'showSummaryBank' | 'showSummaryCards' | 'showSummaryVerdict';
 type SliderKey = 'copyBtnSize' | 'opacity' | 'fontSize' | 'summaryFontSize';
-type ChoiceKey = 'positionX' | 'positionY' | 'badgeStyle' | 'effectRed' | 'effectPurple' | 'effectYellow' | 'effectGreen' | 'effectWhite';
+type ChoiceKey = 'positionX' | 'positionY' | 'badgeStyle' | 'valueBasis' | 'effectRed' | 'effectPurple' | 'effectYellow' | 'effectGreen' | 'effectWhite';
 
 interface Binding {
   show(settings: Settings): void;
@@ -86,6 +86,7 @@ const bindings = [
   choice('positionXSelect', 'positionX'),
   choice('positionYSelect', 'positionY'),
   choice('styleSelect', 'badgeStyle'),
+  choice('valueBasisSelect', 'valueBasis'),
   choice('effectRed', 'effectRed'),
   choice('effectPurple', 'effectPurple'),
   choice('effectYellow', 'effectYellow'),

@@ -30,6 +30,52 @@ describe('valueSide', () => {
     expect(formatShardsByRank(side.shards)).toEqual(['1oS']);
   });
 
+  describe('when the total follows the cards instead of the bank', () => {
+    const sides = { cards: [card('s-card'), card('a-card', 2), card('f-card'), card('d-card')], hidden: 0 };
+
+    it('counts every card by its rank alone, whatever it costs', () => {
+      const side = valueSide(sides, db, true, undefined, 'cards');
+      expect(side.f).toBeCloseTo(243 + 2 * 81 + 1 + 3);
+      expect(valueSide(sides, db, false, undefined, 'cards').f).toBeCloseTo(side.f);
+    });
+
+    it('leaves the bank and the card rows as they are', () => {
+      const bank = valueSide(sides, db, true);
+      const cards = valueSide(sides, db, true, undefined, 'cards');
+      expect(formatByRank(cards.bank)).toEqual(formatByRank(bank.bank));
+      expect(formatByRank(cards.count)).toEqual(formatByRank(bank.count));
+      expect(cards.complete).toBe(bank.complete);
+    });
+
+    it('is what it was before when the basis is the bank, also when none is given', () => {
+      expect(valueSide(sides, db, true, undefined, 'bank').f).toBeCloseTo(valueSide(sides, db, true).f);
+    });
+
+    it('follows the splitting ratio too', () => {
+      const side = valueSide({ cards: [card('s-card'), card('d-card'), card('s-card', 1, true)], hidden: 0 }, db, true, SPLIT_PER_RANK, 'cards');
+      expect(side.f).toBeCloseTo(32 + 2 + 32 / 10);
+    });
+
+    it('counts a shard as its share of the card, by the shards its rank needs', () => {
+      const side = valueSide({ cards: [card('s-card', 3, true), card('f-card')], hidden: 0 }, db, true, undefined, 'cards');
+      expect(side.f).toBeCloseTo(1 + (3 * 243) / 10);
+    });
+
+    it('gives R as the number of its cards rather than its coins', () => {
+      const side = valueSide({ cards: [card('r-card', 2), card('s-card')], hidden: 0 }, db, true, undefined, 'cards');
+      expect(side.r.value).toBe(2);
+      expect(side.r.count).toBe(2);
+      expect(side.f).toBeCloseTo(243);
+      expect(valueSide({ cards: [card('r-card', 2)], hidden: 0 }, db, true).r.value).toBeCloseTo(2 * 1.25 * 0.8);
+    });
+
+    it('still cannot settle hidden cards or cards missing from the database', () => {
+      const side = valueSide({ cards: [card('s-card'), card('unlisted')], hidden: 2 }, db, true, undefined, 'cards');
+      expect(side.unknown).toBe(3);
+      expect(side.complete).toBe(false);
+    });
+  });
+
   it('uses the raw base price when the commission is off', () => {
     expect(valueSide({ cards: [card('s-card')], hidden: 0 }, db, false).f).toBeCloseTo(1.25 * 243);
   });

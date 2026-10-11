@@ -1,5 +1,6 @@
 import { effectivePrice } from './cards';
 import type { Database } from './database';
+import type { ValueBasis } from './settings';
 
 export interface CardRef {
   slug: string | null;
@@ -62,7 +63,7 @@ const addTo = (map: Map<string, number>, rank: string, amount: number) => map.se
 const priceOf = (entry: { price?: unknown } | undefined): number | null =>
   typeof entry?.price === 'number' && Number.isFinite(entry.price) ? entry.price : null;
 
-export function valueSide({ cards, hidden }: Side, db: Database, commission: boolean, perRank = CRAFT_PER_RANK): SideValue {
+export function valueSide({ cards, hidden }: Side, db: Database, commission: boolean, perRank = CRAFT_PER_RANK, basis: ValueBasis = 'bank'): SideValue {
   const side = {
     f: 0,
     bank: new Map<string, number>(),
@@ -88,7 +89,7 @@ export function valueSide({ cards, hidden }: Side, db: Database, commission: boo
       else if (rate === null) side.beyondF = true;
       else {
         const required = SHARDS_REQUIRED[entry.rank] || 1;
-        side.f += (effectivePrice(price, commission) * quantity * rate) / required;
+        side.f += ((basis === 'cards' ? quantity : effectivePrice(price, commission) * quantity) * rate) / required;
       }
       continue;
     }
@@ -99,11 +100,12 @@ export function valueSide({ cards, hidden }: Side, db: Database, commission: boo
     const value = effectivePrice(price, commission) * quantity;
     addTo(side.bank, entry.rank, value);
     addTo(side.count, entry.rank, quantity);
+    const weight = basis === 'cards' ? quantity : value;
     if (entry.rank === R_RANK) {
-      side.r.value += value;
+      side.r.value += weight;
       side.r.count += quantity;
     } else if (rate === null) side.beyondF = true;
-    else side.f += value * rate;
+    else side.f += weight * rate;
   }
 
   const hasShards = side.shards.size > 0 || side.shardUnknown > 0;

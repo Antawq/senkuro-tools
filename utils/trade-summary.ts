@@ -1,6 +1,7 @@
 import type { Database } from './database';
 import type { TradeStore } from './trade-capture';
 import { MODAL, readTradePlaces, type Column, type Placement, type Role, type Variant } from './trade-dom';
+import type { ValueBasis } from './settings';
 import { totalOf } from './trade-match';
 import {
   CRAFT_PER_RANK,
@@ -41,6 +42,7 @@ const R_ROWS: [RowKey, string][] = [
 export interface SummarySettings {
   commission: boolean;
   valueBySplit: boolean;
+  valueBasis: ValueBasis;
   showSummaryF: boolean;
   showSummaryBank: boolean;
   showSummaryCards: boolean;
@@ -70,8 +72,8 @@ const describeR = ({ r }: SideValue): RView => ({
   complete: r.complete,
 });
 
-const describe = (column: Column, db: Database, { commission, valueBySplit }: SummarySettings): SideView => {
-  const value = valueSide(column, db, commission, valueBySplit ? SPLIT_PER_RANK : CRAFT_PER_RANK);
+const describe = (column: Column, db: Database, { commission, valueBySplit, valueBasis }: SummarySettings): SideView => {
+  const value = valueSide(column, db, commission, valueBySplit ? SPLIT_PER_RANK : CRAFT_PER_RANK, valueBasis);
 
   const countArray = formatByRank(value.count);
   const shardsArray = formatShardsByRank(value.shards);
