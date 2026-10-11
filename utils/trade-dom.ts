@@ -19,9 +19,12 @@ export interface Column extends Side {
 
 export type Placement = 'start' | 'end';
 
+export type Variant = 'offer';
+
 export interface Place {
   host: Element;
   placement: Placement;
+  variant?: Variant;
   caption?: string;
   columns: Column[] | null;
 }
@@ -147,11 +150,12 @@ const readOffers = (store: TradeStore): Place[] =>
     const middle = { cards: readCards(host.querySelector('.offer-card__cnt-list')), hidden: numberIn(host.querySelector('.offer-card__cnt-el-more')) };
     const author = host.querySelector('.offer-card__top h3 span')?.textContent?.trim() ?? '';
     const offer = matchOffer(store.offers(), author, top, middle);
-    if (!offer) return { host, placement: 'end', columns: null };
+    if (!offer) return { host, placement: 'end', variant: 'offer', columns: null };
     const [give, get] = offer.viewerDidAuthor ? [offer.offer, offer.request] : [offer.request, offer.offer];
     return {
       host,
       placement: 'end',
+      variant: 'offer',
       caption: offer.viewerDidAuthor ? 'Если примут' : 'Если примешь',
       columns: [column('give', whole(give)), column('get', whole(get))],
     };

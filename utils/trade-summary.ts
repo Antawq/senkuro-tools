@@ -1,6 +1,6 @@
 import type { Database } from './database';
 import type { TradeStore } from './trade-capture';
-import { MODAL, readTradePlaces, type Column, type Placement, type Role } from './trade-dom';
+import { MODAL, readTradePlaces, type Column, type Placement, type Role, type Variant } from './trade-dom';
 import { totalOf } from './trade-match';
 import {
   CRAFT_PER_RANK,
@@ -175,8 +175,8 @@ function expandToggle(summary: HTMLElement): HTMLButtonElement {
   return button;
 }
 
-function mount(host: Element, placement: Placement, order: number): HTMLElement {
-  const summary = element('div', `${SUMMARY} ${SUMMARY}--${placement}`);
+function mount(host: Element, placement: Placement, variant: Variant | undefined, order: number): HTMLElement {
+  const summary = element('div', `${SUMMARY} ${SUMMARY}--${placement}${variant ? ` ${SUMMARY}--${variant}` : ''}`);
   const gap = getComputedStyle(host).rowGap;
   summary.style.setProperty('--senkuro-host-gap', gap.endsWith('px') ? gap : '0px');
   summary.style.setProperty('--senkuro-order', String(Math.min(order, STAGGER_LIMIT)));
@@ -188,7 +188,15 @@ function mount(host: Element, placement: Placement, order: number): HTMLElement 
   return summary;
 }
 
-function render(host: Element, placement: Placement, caption: string | undefined, sides: SideView[], settings: SummarySettings, nextOrder: () => number): void {
+function render(
+  host: Element,
+  placement: Placement,
+  variant: Variant | undefined,
+  caption: string | undefined,
+  sides: SideView[],
+  settings: SummarySettings,
+  nextOrder: () => number
+): void {
   const give = sides.find((side) => side.role === 'give')?.value;
   const get = sides.find((side) => side.role === 'get')?.value;
   const verdict = settings.showSummaryVerdict && give && get ? compareSides(give, get) : null;
@@ -203,7 +211,7 @@ function render(host: Element, placement: Placement, caption: string | undefined
     settings.showSummaryCards,
   ]);
 
-  const summary = host.querySelector<HTMLElement>(`:scope > .${SUMMARY}`) ?? mount(host, placement, nextOrder());
+  const summary = host.querySelector<HTMLElement>(`:scope > .${SUMMARY}`) ?? mount(host, placement, variant, nextOrder());
   summary.classList.remove(CLOSED);
   if (summary.dataset.signature === signature) return;
   summary.dataset.signature = signature;
@@ -228,7 +236,7 @@ function render(host: Element, placement: Placement, caption: string | undefined
 export function updateTradeSummaries(db: Database, settings: SummarySettings, store: TradeStore): void {
   let mounted = 0;
   const nextOrder = () => mounted++;
-  for (const { host, placement, caption, columns } of readTradePlaces(store)) {
+  for (const { host, placement, variant, caption, columns } of readTradePlaces(store)) {
     if (!columns || columns.every((column) => totalOf(column) === 0)) {
       host.querySelector(`:scope > .${SUMMARY}`)?.classList.add(CLOSED);
       continue;
@@ -236,6 +244,7 @@ export function updateTradeSummaries(db: Database, settings: SummarySettings, st
     render(
       host,
       placement,
+      variant,
       caption,
       columns.map((column) => describe(column, db, settings)),
       settings,

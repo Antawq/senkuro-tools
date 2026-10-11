@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_SETTINGS } from '../utils/settings';
@@ -414,6 +418,52 @@ describe('R window', () => {
     el.querySelectorAll('.modal-trade__preview-cnt')[0].replaceChildren(...[...document.createRange().createContextualFragment(card('a-card')).children]);
     updateTradeSummaries(db, settings, store);
     expect(windowOf(el)).toBeNull();
+  });
+});
+
+describe('summary variants', () => {
+  const offerCard = () => {
+    store.add({
+      items: [
+        {
+          kind: 'offer',
+          id: 'o7',
+          author: { id: 'u7', name: 'Smile' },
+          viewerDidAuthor: false,
+          offer: previews([['f-card', 1]]),
+          request: previews([['s-card', 1]]),
+        },
+      ],
+    });
+    const el = document.createElement('div');
+    el.className = 'offer-card';
+    el.innerHTML = `
+      <div class="offer-card__top"><h3><span>Smile</span></h3><div class="offer-card__top-list">${card('f-card')}</div></div>
+      <div class="offer-card__cnt"><div class="offer-card__cnt-list">${card('s-card')}</div></div>`;
+    document.body.append(el);
+    return el;
+  };
+
+  it('marks the summary of a fast trade so that it can be a block of its own', () => {
+    const el = offerCard();
+    updateTradeSummaries(db, settings, store);
+    const classes = el.querySelector('.senkuro-trade-summary').classList;
+    expect(classes.contains('senkuro-trade-summary--offer')).toBe(true);
+    expect(classes.contains('senkuro-trade-summary--end')).toBe(true);
+  });
+
+  it('leaves the summaries of modals, history entries and notifications as they are', () => {
+    const el = modal('', constructorFooter([card('a-card')], [card('s-card')]));
+    store.add({ viewerId: 'u2', items: [skyTrade] });
+    const entry = historyItem(true);
+    updateTradeSummaries(db, settings, store);
+    expect(el.querySelector('.senkuro-trade-summary').classList.contains('senkuro-trade-summary--offer')).toBe(false);
+    expect(entry.querySelector('.senkuro-trade-summary').classList.contains('senkuro-trade-summary--offer')).toBe(false);
+  });
+
+  it('has a style for the variant it marks', () => {
+    const css = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../assets/trade-summary.css'), 'utf8');
+    expect(css).toContain('.senkuro-trade-summary--offer .senkuro-trade-summary__content');
   });
 });
 
