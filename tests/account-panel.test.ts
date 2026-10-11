@@ -128,7 +128,7 @@ describe('account panel', () => {
     const deps = depsOf({ readToken: vi.fn(async () => null) });
     await mountAccountPanel(document, deps).ready;
     await press('accountLoad');
-    expect(text('accountHint')).toBe('Не найден токен: войдите в аккаунт на сайте и повторите.');
+    expect(text('accountHint')).toBe('Не найден токен: откройте сайт в этом окне, войдите в аккаунт и повторите.');
     expect(el('accountHint').classList.contains('hint--error')).toBe(true);
     expect(deps.fetchCards).not.toHaveBeenCalled();
     expect(button('accountLoad').disabled).toBe(false);

@@ -1,6 +1,6 @@
 import { browser } from 'wxt/browser';
 
-import { readAccessToken } from '@/utils/access-token';
+import { readTokenFromSite } from '@/utils/access-token';
 import { clearSnapshot, loadSnapshot, saveSnapshot } from '@/utils/account-cache';
 import { fetchAccountCards } from '@/utils/account-cards';
 import { mountAccountPanel } from '@/utils/account-panel';
@@ -106,7 +106,7 @@ void loadSettings().then((settings) => {
   showAll(settings);
   let commission = settings.commission;
   const panel = mountAccountPanel(document, {
-    readToken: () => readAccessToken(),
+    readToken: readTokenFromSite,
     fetchCards: (token, onProgress) => fetchAccountCards(token, onProgress),
     loadDatabase,
     loadSnapshot,

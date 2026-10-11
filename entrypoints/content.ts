@@ -3,6 +3,7 @@ import '@/assets/token-bar.css';
 import '@/assets/trade-summary.css';
 import { defineContentScript } from '#imports';
 
+import { answerTokenRequests } from '@/utils/access-token';
 import { loadDatabase } from '@/utils/database';
 import { SENKURO_MATCHES } from '@/utils/hosts';
 import { createPriceBadges } from '@/utils/price-badges';
@@ -22,6 +23,7 @@ export default defineContentScript({
   matches: SENKURO_MATCHES,
   runAt: 'document_idle',
   async main(ctx) {
+    ctx.onInvalidated(answerTokenRequests());
     const touch = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
     let settings = await loadSettings();
     applySummaryFontSize(settings.summaryFontSize);

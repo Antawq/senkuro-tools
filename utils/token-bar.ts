@@ -2,10 +2,10 @@ import { browser } from 'wxt/browser';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { createIntegratedUi, type IntegratedContentScriptUi } from 'wxt/utils/content-script-ui/integrated';
 
+import { readDocumentToken } from './access-token';
 import { TOKEN_REQUEST, type TokenRequest, type TokenResponse } from './messages';
 
 const BAR = 'senkuro-token-bar';
-const TOKEN_COOKIE = /(?:^|;\s*)access_token=([^;]+)/;
 const COPIED_MS = 2500;
 const COPY_LABEL = 'Копировать токен';
 
@@ -14,8 +14,8 @@ export interface TokenBar {
 }
 
 async function readToken(): Promise<string | null> {
-  const cookie = TOKEN_COOKIE.exec(document.cookie)?.[1];
-  if (cookie) return decodeURIComponent(cookie);
+  const own = readDocumentToken();
+  if (own) return own;
   try {
     const request: TokenRequest = { type: TOKEN_REQUEST };
     const response = await browser.runtime.sendMessage<TokenRequest, TokenResponse | undefined>(request);
