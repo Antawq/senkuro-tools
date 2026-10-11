@@ -54,6 +54,68 @@ describe('captureTrades', () => {
     expect(captureTrades({ data: { cardOffers: { edges: [{ node: offer }] } } }).items[0]).toMatchObject({ kind: 'offer', author: { name: 'Smile' } });
   });
 
+  describe('in an answer that carries no typenames', () => {
+    const bare = (value) =>
+      Array.isArray(value)
+        ? value.map(bare)
+        : value && typeof value === 'object'
+          ? Object.fromEntries(
+              Object.entries(value)
+                .filter(([key]) => key !== '__typename')
+                .map(([key, inner]) => [key, bare(inner)])
+            )
+          : value;
+    const offer = { __typename: 'CardOffer', id: 'o1', user: user('u3', 'Smile'), viewerDidAuthor: true, offer: [preview('a')], request: [preview('b', 2)] };
+
+    it('still tells a trade by its two sides', () => {
+      const found = captureTrades(bare({ data: { cardTrades: { edges: [{ node: trade }] } } }));
+      expect(found.items.map(({ kind, id }) => [kind, id])).toEqual([['trade', 't1']]);
+      expect(found.items[0].source.name).toBe('Phaivroh | WL');
+    });
+
+    it('still tells an offer by its author and the viewer flag', () => {
+      const found = captureTrades(bare({ data: { cardOffers: { edges: [{ node: offer }] } } }));
+      expect(found.items).toEqual([
+        {
+          kind: 'offer',
+          id: 'o1',
+          author: { id: 'u3', name: 'Smile' },
+          viewerDidAuthor: true,
+          offer: [{ slug: 'a', quantity: 1, shard: false }],
+          request: [{ slug: 'b', quantity: 2, shard: false }],
+        },
+      ]);
+    });
+
+    it('takes the slug of a preview that carries it directly', () => {
+      const flat = {
+        id: 'o2',
+        user: user('u3', 'Smile'),
+        viewerDidAuthor: false,
+        offer: [{ slug: 'x', quantity: 1, shard: false }],
+        request: [{ slug: 'y', quantity: 3, shard: true }],
+      };
+      expect(captureTrades({ data: { cardOffers: { edges: [{ node: flat }] } } }).items[0]).toMatchObject({
+        offer: [{ slug: 'x', quantity: 1, shard: false }],
+        request: [{ slug: 'y', quantity: 3, shard: true }],
+      });
+    });
+
+    it('does not mistake a card transaction for an offer, nor a node of another named type', () => {
+      const transaction = { id: 'x1', user: user('u3', 'Smile'), type: 'TRADE', offer: [preview('a')], request: [preview('b')] };
+      const named = {
+        __typename: 'UserCardTransaction',
+        id: 'x2',
+        user: user('u3', 'Smile'),
+        viewerDidAuthor: true,
+        offer: [preview('a')],
+        request: [preview('b')],
+      };
+      expect(captureTrades(bare({ data: { transactions: [transaction] } })).items).toEqual([]);
+      expect(captureTrades({ data: { transactions: [named] } }).items).toEqual([]);
+    });
+  });
+
   it('reads the server rendered payload and skips broken entries', () => {
     const payload = { graphql: { 1: { data: JSON.stringify({ cardTrades: { edges: [{ node: trade }] } }) }, 2: { data: '{broken' } } };
     expect(captureServerPayload(payload).flatMap((found) => found.items)).toHaveLength(1);

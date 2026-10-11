@@ -50,6 +50,7 @@ interface GraphUser {
 interface GraphPreview {
   quantity?: number;
   shard?: boolean | number;
+  slug?: string;
   card?: { slug?: string };
 }
 
@@ -71,22 +72,31 @@ interface ServerPayload {
 
 type CapturingWindow = Window & typeof globalThis & { __SENKURO__?: ServerPayload };
 
-const preview = (item: GraphPreview | undefined): CardRef => ({ slug: item?.card?.slug ?? null, quantity: item?.quantity ?? 1, shard: Boolean(item?.shard) });
+const preview = (item: GraphPreview | undefined): CardRef => ({
+  slug: item?.card?.slug ?? item?.slug ?? null,
+  quantity: item?.quantity ?? 1,
+  shard: Boolean(item?.shard),
+});
 
 const previews = (list: unknown): CardRef[] | null => (Array.isArray(list) ? (list as (GraphPreview | undefined)[]).map(preview) : null);
 
 const person = (user: GraphUser | undefined): Person => ({ id: user?.id ?? null, name: user?.name ?? '' });
 
+function kindOf(node: GraphNode): CapturedItem['kind'] | null {
+  if (node.__typename === 'CardTrade') return 'trade';
+  if (node.__typename === 'CardOffer') return 'offer';
+  if (node.__typename !== undefined) return null;
+  if (node.source && node.destination) return 'trade';
+  return node.user && typeof node.viewerDidAuthor === 'boolean' ? 'offer' : null;
+}
+
 function describe(node: GraphNode): CapturedItem | null {
   const offer = previews(node.offer);
   const request = previews(node.request);
   if (!node.id || !offer || !request) return null;
-  if (node.__typename === 'CardTrade') {
-    return { kind: 'trade', id: node.id, source: person(node.source), destination: person(node.destination), offer, request };
-  }
-  if (node.__typename === 'CardOffer') {
-    return { kind: 'offer', id: node.id, author: person(node.user), viewerDidAuthor: Boolean(node.viewerDidAuthor), offer, request };
-  }
+  const kind = kindOf(node);
+  if (kind === 'trade') return { kind, id: node.id, source: person(node.source), destination: person(node.destination), offer, request };
+  if (kind === 'offer') return { kind, id: node.id, author: person(node.user), viewerDidAuthor: Boolean(node.viewerDidAuthor), offer, request };
   return null;
 }
 
