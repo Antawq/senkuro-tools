@@ -1,6 +1,11 @@
 import { browser } from 'wxt/browser';
 
-import { DEFAULT_SETTINGS, loadSettings, resetSettings, saveSetting, type Settings } from '@/utils/settings';
+import { readAccessToken } from '@/utils/access-token';
+import { clearSnapshot, loadSnapshot, saveSnapshot } from '@/utils/account-cache';
+import { fetchAccountCards } from '@/utils/account-cards';
+import { mountAccountPanel } from '@/utils/account-panel';
+import { loadDatabase } from '@/utils/database';
+import { DEFAULT_SETTINGS, loadSettings, resetSettings, saveSetting, watchSettings, type Settings } from '@/utils/settings';
 
 const SAVE_DELAY_MS = 150;
 const TOKEN_WARNING =
@@ -97,4 +102,22 @@ byId('resetBtn')?.addEventListener('click', () => {
   void resetSettings().then(() => showAll(DEFAULT_SETTINGS));
 });
 
-void loadSettings().then(showAll);
+void loadSettings().then((settings) => {
+  showAll(settings);
+  let commission = settings.commission;
+  const panel = mountAccountPanel(document, {
+    readToken: () => readAccessToken(),
+    fetchCards: (token, onProgress) => fetchAccountCards(token, onProgress),
+    loadDatabase,
+    loadSnapshot,
+    saveSnapshot,
+    clearSnapshot,
+    commission: () => commission,
+    now: Date.now,
+  });
+  watchSettings(settings, (next, key) => {
+    if (key !== 'commission') return;
+    commission = next.commission;
+    void panel.refresh();
+  });
+});

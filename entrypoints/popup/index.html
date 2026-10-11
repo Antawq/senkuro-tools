@@ -425,6 +425,87 @@
       .special-thanks .support-row {
         margin-top: 6px;
       }
+      [hidden] {
+        display: none !important;
+      }
+      .account {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .account-stats {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .stat {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .stat-label {
+        color: #cbd5e1;
+      }
+      .stat-value {
+        color: #f8fafc;
+        font-size: 15px;
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+      }
+      .stat-note {
+        margin-top: -4px;
+        font-size: 11px;
+        line-height: 1.4;
+        color: #94a3b8;
+      }
+      .stat-window {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 8px 10px;
+        border: 1px solid rgba(129, 140, 248, 0.4);
+        border-radius: 6px;
+        background: rgba(129, 140, 248, 0.08);
+      }
+      .stat-window-title {
+        font-weight: 700;
+        color: #818cf8;
+      }
+      .account-actions {
+        display: flex;
+        gap: 8px;
+      }
+      .account-button {
+        flex: 1 1 0;
+        width: auto;
+        margin-top: 0;
+        padding: 8px;
+        font: inherit;
+        font-weight: 600;
+        color: #818cf8;
+        cursor: pointer;
+        background: #25252c;
+        border: 1px solid #3b3b4f;
+        border-radius: 6px;
+        transition:
+          background 0.2s,
+          opacity 0.2s;
+      }
+      .account-button:hover:not(:disabled) {
+        background: #2d2d38;
+      }
+      .account-button:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      .account-button--quiet {
+        flex: 0 0 auto;
+        color: #94a3b8;
+      }
+      .hint--error {
+        color: #f87171;
+      }
       .field-group--after-toggles {
         margin-top: 12px;
       }
@@ -455,6 +536,41 @@
         <div class="support-row">
           <a class="support-card" href="https://senkuro.com/users/phaivroh" target="_blank">.COM</a>
           <a class="support-card" href="https://senkuro.me/users/phaivroh" target="_blank">.ME</a>
+        </div>
+      </div>
+    </details>
+
+    <details class="setting-group" open>
+      <summary>Аккаунт</summary>
+      <div class="details-content account">
+        <div class="account-stats" id="accountStats" hidden>
+          <div class="stat">
+            <span class="stat-label">Карт на аккаунте</span>
+            <strong class="stat-value" id="accountCards">0</strong>
+          </div>
+          <div class="stat-note" id="accountCardsNote" hidden></div>
+          <div class="stat">
+            <span class="stat-label">Монет в банке</span>
+            <strong class="stat-value" id="accountBank">0</strong>
+          </div>
+          <div class="stat-note" id="accountBankNote" hidden></div>
+          <div class="stat-window" id="accountR" hidden>
+            <div class="stat-window-title">R</div>
+            <div class="stat">
+              <span class="stat-label">Карт</span>
+              <strong class="stat-value" id="accountRCards">0</strong>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Монет</span>
+              <strong class="stat-value" id="accountRCoins">0</strong>
+            </div>
+            <div class="stat-note" id="accountRNote"></div>
+          </div>
+        </div>
+        <p class="hint" id="accountHint" aria-live="polite"></p>
+        <div class="account-actions">
+          <button type="button" class="account-button" id="accountLoad">Показать</button>
+          <button type="button" class="account-button account-button--quiet" id="accountClear" hidden>Забыть</button>
         </div>
       </div>
     </details>

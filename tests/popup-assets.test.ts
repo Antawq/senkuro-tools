@@ -25,6 +25,12 @@ describe('popup assets', () => {
     expect(fonts.filter((url) => !existsSync(path(`public${url}`)))).toEqual([]);
   });
 
+  it('keeps the account buttons clear of the width and margin of the global button rule', () => {
+    const rule = /\.account-button\s*\{([^}]*)\}/.exec(html)?.[1] ?? '';
+    expect(rule).toMatch(/width:\s*auto/);
+    expect(rule).toMatch(/margin-top:\s*0/);
+  });
+
   it('ships the font licence next to the fonts', () => {
     expect(readFileSync(path('public/fonts/OFL.txt'), 'utf8')).toContain('SIL Open Font License');
   });
