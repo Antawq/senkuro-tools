@@ -62,7 +62,32 @@ const defineSetting = <K extends SettingKey>(key: K) =>
 
 const ITEMS = Object.fromEntries(KEYS.map((key) => [key, defineSetting(key)])) as SettingItems;
 
+const LEGACY_POSITION = storage.defineItem<string>('local:position');
+
+const LEGACY_POSITIONS: Readonly<Record<string, readonly [BadgePositionX, BadgePositionY]>> = {
+  'top-left': ['left', 'top'],
+  'center-left': ['left', 'center'],
+  'bottom-left': ['left', 'bottom'],
+  'top-right': ['right', 'top'],
+  'center-right': ['right', 'center'],
+  'bottom-right': ['right', 'bottom'],
+  center: ['center', 'center'],
+};
+
+async function migrateLegacyPosition(): Promise<void> {
+  const legacy = await LEGACY_POSITION.getValue();
+  if (legacy === null) return;
+  const axes = LEGACY_POSITIONS[legacy];
+  if (axes) {
+    const [x, y] = axes;
+    if ((await storage.getItem('local:positionX')) === null) await ITEMS.positionX.setValue(x);
+    if ((await storage.getItem('local:positionY')) === null) await ITEMS.positionY.setValue(y);
+  }
+  await LEGACY_POSITION.removeValue();
+}
+
 export async function loadSettings(): Promise<Settings> {
+  await migrateLegacyPosition();
   const values = await Promise.all(KEYS.map(async (key) => [key, await ITEMS[key].getValue()] as const));
   return Object.fromEntries(values) as unknown as Settings;
 }

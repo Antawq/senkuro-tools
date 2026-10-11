@@ -13,11 +13,45 @@ describe('settings', () => {
   });
 
   it('keeps values saved by earlier versions under the same keys', async () => {
-    await fakeBrowser.storage.local.set({ position: 'top-left', copyBtn: true });
+    await fakeBrowser.storage.local.set({ copyBtn: true });
     const settings = await loadSettings();
-    expect(settings.position).toBe('top-left');
     expect(settings.copyBtn).toBe(true);
     expect(settings.fontSize).toBe(DEFAULT_SETTINGS.fontSize);
+  });
+
+  it.each([
+    ['top-left', 'left', 'top'],
+    ['center-left', 'left', 'center'],
+    ['bottom-left', 'left', 'bottom'],
+    ['top-right', 'right', 'top'],
+    ['center-right', 'right', 'center'],
+    ['bottom-right', 'right', 'bottom'],
+    ['center', 'center', 'center'],
+  ])('carries the badge position %s over to the two axes', async (legacy, x, y) => {
+    await fakeBrowser.storage.local.set({ position: legacy });
+    const settings = await loadSettings();
+    expect([settings.positionX, settings.positionY]).toEqual([x, y]);
+    expect(await fakeBrowser.storage.local.get('position')).toEqual({});
+  });
+
+  it('lets an axis chosen after the update win over the old badge position', async () => {
+    await fakeBrowser.storage.local.set({ position: 'top-left', positionX: 'center' });
+    const settings = await loadSettings();
+    expect([settings.positionX, settings.positionY]).toEqual(['center', 'top']);
+  });
+
+  it('drops an unknown old badge position and keeps the defaults', async () => {
+    await fakeBrowser.storage.local.set({ position: 'somewhere' });
+    const settings = await loadSettings();
+    expect([settings.positionX, settings.positionY]).toEqual([DEFAULT_SETTINGS.positionX, DEFAULT_SETTINGS.positionY]);
+    expect(await fakeBrowser.storage.local.get('position')).toEqual({});
+  });
+
+  it('migrates the old badge position once', async () => {
+    await fakeBrowser.storage.local.set({ position: 'top-left' });
+    await loadSettings();
+    await saveSetting('positionX', 'right');
+    expect((await loadSettings()).positionX).toBe('right');
   });
 
   it('reports a change together with the updated settings', async () => {
