@@ -1,26 +1,8 @@
 import { defineBackground } from '#imports';
 import { browser } from 'wxt/browser';
 
-import { isSenkuroDomain } from '@/utils/hosts';
+import { readAccessToken } from '@/utils/access-token';
 import { isTokenRequest, type TokenResponse } from '@/utils/messages';
-
-const TOKEN_COOKIE = 'access_token';
-const FALLBACK_ORIGIN = 'https://senkuro.com';
-
-const originOf = (url: string | undefined): string => {
-  try {
-    return url ? new URL(url).origin : FALLBACK_ORIGIN;
-  } catch {
-    return FALLBACK_ORIGIN;
-  }
-};
-
-async function readAccessToken(pageUrl: string | undefined): Promise<string | null> {
-  const cookie = await browser.cookies.get({ url: originOf(pageUrl), name: TOKEN_COOKIE });
-  if (cookie) return cookie.value;
-  const cookies = await browser.cookies.getAll({ name: TOKEN_COOKIE });
-  return cookies.find((candidate) => isSenkuroDomain(candidate.domain))?.value ?? null;
-}
 
 export default defineBackground(() => {
   browser.runtime.onMessage.addListener((message, sender, sendResponse: (response: TokenResponse) => void) => {
