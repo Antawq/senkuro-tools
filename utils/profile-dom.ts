@@ -55,28 +55,32 @@ interface NicknameTarget {
 }
 
 export function findNicknameTarget(): NicknameTarget | null {
-  // 1. Desktop: .client-header (the row with nickname header and level badge)
-  const clientHeader = document.querySelector('.client-header');
-  if (clientHeader) {
-    const header = clientHeader.querySelector('header');
-    if (header) {
-      return {
-        container: clientHeader,
-        insert: (el) => header.insertAdjacentElement('afterend', el),
-      };
-    }
-    return {
-      container: clientHeader,
-      insert: (el) => clientHeader.appendChild(el),
-    };
-  }
-
-  // 2. Direct h1 nickname element
-  const h1 = document.querySelector('.client-panel__info h1, h1.caption-size-lg, h1.caption');
+  // 1. Directly right after h1 inside the nickname header
+  const h1 = document.querySelector(
+    '.client-header header h1, .client-header h1, .client-panel__info h1, h1.caption-size-lg, h1.caption'
+  );
   if (h1 && h1.parentElement) {
     return {
       container: h1.parentElement,
       insert: (el) => h1.insertAdjacentElement('afterend', el),
+    };
+  }
+
+  // 2. Desktop: .client-header header (inside the header container)
+  const header = document.querySelector('.client-header header');
+  if (header) {
+    return {
+      container: header,
+      insert: (el) => header.appendChild(el),
+    };
+  }
+
+  // 3. Desktop: .client-header
+  const clientHeader = document.querySelector('.client-header');
+  if (clientHeader) {
+    return {
+      container: clientHeader,
+      insert: (el) => clientHeader.appendChild(el),
     };
   }
 

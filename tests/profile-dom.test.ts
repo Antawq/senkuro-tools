@@ -21,7 +21,7 @@ describe('profile-dom', () => {
   });
 
   describe('findNicknameTarget', () => {
-    it('finds .client-header with header element on Senkuro profile', () => {
+    it('finds header element containing h1 on Senkuro profile', () => {
       document.body.innerHTML = `
         <div class="client-panel__info">
           <div class="client-header">
@@ -34,7 +34,7 @@ describe('profile-dom', () => {
       `;
       const target = findNicknameTarget();
       expect(target).not.toBeNull();
-      expect(target?.container.classList.contains('client-header')).toBe(true);
+      expect(target?.container.tagName).toBe('HEADER');
     });
 
     it('falls back to h1 when .client-header is not present', () => {
