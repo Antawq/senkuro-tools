@@ -1,0 +1,177 @@
+.senkuro-profile-f-chip {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 8px;
+  vertical-align: middle;
+  position: relative;
+  height: 28px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  background: rgba(30, 27, 75, 0.7);
+  border: 1px solid rgba(139, 92, 246, 0.45);
+  border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #f1f5f9;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  white-space: nowrap;
+}
+
+.senkuro-profile-f-chip:hover {
+  background: rgba(49, 46, 129, 0.85);
+  border-color: rgba(168, 85, 247, 0.75);
+  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.35);
+}
+
+.senkuro-f-chip-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.senkuro-f-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.senkuro-f-value {
+  color: #38bdf8;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
+}
+
+.senkuro-f-arrow {
+  font-size: 9px;
+  color: #94a3b8;
+  transition: transform 0.2s ease;
+}
+
+.senkuro-popover-active .senkuro-f-arrow {
+  transform: rotate(180deg);
+}
+
+@keyframes senkuro-pulse-f {
+  0%, 100% { opacity: 0.65; }
+  50% { opacity: 1; }
+}
+
+.senkuro-profile-f-chip.senkuro-loading {
+  animation: senkuro-pulse-f 1.4s infinite ease-in-out;
+  border-color: rgba(56, 189, 248, 0.5);
+}
+
+.senkuro-profile-f-chip.senkuro-error {
+  border-color: rgba(239, 68, 68, 0.6);
+  color: #fca5a5;
+}
+
+.senkuro-profile-f-popover {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 10000;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  border-radius: 10px;
+  padding: 12px 14px;
+  min-width: 280px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65), 0 0 20px rgba(139, 92, 246, 0.15);
+  backdrop-filter: blur(12px);
+  color: #e2e8f0;
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: default;
+}
+
+.senkuro-profile-f-chip.senkuro-popover-active .senkuro-profile-f-popover,
+.senkuro-profile-f-chip:hover .senkuro-profile-f-popover {
+  display: block;
+}
+
+.senkuro-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.senkuro-popover-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #f8fafc;
+}
+
+.senkuro-popover-title strong {
+  color: #38bdf8;
+  font-weight: 700;
+}
+
+.senkuro-popover-refresh {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: #94a3b8;
+  font-size: 14px;
+  line-height: 1;
+  padding: 3px 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.senkuro-popover-refresh:hover {
+  background: rgba(99, 102, 241, 0.3);
+  border-color: rgba(99, 102, 241, 0.6);
+  color: #ffffff;
+}
+
+.senkuro-popover-meta {
+  font-size: 11.5px;
+  color: #94a3b8;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 8px;
+}
+
+.senkuro-popover-meta strong {
+  color: #cbd5e1;
+}
+
+.senkuro-popover-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.senkuro-popover-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11.5px;
+}
+
+.senkuro-row-label {
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.senkuro-row-val {
+  color: #f1f5f9;
+  font-weight: 600;
+  text-align: right;
+  word-break: break-word;
+}
+
+.senkuro-row-r .senkuro-row-val {
+  color: #f43f5e;
+}

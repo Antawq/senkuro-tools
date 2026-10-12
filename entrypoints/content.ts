@@ -1,4 +1,5 @@
 import '@/assets/price-badges.css';
+import '@/assets/profile-badge.css';
 import '@/assets/token-bar.css';
 import '@/assets/trade-summary.css';
 import { defineContentScript } from '#imports';
@@ -6,6 +7,8 @@ import { defineContentScript } from '#imports';
 import { loadDatabase } from '@/utils/database';
 import { SENKURO_MATCHES } from '@/utils/hosts';
 import { createPriceBadges } from '@/utils/price-badges';
+import { extractProfileSlug } from '@/utils/profile-cards';
+import { removeProfileBadge, updateProfileBadge, WIDGET_ID } from '@/utils/profile-dom';
 import { loadSettings, watchSettings } from '@/utils/settings';
 import { createTokenBar } from '@/utils/token-bar';
 import { createTradeStore, listenForTrades } from '@/utils/trade-capture';
@@ -50,6 +53,7 @@ export default defineContentScript({
         const db = await loadDatabase();
         if (batch) badges.update(db, settings, batch);
         if (shouldUpdateTrades) updateTradeSummaries(db, getSummarySettings(), tradeStore);
+        updateProfileBadge({ db, commission: settings.commission });
       } catch (err) {
         console.error('SenkuTools: batch render error', err);
       }
@@ -69,6 +73,7 @@ export default defineContentScript({
         const db = await loadDatabase();
         badges.update(db, settings);
         updateTradeSummaries(db, getSummarySettings(), tradeStore);
+        updateProfileBadge({ db, commission: settings.commission });
       } catch (err) {
         console.error('SenkuTools: render error', err);
       }
@@ -93,7 +98,9 @@ export default defineContentScript({
           }
         }
       }
-      if (hasNewCards || tradeDirty) {
+      const slug = extractProfileSlug(window.location.pathname);
+      const profileNeedsMount = Boolean(slug && !document.getElementById(WIDGET_ID));
+      if (hasNewCards || tradeDirty || profileNeedsMount) {
         scheduleBatch();
       }
     });
@@ -118,6 +125,8 @@ export default defineContentScript({
 
     ctx.addEventListener(window, 'wxt:locationchange', () => {
       badges.resetPage();
+      removeProfileBadge();
+      scheduleBatch();
       void renderAll();
     });
 
