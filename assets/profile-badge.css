@@ -65,11 +65,19 @@
   gap: 7px;
 }
 
-.senkuro-chip-icon {
-  display: inline-block;
+.senkuro-f-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 700;
   color: var(--accent);
-  flex-shrink: 0;
-  vertical-align: middle;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 4px;
+  padding: 0 4px;
+  height: 18px;
+  line-height: 1;
 }
 
 .senkuro-chip-spinner {
@@ -132,7 +140,7 @@
   border: 1px solid var(--senkuro-popover-line) !important;
   border-radius: var(--senkuro-radius-md) !important;
   padding: 12px 14px;
-  min-width: 290px;
+  min-width: 300px;
   box-shadow: var(--box-shadow, -4px 4px 20px 0 rgba(0, 0, 0, 0.4)), 0 16px 40px rgba(0, 0, 0, 0.8) !important;
   backdrop-filter: blur(16px);
   color: var(--text-secondary);
@@ -140,6 +148,7 @@
   font-size: 1.2rem;
   line-height: 1.45;
   cursor: default;
+  user-select: text !important;
 }
 
 .senkuro-profile-f-chip.senkuro-popover-active .senkuro-profile-f-popover,
@@ -161,11 +170,48 @@
   gap: 7px;
   font-size: 1.25rem;
   color: var(--text-primary);
+  user-select: text !important;
 }
 
 .senkuro-f-accent {
   color: var(--accent-hover, var(--accent));
   font-weight: 700;
+}
+
+.senkuro-popover-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.senkuro-popover-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-tertiary, color-mix(in srgb, var(--text-primary) 8%, transparent));
+  border: 1px solid var(--border-tertiary, color-mix(in srgb, var(--text-primary) 12%, transparent));
+  border-radius: var(--border-radius-xs, 6px);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 1.15rem;
+  font-weight: 500;
+  line-height: 1;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all var(--transition, 0.15s ease);
+  user-select: none;
+}
+
+.senkuro-popover-copy-btn:hover {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent-hover, var(--accent));
+}
+
+.senkuro-popover-copy-btn.senkuro-copy--done {
+  background: color-mix(in srgb, var(--success, #4ade80) 18%, transparent);
+  color: var(--success, #4ade80);
+  border-color: var(--success, #4ade80);
 }
 
 .senkuro-popover-refresh {
@@ -196,6 +242,7 @@
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border-secondary, color-mix(in srgb, var(--text-primary) 12%, transparent));
   margin-bottom: 8px;
+  user-select: text !important;
 }
 
 .senkuro-popover-meta strong {
@@ -205,7 +252,7 @@
 .senkuro-popover-body {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .senkuro-popover-row {
@@ -216,12 +263,23 @@
   font-size: 1.15rem;
   font-variant-numeric: tabular-nums;
   line-height: 1.4;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin: 0 -4px;
+  transition: background var(--transition, 0.15s ease);
+  user-select: text !important;
+}
+
+.senkuro-popover-row:hover {
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
 }
 
 .senkuro-row-label {
   color: var(--text-tertiary);
   font-weight: 500;
   white-space: nowrap;
+  user-select: text !important;
 }
 
 .senkuro-row-val {
@@ -229,12 +287,7 @@
   font-weight: 600;
   text-align: right;
   word-break: break-word;
-}
-
-.senkuro-row-shards {
-  color: var(--text-tertiary);
-  font-weight: 400;
-  margin-left: 4px;
+  user-select: text !important;
 }
 
 .senkuro-rank-r {

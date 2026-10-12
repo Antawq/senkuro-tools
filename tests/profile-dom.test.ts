@@ -156,5 +156,46 @@ describe('profile-dom', () => {
       expect(widget).not.toBeNull();
       expect(widget?.dataset.slug).toBe('phaivroh');
     });
+
+    it('has a copy button in popover and copies summary to clipboard', () => {
+      window.history.pushState({}, '', '/users/phaivroh');
+      document.body.innerHTML = `
+        <div class="client-header">
+          <header><h1 class="caption">phaivroh</h1></header>
+        </div>
+      `;
+
+      const summary = {
+        totalF: 1250,
+        formattedF: '1250F',
+        bank: ['1000S'],
+        cards: ['10S'],
+        shards: ['5oS'],
+        totalCards: 15,
+        totalShards: 5,
+        rValue: null,
+        rCards: 0,
+      };
+      sessionStorage.setItem(
+        'senkutools:profile_f:phaivroh',
+        JSON.stringify({ summary, timestamp: Date.now() })
+      );
+
+      const writeTextMock = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: writeTextMock },
+        configurable: true,
+      });
+
+      updateProfileBadge({ db: mockDb, commission: false });
+      const widget = document.getElementById(WIDGET_ID);
+      const copyBtn = widget?.querySelector<HTMLButtonElement>('.senkuro-popover-copy-btn');
+      expect(copyBtn).not.toBeNull();
+      copyBtn?.click();
+
+      expect(writeTextMock).toHaveBeenCalledWith(
+        'Ценность карт: 1250F\nБанк: 1000S 5oS\nКарты: 10S 5oS'
+      );
+    });
   });
 });
