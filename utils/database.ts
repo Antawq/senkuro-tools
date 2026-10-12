@@ -10,6 +10,7 @@ export interface CardEntry {
 export type Database = Partial<Record<string, CardEntry>>;
 
 let loading: Promise<Database> | null = null;
+let cached: Database | null = null;
 
 async function request(): Promise<Database> {
   const response = await fetch(browser.runtime.getURL('/database.json'));
@@ -18,10 +19,18 @@ async function request(): Promise<Database> {
 }
 
 export function loadDatabase(): Promise<Database> {
-  loading ??= request().catch((error: unknown) => {
-    loading = null;
-    console.error('SenkuTools: database.json', error);
-    return {};
-  });
+  if (cached) return Promise.resolve(cached);
+  loading ??= request()
+    .then((db) => {
+      cached = db;
+      return db;
+    })
+    .catch((error: unknown) => {
+      console.error('SenkuTools: database.json', error);
+      return {};
+    })
+    .finally(() => {
+      loading = null;
+    });
   return loading;
 }
