@@ -5,6 +5,20 @@
 
 ---
 
+## [2.1.7] - 2026-10-12
+
+### Изменено (Changed)
+- **Полная интеграция с нативной дизайн-системой и CSS-токенами Senkuro**:
+  - Стили виджета профиля и выпадающего меню (Popover) переведены на CSS-переменные сайта:
+    - Поверхности и фоны: `var(--bg-primary)`, `var(--bg-card)`, `var(--bg-other)`, `var(--bg-secondary)`.
+    - Текст: `var(--text-primary)`, `var(--text-secondary)`, `var(--text-tertiary)`.
+    - Границы и скругления: `var(--border-secondary)`, `var(--border-tertiary)`, `var(--border-radius-sm)`, `var(--border-radius-md)`.
+    - Цвета акцентов и статусов: `var(--accent)`, `var(--accent-hover)`, `var(--accent-secondary)`, `var(--error)`, `var(--guild-color-ruby)`.
+    - Тени и переходы: `var(--box-shadow)`, `var(--transition)`.
+  - Меню теперь выглядит как родной компонент сайта (`v-popper`) и автоматически подстраивается под светлую и тёмную темы Senkuro.
+
+---
+
 ## [2.1.6] - 2026-10-12
 
 ### Добавлено (Added)
