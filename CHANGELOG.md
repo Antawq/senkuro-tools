@@ -3,6 +3,14 @@
 Все заметные изменения в проекте **SenkuTools** документируются в этом файле.
 Формат основан на соглашении [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/).
 
+## [2.1.9] - 2026-10-12
+
+### Улучшено (Enhanced)
+- **Точная гармонизация CSS-токенов с кодовой базой Anta (`trade-summary.css`)**:
+  - Использованы идиоматичные конструкции `color-mix(in srgb, ...)` для прозрачности и адаптивности под тёмную/светлую темы без жестких hex fallback-значений.
+  - Переход на нативные `rem`-единицы Senkuro (`1.2rem`, `1.3rem`, `0.9rem`) и `font: inherit` с `font-variant-numeric: tabular-nums`.
+  - Поверхности чипа и поповера выровнены по токенам Anta: `--senkuro-chip-fill` (`var(--bg-tertiary, ...)`), `--senkuro-popover-bg` (`var(--bg-other)`), границы через `--border-tertiary` и радиусы скругления из нативных токенов темы.
+
 ---
 
 ## [2.1.8] - 2026-10-12

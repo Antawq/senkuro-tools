@@ -1,19 +1,7 @@
 /* Elevation rules so profile header and popover always paint ABOVE client-body cards */
-.client-top {
-  position: relative !important;
-  z-index: 100 !important;
-}
-
-.client-panel {
-  position: relative !important;
-  z-index: 100 !important;
-}
-
-.client-panel__info {
-  position: relative !important;
-  z-index: 100 !important;
-}
-
+.client-top,
+.client-panel,
+.client-panel__info,
 .client-header {
   position: relative !important;
   z-index: 100 !important;
@@ -25,38 +13,50 @@
   display: flex !important;
   align-items: center !important;
   flex-wrap: nowrap !important;
+  gap: 10px !important;
 }
 
 .senkuro-profile-f-chip {
+  --senkuro-chip-fill: var(--bg-tertiary, color-mix(in srgb, var(--text-primary) 8%, transparent));
+  --senkuro-chip-hover: var(--bg-secondary, color-mix(in srgb, var(--text-primary) 14%, transparent));
+  --senkuro-chip-line: var(--border-secondary, color-mix(in srgb, var(--text-primary) 15%, transparent));
+  --senkuro-popover-bg: var(--bg-other, #202023);
+  --senkuro-popover-line: var(--border-tertiary, color-mix(in srgb, var(--text-primary) 12%, transparent));
+  --senkuro-radius-sm: var(--border-radius-sm, 8px);
+  --senkuro-radius-md: var(--border-radius-md, 12px);
+
   display: inline-flex !important;
   align-items: center !important;
   flex: none !important;
-  margin: 0 0 0 8px !important;
+  margin: 0 0 0 6px !important;
   vertical-align: middle;
   position: relative !important;
   z-index: 500 !important;
   height: 28px;
   padding: 0 10px;
   box-sizing: border-box;
-  background: var(--bg-card, rgba(35, 35, 40, 0.7));
-  border: 1px solid var(--border-secondary, rgba(241, 241, 241, 0.15));
-  border-radius: var(--border-radius-sm, 8px);
+  background: var(--senkuro-chip-fill);
+  border: 1px solid var(--senkuro-chip-line);
+  border-radius: var(--senkuro-radius-sm);
   cursor: pointer;
   user-select: none;
-  font-family: inherit;
-  font-size: 13px;
+  font: inherit;
+  font-size: 1.2rem;
   font-weight: 600;
-  color: var(--text-primary, #f1f1f1);
+  color: var(--text-primary);
   backdrop-filter: blur(12px);
-  box-shadow: var(--box-shadow, -4px 4px 15px 0 rgba(0, 0, 0, 0.15));
-  transition: background var(--transition, 0.2s ease), border-color var(--transition, 0.2s ease), box-shadow var(--transition, 0.2s ease);
+  box-shadow: var(--box-shadow, -4px 4px 15px 0 rgba(0, 0, 0, 0.2));
+  transition:
+    background var(--transition, 0.2s ease),
+    border-color var(--transition, 0.2s ease),
+    box-shadow var(--transition, 0.2s ease);
   white-space: nowrap;
 }
 
 .senkuro-profile-f-chip:hover {
-  background: var(--bg-other, #202023);
-  border-color: var(--accent, #5177ff);
-  box-shadow: 0 4px 16px var(--accent-tertiary, rgba(81, 119, 255, 0.2));
+  background: var(--senkuro-chip-hover);
+  border-color: var(--accent);
+  box-shadow: 0 4px 16px var(--accent-tertiary, color-mix(in srgb, var(--accent) 20%, transparent));
 }
 
 .senkuro-f-chip-content {
@@ -66,19 +66,19 @@
 }
 
 .senkuro-f-icon {
-  font-size: 13px;
+  font-size: 1.2rem;
   line-height: 1;
 }
 
 .senkuro-f-value {
-  color: var(--accent-hover, #6083ff);
+  color: var(--accent-hover, var(--accent));
   font-weight: 700;
   letter-spacing: -0.01em;
 }
 
 .senkuro-f-arrow {
-  font-size: 9px;
-  color: var(--text-tertiary, #94a3b8);
+  font-size: 0.9rem;
+  color: var(--text-tertiary);
   transition: transform var(--transition, 0.2s ease);
 }
 
@@ -93,30 +93,31 @@
 
 .senkuro-profile-f-chip.senkuro-loading {
   animation: senkuro-pulse-f 1.4s infinite ease-in-out;
-  border-color: var(--accent-secondary, rgba(81, 119, 255, 0.4));
+  border-color: var(--accent-secondary, color-mix(in srgb, var(--accent) 40%, transparent));
 }
 
 .senkuro-profile-f-chip.senkuro-error {
-  border-color: var(--error, #ff4848);
-  color: var(--error-hover, #ff5a5a);
+  border-color: var(--error);
+  color: var(--error);
 }
 
-/* Native Senkuro Dropdown / Popper Menu using site tokens */
+/* Native Senkuro Popover Menu */
 .senkuro-profile-f-popover {
   display: none;
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
   z-index: 999999 !important;
-  background: var(--bg-other, #202023) !important;
-  border: 1px solid var(--border-secondary, rgba(241, 241, 241, 0.2)) !important;
-  border-radius: var(--border-radius-md, 12px) !important;
+  background: var(--senkuro-popover-bg) !important;
+  border: 1px solid var(--senkuro-popover-line) !important;
+  border-radius: var(--senkuro-radius-md) !important;
   padding: 12px 14px;
   min-width: 290px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 24px rgba(0, 0, 0, 0.5) !important;
+  box-shadow: var(--box-shadow, -4px 4px 20px 0 rgba(0, 0, 0, 0.4)), 0 16px 40px rgba(0, 0, 0, 0.8) !important;
   backdrop-filter: blur(16px);
-  color: var(--text-secondary, #f1f1f1cc);
-  font-size: 12px;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 1.2rem;
   line-height: 1.45;
   cursor: default;
 }
@@ -138,21 +139,22 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
-  color: var(--text-primary, #f1f1f1);
+  font-size: 1.3rem;
+  color: var(--text-primary);
 }
 
 .senkuro-popover-title strong {
-  color: var(--accent-hover, #6083ff);
+  color: var(--accent-hover, var(--accent));
   font-weight: 700;
 }
 
 .senkuro-popover-refresh {
-  background: var(--bg-secondary, rgba(241, 241, 241, 0.1));
-  border: 1px solid var(--border-tertiary, transparent);
+  background: var(--bg-tertiary, color-mix(in srgb, var(--text-primary) 8%, transparent));
+  border: 1px solid var(--border-tertiary, color-mix(in srgb, var(--text-primary) 12%, transparent));
   border-radius: var(--border-radius-xs, 6px);
-  color: var(--text-secondary, #f1f1f1cc);
-  font-size: 13px;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 1.2rem;
   line-height: 1;
   padding: 4px 8px;
   cursor: pointer;
@@ -160,21 +162,21 @@
 }
 
 .senkuro-popover-refresh:hover {
-  background: var(--accent, #5177ff);
+  background: var(--accent);
   color: #ffffff;
-  border-color: var(--accent-hover, #6083ff);
+  border-color: var(--accent-hover, var(--accent));
 }
 
 .senkuro-popover-meta {
-  font-size: 11.5px;
-  color: var(--text-tertiary, #f1f1f199);
+  font-size: 1.15rem;
+  color: var(--text-tertiary);
   padding-bottom: 8px;
-  border-bottom: 1px solid var(--border-secondary, rgba(241, 241, 241, 0.1));
+  border-bottom: 1px solid var(--border-secondary, color-mix(in srgb, var(--text-primary) 12%, transparent));
   margin-bottom: 8px;
 }
 
 .senkuro-popover-meta strong {
-  color: var(--text-primary, #f1f1f1);
+  color: var(--text-primary);
 }
 
 .senkuro-popover-body {
@@ -188,21 +190,22 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 10px;
-  font-size: 11.5px;
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .senkuro-row-label {
-  color: var(--text-tertiary, #f1f1f199);
+  color: var(--text-tertiary);
   white-space: nowrap;
 }
 
 .senkuro-row-val {
-  color: var(--text-primary, #f1f1f1);
+  color: var(--text-primary);
   font-weight: 600;
   text-align: right;
   word-break: break-word;
 }
 
 .senkuro-row-r .senkuro-row-val {
-  color: var(--guild-color-ruby, #ff7f71);
+  color: var(--guild-color-ruby, var(--error));
 }
