@@ -181,10 +181,7 @@ function renderLoading(widget: HTMLElement, text: string): void {
 function renderError(widget: HTMLElement, slug: string, deps: ProfileBadgeDeps): void {
   widget.classList.remove('senkuro-loading');
   widget.classList.add('senkuro-error');
-  widget.innerHTML = `
-    <span class="senkuro-f-tag">F</span>
-    <span class="senkuro-f-text">ошибка</span>
-  `;
+  widget.innerHTML = `<span class="senkuro-f-text">ошибка (повторить)</span>`;
   widget.onclick = (e) => {
     e.stopPropagation();
     clearCached(slug);
@@ -205,7 +202,6 @@ function renderSummary(
   const mainChip = document.createElement('div');
   mainChip.className = 'senkuro-f-chip-content';
   mainChip.innerHTML = `
-    <span class="senkuro-f-tag">F</span>
     <span class="senkuro-f-value">${summary.formattedF}</span>
     ${CHEVRON_ICON}
   `;
@@ -225,72 +221,23 @@ function renderSummary(
       <div class="senkuro-popover-title">
         <span>Ценность: <strong class="senkuro-f-accent">${summary.formattedF}</strong></span>
       </div>
-      <div class="senkuro-popover-actions">
-        <button type="button" class="senkuro-popover-copy-btn" title="Скопировать все данные в буфер">Копировать</button>
-        <button type="button" class="senkuro-popover-refresh" title="Обновить">${REFRESH_ICON}</button>
-      </div>
+      <button type="button" class="senkuro-popover-refresh" title="Обновить">${REFRESH_ICON}</button>
     </div>
     <div class="senkuro-popover-meta">
       Всего: <strong>${summary.totalCards}</strong> карт${summary.totalShards > 0 ? ` · <strong>${summary.totalShards}</strong> осколков` : ''}
     </div>
     <div class="senkuro-popover-body">
-      <div class="senkuro-popover-row" data-copy-key="Банк" title="Нажмите, чтобы скопировать">
+      <div class="senkuro-popover-row">
         <span class="senkuro-row-label">Банк:</span>
         <span class="senkuro-row-val">${bankDisplay}</span>
       </div>
-      <div class="senkuro-popover-row" data-copy-key="Карты" title="Нажмите, чтобы скопировать">
+      <div class="senkuro-popover-row">
         <span class="senkuro-row-label">Карты:</span>
         <span class="senkuro-row-val">${cardsDisplay}</span>
       </div>
     </div>
   `;
   popover.innerHTML = popoverHtml;
-
-  // Copy full summary button
-  const copyBtn = popover.querySelector<HTMLButtonElement>('.senkuro-popover-copy-btn');
-  if (copyBtn) {
-    copyBtn.onclick = (e) => {
-      e.stopPropagation();
-      const textToCopy = [
-        `Ценность карт: ${summary.formattedF}`,
-        `Банк: ${bankCombined.join(' ') || '—'}`,
-        `Карты: ${cardsCombined.join(' ') || '—'}`,
-      ].join('\n');
-      navigator.clipboard.writeText(textToCopy).then(
-        () => {
-          copyBtn.textContent = '✓ Скопировано';
-          copyBtn.classList.add('senkuro-copy--done');
-          setTimeout(() => {
-            copyBtn.textContent = 'Копировать';
-            copyBtn.classList.remove('senkuro-copy--done');
-          }, 1500);
-        },
-        () => {
-          window.prompt('Скопируй данные (Ctrl+C):', textToCopy);
-        }
-      );
-    };
-  }
-
-  // Row click-to-copy
-  popover.querySelectorAll<HTMLElement>('.senkuro-popover-row').forEach((row) => {
-    row.onclick = (e) => {
-      const selection = window.getSelection()?.toString();
-      if (selection) return;
-      e.stopPropagation();
-      const val = row.querySelector('.senkuro-row-val')?.textContent?.trim();
-      if (val && val !== '—') {
-        navigator.clipboard.writeText(val).then(() => {
-          const valEl = row.querySelector('.senkuro-row-val') as HTMLElement;
-          const oldHtml = valEl.innerHTML;
-          valEl.innerHTML = '<span style="color:var(--success,#4ade80);font-weight:700">✓ Скопировано</span>';
-          setTimeout(() => {
-            valEl.innerHTML = oldHtml;
-          }, 1200);
-        });
-      }
-    };
-  });
 
   widget.append(mainChip, popover);
 

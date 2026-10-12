@@ -62,22 +62,7 @@
 .senkuro-f-chip-content {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-}
-
-.senkuro-f-tag {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-  border-radius: 4px;
-  padding: 0 4px;
-  height: 18px;
-  line-height: 1;
+  gap: 6px;
 }
 
 .senkuro-chip-spinner {
@@ -178,42 +163,6 @@
   font-weight: 700;
 }
 
-.senkuro-popover-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.senkuro-popover-copy-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-tertiary, color-mix(in srgb, var(--text-primary) 8%, transparent));
-  border: 1px solid var(--border-tertiary, color-mix(in srgb, var(--text-primary) 12%, transparent));
-  border-radius: var(--border-radius-xs, 6px);
-  color: var(--text-secondary);
-  font: inherit;
-  font-size: 1.15rem;
-  font-weight: 500;
-  line-height: 1;
-  padding: 4px 8px;
-  cursor: pointer;
-  transition: all var(--transition, 0.15s ease);
-  user-select: none;
-}
-
-.senkuro-popover-copy-btn:hover {
-  background: var(--accent);
-  color: #ffffff;
-  border-color: var(--accent-hover, var(--accent));
-}
-
-.senkuro-popover-copy-btn.senkuro-copy--done {
-  background: color-mix(in srgb, var(--success, #4ade80) 18%, transparent);
-  color: var(--success, #4ade80);
-  border-color: var(--success, #4ade80);
-}
-
 .senkuro-popover-refresh {
   display: inline-flex;
   align-items: center;
@@ -252,7 +201,8 @@
 .senkuro-popover-body {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  user-select: text !important;
 }
 
 .senkuro-popover-row {
@@ -263,16 +213,11 @@
   font-size: 1.15rem;
   font-variant-numeric: tabular-nums;
   line-height: 1.4;
-  cursor: pointer;
+  cursor: text;
   border-radius: 4px;
   padding: 2px 4px;
   margin: 0 -4px;
-  transition: background var(--transition, 0.15s ease);
   user-select: text !important;
-}
-
-.senkuro-popover-row:hover {
-  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
 }
 
 .senkuro-row-label {

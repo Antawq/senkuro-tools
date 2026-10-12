@@ -157,7 +157,7 @@ describe('profile-dom', () => {
       expect(widget?.dataset.slug).toBe('phaivroh');
     });
 
-    it('has a copy button in popover and copies summary to clipboard', () => {
+    it('renders clean chip without extra tags and selectable popover rows', () => {
       window.history.pushState({}, '', '/users/phaivroh');
       document.body.innerHTML = `
         <div class="client-header">
@@ -181,21 +181,15 @@ describe('profile-dom', () => {
         JSON.stringify({ summary, timestamp: Date.now() })
       );
 
-      const writeTextMock = vi.fn().mockResolvedValue(undefined);
-      Object.defineProperty(navigator, 'clipboard', {
-        value: { writeText: writeTextMock },
-        configurable: true,
-      });
-
       updateProfileBadge({ db: mockDb, commission: false });
       const widget = document.getElementById(WIDGET_ID);
-      const copyBtn = widget?.querySelector<HTMLButtonElement>('.senkuro-popover-copy-btn');
-      expect(copyBtn).not.toBeNull();
-      copyBtn?.click();
-
-      expect(writeTextMock).toHaveBeenCalledWith(
-        'Ценность карт: 1250F\nБанк: 1000S 5oS\nКарты: 10S 5oS'
-      );
+      expect(widget?.querySelector('.senkuro-f-tag')).toBeNull();
+      const chipValue = widget?.querySelector('.senkuro-f-value');
+      expect(chipValue?.textContent).toBe('1250F');
+      const popover = widget?.querySelector('.senkuro-profile-f-popover');
+      expect(popover).not.toBeNull();
+      expect(popover?.textContent).toContain('Банк:');
+      expect(popover?.textContent).toContain('Карты:');
     });
   });
 });
