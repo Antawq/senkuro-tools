@@ -70,8 +70,8 @@ describe('profile-dom', () => {
       const widget = document.getElementById(WIDGET_ID);
       expect(widget).not.toBeNull();
       expect(widget?.classList.contains('senkuro-profile-f-chip')).toBe(true);
-      expect(widget?.dataset.slug).toBe('phaivroh');
-      expect(widget?.textContent).toContain('💎');
+      expect(widget?.textContent).toContain('Считаем F...');
+      expect(widget?.querySelector('.senkuro-chip-spinner')).not.toBeNull();
     });
 
     it('renders cached summary immediately if available in sessionStorage', () => {
@@ -102,6 +102,45 @@ describe('profile-dom', () => {
       const widget = document.getElementById(WIDGET_ID);
       expect(widget).not.toBeNull();
       expect(widget?.textContent).toContain('500 000F');
+      expect(widget?.textContent).toContain('Банк:');
+      expect(widget?.textContent).toContain('Карты:');
+      const rows = widget?.querySelectorAll('.senkuro-popover-row');
+      expect(rows?.length).toBe(2);
+    });
+
+    it('formats popover with bank (shards included) and cards (R first)', () => {
+      window.history.pushState({}, '', '/users/phaivroh');
+      document.body.innerHTML = `
+        <div class="client-header">
+          <header><h1 class="caption">phaivroh</h1></header>
+        </div>
+      `;
+
+      const summary = {
+        totalF: 1250,
+        formattedF: '1250F',
+        bank: ['50R', '1000S', '200A'],
+        cards: ['2R', '10S', '25A'],
+        shards: ['5oS', '2oA'],
+        totalCards: 37,
+        totalShards: 7,
+        rValue: '50R',
+        rCards: 2,
+      };
+      sessionStorage.setItem(
+        'senkutools:profile_f:phaivroh',
+        JSON.stringify({ summary, timestamp: Date.now() })
+      );
+
+      updateProfileBadge({ db: mockDb, commission: false });
+      const widget = document.getElementById(WIDGET_ID);
+      const popover = widget?.querySelector('.senkuro-profile-f-popover');
+      expect(popover).not.toBeNull();
+      expect(popover?.textContent).toContain('Банк:');
+      expect(popover?.textContent).toContain('50R 1000S 200A (осколки: 5oS 2oA)');
+      expect(popover?.textContent).toContain('Карты:');
+      expect(popover?.textContent).toContain('2R 10S 25A');
+      expect(popover?.querySelector('.senkuro-rank-r')?.textContent).toBe('50R');
     });
 
     it('works on /users/phaivroh/cards subpage as well', () => {

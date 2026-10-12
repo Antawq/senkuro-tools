@@ -150,11 +150,24 @@ export function updateProfileBadge(deps: ProfileBadgeDeps): void {
   }
 }
 
+const CARD_ICON = `<svg class="senkuro-chip-icon" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3.5" width="8.5" height="10.5" rx="1.5"/><path d="M5.5 1.5h6.5A1.5 1.5 0 0 1 13.5 3v8"/></svg>`;
+
+const CHEVRON_ICON = `<svg class="senkuro-chip-arrow" viewBox="0 0 10 6" width="9" height="6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m1 1 4 4 4-4"/></svg>`;
+
+const REFRESH_ICON = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8a5.5 5.5 0 0 1 9.4-3.9L13.5 6M13.5 2.5V6h-3.5M13.5 8a5.5 5.5 0 0 1-9.4 3.9L2.5 10M2.5 13.5V10H6"/></svg>`;
+
+function formatRanksWithHighlight(items: string[]): string {
+  if (items.length === 0) return '—';
+  return items
+    .map((item) => (item.endsWith('R') || item.includes('R') ? `<span class="senkuro-rank-r">${item}</span>` : item))
+    .join(' ');
+}
+
 function renderLoading(widget: HTMLElement, text: string): void {
   widget.classList.add('senkuro-loading');
   widget.classList.remove('senkuro-error');
   widget.innerHTML = `
-    <span class="senkuro-f-icon">💎</span>
+    <span class="senkuro-chip-spinner"></span>
     <span class="senkuro-f-text">${text}</span>
   `;
 }
@@ -163,7 +176,7 @@ function renderError(widget: HTMLElement, slug: string, deps: ProfileBadgeDeps):
   widget.classList.remove('senkuro-loading');
   widget.classList.add('senkuro-error');
   widget.innerHTML = `
-    <span class="senkuro-f-icon">💎</span>
+    ${CARD_ICON}
     <span class="senkuro-f-text">F: ошибка (повторить)</span>
   `;
   widget.onclick = (e) => {
@@ -186,57 +199,45 @@ function renderSummary(
   const mainChip = document.createElement('div');
   mainChip.className = 'senkuro-f-chip-content';
   mainChip.innerHTML = `
-    <span class="senkuro-f-icon">💎</span>
+    ${CARD_ICON}
     <span class="senkuro-f-value">${summary.formattedF}</span>
-    <span class="senkuro-f-arrow">▾</span>
+    ${CHEVRON_ICON}
   `;
 
   // Popover details
   const popover = document.createElement('div');
   popover.className = 'senkuro-profile-f-popover';
 
-  let popoverHtml = `
+  const bankFormatted = formatRanksWithHighlight(summary.bank);
+  const shardsText = summary.shards.length > 0 ? `<span class="senkuro-row-shards">(осколки: ${summary.shards.join(' ')})</span>` : '';
+  const bankDisplay = summary.bank.length > 0
+    ? `${bankFormatted} ${shardsText}`.trim()
+    : (shardsText || '—');
+
+  const cardsDisplay = formatRanksWithHighlight(summary.cards);
+
+  const popoverHtml = `
     <div class="senkuro-popover-header">
       <div class="senkuro-popover-title">
-        <span class="senkuro-popover-gem">💎</span>
-        <span>Ценность карт: <strong>${summary.formattedF}</strong></span>
+        ${CARD_ICON}
+        <span>Ценность: <strong class="senkuro-f-accent">${summary.formattedF}</strong></span>
       </div>
-      <button type="button" class="senkuro-popover-refresh" title="Обновить">↻</button>
+      <button type="button" class="senkuro-popover-refresh" title="Обновить">${REFRESH_ICON}</button>
     </div>
     <div class="senkuro-popover-meta">
-      Карт: <strong>${summary.totalCards}</strong> (осколков: <strong>${summary.totalShards}</strong>)
+      Всего: <strong>${summary.totalCards}</strong> карт${summary.totalShards > 0 ? ` (осколков: <strong>${summary.totalShards}</strong>)` : ''}
     </div>
     <div class="senkuro-popover-body">
+      <div class="senkuro-popover-row">
+        <span class="senkuro-row-label">Банк:</span>
+        <span class="senkuro-row-val">${bankDisplay}</span>
+      </div>
+      <div class="senkuro-popover-row">
+        <span class="senkuro-row-label">Карты:</span>
+        <span class="senkuro-row-val">${cardsDisplay}</span>
+      </div>
+    </div>
   `;
-
-  if (summary.bank.length > 0) {
-    popoverHtml += `
-      <div class="senkuro-popover-row">
-        <span class="senkuro-row-label">🏛 Банк:</span>
-        <span class="senkuro-row-val">${summary.bank.join(' ')}</span>
-      </div>
-    `;
-  }
-
-  if (summary.shards.length > 0) {
-    popoverHtml += `
-      <div class="senkuro-popover-row">
-        <span class="senkuro-row-label">🧩 Осколки:</span>
-        <span class="senkuro-row-val">${summary.shards.join(' ')}</span>
-      </div>
-    `;
-  }
-
-  if (summary.rValue) {
-    popoverHtml += `
-      <div class="senkuro-popover-row senkuro-row-r">
-        <span class="senkuro-row-label">⭐ Ранг R:</span>
-        <span class="senkuro-row-val">${summary.rValue} (${summary.rCards} шт)</span>
-      </div>
-    `;
-  }
-
-  popoverHtml += `</div>`;
   popover.innerHTML = popoverHtml;
 
   widget.append(mainChip, popover);

@@ -93,11 +93,26 @@ export function calculateProfileValue(cards: ProfileCard[], db: Database, commis
   const totalCards = wholeCards.reduce((acc, c) => acc + c.quantity, 0);
   const totalShards = shardCards.reduce((acc, c) => acc + c.quantity, 0);
 
+  // Group whole cards by rank (by quantity), guaranteeing R at the very start
+  const countMap = new Map<string, number>();
+  for (const card of wholeCards) {
+    const entry = db[card.slug];
+    const rank = entry?.rank || (card.slug.endsWith('-r') ? 'R' : null);
+    if (rank) {
+      countMap.set(rank, (countMap.get(rank) ?? 0) + card.quantity);
+    }
+  }
+
+  const countSource = countMap.size > 0 ? countMap : sideValue.count;
+  if (sideValue.r.count > 0 && !countSource.has('R')) {
+    countSource.set('R', sideValue.r.count);
+  }
+
   return {
     totalF: sideValue.f,
     formattedF: `${formatAmount(sideValue.f)}F`,
     bank: formatByRank(sideValue.bank),
-    cards: formatByRank(sideValue.count),
+    cards: formatByRank(countSource),
     shards: formatShardsByRank(sideValue.shards),
     totalCards,
     totalShards,

@@ -62,12 +62,30 @@
 .senkuro-f-chip-content {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
 }
 
-.senkuro-f-icon {
-  font-size: 1.2rem;
-  line-height: 1;
+.senkuro-chip-icon {
+  display: inline-block;
+  color: var(--accent);
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.senkuro-chip-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: senkuro-spin 0.75s linear infinite;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+@keyframes senkuro-spin {
+  to { transform: rotate(360deg); }
 }
 
 .senkuro-f-value {
@@ -76,13 +94,15 @@
   letter-spacing: -0.01em;
 }
 
-.senkuro-f-arrow {
-  font-size: 0.9rem;
+.senkuro-chip-arrow {
+  display: inline-block;
   color: var(--text-tertiary);
   transition: transform var(--transition, 0.2s ease);
+  flex-shrink: 0;
+  vertical-align: middle;
 }
 
-.senkuro-popover-active .senkuro-f-arrow {
+.senkuro-popover-active .senkuro-chip-arrow {
   transform: rotate(180deg);
 }
 
@@ -132,23 +152,26 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .senkuro-popover-title {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 1.3rem;
+  gap: 7px;
+  font-size: 1.25rem;
   color: var(--text-primary);
 }
 
-.senkuro-popover-title strong {
+.senkuro-f-accent {
   color: var(--accent-hover, var(--accent));
   font-weight: 700;
 }
 
 .senkuro-popover-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: var(--bg-tertiary, color-mix(in srgb, var(--text-primary) 8%, transparent));
   border: 1px solid var(--border-tertiary, color-mix(in srgb, var(--text-primary) 12%, transparent));
   border-radius: var(--border-radius-xs, 6px);
@@ -156,7 +179,7 @@
   font: inherit;
   font-size: 1.2rem;
   line-height: 1;
-  padding: 4px 8px;
+  padding: 4px 6px;
   cursor: pointer;
   transition: all var(--transition, 0.15s ease);
 }
@@ -186,16 +209,18 @@
 }
 
 .senkuro-popover-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: min-content 1fr;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
+  column-gap: 12px;
   font-size: 1.15rem;
   font-variant-numeric: tabular-nums;
+  line-height: 1.4;
 }
 
 .senkuro-row-label {
   color: var(--text-tertiary);
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -206,6 +231,14 @@
   word-break: break-word;
 }
 
-.senkuro-row-r .senkuro-row-val {
-  color: var(--guild-color-ruby, var(--error));
+.senkuro-row-shards {
+  color: var(--text-tertiary);
+  font-weight: 400;
+  margin-left: 4px;
 }
+
+.senkuro-rank-r {
+  color: var(--guild-color-ruby, var(--error, #ff7f71));
+  font-weight: 700;
+}
+

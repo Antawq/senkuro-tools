@@ -119,6 +119,7 @@ describe('profile-cards', () => {
       expect(summary.formattedF).toContain('F');
       expect(summary.rValue).toBe('4R');
       expect(summary.rCards).toBe(2);
+      expect(summary.cards[0]).toBe('2R');
     });
   });
 });
