@@ -121,9 +121,9 @@ describe('profile-dom', () => {
         formattedF: '1250F',
         bank: ['50R', '1000S', '200A'],
         cards: ['2R', '10S', '25A'],
-        shards: ['5oS', '2oA'],
+        shards: ['1oR', '5oS', '2oA'],
         totalCards: 37,
-        totalShards: 7,
+        totalShards: 8,
         rValue: '50R',
         rCards: 2,
       };
@@ -137,9 +137,9 @@ describe('profile-dom', () => {
       const popover = widget?.querySelector('.senkuro-profile-f-popover');
       expect(popover).not.toBeNull();
       expect(popover?.textContent).toContain('Банк:');
-      expect(popover?.textContent).toContain('50R 1000S 200A (осколки: 5oS 2oA)');
+      expect(popover?.textContent).toContain('50R 1oR 1000S 200A 5oS 2oA');
       expect(popover?.textContent).toContain('Карты:');
-      expect(popover?.textContent).toContain('2R 10S 25A');
+      expect(popover?.textContent).toContain('2R 1oR 10S 25A 5oS 2oA');
       expect(popover?.querySelector('.senkuro-rank-r')?.textContent).toBe('50R');
     });
 

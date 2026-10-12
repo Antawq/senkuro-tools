@@ -156,6 +156,14 @@ const CHEVRON_ICON = `<svg class="senkuro-chip-arrow" viewBox="0 0 10 6" width="
 
 const REFRESH_ICON = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8a5.5 5.5 0 0 1 9.4-3.9L13.5 6M13.5 2.5V6h-3.5M13.5 8a5.5 5.5 0 0 1-9.4 3.9L2.5 10M2.5 13.5V10H6"/></svg>`;
 
+export function combineWithRFirst(primary: string[], shards: string[]): string[] {
+  const all = [...primary, ...shards];
+  if (all.length === 0) return [];
+  const rItems = all.filter((item) => item.endsWith('R') || item.includes('R'));
+  const otherItems = all.filter((item) => !item.endsWith('R') && !item.includes('R'));
+  return [...rItems, ...otherItems];
+}
+
 function formatRanksWithHighlight(items: string[]): string {
   if (items.length === 0) return '—';
   return items
@@ -208,13 +216,11 @@ function renderSummary(
   const popover = document.createElement('div');
   popover.className = 'senkuro-profile-f-popover';
 
-  const bankFormatted = formatRanksWithHighlight(summary.bank);
-  const shardsText = summary.shards.length > 0 ? `<span class="senkuro-row-shards">(осколки: ${summary.shards.join(' ')})</span>` : '';
-  const bankDisplay = summary.bank.length > 0
-    ? `${bankFormatted} ${shardsText}`.trim()
-    : (shardsText || '—');
+  const bankCombined = combineWithRFirst(summary.bank, summary.shards);
+  const bankDisplay = formatRanksWithHighlight(bankCombined);
 
-  const cardsDisplay = formatRanksWithHighlight(summary.cards);
+  const cardsCombined = combineWithRFirst(summary.cards, summary.shards);
+  const cardsDisplay = formatRanksWithHighlight(cardsCombined);
 
   const popoverHtml = `
     <div class="senkuro-popover-header">
@@ -225,7 +231,7 @@ function renderSummary(
       <button type="button" class="senkuro-popover-refresh" title="Обновить">${REFRESH_ICON}</button>
     </div>
     <div class="senkuro-popover-meta">
-      Всего: <strong>${summary.totalCards}</strong> карт${summary.totalShards > 0 ? ` (осколков: <strong>${summary.totalShards}</strong>)` : ''}
+      Всего: <strong>${summary.totalCards}</strong> карт${summary.totalShards > 0 ? ` · <strong>${summary.totalShards}</strong> осколков` : ''}
     </div>
     <div class="senkuro-popover-body">
       <div class="senkuro-popover-row">
