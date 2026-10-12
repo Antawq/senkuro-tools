@@ -27,7 +27,7 @@ const TIERS: { from: number; color: string; effect: EffectKey }[] = [
 ];
 
 export interface PriceBadges {
-  update(db: Database, settings: Settings): void;
+  update(db: Database, settings: Settings, cards?: Iterable<HTMLAnchorElement>): void;
   reset(): void;
   resetPage(): void;
 }
@@ -76,21 +76,17 @@ export function createPriceBadges({ onImageLoad, touch }: { onImageLoad: () => v
   const positioned = new WeakSet<HTMLElement>();
 
   function render(card: HTMLAnchorElement, db: Database, settings: Settings, shades: ReturnType<typeof shadesOf>): void {
-    if (card.closest(BACK_FACE)) return;
-    const img = card.querySelector('img');
-    if (!img) return;
-    if (!imageSource(img)) {
-      if (!waitingImages.has(img)) {
-        waitingImages.add(img);
-        img.addEventListener('load', onImageLoad, { once: true });
-      }
-      return;
-    }
-
+    if (!card.isConnected || card.closest(BACK_FACE)) return;
     const slug = slugFromHref(card.getAttribute('href'));
     if (!slug || card.dataset.priceBadgeAdded === slug) return;
     const entry = db[slug];
     if (!entry || typeof entry.price !== 'number' || !Number.isFinite(entry.price)) return;
+
+    const img = card.querySelector('img');
+    if (img && !imageSource(img) && onImageLoad && !waitingImages.has(img)) {
+      waitingImages.add(img);
+      img.addEventListener('load', onImageLoad, { once: true });
+    }
 
     const priceText = effectivePrice(entry.price, settings.commission).toFixed(2);
     const tier = TIERS.find(({ from }) => +priceText >= from) ?? TIERS[TIERS.length - 1];
@@ -151,9 +147,10 @@ export function createPriceBadges({ onImageLoad, touch }: { onImageLoad: () => v
   };
 
   return {
-    update(db, settings) {
+    update(db, settings, cards?: Iterable<HTMLAnchorElement>) {
       const shades = shadesOf(settings.opacity);
-      document.querySelectorAll<HTMLAnchorElement>('a.card-collect').forEach((card) => render(card, db, settings, shades));
+      const list = cards ?? document.querySelectorAll<HTMLAnchorElement>('a.card-collect');
+      for (const card of list) render(card, db, settings, shades);
     },
     reset,
     resetPage() {

@@ -90,4 +90,25 @@ describe('createPriceBadges', () => {
     createPriceBadges({ onImageLoad: () => {}, touch: false }).update(db, { ...DEFAULT_SETTINGS, copyBtn: true });
     expect(document.querySelector('.senkuro-copy-btn').dataset.btnPos).toBe('left-center');
   });
+
+  it('prices card immediately even before its image loads or without img src', () => {
+    document.body.innerHTML = `
+      <div class="card-collect-preview">
+        <div class="card-collect-preview__front"><a class="card-collect" href="/cards/soran"><img></a></div>
+      </div>`;
+    createPriceBadges({ onImageLoad: () => {}, touch: false }).update(db, DEFAULT_SETTINGS);
+    const holder = document.querySelector('.card-collect-preview');
+    expect(holder.getAttribute('data-senkuro-price')).toBe('1.00');
+  });
+
+  it('prices only the provided batch of cards when specified', () => {
+    document.body.innerHTML = `
+      <div id="c1" class="card-collect-preview"><div class="card-collect-preview__front"><a class="card-collect" href="/cards/soran"></a></div></div>
+      <div id="c2" class="card-collect-preview"><div class="card-collect-preview__front"><a class="card-collect" href="/cards/soran"></a></div></div>`;
+    const [card1] = document.querySelectorAll('a.card-collect');
+    createPriceBadges({ onImageLoad: () => {}, touch: false }).update(db, DEFAULT_SETTINGS, [card1]);
+    expect(document.querySelector('#c1').getAttribute('data-senkuro-price')).toBe('1.00');
+    expect(document.querySelector('#c2').hasAttribute('data-senkuro-price')).toBe(false);
+  });
 });
+

@@ -101,3 +101,52 @@ export async function execute<T>(
     return decode<T>(response);
   }
 }
+
+export async function executePersisted<T>(
+  operationName: string,
+  variables: Variables,
+  sha256Hash: string,
+  token?: string,
+  transport: Transport = browserTransport
+): Promise<T> {
+  const body = JSON.stringify({
+    operationName,
+    variables,
+    extensions: { persistedQuery: { version: 1, sha256Hash } },
+  });
+  const headers: Record<string, string> = {
+    accept: 'application/json',
+    'content-type': 'application/json',
+  };
+  if (token) {
+    headers.authorization = `Bearer ${token}`;
+  }
+  for (let attempt = 1; ; attempt++) {
+    let response: Response;
+    try {
+      response = await transport.fetch(API_ENDPOINT, {
+        method: 'POST',
+        headers,
+        body,
+        credentials: 'omit',
+        redirect: 'manual',
+        referrerPolicy: 'no-referrer',
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+    } catch {
+      if (attempt >= MAX_ATTEMPTS) throw new ApiError('network');
+      await transport.sleep(backoffMs(attempt, transport.random));
+      continue;
+    }
+    if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) throw new ApiError('redirect', response.status || null);
+    if (RETRIED_STATUSES.has(response.status) && attempt < MAX_ATTEMPTS) {
+      const wait = retryDelayMs(response, attempt, transport.random);
+      if (wait <= MAX_WAIT_MS) {
+        response.body?.cancel().catch(() => undefined);
+        await transport.sleep(wait);
+        continue;
+      }
+    }
+    return decode<T>(response);
+  }
+}

@@ -1,4 +1,5 @@
 import '@/assets/price-badges.css';
+import '@/assets/profile-badge.css';
 import '@/assets/token-bar.css';
 import '@/assets/trade-summary.css';
 import { defineContentScript } from '#imports';
@@ -6,14 +7,14 @@ import { defineContentScript } from '#imports';
 import { loadDatabase } from '@/utils/database';
 import { SENKURO_MATCHES } from '@/utils/hosts';
 import { createPriceBadges } from '@/utils/price-badges';
+import { extractProfileSlug } from '@/utils/profile-cards';
+import { removeProfileBadge, updateProfileBadge, WIDGET_ID } from '@/utils/profile-dom';
 import { loadSettings, watchSettings } from '@/utils/settings';
 import { createTokenBar } from '@/utils/token-bar';
 import { createTradeStore, listenForTrades } from '@/utils/trade-capture';
 import { isTradeMutation, updateTradeSummaries } from '@/utils/trade-summary';
 
-const MUTATION_DEBOUNCE_MS = 250;
-const IDLE_TIMEOUT_MS = 500;
-const LATE_RENDER_DELAYS_MS = [1500, 4000];
+const LATE_RENDER_DELAYS_MS = [400, 1500];
 const WATCHED_ATTRIBUTES = ['src', 'srcset', 'data-srcset'];
 
 const applySummaryFontSize = (size: number) => document.documentElement.style.setProperty('--senkuro-summary-font-size', `${size}px`);
@@ -27,47 +28,81 @@ export default defineContentScript({
     applySummaryFontSize(settings.summaryFontSize);
     const tradeStore = createTradeStore();
     const tokenBar = createTokenBar(ctx);
-    let scheduled = false;
-    let rendering = false;
 
-    const render = async () => {
+    const cardQueue = new Set<HTMLAnchorElement>();
+    let tradeDirty = false;
+    let scheduled = false;
+
+    const getSummarySettings = () => ({
+      commission: settings.commission,
+      valueBySplit: settings.valueBySplit,
+      showSummaryF: settings.showSummaryF,
+      showSummaryBank: settings.showSummaryBank,
+      showSummaryCards: settings.showSummaryCards,
+      showSummaryVerdict: settings.showSummaryVerdict,
+    });
+
+    const flush = async () => {
       scheduled = false;
-      rendering = true;
+      const batch = cardQueue.size > 0 ? Array.from(cardQueue) : null;
+      cardQueue.clear();
+      const shouldUpdateTrades = tradeDirty;
+      tradeDirty = false;
+
       try {
         const db = await loadDatabase();
-        badges.update(db, settings);
-        updateTradeSummaries(
-          db,
-          {
-            commission: settings.commission,
-            valueBySplit: settings.valueBySplit,
-            showSummaryF: settings.showSummaryF,
-            showSummaryBank: settings.showSummaryBank,
-            showSummaryCards: settings.showSummaryCards,
-            showSummaryVerdict: settings.showSummaryVerdict,
-          },
-          tradeStore
-        );
-      } finally {
-        rendering = false;
+        if (batch) badges.update(db, settings, batch);
+        if (shouldUpdateTrades) updateTradeSummaries(db, getSummarySettings(), tradeStore);
+        updateProfileBadge({ db, commission: settings.commission });
+      } catch (err) {
+        console.error('SenkuTools: batch render error', err);
       }
     };
 
-    const schedule = () => {
+    const scheduleBatch = () => {
       if (scheduled || ctx.isInvalid) return;
       scheduled = true;
-      if (!touch && 'requestIdleCallback' in window) ctx.requestIdleCallback(() => void render(), { timeout: IDLE_TIMEOUT_MS });
-      else ctx.setTimeout(() => void render(), 0);
+      if ('requestAnimationFrame' in window) ctx.requestAnimationFrame(() => void flush());
+      else ctx.setTimeout(() => void flush(), 0);
     };
 
-    const badges = createPriceBadges({ onImageLoad: schedule, touch });
+    const renderAll = async () => {
+      cardQueue.clear();
+      tradeDirty = false;
+      try {
+        const db = await loadDatabase();
+        badges.update(db, settings);
+        updateTradeSummaries(db, getSummarySettings(), tradeStore);
+        updateProfileBadge({ db, commission: settings.commission });
+      } catch (err) {
+        console.error('SenkuTools: render error', err);
+      }
+    };
 
-    let debounce: number | undefined;
+    const badges = createPriceBadges({ onImageLoad: scheduleBatch, touch });
+
     const observer = new MutationObserver((mutations) => {
-      if (rendering) return;
-      if (!mutations.some((mutation) => mutation.addedNodes.length > 0 || mutation.type === 'attributes' || isTradeMutation(mutation))) return;
-      clearTimeout(debounce);
-      debounce = ctx.setTimeout(schedule, MUTATION_DEBOUNCE_MS);
+      let hasNewCards = false;
+      for (const m of mutations) {
+        if (isTradeMutation(m)) tradeDirty = true;
+        for (const node of m.addedNodes) {
+          if (node instanceof HTMLElement) {
+            if (node.matches('a.card-collect')) {
+              cardQueue.add(node as HTMLAnchorElement);
+              hasNewCards = true;
+            }
+            node.querySelectorAll<HTMLAnchorElement>('a.card-collect').forEach((card) => {
+              cardQueue.add(card);
+              hasNewCards = true;
+            });
+          }
+        }
+      }
+      const slug = extractProfileSlug(window.location.pathname);
+      const profileNeedsMount = Boolean(slug && !document.getElementById(WIDGET_ID));
+      if (hasNewCards || tradeDirty || profileNeedsMount) {
+        scheduleBatch();
+      }
     });
     observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: WATCHED_ATTRIBUTES });
     ctx.onInvalidated(() => observer.disconnect());
@@ -84,18 +119,23 @@ export default defineContentScript({
           return;
         }
         badges.reset();
-        schedule();
+        void renderAll();
       })
     );
 
     ctx.addEventListener(window, 'wxt:locationchange', () => {
       badges.resetPage();
-      schedule();
+      removeProfileBadge();
+      scheduleBatch();
+      void renderAll();
     });
 
-    listenForTrades(tradeStore, schedule);
+    listenForTrades(tradeStore, () => {
+      tradeDirty = true;
+      scheduleBatch();
+    });
     void tokenBar.sync(settings.showToken);
-    schedule();
-    LATE_RENDER_DELAYS_MS.forEach((delay) => ctx.setTimeout(schedule, delay));
+    void renderAll();
+    LATE_RENDER_DELAYS_MS.forEach((delay) => ctx.setTimeout(() => void renderAll(), delay));
   },
 });
