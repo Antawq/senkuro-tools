@@ -41,10 +41,12 @@ function toCard(node: UserCardNode | null | undefined): AccountCard | null {
   return { slug, quantity, shard: node?.shard === true };
 }
 
-export async function fetchAccountCards(token: string, onProgress: (loaded: number) => void = () => undefined, transport?: Transport): Promise<AccountCard[]> {
-  const viewer = await execute<ViewerData>(token, VIEWER, 'Viewer', {}, transport);
-  const userId = viewer.viewer?.user?.id;
-  if (!userId) throw new ApiError('graphql', null, true);
+export async function fetchUserCards(
+  token: string | null,
+  userId: string,
+  onProgress: (loaded: number) => void = () => undefined,
+  transport?: Transport
+): Promise<AccountCard[]> {
   const cards: AccountCard[] = [];
   let after: string | null = null;
   for (let page = 0; page < MAX_PAGES; page++) {
@@ -60,4 +62,11 @@ export async function fetchAccountCards(token: string, onProgress: (loaded: numb
     if (after === null) return cards;
   }
   throw new ApiError('limit');
+}
+
+export async function fetchAccountCards(token: string, onProgress: (loaded: number) => void = () => undefined, transport?: Transport): Promise<AccountCard[]> {
+  const viewer = await execute<ViewerData>(token, VIEWER, 'Viewer', {}, transport);
+  const userId = viewer.viewer?.user?.id;
+  if (!userId) throw new ApiError('graphql', null, true);
+  return fetchUserCards(token, userId, onProgress, transport);
 }

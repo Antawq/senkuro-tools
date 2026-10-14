@@ -58,7 +58,7 @@ export default defineContentScript({
         const db = await loadDatabase();
         if (batch) badges.update(db, settings, batch);
         if (shouldUpdateTrades) updateTradeSummaries(db, getSummarySettings(), tradeStore);
-        updateProfileBadge({ db, commission: settings.commission });
+        updateProfileBadge({ db, valuation: getSummarySettings() });
       } catch (err) {
         console.error('SenkuTools: batch render error', err);
       }
@@ -78,7 +78,7 @@ export default defineContentScript({
         const db = await loadDatabase();
         badges.update(db, settings);
         updateTradeSummaries(db, getSummarySettings(), tradeStore);
-        updateProfileBadge({ db, commission: settings.commission });
+        updateProfileBadge({ db, valuation: getSummarySettings() });
       } catch (err) {
         console.error('SenkuTools: render error', err);
       }

@@ -1,12 +1,8 @@
-import { type Database } from './database';
-import { ApiError, executePersisted, type Transport } from './graphql';
-import { formatAmount, formatByRank, formatShardsByRank, hasR, valueSide, type SideValue } from './trade-value';
-
-export interface ProfileCard {
-  slug: string;
-  quantity: number;
-  shard: boolean;
-}
+import { fetchUserCards, type AccountCard } from './account-cards';
+import type { Database } from './database';
+import { execute, type Transport } from './graphql';
+import { F_UNIT, R_RANK, formatAmount, formatByRank, formatShardsByRank, hasR, valueWith, type Valuation } from './trade-value';
+import { decodeSafely } from './uri';
 
 export interface ProfileValueSummary {
   totalF: number;
@@ -20,111 +16,54 @@ export interface ProfileValueSummary {
   rCards: number;
 }
 
-export const MAX_PAGES = 300;
-
-export const PROFILE_HASH = '4bef9abf7c5ad00af59085a24e9c52ad3f095d8adc1e9251b65c7eece2bb07e6';
-export const INVENTORY_HASH = 'e426e266f581825cf223ad2d30e133e95404113093576629481fdda992d47016';
+const USER_BY_SLUG = 'query User($slug: String!) { user(slug: $slug) { id name } }';
+const PROFILE_PATH = /^\/users\/([^/?#]+)/;
+const RESERVED_PATHS = ['settings', 'notifications', 'card-trades'];
+const R_SLUG_SUFFIX = `-${R_RANK.toLowerCase()}`;
 
 interface UserData {
-  user?: { id?: string; slug?: string; name?: string } | null;
-}
-
-interface UserCardNode {
-  quantity?: unknown;
-  shard?: unknown;
-  card?: { slug?: unknown } | null;
-}
-
-interface PageData {
-  userCards?: {
-    pageInfo?: { hasNextPage?: boolean; endCursor?: string | null } | null;
-    edges?: ({ node?: UserCardNode | null } | null)[] | null;
-  } | null;
-}
-
-function toCard(node: UserCardNode | null | undefined): ProfileCard | null {
-  const slug = node?.card?.slug;
-  const quantity = node?.quantity;
-  if (typeof slug !== 'string' || !slug) return null;
-  if (typeof quantity !== 'number' || !Number.isFinite(quantity) || quantity <= 0) return null;
-  return { slug, quantity, shard: node?.shard === true };
+  user?: { id?: string; name?: string | null } | null;
 }
 
 export async function fetchProfileUser(slug: string, transport?: Transport): Promise<{ id: string; name: string } | null> {
-  const data = await executePersisted<UserData>('fetchUser', { slug }, PROFILE_HASH, undefined, transport);
+  const data = await execute<UserData>(null, USER_BY_SLUG, 'User', { slug }, transport);
   const user = data?.user;
   if (!user?.id) return null;
   return { id: String(user.id), name: user.name || slug };
 }
 
-export async function fetchProfileCards(
-  userId: string,
-  onProgress?: (loaded: number) => void,
-  transport?: Transport
-): Promise<ProfileCard[]> {
-  const cards: ProfileCard[] = [];
-  let after: string | null = null;
-  for (let page = 0; page < MAX_PAGES; page++) {
-    const variables: Record<string, unknown> = {
-      userId,
-      orderDirection: 'DESC',
-      orderField: 'CREATED_AT',
-    };
-    if (after) variables.after = after;
-    const data: PageData = await executePersisted<PageData>('fetchUserCards', variables, INVENTORY_HASH, undefined, transport);
-    const connection = data?.userCards;
-    for (const edge of connection?.edges ?? []) {
-      const card = toCard(edge?.node);
-      if (card) cards.push(card);
-    }
-    onProgress?.(cards.length);
-    const info = connection?.pageInfo;
-    after = info?.hasNextPage && info.endCursor ? info.endCursor : null;
-    if (after === null) return cards;
+export const fetchProfileCards = (userId: string, onProgress?: (loaded: number) => void, transport?: Transport): Promise<AccountCard[]> =>
+  fetchUserCards(null, userId, onProgress, transport);
+
+const rankOf = (slug: string, db: Database): string | null => db[slug]?.rank || (slug.endsWith(R_SLUG_SUFFIX) ? R_RANK : null);
+
+const sumQuantity = (cards: AccountCard[]): number => cards.reduce((total, card) => total + card.quantity, 0);
+
+export function calculateProfileValue(cards: AccountCard[], db: Database, valuation: Valuation): ProfileValueSummary {
+  const value = valueWith({ cards, hidden: 0 }, db, valuation);
+  const whole = cards.filter((card) => !card.shard);
+  const counts = new Map<string, number>();
+  for (const card of whole) {
+    const rank = rankOf(card.slug, db);
+    if (rank) counts.set(rank, (counts.get(rank) ?? 0) + card.quantity);
   }
-  throw new ApiError('limit');
-}
-
-export function calculateProfileValue(cards: ProfileCard[], db: Database, commission: boolean): ProfileValueSummary {
-  const sideValue: SideValue = valueSide({ cards, hidden: 0 }, db, commission);
-  const wholeCards = cards.filter((c) => !c.shard);
-  const shardCards = cards.filter((c) => c.shard);
-
-  const totalCards = wholeCards.reduce((acc, c) => acc + c.quantity, 0);
-  const totalShards = shardCards.reduce((acc, c) => acc + c.quantity, 0);
-
-  // Group whole cards by rank (by quantity), guaranteeing R at the very start
-  const countMap = new Map<string, number>();
-  for (const card of wholeCards) {
-    const entry = db[card.slug];
-    const rank = entry?.rank || (card.slug.endsWith('-r') ? 'R' : null);
-    if (rank) {
-      countMap.set(rank, (countMap.get(rank) ?? 0) + card.quantity);
-    }
-  }
-
-  const countSource = countMap.size > 0 ? countMap : sideValue.count;
-  if (sideValue.r.count > 0 && !countSource.has('R')) {
-    countSource.set('R', sideValue.r.count);
-  }
-
   return {
-    totalF: sideValue.f,
-    formattedF: `${formatAmount(sideValue.f)}F`,
-    bank: formatByRank(sideValue.bank),
-    cards: formatByRank(countSource),
-    shards: formatShardsByRank(sideValue.shards),
-    totalCards,
-    totalShards,
-    rValue: hasR(sideValue) ? `${formatAmount(sideValue.r.value)}R` : null,
-    rCards: sideValue.r.count,
+    totalF: value.f,
+    formattedF: `${formatAmount(value.f)}${F_UNIT}`,
+    bank: formatByRank(value.bank),
+    cards: formatByRank(counts),
+    shards: formatShardsByRank(value.shards),
+    totalCards: sumQuantity(whole),
+    totalShards: sumQuantity(cards.filter((card) => card.shard)),
+    rValue: hasR(value) ? `${formatAmount(value.r.value)}${R_RANK}` : null,
+    rCards: value.r.count,
   };
 }
 
 export function extractProfileSlug(pathname: string): string | null {
-  const match = pathname.match(/^\/users\/([^/?#]+)/);
+  const match = PROFILE_PATH.exec(pathname);
   if (!match) return null;
-  const raw = decodeURIComponent(match[1] || '').trim();
-  if (!raw || ['settings', 'notifications', 'card-trades'].includes(raw)) return null;
+  const raw = decodeSafely(match[1] || '').trim();
+  if (!raw || RESERVED_PATHS.includes(raw)) return null;
   return raw;
 }

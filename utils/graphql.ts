@@ -1,12 +1,20 @@
-export const API_ENDPOINT = 'https://api.senkuro.com/graphql';
+import { PRIMARY_DOMAIN } from './hosts';
+import { MS_PER_SECOND } from './time';
+
+export const API_ENDPOINT = `https://api.${PRIMARY_DOMAIN}/graphql`;
 
 const TIMEOUT_MS = 30_000;
 const MAX_ATTEMPTS = 3;
 const BASE_DELAY_MS = 500;
+const BACKOFF_FACTOR = 2;
 const MAX_WAIT_MS = 8000;
 const JITTER = 0.25;
 const RETRIED_STATUSES = new Set([429, 502, 503, 504]);
 const UNAUTHORIZED_CODES = new Set(['NOT_AUTHORIZED', 'UNAUTHENTICATED']);
+const HTTP_UNAUTHORIZED = 401;
+const JSON_HEADERS = { accept: 'application/json', 'content-type': 'application/json' };
+
+const isRedirect = (status: number): boolean => status >= 300 && status < 400;
 
 export type Failure = 'network' | 'redirect' | 'http' | 'decode' | 'graphql' | 'limit';
 
@@ -38,11 +46,12 @@ export const browserTransport: Transport = {
 
 export type Variables = Readonly<Record<string, unknown>>;
 
-const backoffMs = (attempt: number, random: () => number): number => Math.min(BASE_DELAY_MS * 2 ** (attempt - 1), MAX_WAIT_MS) * (1 + random() * JITTER);
+const backoffMs = (attempt: number, random: () => number): number =>
+  Math.min(BASE_DELAY_MS * BACKOFF_FACTOR ** (attempt - 1), MAX_WAIT_MS) * (1 + random() * JITTER);
 
 const retryDelayMs = (response: Response, attempt: number, random: () => number): number => {
   const header = response.headers.get('retry-after');
-  return header && /^\d+$/.test(header) ? Number(header) * 1000 : backoffMs(attempt, random);
+  return header && /^\d+$/.test(header) ? Number(header) * MS_PER_SECOND : backoffMs(attempt, random);
 };
 
 const isUnauthorizedEntry = (entry: unknown): boolean => {
@@ -51,7 +60,7 @@ const isUnauthorizedEntry = (entry: unknown): boolean => {
 };
 
 async function decode<T>(response: Response): Promise<T> {
-  if (response.status < 200 || response.status > 299) throw new ApiError('http', response.status, response.status === 401);
+  if (!response.ok) throw new ApiError('http', response.status, response.status === HTTP_UNAUTHORIZED);
   let payload: unknown;
   try {
     payload = await response.json();
@@ -65,62 +74,14 @@ async function decode<T>(response: Response): Promise<T> {
 }
 
 export async function execute<T>(
-  token: string,
+  token: string | null,
   document: string,
   operationName: string,
   variables: Variables,
   transport: Transport = browserTransport
 ): Promise<T> {
   const body = JSON.stringify({ query: document, operationName, variables });
-  for (let attempt = 1; ; attempt++) {
-    let response: Response;
-    try {
-      response = await transport.fetch(API_ENDPOINT, {
-        method: 'POST',
-        headers: { accept: 'application/json', 'content-type': 'application/json', authorization: `Bearer ${token}` },
-        body,
-        credentials: 'omit',
-        redirect: 'manual',
-        referrerPolicy: 'no-referrer',
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-      });
-    } catch {
-      if (attempt >= MAX_ATTEMPTS) throw new ApiError('network');
-      await transport.sleep(backoffMs(attempt, transport.random));
-      continue;
-    }
-    if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) throw new ApiError('redirect', response.status || null);
-    if (RETRIED_STATUSES.has(response.status) && attempt < MAX_ATTEMPTS) {
-      const wait = retryDelayMs(response, attempt, transport.random);
-      if (wait <= MAX_WAIT_MS) {
-        response.body?.cancel().catch(() => undefined);
-        await transport.sleep(wait);
-        continue;
-      }
-    }
-    return decode<T>(response);
-  }
-}
-
-export async function executePersisted<T>(
-  operationName: string,
-  variables: Variables,
-  sha256Hash: string,
-  token?: string,
-  transport: Transport = browserTransport
-): Promise<T> {
-  const body = JSON.stringify({
-    operationName,
-    variables,
-    extensions: { persistedQuery: { version: 1, sha256Hash } },
-  });
-  const headers: Record<string, string> = {
-    accept: 'application/json',
-    'content-type': 'application/json',
-  };
-  if (token) {
-    headers.authorization = `Bearer ${token}`;
-  }
+  const headers: Record<string, string> = { ...JSON_HEADERS, ...(token ? { authorization: `Bearer ${token}` } : {}) };
   for (let attempt = 1; ; attempt++) {
     let response: Response;
     try {
@@ -138,7 +99,7 @@ export async function executePersisted<T>(
       await transport.sleep(backoffMs(attempt, transport.random));
       continue;
     }
-    if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) throw new ApiError('redirect', response.status || null);
+    if (response.type === 'opaqueredirect' || isRedirect(response.status)) throw new ApiError('redirect', response.status || null);
     if (RETRIED_STATUSES.has(response.status) && attempt < MAX_ATTEMPTS) {
       const wait = retryDelayMs(response, attempt, transport.random);
       if (wait <= MAX_WAIT_MS) {
