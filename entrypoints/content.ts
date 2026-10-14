@@ -34,28 +34,31 @@ export default defineContentScript({
     const cardQueue = new Set<HTMLAnchorElement>();
     let tradeDirty = false;
     let scheduled = false;
-    let rendering = false;
 
-    const render = async () => {
+    const getSummarySettings = () => ({
+      commission: settings.commission,
+      valueBySplit: settings.valueBySplit,
+      valueBasis: settings.valueBasis,
+      showSummaryF: settings.showSummaryF,
+      showSummaryBank: settings.showSummaryBank,
+      showSummaryCards: settings.showSummaryCards,
+      showSummaryVerdict: settings.showSummaryVerdict,
+    });
+
+    const flush = async () => {
       scheduled = false;
-      rendering = true;
+      const batch = cardQueue.size > 0 ? Array.from(cardQueue) : null;
+      cardQueue.clear();
+      const shouldUpdateTrades = tradeDirty;
+      tradeDirty = false;
+
       try {
         const db = await loadDatabase();
-        badges.update(db, settings);
-        updateTradeSummaries(
-          db,
-          {
-            commission: settings.commission,
-            valueBySplit: settings.valueBySplit,
-            showSummaryF: settings.showSummaryF,
-            showSummaryBank: settings.showSummaryBank,
-            showSummaryCards: settings.showSummaryCards,
-            showSummaryVerdict: settings.showSummaryVerdict,
-          },
-          tradeStore
-        );
-      } finally {
-        rendering = false;
+        if (batch) badges.update(db, settings, batch);
+        if (shouldUpdateTrades) updateTradeSummaries(db, getSummarySettings(), tradeStore);
+        updateProfileBadge({ db, commission: settings.commission });
+      } catch (err) {
+        console.error('SenkuTools: batch render error', err);
       }
     };
 
