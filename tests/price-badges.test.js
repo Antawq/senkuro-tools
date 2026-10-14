@@ -111,4 +111,3 @@ describe('createPriceBadges', () => {
     expect(document.querySelector('#c2').hasAttribute('data-senkuro-price')).toBe(false);
   });
 });
-

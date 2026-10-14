@@ -99,7 +99,7 @@ describe('answerTokenRequests', () => {
     document.cookie = 'access_token=v4.local.page; path=/';
     const stop = answerTokenRequests();
     const respond = vi.fn();
-    await fakeBrowser.runtime.onMessage.trigger({ type: TOKEN_REQUEST }, {}, respond);
+    expect(await fakeBrowser.runtime.onMessage.trigger({ type: TOKEN_REQUEST }, {}, respond)).toEqual([false]);
     expect(respond).toHaveBeenCalledWith({ token: 'v4.local.page' });
     stop();
   });
@@ -107,7 +107,7 @@ describe('answerTokenRequests', () => {
   it('answers null when the page has no token', async () => {
     const stop = answerTokenRequests();
     const respond = vi.fn();
-    await fakeBrowser.runtime.onMessage.trigger({ type: TOKEN_REQUEST }, {}, respond);
+    expect(await fakeBrowser.runtime.onMessage.trigger({ type: TOKEN_REQUEST }, {}, respond)).toEqual([false]);
     expect(respond).toHaveBeenCalledWith({ token: null });
     stop();
   });
@@ -116,10 +116,10 @@ describe('answerTokenRequests', () => {
     document.cookie = 'access_token=v4.local.page; path=/';
     const stop = answerTokenRequests();
     const respond = vi.fn();
-    await fakeBrowser.runtime.onMessage.trigger({ type: 'SOMETHING_ELSE' }, {}, respond);
+    expect(await fakeBrowser.runtime.onMessage.trigger({ type: 'SOMETHING_ELSE' }, {}, respond)).toEqual([false]);
     expect(respond).not.toHaveBeenCalled();
     stop();
-    await fakeBrowser.runtime.onMessage.trigger({ type: TOKEN_REQUEST }, {}, respond);
+    expect(await fakeBrowser.runtime.onMessage.trigger({ type: TOKEN_REQUEST }, {}, respond)).toEqual([]);
     expect(respond).not.toHaveBeenCalled();
   });
 });
@@ -152,8 +152,10 @@ describe('readTokenFromSite', () => {
       { id: 1, active: false, url: 'https://senkuro.com/' },
       { id: 2, active: true, url: 'https://shiruho.me/' },
     ]);
-    sendMessage.mockImplementation(async (id: number) => ({ token: `from-${id}` }));
-    expect(await readTokenFromSite()).toBe('from-2');
+    sendMessage.mockResolvedValue({ token: 'from-front' });
+    expect(await readTokenFromSite()).toBe('from-front');
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(sendMessage).toHaveBeenCalledWith(2, { type: TOKEN_REQUEST });
   });
 
   it('falls back to the cookies of that very site when the tab does not answer', async () => {

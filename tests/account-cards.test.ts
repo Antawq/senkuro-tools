@@ -16,15 +16,17 @@ const page = (edges: unknown[], next: string | null) => ({ data: { userCards: { 
 
 const viewer = { data: { viewer: { user: { id: 'user-1' } } } };
 
+const bodyOf = (init?: RequestInit): string => (typeof init?.body === 'string' ? init.body : '{}');
+
 const serve = (answer: (sent: Sent, index: number) => Response) => {
   const sent: Sent[] = [];
   const transport: Transport = {
-    fetch: (async (_url: RequestInfo | URL, init?: RequestInit) => {
-      const body = JSON.parse(String(init?.body)) as Sent;
+    fetch: (_url: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(bodyOf(init)) as Sent;
       sent.push(body);
-      return answer(body, sent.length - 1);
-    }) as typeof fetch,
-    sleep: async () => undefined,
+      return Promise.resolve(answer(body, sent.length - 1));
+    },
+    sleep: () => Promise.resolve(),
     random: () => 0,
   };
   return { sent, transport };
@@ -60,12 +62,12 @@ describe('fetchAccountCards', () => {
   it('asks only for the fields it uses', async () => {
     const queries: string[] = [];
     const transport: Transport = {
-      fetch: (async (_url: RequestInfo | URL, init?: RequestInit) => {
-        const body = JSON.parse(String(init?.body)) as { query: string; operationName: string };
+      fetch: (_url: RequestInfo | URL, init?: RequestInit) => {
+        const body = JSON.parse(bodyOf(init)) as { query: string; operationName: string };
         queries.push(body.query);
-        return json(body.operationName === 'Viewer' ? viewer : page([], null));
-      }) as typeof fetch,
-      sleep: async () => undefined,
+        return Promise.resolve(json(body.operationName === 'Viewer' ? viewer : page([], null)));
+      },
+      sleep: () => Promise.resolve(),
       random: () => 0,
     };
     await fetchAccountCards('token', undefined, transport);

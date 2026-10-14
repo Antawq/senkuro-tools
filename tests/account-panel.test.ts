@@ -24,12 +24,12 @@ const own = (slug: string, quantity = 1, shard = false): AccountCard => ({ slug,
 const inventory = [own('s-card', 2), own('a-card'), own('f-card', 10), own('missing', 3), own('s-card', 4, true)];
 
 const depsOf = (overrides: Partial<PanelDeps> = {}) => ({
-  readToken: vi.fn(async () => 'token' as string | null),
-  fetchCards: vi.fn(async (_token: string, _onProgress: (loaded: number) => void) => inventory),
-  loadDatabase: vi.fn(async () => db),
-  loadSnapshot: vi.fn(async () => null as { at: number; cards: AccountCard[] } | null),
-  saveSnapshot: vi.fn(async (_cards: AccountCard[], _at: number) => undefined),
-  clearSnapshot: vi.fn(async () => undefined),
+  readToken: vi.fn(() => Promise.resolve<string | null>('token')),
+  fetchCards: vi.fn<PanelDeps['fetchCards']>(() => Promise.resolve(inventory)),
+  loadDatabase: vi.fn(() => Promise.resolve(db)),
+  loadSnapshot: vi.fn<PanelDeps['loadSnapshot']>(() => Promise.resolve(null)),
+  saveSnapshot: vi.fn<PanelDeps['saveSnapshot']>(() => Promise.resolve()),
+  clearSnapshot: vi.fn(() => Promise.resolve()),
   commission: () => true,
   now: () => NOW,
   ...overrides,
@@ -63,7 +63,7 @@ describe('account panel', () => {
   });
 
   it('shows the last result at once when it has one', async () => {
-    const deps = depsOf({ loadSnapshot: vi.fn(async () => ({ at: NOW - 5 * 60_000, cards: inventory })) });
+    const deps = depsOf({ loadSnapshot: vi.fn(() => Promise.resolve({ at: NOW - 5 * 60_000, cards: inventory })) });
     await mountAccountPanel(document, deps).ready;
     expect(el('accountStats').hidden).toBe(false);
     expect(text('accountCards')).toBe('16');
@@ -114,7 +114,7 @@ describe('account panel', () => {
 
   it('does not start a second load while one is running', async () => {
     let release: (cards: AccountCard[]) => void = () => undefined;
-    const fetchCards = vi.fn((_token: string, _onProgress: (loaded: number) => void) => new Promise<AccountCard[]>((resolveCards) => (release = resolveCards)));
+    const fetchCards = vi.fn<PanelDeps['fetchCards']>(() => new Promise<AccountCard[]>((resolveCards) => (release = resolveCards)));
     await mountAccountPanel(document, depsOf({ fetchCards })).ready;
     el('accountLoad').click();
     el('accountLoad').click();
@@ -125,7 +125,7 @@ describe('account panel', () => {
   });
 
   it('tells when there is no token and asks the api for nothing', async () => {
-    const deps = depsOf({ readToken: vi.fn(async () => null) });
+    const deps = depsOf({ readToken: vi.fn(() => Promise.resolve(null)) });
     await mountAccountPanel(document, deps).ready;
     await press('accountLoad');
     expect(text('accountHint')).toBe('Не найден токен: откройте сайт в этом окне, войдите в аккаунт и повторите.');
@@ -155,7 +155,7 @@ describe('account panel', () => {
 
   it('keeps the last result on screen when a refresh fails', async () => {
     const deps = depsOf({
-      loadSnapshot: vi.fn(async () => ({ at: NOW, cards: inventory })),
+      loadSnapshot: vi.fn(() => Promise.resolve({ at: NOW, cards: inventory })),
       fetchCards: vi.fn(async () => Promise.reject(new ApiError('http', 500))),
     });
     await mountAccountPanel(document, deps).ready;
@@ -167,11 +167,11 @@ describe('account panel', () => {
   });
 
   it('opens a window for R only when the account has R', async () => {
-    const plain = depsOf({ loadSnapshot: vi.fn(async () => ({ at: NOW, cards: inventory })) });
+    const plain = depsOf({ loadSnapshot: vi.fn(() => Promise.resolve({ at: NOW, cards: inventory })) });
     await mountAccountPanel(document, plain).ready;
     expect(el('accountR').hidden).toBe(true);
     document.body.innerHTML = markup;
-    const withR = depsOf({ loadSnapshot: vi.fn(async () => ({ at: NOW, cards: [...inventory, own('r-card', 2)] })) });
+    const withR = depsOf({ loadSnapshot: vi.fn(() => Promise.resolve({ at: NOW, cards: [...inventory, own('r-card', 2)] })) });
     await mountAccountPanel(document, withR).ready;
     expect(el('accountR').hidden).toBe(false);
     expect(text('accountRCards')).toBe('2');
@@ -182,7 +182,7 @@ describe('account panel', () => {
   });
 
   it('lists R shards in the window without valuing them', async () => {
-    const deps = depsOf({ loadSnapshot: vi.fn(async () => ({ at: NOW, cards: [own('r-card', 3, true)] })) });
+    const deps = depsOf({ loadSnapshot: vi.fn(() => Promise.resolve({ at: NOW, cards: [own('r-card', 3, true)] })) });
     await mountAccountPanel(document, deps).ready;
     expect(el('accountR').hidden).toBe(false);
     expect(text('accountRCards')).toBe('0');
@@ -191,7 +191,7 @@ describe('account panel', () => {
 
   it('prices the bank again when the commission changes', async () => {
     let commission = true;
-    const deps = depsOf({ loadSnapshot: vi.fn(async () => ({ at: NOW, cards: inventory })), commission: () => commission });
+    const deps = depsOf({ loadSnapshot: vi.fn(() => Promise.resolve({ at: NOW, cards: inventory })), commission: () => commission });
     const panel = mountAccountPanel(document, deps);
     await panel.ready;
     expect(text('accountBank')).toBe('13.2');
@@ -202,7 +202,7 @@ describe('account panel', () => {
   });
 
   it('forgets the cards on request', async () => {
-    const deps = depsOf({ loadSnapshot: vi.fn(async () => ({ at: NOW, cards: inventory })) });
+    const deps = depsOf({ loadSnapshot: vi.fn(() => Promise.resolve({ at: NOW, cards: inventory })) });
     await mountAccountPanel(document, deps).ready;
     await press('accountClear');
     expect(deps.clearSnapshot).toHaveBeenCalledOnce();

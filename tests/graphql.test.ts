@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { API_ENDPOINT, ApiError, execute, type Transport } from '../utils/graphql';
+import type { ApiError } from '../utils/graphql';
+import { API_ENDPOINT, execute, type Transport } from '../utils/graphql';
 
 const TOKEN = 'v4.local.secret-token-value';
 
@@ -12,14 +13,17 @@ const transportOf = (replies: (Response | Error)[]) => {
   const calls: { url: string; init: RequestInit }[] = [];
   const sleeps: number[] = [];
   const transport: Transport = {
-    fetch: vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      calls.push({ url: String(input), init: init ?? {} });
+    fetch: vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      calls.push({ url: input instanceof Request ? input.url : input.toString(), init: init ?? {} });
       const next = queue.length > 1 ? queue.shift() : queue[0];
-      if (!next) throw new Error('no reply left');
-      if (next instanceof Error) throw next;
-      return next instanceof Response ? next.clone() : next;
-    }) as unknown as typeof fetch,
-    sleep: async (ms) => void sleeps.push(ms),
+      if (!next) return Promise.reject(new Error('no reply left'));
+      if (next instanceof Error) return Promise.reject(next);
+      return Promise.resolve(next instanceof Response ? next.clone() : next);
+    }),
+    sleep: (ms) => {
+      sleeps.push(ms);
+      return Promise.resolve();
+    },
     random: () => 0,
   };
   return { transport, calls, sleeps };
