@@ -1,6 +1,6 @@
 import type { Database } from './database';
 import type { TradeStore } from './trade-capture';
-import { MODAL, readTradePlaces, type Column, type Placement, type Role, type Variant } from './trade-dom';
+import { TRADE_PLACES, readTradePlaces, type Column, type Placement, type Role, type Variant } from './trade-dom';
 import { totalOf } from './trade-match';
 import {
   F_UNIT,
@@ -249,7 +249,14 @@ export function updateTradeSummaries(db: Database, settings: SummarySettings, st
   }
 }
 
+const isSummary = (node: Node): boolean => node instanceof Element && node.classList.contains(SUMMARY);
+
+const holdsPlace = (node: Node): boolean => node instanceof Element && (node.matches(TRADE_PLACES) || node.querySelector(TRADE_PLACES) !== null);
+
 export const isTradeMutation = (mutation: MutationRecord): boolean => {
+  const changed = [...mutation.addedNodes, ...mutation.removedNodes];
+  if (changed.length > 0 && changed.every(isSummary)) return false;
   const target = mutation.target instanceof Element ? mutation.target : mutation.target.parentElement;
-  return Boolean(target?.closest(MODAL)) && !target?.closest(`.${SUMMARY}`);
+  if (target?.closest(`.${SUMMARY}`)) return false;
+  return Boolean(target?.closest(TRADE_PLACES)) || [...mutation.addedNodes].some(holdsPlace);
 };

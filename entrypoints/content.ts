@@ -89,7 +89,7 @@ export default defineContentScript({
     const observer = new MutationObserver((mutations) => {
       let hasNewCards = false;
       for (const m of mutations) {
-        if (isTradeMutation(m)) tradeDirty = true;
+        if (!tradeDirty && isTradeMutation(m)) tradeDirty = true;
         for (const node of m.addedNodes) {
           if (node instanceof HTMLElement) {
             if (node.matches(CARD_LINK)) {

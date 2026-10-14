@@ -5,6 +5,12 @@ import { matchOffer, matchTrade, matchTradeByCounts, shows } from './trade-match
 import type { CardRef, Side } from './trade-value';
 
 export const MODAL = '.modal-content--trade';
+const CARD_LIST = '.modal-content--review';
+const HISTORY = '.card-trade';
+const OFFER = '.offer-card';
+const NOTIFICATION = '.card-notif__info';
+
+export const TRADE_PLACES = [MODAL, CARD_LIST, HISTORY, OFFER, NOTIFICATION].join(', ');
 
 const INCOMING_SUBTITLE = 'Прими решение обмена';
 const NOTIFICATION_COUNTS = /Получишь\s+(\d+)\D+?Отдашь\s+(\d+)/;
@@ -88,7 +94,7 @@ function readConstructor(modal: Element): Column[] | null {
 }
 
 function rememberCardLists(): void {
-  for (const list of document.querySelectorAll('.modal-content--review')) {
+  for (const list of document.querySelectorAll(CARD_LIST)) {
     const owner = LIST_OWNER.exec(list.querySelector('.modal-trade__review-text')?.textContent?.trim() ?? '')?.[1];
     if (owner) fullLists.set(owner, readCards(list.querySelector('.modal-trade__review-slider')));
   }
@@ -136,7 +142,7 @@ const readPreviewList = (list: Element): Side => ({
 });
 
 const readHistory = (store: TradeStore): Place[] =>
-  [...document.querySelectorAll('.card-trade')].map((host) => {
+  [...document.querySelectorAll(HISTORY)].map((host) => {
     const lists = [...host.children].filter((el) => el.matches('.card-preview-list'));
     const names = lists.map(nameOf);
     const [offerList, requestList] = lists;
@@ -158,7 +164,7 @@ const unmatched = new Set<string>();
 
 const readOffers = (store: TradeStore): Place[] => {
   const debug = debugLogger();
-  return [...document.querySelectorAll('.offer-card')].map((card) => {
+  return [...document.querySelectorAll(OFFER)].map((card) => {
     const host = surfaceOf(card);
     const top = { cards: readCards(card.querySelector('.offer-card__top-list')), hidden: numberIn(card.querySelector('.offer-card__top-more')) };
     const middle = { cards: readCards(card.querySelector('.offer-card__cnt-list')), hidden: numberIn(card.querySelector('.offer-card__cnt-el-more')) };
@@ -196,7 +202,7 @@ const readOffers = (store: TradeStore): Place[] => {
 };
 
 const readNotifications = (store: TradeStore): Place[] =>
-  [...document.querySelectorAll('.card-notif__info')].flatMap((host) => {
+  [...document.querySelectorAll(NOTIFICATION)].flatMap((host) => {
     const counts = [...host.querySelectorAll('.card-notif__info-hint')].map((el) => NOTIFICATION_COUNTS.exec(el.textContent ?? '')).find(Boolean);
     if (!counts) return [];
     const sender = host.closest('.card-notif')?.querySelector('.card-notif__source-title')?.textContent?.trim() ?? '';

@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_SETTINGS } from '../utils/settings';
 import { REPLAY_EVENT, createTradeStore } from '../utils/trade-capture';
-import { updateTradeSummaries } from '../utils/trade-summary';
+import { isTradeMutation, updateTradeSummaries } from '../utils/trade-summary';
 
 const db = {
   's-card': { price: 1.25, rank: 'S' },
@@ -644,5 +644,71 @@ describe('trade lists outside the modal', () => {
     document.body.append(el);
     updateTradeSummaries(db, settings, store);
     expect(summaryOf(el)).toEqual({ sides: skySides, verdict: 'Потеря -67.6F (-78%)', grayVerdict: false });
+  });
+});
+
+describe('isTradeMutation', () => {
+  const recordsOf = (act) => {
+    const observer = new MutationObserver(() => undefined);
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    act();
+    const records = observer.takeRecords();
+    observer.disconnect();
+    return records;
+  };
+
+  const fastTrade = () => {
+    const el = document.createElement('div');
+    el.className = 'offer-card';
+    el.innerHTML = `
+      <div class="offer-card__top"><h3><span>Smile</span></h3><div class="offer-card__top-list">${card('s-card')}</div></div>
+      <div class="offer-card__cnt"><div class="offer-card__cnt-list">${card('f-card')}</div></div>`;
+    return el;
+  };
+
+  it('notices a fast trade card drawn into a list', () => {
+    const list = document.createElement('div');
+    document.body.append(list);
+    expect(recordsOf(() => list.append(fastTrade())).some(isTradeMutation)).toBe(true);
+  });
+
+  it('notices a trade window that opens', () => {
+    expect(recordsOf(() => modal('Прими решение обмена', reviewFooter)).some(isTradeMutation)).toBe(true);
+  });
+
+  it('notices new counters on a notification, which draws no cards', () => {
+    const el = document.createElement('div');
+    el.className = 'card-notif';
+    el.innerHTML = '<div class="card-notif__info"><div class="card-notif__info-hint">Получишь 4 • Отдашь 5</div></div>';
+    document.body.append(el);
+    const hint = el.querySelector('.card-notif__info-hint').firstChild;
+    expect(recordsOf(() => (hint.data = 'Получишь 2 • Отдашь 1')).some(isTradeMutation)).toBe(true);
+  });
+
+  it('ignores cards drawn anywhere else', () => {
+    const list = document.createElement('div');
+    document.body.append(list);
+    expect(recordsOf(() => (list.innerHTML = card('s-card'))).some(isTradeMutation)).toBe(false);
+  });
+
+  it('ignores the summaries it draws itself, so a second pass changes nothing', () => {
+    store.add({
+      items: [
+        {
+          kind: 'offer',
+          id: 'o1',
+          author: { id: 'u3', name: 'Smile' },
+          viewerDidAuthor: false,
+          offer: previews([['f-card', 1]]),
+          request: previews([['s-card', 1]]),
+        },
+      ],
+    });
+    const el = fastTrade();
+    document.body.append(el);
+    const first = recordsOf(() => updateTradeSummaries(db, settings, store));
+    expect(summaryOf(el)).not.toBeNull();
+    expect(first.some(isTradeMutation)).toBe(false);
+    expect(recordsOf(() => updateTradeSummaries(db, settings, store))).toEqual([]);
   });
 });
