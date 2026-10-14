@@ -8,6 +8,9 @@ import { TOKEN_REQUEST, type TokenRequest, type TokenResponse } from './messages
 const BAR = 'senkuro-token-bar';
 const COPIED_MS = 2500;
 const COPY_LABEL = 'Копировать токен';
+const COPIED_LABEL = '✓ Скопировано!';
+const MANUAL_COPY_PROMPT = 'Скопируй токен вручную (Ctrl+A, Ctrl+C):';
+const COPIED = `${BAR}__copy--done`;
 
 export interface TokenBar {
   sync(visible: boolean): Promise<void>;
@@ -40,14 +43,14 @@ function copyButton(token: string): HTMLButtonElement {
     event.stopPropagation();
     navigator.clipboard.writeText(token).then(
       () => {
-        button.textContent = '✓ Скопировано!';
-        button.classList.add(`${BAR}__copy--done`);
+        button.textContent = COPIED_LABEL;
+        button.classList.add(COPIED);
         setTimeout(() => {
           button.textContent = COPY_LABEL;
-          button.classList.remove(`${BAR}__copy--done`);
+          button.classList.remove(COPIED);
         }, COPIED_MS);
       },
-      () => prompt('Скопируй токен вручную (Ctrl+A, Ctrl+C):', token)
+      () => prompt(MANUAL_COPY_PROMPT, token)
     );
   });
   return button;

@@ -1,20 +1,21 @@
 import type { Database } from './database';
 import type { TradeStore } from './trade-capture';
 import { MODAL, readTradePlaces, type Column, type Placement, type Role, type Variant } from './trade-dom';
-import type { ValueBasis } from './settings';
 import { totalOf } from './trade-match';
 import {
-  CRAFT_PER_RANK,
-  SPLIT_PER_RANK,
+  F_UNIT,
+  R_RANK,
+  SHARD_MARK,
+  UNKNOWN_MARK,
   compareR,
   compareSides,
   formatAmount,
   formatByRank,
   formatShardsByRank,
   hasR,
-  valueSide,
+  valueWith,
   type SideValue,
-  type Verdict,
+  type Valuation,
 } from './trade-value';
 
 const SUMMARY = 'senkuro-trade-summary';
@@ -25,24 +26,17 @@ const STAGGER_LIMIT = 6;
 const UNKNOWN = `${SUMMARY}__unknown`;
 const EXPAND_LABEL = 'Раскрыть полностью';
 const COLLAPSE_LABEL = 'Скрыть';
+const EMPTY_CELL = '-';
 
 type RowKey = 'value' | 'bank' | 'count';
 
-const ROWS: [RowKey, string][] = [
-  ['value', 'Ценность'],
-  ['bank', 'Банк'],
-  ['count', 'Карты'],
-];
+const ROW_LABELS: Record<RowKey, string> = { value: 'Ценность', bank: 'Банк', count: 'Карты' };
 
-const R_ROWS: [RowKey, string][] = [
-  ['value', 'Ценность'],
-  ['count', 'Карты'],
-];
+const ROWS: RowKey[] = ['value', 'bank', 'count'];
 
-export interface SummarySettings {
-  commission: boolean;
-  valueBySplit: boolean;
-  valueBasis: ValueBasis;
+const R_ROWS: RowKey[] = ['value', 'count'];
+
+export interface SummarySettings extends Valuation {
   showSummaryF: boolean;
   showSummaryBank: boolean;
   showSummaryCards: boolean;
@@ -67,26 +61,26 @@ interface SideView {
 }
 
 const describeR = ({ r }: SideValue): RView => ({
-  value: `${formatAmount(r.value)}R`,
-  cards: [...(r.count > 0 ? [`${formatAmount(r.count)}R`] : []), ...(r.shards > 0 ? [`${formatAmount(r.shards)}oR`] : [])],
+  value: `${formatAmount(r.value)}${R_RANK}`,
+  cards: [...(r.count > 0 ? [`${formatAmount(r.count)}${R_RANK}`] : []), ...(r.shards > 0 ? [`${formatAmount(r.shards)}${SHARD_MARK}${R_RANK}`] : [])],
   complete: r.complete,
 });
 
-const describe = (column: Column, db: Database, { commission, valueBySplit, valueBasis }: SummarySettings): SideView => {
-  const value = valueSide(column, db, commission, valueBySplit ? SPLIT_PER_RANK : CRAFT_PER_RANK, valueBasis);
+const describe = (column: Column, db: Database, settings: SummarySettings): SideView => {
+  const value = valueWith(column, db, settings);
 
   const countArray = formatByRank(value.count);
   const shardsArray = formatShardsByRank(value.shards);
 
   let unknownStr = '';
-  if (value.unknown > 0) unknownStr += `${value.unknown}X`;
-  if (value.shardUnknown > 0) unknownStr += (unknownStr ? ' ' : '') + `${value.shardUnknown}oX`;
+  if (value.unknown > 0) unknownStr += `${value.unknown}${UNKNOWN_MARK}`;
+  if (value.shardUnknown > 0) unknownStr += (unknownStr ? ' ' : '') + `${value.shardUnknown}${SHARD_MARK}${UNKNOWN_MARK}`;
 
   return {
     role: column.role,
     label: column.label,
     value,
-    f: `${formatAmount(value.f)}F`,
+    f: `${formatAmount(value.f)}${F_UNIT}`,
     bank: formatByRank(value.bank),
     count: [...countArray, ...shardsArray],
     unknown: unknownStr,
@@ -105,7 +99,7 @@ const amounts = (cell: HTMLElement, parts: string[], unknown: string): HTMLEleme
   const known = parts.join(' ');
   if (known) cell.append(known);
   if (unknown) cell.append(known ? ' ' : '', element('span', UNKNOWN, unknown));
-  if (!known && !unknown) cell.append('-');
+  if (!known && !unknown) cell.append(EMPTY_CELL);
   return cell;
 };
 
@@ -132,9 +126,9 @@ function rWindow(sides: SideView[]): HTMLElement | null {
   if (!sides.some((side) => side.r)) return null;
   const grid = element('div', `${SUMMARY}__table`);
   grid.style.setProperty('--senkuro-columns', String(sides.length));
-  for (const [key, label] of R_ROWS) grid.append(element('span', `${SUMMARY}__label`, label), ...sides.map((side) => rCell(side, key)));
+  for (const key of R_ROWS) grid.append(element('span', `${SUMMARY}__label`, ROW_LABELS[key]), ...sides.map((side) => rCell(side, key)));
   const window = element('div', `${SUMMARY}__window`);
-  window.append(element('div', `${SUMMARY}__window-title`, 'R'), grid);
+  window.append(element('div', `${SUMMARY}__window-title`, R_RANK), grid);
   return window;
 }
 
@@ -150,11 +144,11 @@ function table(sides: SideView[], settings: SummarySettings): HTMLElement {
   const grid = element('div', `${SUMMARY}__table`);
   grid.style.setProperty('--senkuro-columns', String(sides.length));
   grid.append(element('span'), ...sides.map((side) => element('span', `${SUMMARY}__side`, side.label)));
-  for (const [key, label] of ROWS) {
+  for (const key of ROWS) {
     if (key === 'value' && !settings.showSummaryF) continue;
     if (key === 'bank' && !settings.showSummaryBank) continue;
     if (key === 'count' && !settings.showSummaryCards) continue;
-    grid.append(element('span', `${SUMMARY}__label`, label), ...sides.map((side) => cellOf(side, key)));
+    grid.append(element('span', `${SUMMARY}__label`, ROW_LABELS[key]), ...sides.map((side) => cellOf(side, key)));
   }
   return grid;
 }

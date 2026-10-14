@@ -1,3 +1,4 @@
+import '@/assets/tokens.css';
 import '@/assets/price-badges.css';
 import '@/assets/profile-badge.css';
 import '@/assets/token-bar.css';
@@ -5,6 +6,7 @@ import '@/assets/trade-summary.css';
 import { defineContentScript } from '#imports';
 
 import { answerTokenRequests } from '@/utils/access-token';
+import { CARD_LINK } from '@/utils/cards';
 import { loadDatabase } from '@/utils/database';
 import { SENKURO_MATCHES } from '@/utils/hosts';
 import { createPriceBadges } from '@/utils/price-badges';
@@ -90,11 +92,11 @@ export default defineContentScript({
         if (isTradeMutation(m)) tradeDirty = true;
         for (const node of m.addedNodes) {
           if (node instanceof HTMLElement) {
-            if (node.matches('a.card-collect')) {
+            if (node.matches(CARD_LINK)) {
               cardQueue.add(node as HTMLAnchorElement);
               hasNewCards = true;
             }
-            node.querySelectorAll<HTMLAnchorElement>('a.card-collect').forEach((card) => {
+            node.querySelectorAll<HTMLAnchorElement>(CARD_LINK).forEach((card) => {
               cardQueue.add(card);
               hasNewCards = true;
             });

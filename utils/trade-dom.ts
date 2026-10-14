@@ -10,6 +10,8 @@ const INCOMING_SUBTITLE = 'Прими решение обмена';
 const NOTIFICATION_COUNTS = /Получишь\s+(\d+)\D+?Отдашь\s+(\d+)/;
 const LIST_OWNER = /\sу\s(.+)$/;
 const ROLE_LABELS = { give: 'Отдаёшь', get: 'Получаешь' } as const;
+const OFFER_CAPTIONS = { authored: 'Если примут', received: 'Если примешь' } as const;
+const TRADE_SIDES = 2;
 
 export type Role = keyof typeof ROLE_LABELS;
 
@@ -102,7 +104,7 @@ function readReview(modal: Element, store: TradeStore): Column[] | null {
   const known = incoming ? undefined : selections.get(modal);
 
   const panels = [...modal.querySelectorAll('.modal-trade__swap-el')];
-  if (panels.length >= 2) {
+  if (panels.length >= TRADE_SIDES) {
     const [left, right] = panels.map(readPanel);
     if (!left || !right) return null;
     if (known && shows(known.give.cards, left) && shows(known.get.cards, right)) return [column('give', known.give), column('get', known.get)];
@@ -139,7 +141,7 @@ const readHistory = (store: TradeStore): Place[] =>
     const names = lists.map(nameOf);
     const [offerList, requestList] = lists;
     const trade =
-      lists.length === 2 && offerList && requestList
+      lists.length === TRADE_SIDES && offerList && requestList
         ? matchTrade(store.trades(), [names[0] ?? '', names[1] ?? ''], [readPreviewList(offerList), readPreviewList(requestList)])
         : null;
     return { host, placement: 'end', columns: trade ? viewerColumns(trade, store.viewerId(), names) : null };
@@ -187,7 +189,7 @@ const readOffers = (store: TradeStore): Place[] => {
       host,
       placement: 'end',
       variant: 'offer',
-      caption: offer.viewerDidAuthor ? 'Если примут' : 'Если примешь',
+      caption: offer.viewerDidAuthor ? OFFER_CAPTIONS.authored : OFFER_CAPTIONS.received,
       columns: [column('give', whole(give)), column('get', whole(get))],
     };
   });

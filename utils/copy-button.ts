@@ -1,10 +1,11 @@
+import { BADGE_INSET, CENTER, CENTER_SHIFT_Y } from './badge-layout';
 import type { BadgePositionX, BadgePositionY } from './settings';
+import { svgIcon, type Shape } from './svg';
 
-const SVG = 'http://www.w3.org/2000/svg';
 const BUTTON = 'senkuro-copy-btn';
+const COPIED = `${BUTTON}--done`;
 const COPIED_MS = 1500;
-const COPIED_COLOR = '#4ade80';
-const OFFSET = '5px';
+const OFFSET = BADGE_INSET;
 const PADDING_STEP = 3.5;
 const MIN_PADDING = 2;
 
@@ -16,43 +17,25 @@ export interface CopyButtonOptions {
   touch: boolean;
 }
 
-function icon(size: number, stroke: string, shapes: [string, Record<string, string>][]): SVGSVGElement {
-  const svg = document.createElementNS(SVG, 'svg');
-  const attributes = {
-    width: String(size),
-    height: String(size),
-    viewBox: '0 0 24 24',
-    fill: 'none',
-    stroke,
-    'stroke-width': '2',
-    'stroke-linecap': 'round',
-    'stroke-linejoin': 'round',
-  };
-  Object.entries(attributes).forEach(([key, value]) => svg.setAttribute(key, value));
-  for (const [tag, shape] of shapes) {
-    const node = document.createElementNS(SVG, tag);
-    Object.entries(shape).forEach(([key, value]) => node.setAttribute(key, value));
-    svg.append(node);
-  }
-  return svg;
-}
+const icon = (size: number, shapes: Shape[]) =>
+  svgIcon({ width: String(size), height: String(size), viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '2' }, shapes);
 
 const copyIcon = (size: number) =>
-  icon(size, 'currentColor', [
+  icon(size, [
     ['rect', { x: '9', y: '9', width: '13', height: '13', rx: '2', ry: '2' }],
     ['path', { d: 'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1' }],
   ]);
 
-const doneIcon = (size: number) => icon(size, COPIED_COLOR, [['polyline', { points: '20 6 9 17 4 12' }]]);
+const doneIcon = (size: number) => icon(size, [['polyline', { points: '20 6 9 17 4 12' }]]);
 
 function place(button: HTMLElement, positionX: BadgePositionX, positionY: BadgePositionY): void {
   const right = positionX === 'right';
   const bottom = positionY === 'bottom';
 
   if (positionX === 'center') {
-    button.style.left = '50%';
+    button.style.left = CENTER;
     button.style.right = 'auto';
-    button.style.transform = 'translateX(-50%)';
+    button.style.transform = `translateX(-${CENTER})`;
   } else {
     button.style.transform = 'none';
     button.style.left = right ? OFFSET : 'auto';
@@ -60,9 +43,9 @@ function place(button: HTMLElement, positionX: BadgePositionX, positionY: BadgeP
   }
 
   if (positionY === 'center') {
-    button.style.top = '50%';
+    button.style.top = CENTER;
     button.style.bottom = 'auto';
-    button.style.marginTop = '-12px';
+    button.style.marginTop = CENTER_SHIFT_Y;
   } else {
     button.style.marginTop = '0';
     button.style.bottom = bottom ? OFFSET : 'auto';
@@ -102,7 +85,11 @@ export function syncCopyButton(target: HTMLElement, { name, size, positionX, pos
     navigator.clipboard.writeText(name).then(
       () => {
         current.replaceChildren(doneIcon(size));
-        setTimeout(() => current.replaceChildren(copyIcon(size)), COPIED_MS);
+        current.classList.add(COPIED);
+        setTimeout(() => {
+          current.replaceChildren(copyIcon(size));
+          current.classList.remove(COPIED);
+        }, COPIED_MS);
       },
       (error: unknown) => console.warn('SenkuTools: clipboard', error)
     );

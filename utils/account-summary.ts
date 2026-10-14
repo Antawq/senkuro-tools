@@ -1,6 +1,6 @@
 import type { AccountCard } from './account-cards';
 import type { Database } from './database';
-import { formatByRank, hasR, valueSide } from './trade-value';
+import { R_RANK, formatByRank, hasR, valueSide } from './trade-value';
 
 export interface AccountR {
   cards: number;
@@ -18,8 +18,6 @@ export interface AccountSummary {
   cardsByRank: string[];
   r: AccountR | null;
 }
-
-const R_RANK = 'R';
 
 const sum = (values: Iterable<number>): number => [...values].reduce((total, value) => total + value, 0);
 

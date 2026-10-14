@@ -1,30 +1,25 @@
-import { effectivePrice, slugFromHref } from './cards';
+import { BADGE_INSET, CENTER, CENTER_SHIFT_X, CENTER_SHIFT_Y } from './badge-layout';
+import { CARD_LINK, PERCENT, PRICE_DECIMALS, effectivePrice, slugFromHref } from './cards';
 import { removeCopyButton, syncCopyButton } from './copy-button';
 import type { Database } from './database';
-import type { BadgePositionX, BadgePositionY, PriceEffect, Settings } from './settings';
+import type { BadgePositionX, BadgePositionY, Settings } from './settings';
+import { tierOf } from './tiers';
 
-const BADGE_ATTRIBUTES = ['data-senkuro-price', 'data-senkuro-style', 'data-senkuro-eff'];
+const BADGE_ATTRIBUTES = ['data-senkuro-price', 'data-senkuro-style', 'data-senkuro-eff', 'data-senkuro-tier'];
 const SMALL_CARD_WIDTH = 60;
 const SMALL_CARD_SCALE_BASE = 70;
 const SMALL_CARD_MIN_SCALE = 0.6;
 const SMALL_CARD_MIN_FONT = 9;
 const PADDING = '2px 6px';
 const SMALL_PADDING = '1px 3px';
+const OUTLINE_OFFSETS = ['1px 1px 0', '-1px -1px 0', '1px -1px 0', '-1px 1px 0', '0px 2px 4px'];
+const UNKNOWN_NAME = 'Неизвестно';
+const NO_EFFECT = 'none';
 const BACK_FACE = '.card-collect-preview__back';
 const TRADE_FAN = '.modal-trade__swap-cards';
 const TRADE_FAN_POSITION: { x: BadgePositionX; y: BadgePositionY } = { x: 'left', y: 'center' };
 
 const POSITION_PROPS = ['--s-top', '--s-bottom', '--s-left', '--s-right', '--s-mt', '--s-ml', '--s-align'];
-
-type EffectKey = 'effectRed' | 'effectYellow' | 'effectPurple' | 'effectGreen' | 'effectWhite';
-
-const TIERS: { from: number; color: string; effect: EffectKey }[] = [
-  { from: 3.0, color: '#f87171', effect: 'effectRed' },
-  { from: 2.4, color: '#fbbf24', effect: 'effectYellow' },
-  { from: 2.0, color: '#c084fc', effect: 'effectPurple' },
-  { from: 1.6, color: '#4ade80', effect: 'effectGreen' },
-  { from: -Infinity, color: '#ffffff', effect: 'effectWhite' },
-];
 
 export interface PriceBadges {
   update(db: Database, settings: Settings, cards?: Iterable<HTMLAnchorElement>): void;
@@ -33,8 +28,8 @@ export interface PriceBadges {
 }
 
 const shadesOf = (opacity: number) => {
-  const shade = `rgba(0,0,0,${opacity / 100})`;
-  return { background: shade, outline: `1px 1px 0 ${shade},-1px -1px 0 ${shade},1px -1px 0 ${shade},-1px 1px 0 ${shade},0px 2px 4px ${shade}` };
+  const shade = `rgb(0 0 0 / ${opacity / PERCENT})`;
+  return { background: shade, outline: OUTLINE_OFFSETS.map((offset) => `${offset} ${shade}`).join(',') };
 };
 
 function imageSource(img: HTMLImageElement): string {
@@ -49,22 +44,22 @@ function imageSource(img: HTMLImageElement): string {
 function applyPosition(target: HTMLElement, positionX: BadgePositionX, positionY: BadgePositionY): void {
   POSITION_PROPS.forEach((prop) => target.style.removeProperty(prop));
 
-  if (positionY === 'top') target.style.setProperty('--s-top', '5px');
-  else if (positionY === 'bottom') target.style.setProperty('--s-bottom', '5px');
+  if (positionY === 'top') target.style.setProperty('--s-top', BADGE_INSET);
+  else if (positionY === 'bottom') target.style.setProperty('--s-bottom', BADGE_INSET);
   else if (positionY === 'center') {
-    target.style.setProperty('--s-top', '50%');
-    target.style.setProperty('--s-mt', '-12px');
+    target.style.setProperty('--s-top', CENTER);
+    target.style.setProperty('--s-mt', CENTER_SHIFT_Y);
   }
 
   if (positionX === 'left') {
-    target.style.setProperty('--s-left', '5px');
+    target.style.setProperty('--s-left', BADGE_INSET);
     target.style.setProperty('--s-align', 'left');
   } else if (positionX === 'right') {
-    target.style.setProperty('--s-right', '5px');
+    target.style.setProperty('--s-right', BADGE_INSET);
     target.style.setProperty('--s-align', 'right');
   } else if (positionX === 'center') {
-    target.style.setProperty('--s-left', '50%');
-    target.style.setProperty('--s-ml', '-15px');
+    target.style.setProperty('--s-left', CENTER);
+    target.style.setProperty('--s-ml', CENTER_SHIFT_X);
     target.style.setProperty('--s-align', 'center');
   }
 }
@@ -88,9 +83,9 @@ export function createPriceBadges({ onImageLoad, touch }: { onImageLoad: () => v
       img.addEventListener('load', onImageLoad, { once: true });
     }
 
-    const priceText = effectivePrice(entry.price, settings.commission).toFixed(2);
-    const tier = TIERS.find(({ from }) => +priceText >= from) ?? TIERS[TIERS.length - 1];
-    const effect: PriceEffect = tier ? settings[tier.effect] : '';
+    const priceText = effectivePrice(entry.price, settings.commission).toFixed(PRICE_DECIMALS);
+    const tier = tierOf(+priceText);
+    const effect = settings[tier.effect];
 
     const front = card.closest<HTMLElement>('.card-collect-preview__front');
     const preview = card.closest<HTMLElement>('.card-collect-preview');
@@ -116,8 +111,8 @@ export function createPriceBadges({ onImageLoad, touch }: { onImageLoad: () => v
 
     target.setAttribute('data-senkuro-price', priceText);
     target.setAttribute('data-senkuro-style', settings.badgeStyle);
-    target.setAttribute('data-senkuro-eff', effect || 'none');
-    target.style.setProperty('--s-color', tier?.color ?? '#ffffff');
+    target.setAttribute('data-senkuro-eff', effect || NO_EFFECT);
+    target.setAttribute('data-senkuro-tier', tier.name);
     target.style.setProperty('--s-size', `${fontSize}px`);
     target.style.setProperty('--s-pad', small ? SMALL_PADDING : PADDING);
     if (settings.badgeStyle === 'background') {
@@ -135,7 +130,7 @@ export function createPriceBadges({ onImageLoad, touch }: { onImageLoad: () => v
       applyPosition(target, positionX, positionY);
     }
 
-    if (settings.copyBtn && !small) syncCopyButton(target, { name: entry.name || 'Неизвестно', size: settings.copyBtnSize, positionX, positionY, touch });
+    if (settings.copyBtn && !small) syncCopyButton(target, { name: entry.name || UNKNOWN_NAME, size: settings.copyBtnSize, positionX, positionY, touch });
     else removeCopyButton(target);
 
     card.dataset.priceBadgeAdded = slug;
@@ -143,13 +138,13 @@ export function createPriceBadges({ onImageLoad, touch }: { onImageLoad: () => v
 
   const reset = () => {
     document.querySelectorAll('[data-senkuro-price]').forEach(clearBadge);
-    document.querySelectorAll<HTMLElement>('a.card-collect').forEach((card) => delete card.dataset.priceBadgeAdded);
+    document.querySelectorAll<HTMLElement>(CARD_LINK).forEach((card) => delete card.dataset.priceBadgeAdded);
   };
 
   return {
     update(db, settings, cards?: Iterable<HTMLAnchorElement>) {
       const shades = shadesOf(settings.opacity);
-      const list = cards ?? document.querySelectorAll<HTMLAnchorElement>('a.card-collect');
+      const list = cards ?? document.querySelectorAll<HTMLAnchorElement>(CARD_LINK);
       for (const card of list) render(card, db, settings, shades);
     },
     reset,

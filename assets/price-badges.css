@@ -15,7 +15,7 @@ a.card-collect[data-senkuro-price]::after {
   white-space: nowrap;
   text-decoration: none;
   display: inline-block;
-  color: var(--s-color, #fff);
+  color: var(--s-color, var(--senkuro-tier-white));
   font-size: var(--s-size, 14px);
   top: var(--s-top, auto);
   bottom: var(--s-bottom, auto);
@@ -34,7 +34,7 @@ a.card-collect[data-senkuro-price]::after {
 .card-collect-preview__front[data-senkuro-style='background']::after,
 .card-collect-preview[data-senkuro-style='background']::after,
 a.card-collect[data-senkuro-style='background']::after {
-  background-color: var(--s-bg-color, rgba(0, 0, 0, 0.75));
+  background-color: var(--s-bg-color, color-mix(in srgb, var(--senkuro-shade) 75%, transparent));
   padding: var(--s-pad, 2px 6px);
   border-radius: 4px;
 }
@@ -45,6 +45,26 @@ a.card-collect[data-senkuro-style='outline']::after {
   background-color: transparent;
   padding: 0;
   text-shadow: var(--s-outline, none);
+}
+
+[data-senkuro-tier='red'] {
+  --s-color: var(--senkuro-tier-red);
+}
+
+[data-senkuro-tier='yellow'] {
+  --s-color: var(--senkuro-tier-yellow);
+}
+
+[data-senkuro-tier='purple'] {
+  --s-color: var(--senkuro-tier-purple);
+}
+
+[data-senkuro-tier='green'] {
+  --s-color: var(--senkuro-tier-green);
+}
+
+[data-senkuro-tier='white'] {
+  --s-color: var(--senkuro-tier-white);
 }
 
 @keyframes senkuro-pulse-text {
@@ -59,35 +79,35 @@ a.card-collect[data-senkuro-style='outline']::after {
 }
 
 [data-senkuro-eff='price-effect-pulse']::after {
-  animation: senkuro-pulse-text 1.2s infinite alternate ease-in-out 0.15s;
+  animation: senkuro-pulse-text var(--senkuro-pulse-period) infinite alternate ease-in-out var(--senkuro-effect-delay);
   transform-origin: center;
 }
 
 @keyframes senkuro-rgb {
   0% {
-    color: #f87171;
-    text-shadow: 0 0 5px #f87171;
+    color: var(--senkuro-tier-red);
+    text-shadow: 0 0 5px var(--senkuro-tier-red);
   }
   25% {
-    color: #fbbf24;
-    text-shadow: 0 0 5px #fbbf24;
+    color: var(--senkuro-tier-yellow);
+    text-shadow: 0 0 5px var(--senkuro-tier-yellow);
   }
   50% {
-    color: #4ade80;
-    text-shadow: 0 0 5px #4ade80;
+    color: var(--senkuro-tier-green);
+    text-shadow: 0 0 5px var(--senkuro-tier-green);
   }
   75% {
-    color: #60a5fa;
-    text-shadow: 0 0 5px #60a5fa;
+    color: var(--senkuro-rainbow-blue);
+    text-shadow: 0 0 5px var(--senkuro-rainbow-blue);
   }
   100% {
-    color: #f87171;
-    text-shadow: 0 0 5px #f87171;
+    color: var(--senkuro-tier-red);
+    text-shadow: 0 0 5px var(--senkuro-tier-red);
   }
 }
 
 [data-senkuro-eff='price-effect-rgb']::after {
-  animation: senkuro-rgb 2.5s linear infinite 0.15s;
+  animation: senkuro-rgb var(--senkuro-rainbow-period) linear infinite var(--senkuro-effect-delay);
 }
 
 @keyframes senkuro-tilt {
@@ -100,27 +120,27 @@ a.card-collect[data-senkuro-style='outline']::after {
 }
 
 [data-senkuro-eff='price-effect-tilt']::after {
-  animation: senkuro-tilt 0.8s infinite alternate ease-in-out 0.15s;
+  animation: senkuro-tilt var(--senkuro-swing-period) infinite alternate ease-in-out var(--senkuro-effect-delay);
   transform-origin: top center;
 }
 
 @keyframes senkuro-bg-pulse {
   0% {
-    background-color: rgba(0, 0, 0, 0.75);
+    background-color: color-mix(in srgb, var(--senkuro-shade) 75%, transparent);
   }
   100% {
-    background-color: rgba(60, 45, 0, 0.9);
+    background-color: color-mix(in srgb, var(--senkuro-amber-shade) 90%, transparent);
   }
 }
 
 [data-senkuro-eff='price-effect-bg']::after {
-  animation: senkuro-bg-pulse 0.8s infinite alternate ease-in-out 0.15s;
+  animation: senkuro-bg-pulse var(--senkuro-swing-period) infinite alternate ease-in-out var(--senkuro-effect-delay);
 }
 
 .senkuro-copy-btn {
   position: absolute;
-  background: rgba(0, 0, 0, 0.6);
-  color: #fff;
+  background: color-mix(in srgb, var(--senkuro-shade) 60%, transparent);
+  color: var(--senkuro-white);
   border-radius: 4px;
   padding: 4px;
   cursor: pointer;
@@ -129,8 +149,8 @@ a.card-collect[data-senkuro-style='outline']::after {
   transform: translateZ(1px);
   backface-visibility: hidden;
   transition:
-    opacity 0.2s,
-    background 0.2s;
+    opacity var(--senkuro-hover),
+    background var(--senkuro-hover);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -152,6 +172,10 @@ a.card-collect[data-senkuro-style='outline']::after {
 }
 
 .senkuro-copy-btn:active {
-  background: rgba(99, 102, 241, 0.9);
+  background: color-mix(in srgb, var(--senkuro-accent) 90%, transparent);
   opacity: 1;
+}
+
+.senkuro-copy-btn--done {
+  color: var(--senkuro-tier-green);
 }

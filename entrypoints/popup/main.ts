@@ -1,11 +1,15 @@
+import '@/assets/tokens.css';
 import { browser } from 'wxt/browser';
 
 import { readTokenFromSite } from '@/utils/access-token';
 import { clearSnapshot, loadSnapshot, saveSnapshot } from '@/utils/account-cache';
 import { fetchAccountCards } from '@/utils/account-cards';
 import { mountAccountPanel } from '@/utils/account-panel';
+import { COMMISSION_SHARE_KEPT, PERCENT } from '@/utils/cards';
 import { loadDatabase } from '@/utils/database';
 import { DEFAULT_SETTINGS, loadSettings, resetSettings, saveSetting, watchSettings, type Settings } from '@/utils/settings';
+import { tierRange, type TierName } from '@/utils/tiers';
+import { CRAFT_PER_RANK, SPLIT_PER_RANK } from '@/utils/trade-value';
 
 const SAVE_DELAY_MS = 150;
 const TOKEN_WARNING =
@@ -95,6 +99,14 @@ const bindings = [
 ].filter((binding): binding is Binding => binding !== null);
 
 const showAll = (settings: Settings) => bindings.forEach((binding) => binding.show(settings));
+
+const RATES: Record<string, number> = { craft: CRAFT_PER_RANK, split: SPLIT_PER_RANK };
+
+document.querySelectorAll<HTMLElement>('[data-tier-range]').forEach((el) => (el.textContent = tierRange(el.dataset.tierRange as TierName)));
+document.querySelectorAll<HTMLElement>('[data-rate]').forEach((el) => (el.textContent = String(RATES[el.dataset.rate ?? ''] ?? '')));
+document
+  .querySelectorAll<HTMLElement>('[data-commission-percent]')
+  .forEach((el) => (el.textContent = String(Math.round((1 - COMMISSION_SHARE_KEPT) * PERCENT))));
 
 const version = byId('version');
 if (version) version.textContent = `v${browser.runtime.getManifest().version}`;

@@ -3,6 +3,7 @@ import type { AccountCard } from './account-cards';
 import { summarizeAccount, type AccountSummary } from './account-summary';
 import type { Database } from './database';
 import { ApiError } from './graphql';
+import { HOURS_PER_DAY, MINUTES_PER_HOUR, MS_PER_MINUTE } from './time';
 import { formatAmount } from './trade-value';
 
 export interface PanelDeps {
@@ -44,7 +45,10 @@ const IDS = [
 
 type Id = (typeof IDS)[number];
 
-const groupDigits = (digits: string): string => digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+const THOUSANDS = /\B(?=(\d{3})+(?!\d))/g;
+const DIGIT_GROUP_SEPARATOR = '\u00A0';
+
+const groupDigits = (digits: string): string => digits.replace(THOUSANDS, DIGIT_GROUP_SEPARATOR);
 
 export const formatCount = (count: number): string => groupDigits(String(Math.round(count)));
 
@@ -54,11 +58,11 @@ export function formatCoins(coins: number): string {
 }
 
 export function ago(then: number, now: number): string {
-  const minutes = Math.floor(Math.max(0, now - then) / 60_000);
+  const minutes = Math.floor(Math.max(0, now - then) / MS_PER_MINUTE);
   if (minutes < 1) return 'только что';
-  if (minutes < 60) return `${minutes} мин назад`;
-  const hours = Math.floor(minutes / 60);
-  return hours < 24 ? `${hours} ч назад` : `${Math.floor(hours / 24)} дн назад`;
+  if (minutes < MINUTES_PER_HOUR) return `${minutes} мин назад`;
+  const hours = Math.floor(minutes / MINUTES_PER_HOUR);
+  return hours < HOURS_PER_DAY ? `${hours} ч назад` : `${Math.floor(hours / HOURS_PER_DAY)} дн назад`;
 }
 
 export function messageFor(error: unknown): string {
@@ -90,7 +94,7 @@ function find(root: ParentNode): Record<Id, HTMLElement> | null {
 
 export function mountAccountPanel(root: ParentNode, deps: PanelDeps): AccountPanel {
   const found = find(root);
-  if (!found) return { ready: Promise.resolve(), refresh: async () => undefined };
+  if (!found) return { ready: Promise.resolve(), refresh: () => Promise.resolve() };
   const ui: Record<Id, HTMLElement> = found;
   const load = ui.accountLoad as HTMLButtonElement;
   const clear = ui.accountClear as HTMLButtonElement;

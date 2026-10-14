@@ -1,4 +1,4 @@
-import { effectivePrice } from './cards';
+import { PERCENT, PRICE_DECIMALS, effectivePrice } from './cards';
 import type { Database } from './database';
 import type { ValueBasis } from './settings';
 
@@ -39,9 +39,19 @@ export interface Verdict {
   complete: boolean;
 }
 
-const FORGE_LADDER = ['F', 'D', 'C', 'B', 'A', 'S'];
-const R_RANK = 'R';
-const RANK_ORDER = ['R', 'S', 'A', 'B', 'C', 'D', 'F'];
+export interface Valuation {
+  commission: boolean;
+  valueBySplit: boolean;
+  valueBasis: ValueBasis;
+}
+
+export const R_RANK = 'R';
+export const SHARD_MARK = 'o';
+export const UNKNOWN_MARK = 'X';
+export const F_UNIT = 'F';
+
+const FORGE_LADDER = [F_UNIT, 'D', 'C', 'B', 'A', 'S'];
+const RANK_ORDER = [R_RANK, ...[...FORGE_LADDER].reverse()];
 
 export const CRAFT_PER_RANK = 3;
 export const SPLIT_PER_RANK = 2;
@@ -118,27 +128,30 @@ export function valueSide({ cards, hidden }: Side, db: Database, commission: boo
   };
 }
 
+export const valueWith = (side: Side, db: Database, { commission, valueBySplit, valueBasis }: Valuation): SideValue =>
+  valueSide(side, db, commission, valueBySplit ? SPLIT_PER_RANK : CRAFT_PER_RANK, valueBasis);
+
 export const hasR = ({ r }: Pick<SideValue, 'r'>): boolean => r.count > 0 || r.shards > 0;
 
-export const formatAmount = (amount: number): string => String(+amount.toFixed(2));
+export const formatAmount = (amount: number): string => String(+amount.toFixed(PRICE_DECIMALS));
 
 export const formatByRank = (map: Map<string, number>): string[] =>
   [...map.keys()].sort((a, b) => rankPosition(a) - rankPosition(b)).map((rank) => `${formatAmount(map.get(rank) ?? 0)}${rank}`);
 
 export const formatShardsByRank = (map: Map<string, number>): string[] =>
-  [...map.keys()].sort((a, b) => rankPosition(a) - rankPosition(b)).map((rank) => `${formatAmount(map.get(rank) ?? 0)}o${rank}`);
+  [...map.keys()].sort((a, b) => rankPosition(a) - rankPosition(b)).map((rank) => `${formatAmount(map.get(rank) ?? 0)}${SHARD_MARK}${rank}`);
 
 function compare(given: number, got: number, complete: boolean, prefix: string, unit: string): Verdict {
   const diff = got - given;
   const shown = formatAmount(Math.abs(diff));
-  const percent = given > 0 ? ` (${diff > 0 ? '+' : '-'}${Math.round(Math.abs(diff / given) * 100)}%)` : '';
+  const percent = given > 0 ? ` (${diff > 0 ? '+' : '-'}${Math.round(Math.abs(diff / given) * PERCENT)}%)` : '';
   if (shown === '0') return { kind: 'even', text: `${prefix}Равноценно`, complete };
   if (diff > 0) return { kind: 'gain', text: `${prefix}Выгода +${shown}${unit}${percent}`, complete };
   return { kind: 'loss', text: `${prefix}Потеря -${shown}${unit}${percent}`, complete };
 }
 
 export const compareSides = (give: Pick<SideValue, 'f' | 'complete'>, get: Pick<SideValue, 'f' | 'complete'>): Verdict =>
-  compare(give.f, get.f, give.complete && get.complete, '', 'F');
+  compare(give.f, get.f, give.complete && get.complete, '', F_UNIT);
 
 export const compareR = (give: Pick<SideValue, 'r'>, get: Pick<SideValue, 'r'>): Verdict | null =>
   hasR(give) || hasR(get) ? compare(give.r.value, get.r.value, give.r.complete && get.r.complete, 'R: ', R_RANK) : null;
