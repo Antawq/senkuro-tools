@@ -7,6 +7,7 @@ import { tierOf } from './tiers';
 
 const BADGE_ATTRIBUTES = ['data-senkuro-price', 'data-senkuro-style', 'data-senkuro-eff', 'data-senkuro-tier'];
 const SMALL_CARD_WIDTH = 60;
+const MIN_PRICED_CARD_WIDTH = 40;
 const SMALL_CARD_SCALE_BASE = 70;
 const SMALL_CARD_MIN_SCALE = 0.6;
 const SMALL_CARD_MIN_FONT = 9;
@@ -91,12 +92,23 @@ export function createPriceBadges({ onImageLoad, touch }: { onImageLoad: () => v
     const preview = card.closest<HTMLElement>('.card-collect-preview');
     const target = preview ?? card;
 
+    const width = card.offsetWidth || card.getBoundingClientRect().width;
+    if (width > 0 && width < MIN_PRICED_CARD_WIDTH) {
+      for (const el of [card, front, preview]) {
+        if (el) {
+          clearBadge(el);
+          removeCopyButton(el);
+        }
+      }
+      card.dataset.priceBadgeAdded = slug;
+      return;
+    }
+
     if (!positioned.has(target)) {
       if (getComputedStyle(target).position === 'static') target.style.position = 'relative';
       positioned.add(target);
     }
 
-    const width = card.offsetWidth || card.getBoundingClientRect().width;
     const small = width > 0 && width < SMALL_CARD_WIDTH;
     const fontSize = small
       ? Math.max(SMALL_CARD_MIN_FONT, Math.round(settings.fontSize * Math.max(SMALL_CARD_MIN_SCALE, width / SMALL_CARD_SCALE_BASE)))

@@ -101,6 +101,24 @@ describe('createPriceBadges', () => {
     expect(holder.getAttribute('data-senkuro-price')).toBe('1.00');
   });
 
+  const renderAtWidth = (width) => {
+    document.body.innerHTML = preview();
+    for (const link of document.querySelectorAll('a.card-collect')) Object.defineProperty(link, 'offsetWidth', { value: width });
+    createPriceBadges({ onImageLoad: () => {}, touch: false }).update(db, DEFAULT_SETTINGS);
+  };
+
+  it('leaves a thumbnail too narrow for a readable price without one', () => {
+    renderAtWidth(24);
+    expect(document.querySelector('[data-senkuro-price]')).toBeNull();
+  });
+
+  it('still prices a small card that has room for the price, in a smaller font', () => {
+    renderAtWidth(50);
+    const holder = document.querySelector('[data-senkuro-price]');
+    expect(holder?.getAttribute('data-senkuro-price')).toBe('1.00');
+    expect(Number.parseFloat(holder?.style.getPropertyValue('--s-size') ?? '')).toBeLessThan(DEFAULT_SETTINGS.fontSize);
+  });
+
   it('prices only the provided batch of cards when specified', () => {
     document.body.innerHTML = `
       <div id="c1" class="card-collect-preview"><div class="card-collect-preview__front"><a class="card-collect" href="/cards/soran"></a></div></div>
