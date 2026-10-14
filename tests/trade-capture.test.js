@@ -179,6 +179,31 @@ describe('installCapture', () => {
 
   const answer = () => new Response(JSON.stringify({ data: { cardTrade: trade } }), { headers: { 'content-type': 'application/json' } });
 
+  const abortableCopy = (response, signal) => {
+    const clone = response.clone.bind(response);
+    response.clone = () => {
+      const copy = clone();
+      const read = copy.text.bind(copy);
+      copy.text = () =>
+        new Promise((resolve, reject) =>
+          setTimeout(() => (signal.aborted ? reject(new DOMException('The operation was aborted.', 'AbortError')) : read().then(resolve, reject)))
+        );
+      return copy;
+    };
+    return response;
+  };
+
+  it('keeps the answer when the site aborts the request right after reading it, as urql does', async () => {
+    const { win, seen } = page(async (_input, init) => abortableCopy(answer(), init.signal));
+    const controller = new AbortController();
+    const given = await win.fetch('https://api.senkuro.me/graphql', { method: 'POST', signal: controller.signal });
+    expect(JSON.parse(await given.text()).data.cardTrade.id).toBe('t1');
+    controller.abort();
+    await settle();
+    expect(seen.at(-1)?.items.map((item) => item.id)).toEqual(['t1']);
+    await win.happyDOM.close();
+  });
+
   it.each([
     ['as bytes', (response) => response.arrayBuffer()],
     ['through a clone', (response) => response.clone().json()],

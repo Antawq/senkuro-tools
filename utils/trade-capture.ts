@@ -181,27 +181,24 @@ export function installCapture(win: CapturingWindow): void {
     take(found);
   };
 
-  const observe = (response: Response): Response => {
+  const readCopy = async (response: Response): Promise<void> => {
     try {
-      response
-        .clone()
-        .text()
-        .then((text) => handle(parseJson(text)))
-        .catch(() => null);
-    } catch {
-      return response;
+      const text = await response.clone().text();
+      win.setTimeout(() => handle(parseJson(text)));
+    } catch (error) {
+      debug('answer not read', error instanceof Error ? error.name : String(error));
     }
-    return response;
   };
 
   const nativeFetch = win.fetch.bind(win);
   win.fetch = (...args: Parameters<typeof fetch>) => {
     const pending = nativeFetch(...args);
     if (!isGraphqlRequest(args[0], win.location.href)) return pending;
-    return pending.then((response) => {
+    return pending.then(async (response) => {
       const type = response.headers.get('content-type') ?? '';
       debug('graphql answer', { status: response.status, type, streamed: STREAMED.test(type) });
-      return STREAMED.test(type) ? response : observe(response);
+      if (!STREAMED.test(type)) await readCopy(response);
+      return response;
     });
   };
   debug('capture installed', win.document.readyState);
