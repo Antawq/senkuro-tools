@@ -159,6 +159,8 @@ export function removeProfileBadge(): void {
   document.getElementById(WIDGET_ID)?.remove();
 }
 
+export const profileBadgeMissing = (): boolean => Boolean(extractProfileSlug(window.location.pathname) && !document.getElementById(WIDGET_ID));
+
 function renderLoading(widget: HTMLElement, text: string): void {
   widget.classList.add(LOADING);
   widget.classList.remove(FAILED);

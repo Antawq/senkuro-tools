@@ -6,12 +6,11 @@ import '@/assets/token-bar.css';
 import '@/assets/trade-summary.css';
 import { defineContentScript } from '#imports';
 
-import { CARD_LINK } from '@/utils/cards';
 import { loadDatabase } from '@/utils/database';
 import { SENKURO_MATCHES } from '@/utils/hosts';
 import { createPriceBadges } from '@/utils/price-badges';
-import { extractProfileSlug } from '@/utils/profile-cards';
-import { removeProfileBadge, updateProfileBadge, WIDGET_ID } from '@/utils/profile-dom';
+import { profileBadgeMissing, removeProfileBadge, updateProfileBadge } from '@/utils/profile-dom';
+import { addedCards, createRenderLoop } from '@/utils/render-loop';
 import { loadSettings, watchSettings } from '@/utils/settings';
 import { createTokenBar } from '@/utils/token-bar';
 import { createTradeStore, listenForTrades } from '@/utils/trade-capture';
@@ -32,81 +31,28 @@ export default defineContentScript({
     const tradeStore = createTradeStore();
     const tokenBar = createTokenBar(ctx);
 
-    const cardQueue = new Set<HTMLAnchorElement>();
-    let tradeDirty = false;
-    let scheduled = false;
-
-    const getSummarySettings = () => ({
-      commission: settings.commission,
-      valueBySplit: settings.valueBySplit,
-      valueBasis: settings.valueBasis,
-      showSummaryF: settings.showSummaryF,
-      showSummaryBank: settings.showSummaryBank,
-      showSummaryCards: settings.showSummaryCards,
-      showSummaryVerdict: settings.showSummaryVerdict,
-    });
-
-    const flush = async () => {
-      scheduled = false;
-      const batch = cardQueue.size > 0 ? Array.from(cardQueue) : null;
-      cardQueue.clear();
-      const shouldUpdateTrades = tradeDirty;
-      tradeDirty = false;
-
-      try {
-        const db = await loadDatabase();
-        if (batch) badges.update(db, settings, batch);
-        if (shouldUpdateTrades) updateTradeSummaries(db, getSummarySettings(), tradeStore);
-        updateProfileBadge({ db, valuation: getSummarySettings() });
-      } catch (err) {
-        console.error('SenkuTools: batch render error', err);
-      }
+    const nextFrame = (run: () => void) => {
+      if (ctx.isInvalid) return;
+      if ('requestAnimationFrame' in window) ctx.requestAnimationFrame(run);
+      else ctx.setTimeout(run, 0);
     };
-
-    const scheduleBatch = () => {
-      if (scheduled || ctx.isInvalid) return;
-      scheduled = true;
-      if ('requestAnimationFrame' in window) ctx.requestAnimationFrame(() => void flush());
-      else ctx.setTimeout(() => void flush(), 0);
-    };
-
-    const renderAll = async () => {
-      cardQueue.clear();
-      tradeDirty = false;
-      try {
-        const db = await loadDatabase();
-        badges.update(db, settings);
-        updateTradeSummaries(db, getSummarySettings(), tradeStore);
-        updateProfileBadge({ db, valuation: getSummarySettings() });
-      } catch (err) {
-        console.error('SenkuTools: render error', err);
-      }
-    };
-
-    const badges = createPriceBadges({ onImageLoad: scheduleBatch, touch });
+    const loop = createRenderLoop(
+      {
+        cards: (db, cards) => badges.update(db, settings, cards),
+        trades: (db) => updateTradeSummaries(db, settings, tradeStore),
+        profile: (db) => updateProfileBadge({ db, valuation: settings }),
+      },
+      loadDatabase,
+      nextFrame
+    );
+    const badges = createPriceBadges({ onImageLoad: loop.schedule, touch });
 
     const observer = new MutationObserver((mutations) => {
-      let hasNewCards = false;
-      for (const m of mutations) {
-        if (!tradeDirty && isTradeMutation(m)) tradeDirty = true;
-        for (const node of m.addedNodes) {
-          if (node instanceof HTMLElement) {
-            if (node.matches(CARD_LINK)) {
-              cardQueue.add(node as HTMLAnchorElement);
-              hasNewCards = true;
-            }
-            node.querySelectorAll<HTMLAnchorElement>(CARD_LINK).forEach((card) => {
-              cardQueue.add(card);
-              hasNewCards = true;
-            });
-          }
-        }
-      }
-      const slug = extractProfileSlug(window.location.pathname);
-      const profileNeedsMount = Boolean(slug && !document.getElementById(WIDGET_ID));
-      if (hasNewCards || tradeDirty || profileNeedsMount) {
-        scheduleBatch();
-      }
+      const cards = addedCards(mutations);
+      const tradesChanged = mutations.some(isTradeMutation);
+      loop.addCards(cards);
+      if (tradesChanged) loop.markTrades();
+      if (cards.length > 0 || tradesChanged || profileBadgeMissing()) loop.schedule();
     });
     observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: WATCHED_ATTRIBUTES });
     ctx.onInvalidated(() => observer.disconnect());
@@ -123,23 +69,23 @@ export default defineContentScript({
           return;
         }
         badges.reset();
-        void renderAll();
+        void loop.renderAll();
       })
     );
 
     ctx.addEventListener(window, 'wxt:locationchange', () => {
       badges.resetPage();
       removeProfileBadge();
-      scheduleBatch();
-      void renderAll();
+      loop.schedule();
+      void loop.renderAll();
     });
 
     listenForTrades(tradeStore, () => {
-      tradeDirty = true;
-      scheduleBatch();
+      loop.markTrades();
+      loop.schedule();
     });
     void tokenBar.sync(settings.showToken);
-    void renderAll();
-    LATE_RENDER_DELAYS_MS.forEach((delay) => ctx.setTimeout(() => void renderAll(), delay));
+    void loop.renderAll();
+    LATE_RENDER_DELAYS_MS.forEach((delay) => ctx.setTimeout(() => void loop.renderAll(), delay));
   },
 });
