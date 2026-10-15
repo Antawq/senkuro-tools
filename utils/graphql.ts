@@ -38,7 +38,7 @@ export interface Transport {
   random: () => number;
 }
 
-export const browserTransport: Transport = {
+const browserTransport: Transport = {
   fetch: (input, init) => fetch(input, init),
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   random: Math.random,

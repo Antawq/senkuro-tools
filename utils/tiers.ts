@@ -10,7 +10,7 @@ export interface Tier {
 
 const THRESHOLD_DIGITS = 1;
 
-export const TIERS: readonly Tier[] = [
+const TIERS: readonly Tier[] = [
   { name: 'red', from: 3.0, effect: 'effectRed' },
   { name: 'yellow', from: 2.4, effect: 'effectYellow' },
   { name: 'purple', from: 2.0, effect: 'effectPurple' },

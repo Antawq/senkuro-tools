@@ -4,7 +4,7 @@ import { REPLAY_EVENT, type Trade, type TradeStore } from './trade-capture';
 import { matchOffer, matchTrade, matchTradeByCounts, shows } from './trade-match';
 import type { CardRef, Side } from './trade-value';
 
-export const MODAL = '.modal-content--trade';
+const MODAL = '.modal-content--trade';
 const CARD_LIST = '.modal-content--review';
 const HISTORY = '.card-trade';
 const OFFER = '.offer-card';

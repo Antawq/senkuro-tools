@@ -2,7 +2,7 @@ const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 
 export type Shape = [string, Record<string, string>];
 
-export const OUTLINE: Readonly<Record<string, string>> = { fill: 'none', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
+const OUTLINE: Readonly<Record<string, string>> = { fill: 'none', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
 
 export function svgIcon(attributes: Record<string, string>, shapes: Shape[]): SVGSVGElement {
   const svg = document.createElementNS(SVG_NAMESPACE, 'svg');

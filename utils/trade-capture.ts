@@ -157,7 +157,7 @@ const requestUrl = (input: unknown): string => {
   return (input as { url?: string } | null)?.url ?? '';
 };
 
-export const isGraphqlRequest = (input: unknown, base: string): boolean => {
+const isGraphqlRequest = (input: unknown, base: string): boolean => {
   try {
     return new URL(requestUrl(input), base).pathname.endsWith('/graphql');
   } catch {
