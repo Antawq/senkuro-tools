@@ -105,29 +105,49 @@ const fromList = (name: string | undefined, side: Side): Side => {
   return list && shows(list, side) ? whole(list) : side;
 };
 
-function readReview(modal: Element, store: TradeStore): Column[] | null {
+interface Review {
+  incoming: boolean;
+  known: Selection | undefined;
+  store: TradeStore;
+}
+
+const reviewOf = (modal: Element, store: TradeStore): Review => {
   const incoming = modal.querySelector('header')?.textContent?.includes(INCOMING_SUBTITLE) ?? false;
-  const known = incoming ? undefined : selections.get(modal);
+  return { incoming, known: incoming ? undefined : selections.get(modal), store };
+};
 
-  const panels = [...modal.querySelectorAll('.modal-trade__swap-el')];
-  if (panels.length >= TRADE_SIDES) {
-    const [left, right] = panels.map(readPanel);
-    if (!left || !right) return null;
-    if (known && shows(known.give.cards, left) && shows(known.get.cards, right)) return [column('give', known.give), column('get', known.get)];
-    const [sourceName = '', destinationName = ''] = panels.map(nameOf);
-    const trade = incoming ? matchTrade(store.trades(), [sourceName, destinationName], [left, right]) : null;
+const rolesOf = (incoming: boolean): [Role, Role] => (incoming ? ['get', 'give'] : ['give', 'get']);
+
+function readExchange(panels: Element[], { incoming, known, store }: Review): Column[] | null {
+  const [left, right] = panels.map(readPanel);
+  if (!left || !right) return null;
+  if (known && shows(known.give.cards, left) && shows(known.get.cards, right)) return [column('give', known.give), column('get', known.get)];
+  const [sourceName = '', destinationName = ''] = panels.map(nameOf);
+  if (incoming) {
+    const trade = matchTrade(store.trades(), [sourceName, destinationName], [left, right]);
     if (trade) return [column('get', whole(trade.offer)), column('give', whole(trade.request))];
-    if (incoming) askReplayOnce(store);
-    return [column(incoming ? 'get' : 'give', fromList(sourceName, left)), column(incoming ? 'give' : 'get', fromList(destinationName, right))];
+    askReplayOnce(store);
   }
+  const [first, second] = rolesOf(incoming);
+  return [column(first, fromList(sourceName, left)), column(second, fromList(destinationName, right))];
+}
 
-  const gift = modal.querySelector('.modal-trade__swap-gift__icon')?.closest('.modal-trade__swap-el');
-  if (!gift) return null;
+function readGift(gift: Element, { incoming, known, store }: Review): Column[] {
   const side = readPanel(gift);
   if (known && shows(known.give.cards, side)) return [column('give', known.give)];
-  const trade = incoming ? matchTrade(store.trades(), [nameOf(gift), null], [side, whole([])]) : null;
-  if (trade) return [column('get', whole(trade.offer))];
-  return [column(incoming ? 'get' : 'give', fromList(nameOf(gift), side))];
+  if (incoming) {
+    const trade = matchTrade(store.trades(), [nameOf(gift), null], [side, whole([])]);
+    if (trade) return [column('get', whole(trade.offer))];
+  }
+  return [column(rolesOf(incoming)[0], fromList(nameOf(gift), side))];
+}
+
+function readReview(modal: Element, store: TradeStore): Column[] | null {
+  const review = reviewOf(modal, store);
+  const panels = [...modal.querySelectorAll('.modal-trade__swap-el')];
+  if (panels.length >= TRADE_SIDES) return readExchange(panels, review);
+  const gift = modal.querySelector('.modal-trade__swap-gift__icon')?.closest('.modal-trade__swap-el');
+  return gift ? readGift(gift, review) : null;
 }
 
 const readModals = (store: TradeStore): Place[] =>
