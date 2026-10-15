@@ -8,6 +8,7 @@ export interface UserCard {
 
 export const PAGE_SIZE = 100;
 export const MAX_PAGES = 300;
+export const PAGE_DELAY_MS = 120;
 
 const USER_CARDS =
   'query UserCards($userId: ID!, $first: Int = 20, $after: String, $orderBy: UserCardOrder!) { userCards(userId: $userId, first: $first, after: $after, orderBy: $orderBy) { pageInfo { hasNextPage endCursor } edges { node { quantity shard card { slug } } } } }';
@@ -39,12 +40,15 @@ export async function fetchUserCards(
   token: string | null,
   userId: string,
   onProgress: (loaded: number) => void = () => undefined,
-  transport?: Transport
+  transport?: Transport,
+  signal?: AbortSignal
 ): Promise<UserCard[]> {
   const cards: UserCard[] = [];
   let after: string | null = null;
+  const sleep = transport?.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
   for (let page = 0; page < MAX_PAGES; page++) {
-    const data: PageData = await execute<PageData>(token, USER_CARDS, 'UserCards', { userId, first: PAGE_SIZE, after, orderBy: ORDER }, transport);
+    if (signal?.aborted) throw new ApiError('network');
+    const data: PageData = await execute<PageData>(token, USER_CARDS, 'UserCards', { userId, first: PAGE_SIZE, after, orderBy: ORDER }, transport, signal);
     const connection = data.userCards;
     for (const edge of connection?.edges ?? []) {
       const card = toCard(edge?.node);
@@ -54,6 +58,7 @@ export async function fetchUserCards(
     const info = connection?.pageInfo;
     after = info?.hasNextPage && info.endCursor ? info.endCursor : null;
     if (after === null) return cards;
+    if (PAGE_DELAY_MS > 0) await sleep(PAGE_DELAY_MS);
   }
   throw new ApiError('limit');
 }

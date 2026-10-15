@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
-import { findNicknameTarget, removeProfileBadge, updateProfileBadge, WIDGET_ID } from '../utils/profile-dom';
+import { abortProfileLoading, findNicknameTarget, isTradeOpen, profileBadgeMissing, removeProfileBadge, updateProfileBadge, WIDGET_ID } from '../utils/profile-dom';
 
 const db = {
   'soran-f': { price: 1, name: 'Соран', rank: 'F' },
@@ -210,5 +210,40 @@ describe('profile-dom', () => {
       await settle();
       expect(fetchMock.mock.calls.length).toBe(calls);
     });
+
+    it('does not calculate profile value or show badge when trade modal is open', () => {
+      window.history.pushState({}, '', '/users/phaivroh');
+      document.body.innerHTML = `
+        ${header}
+        <div class="modal-content modal-content--trade"></div>
+      `;
+      expect(isTradeOpen()).toBe(true);
+      expect(profileBadgeMissing()).toBe(false);
+      updateProfileBadge({ db, valuation: plain });
+      expect(widget()).toBeNull();
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('aborts active profile loading when trade modal opens', async () => {
+      window.history.pushState({}, '', '/users/phaivroh');
+      document.body.innerHTML = header;
+      fetchMock.mockImplementation((_input: unknown, init?: RequestInit) =>
+        operationOf(init) === 'User'
+          ? Promise.resolve(reply({ user: { id: 'u1', name: 'phaivroh' } }))
+          : new Promise<Response>(() => undefined)
+      );
+      updateProfileBadge({ db, valuation: plain });
+      await settle();
+      expect(widget()?.textContent).toContain('Считаем F...');
+
+      const modal = document.createElement('div');
+      modal.className = 'modal-content modal-content--trade';
+      document.body.append(modal);
+
+      expect(isTradeOpen()).toBe(true);
+      updateProfileBadge({ db, valuation: plain });
+      expect(widget()?.textContent).not.toContain('ошибка (повторить)');
+    });
   });
 });
+

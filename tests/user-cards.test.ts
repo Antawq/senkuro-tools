@@ -116,6 +116,15 @@ describe('fetchUserCards', () => {
     const { transport } = serve(() => json({}, 503));
     expect(await fetchUserCards(null, 'user-1', undefined, transport).catch((thrown: unknown) => thrown)).toMatchObject({ failure: 'http', status: 503 });
   });
+
+  it('stops and rejects when aborted via signal', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const { transport, sent } = serve(() => json(page([node('a-a', 1)], null)));
+    const error = await fetchUserCards(null, 'user-1', undefined, transport, controller.signal).catch((thrown: unknown) => thrown);
+    expect(error).toMatchObject({ failure: 'network' });
+    expect(sent).toHaveLength(0);
+  });
 });
 
 describe('packed cards', () => {

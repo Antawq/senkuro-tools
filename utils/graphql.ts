@@ -73,16 +73,29 @@ async function decode<T>(response: Response): Promise<T> {
   return data as T;
 }
 
+const timeoutSignal = (ms: number): AbortSignal =>
+  typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(ms) : new AbortController().signal;
+
+const combineSignals = (signal: AbortSignal | undefined, timeoutMs: number): AbortSignal => {
+  if (!signal) return timeoutSignal(timeoutMs);
+  if (typeof AbortSignal.any === 'function') {
+    return AbortSignal.any([signal, timeoutSignal(timeoutMs)]);
+  }
+  return signal;
+};
+
 export async function execute<T>(
   token: string | null,
   document: string,
   operationName: string,
   variables: Variables,
-  transport: Transport = browserTransport
+  transport: Transport = browserTransport,
+  signal?: AbortSignal
 ): Promise<T> {
   const body = JSON.stringify({ query: document, operationName, variables });
   const headers: Record<string, string> = { ...JSON_HEADERS, ...(token ? { authorization: `Bearer ${token}` } : {}) };
   for (let attempt = 1; ; attempt++) {
+    if (signal?.aborted) throw new ApiError('network');
     let response: Response;
     try {
       response = await transport.fetch(API_ENDPOINT, {
@@ -92,9 +105,10 @@ export async function execute<T>(
         credentials: 'omit',
         redirect: 'manual',
         referrerPolicy: 'no-referrer',
-        signal: AbortSignal.timeout(TIMEOUT_MS),
+        signal: combineSignals(signal, TIMEOUT_MS),
       });
     } catch {
+      if (signal?.aborted) throw new ApiError('network');
       if (attempt >= MAX_ATTEMPTS) throw new ApiError('network');
       await transport.sleep(backoffMs(attempt, transport.random));
       continue;

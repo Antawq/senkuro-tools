@@ -71,8 +71,22 @@ interface CacheEntry {
   cards?: unknown;
 }
 
-const inProgress = new Set<string>();
+const inProgress = new Map<string, AbortController>();
 let closingBound = false;
+
+export const isTradeOpen = (): boolean => Boolean(document.querySelector('.modal-content--trade, .modal-trade'));
+
+export function abortProfileLoading(slug?: string): void {
+  if (slug) {
+    inProgress.get(slug)?.abort();
+    inProgress.delete(slug);
+  } else {
+    for (const controller of inProgress.values()) {
+      controller.abort();
+    }
+    inProgress.clear();
+  }
+}
 
 const cacheKey = (slug: string): string => `${CACHE_PREFIX}${slug}`;
 
@@ -159,7 +173,8 @@ export function removeProfileBadge(): void {
   document.getElementById(WIDGET_ID)?.remove();
 }
 
-export const profileBadgeMissing = (): boolean => Boolean(extractProfileSlug(window.location.pathname) && !document.getElementById(WIDGET_ID));
+export const profileBadgeMissing = (): boolean =>
+  !isTradeOpen() && Boolean(extractProfileSlug(window.location.pathname) && !document.getElementById(WIDGET_ID));
 
 function renderLoading(widget: HTMLElement, text: string): void {
   widget.classList.add(LOADING);
@@ -239,37 +254,50 @@ const widgetFor = (slug: string): HTMLElement | null => {
 };
 
 function load(slug: string, deps: ProfileBadgeDeps): void {
-  if (inProgress.has(slug)) return;
-  inProgress.add(slug);
+  if (inProgress.has(slug) || isTradeOpen()) return;
+  const controller = new AbortController();
+  inProgress.set(slug, controller);
+  const { signal } = controller;
+
   void (async () => {
     try {
-      const user = await fetchProfileUser(slug);
+      const user = await fetchProfileUser(slug, undefined, signal);
+      if (signal.aborted) return;
       if (!user) {
         const widget = widgetFor(slug);
         if (widget) renderError(widget, slug, deps);
         return;
       }
-      const cards = await fetchProfileCards(user.id, (loaded) => {
-        const widget = widgetFor(slug);
-        if (widget?.classList.contains(LOADING)) renderLoading(widget, progressText(loaded));
-      });
+      const cards = await fetchProfileCards(
+        user.id,
+        (loaded) => {
+          const widget = widgetFor(slug);
+          if (widget?.classList.contains(LOADING)) renderLoading(widget, progressText(loaded));
+        },
+        undefined,
+        signal
+      );
+      if (signal.aborted) return;
       writeCache(slug, cards);
       const widget = widgetFor(slug);
       if (!widget) return;
       renderSummary(widget, slug, calculateProfileValue(cards, deps.db, deps.valuation), deps);
       widget.dataset.valuation = valuationKey(deps.valuation);
     } catch (error) {
+      if (signal.aborted) return;
       console.error('SenkuTools: failed to fetch profile cards', error);
       const widget = widgetFor(slug);
       if (widget) renderError(widget, slug, deps);
     } finally {
-      inProgress.delete(slug);
+      if (inProgress.get(slug) === controller) {
+        inProgress.delete(slug);
+      }
     }
   })();
 }
 
 function show(widget: HTMLElement, slug: string, deps: ProfileBadgeDeps): void {
-  if (widget.classList.contains(FAILED)) return;
+  if (widget.classList.contains(FAILED) || isTradeOpen()) return;
   if (inProgress.has(slug)) {
     if (!widget.classList.contains(LOADING)) renderLoading(widget, TEXT.counting);
     return;
@@ -287,6 +315,10 @@ function show(widget: HTMLElement, slug: string, deps: ProfileBadgeDeps): void {
 }
 
 export function updateProfileBadge(deps: ProfileBadgeDeps): void {
+  if (isTradeOpen()) {
+    abortProfileLoading();
+    return;
+  }
   const slug = extractProfileSlug(window.location.pathname);
   if (!slug) {
     removeProfileBadge();

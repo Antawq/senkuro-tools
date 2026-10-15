@@ -137,4 +137,13 @@ describe('execute', () => {
       expect(JSON.stringify(error)).not.toContain(TOKEN);
     }
   });
+
+  it('fails with network error immediately when signal is aborted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const harness = transportOf([reply({ data: { ok: true } })]);
+    const promise = execute<{ ok: boolean }>(TOKEN, 'query Q { ok }', 'Q', { a: 1 }, harness.transport, controller.signal);
+    expect(await failure(promise)).toMatchObject({ failure: 'network' });
+    expect(harness.calls).toHaveLength(0);
+  });
 });
