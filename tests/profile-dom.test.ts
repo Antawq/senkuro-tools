@@ -117,7 +117,7 @@ describe('profile-dom', () => {
       updateProfileBadge({ db, valuation: plain });
       const popover = widget()?.querySelector('.senkuro-profile-f-popover');
       const [bank, cards] = [...(popover?.querySelectorAll('.senkuro-row-val') ?? [])].map((cell) => cell.textContent);
-      expect(bank).toBe('4R 0.17oR 2S 0.13oA');
+      expect(bank).toBe('4R 2oR 2S 1oA');
       expect(cards).toBe('2R 1oR 1S 1oA');
       expect(popover?.querySelector('.senkuro-rank-r')?.textContent).toBe('4R');
       expect(popover?.querySelector('.senkuro-popover-meta')?.textContent).toBe('Всего: 3 карт · 2 осколков');
