@@ -6,3 +6,9 @@
   justify-content: flex-start;
   padding-inline: 2px;
 }
+
+@media (width < 576px) {
+  .modal-trade__preview-el {
+    max-width: 100%;
+  }
+}
