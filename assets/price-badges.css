@@ -35,15 +35,6 @@ a.card-collect[data-senkuro-price]::after {
   z-index: 2;
 }
 
-.card-notif__box-el .card-collect-preview__status {
-  padding-inline: 2px;
-}
-
-.card-notif__box-el .card-collect-preview__status .tag {
-  justify-content: flex-start;
-  padding-inline: 2px;
-}
-
 .card-collect-preview__front[data-senkuro-style='background']::after,
 .card-collect-preview[data-senkuro-style='background']::after,
 a.card-collect[data-senkuro-style='background']::after {
