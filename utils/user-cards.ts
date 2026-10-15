@@ -8,12 +8,12 @@ export interface UserCard {
 
 export const PAGE_SIZE = 100;
 export const MAX_PAGES = 300;
-export const PAGE_DELAY_MS = 120;
+export const PAGE_DELAY_MS = 165;
 export const FAST_PAGES = 10;
 export const FAST_DELAY_MS = 0;
-export const THROTTLED_DELAY_MS = 250;
+export const THROTTLED_DELAY_MS = 165;
 export const DEEP_THROTTLE_PAGES = 50;
-export const DEEP_THROTTLED_DELAY_MS = 350;
+export const DEEP_THROTTLED_DELAY_MS = 200;
 export const RATE_LIMIT_COOLDOWN_MS = 3000;
 export const MAX_429_RETRIES = 3;
 
