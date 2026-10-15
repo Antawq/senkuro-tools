@@ -1,7 +1,7 @@
 import { BADGE_INSET, CENTER, CENTER_SHIFT_X, centerShiftY, faceGap, gapKey, insetAbove, insetBelow, NO_GAP, type FaceGap } from './badge-layout';
 import { CARD_LINK, PERCENT, PRICE_DECIMALS, effectivePrice, slugFromHref } from './cards';
 import { removeCopyButton, syncCopyButton } from './copy-button';
-import type { Database } from './database';
+import type { CardEntry, Database } from './database';
 import type { BadgePositionX, BadgePositionY, Settings } from './settings';
 import { tierOf } from './tiers';
 
@@ -79,86 +79,114 @@ function coveredInStack(target: HTMLElement): boolean {
   return [...(target.parentElement?.children ?? [])].some((other) => other !== target && other.matches(STACK_ITEM) && paintsAbove(other, target));
 }
 
+type Shades = ReturnType<typeof shadesOf>;
+
+interface Holders {
+  card: HTMLAnchorElement;
+  front: HTMLElement | null;
+  preview: HTMLElement | null;
+  target: HTMLElement;
+  width: number;
+}
+
+interface Spot {
+  positionX: BadgePositionX;
+  positionY: BadgePositionY;
+  gap: FaceGap;
+}
+
+function holdersOf(card: HTMLAnchorElement): Holders {
+  const front = card.closest<HTMLElement>('.card-collect-preview__front');
+  const preview = card.closest<HTMLElement>('.card-collect-preview');
+  return { card, front, preview, target: preview ?? card, width: card.offsetWidth || card.getBoundingClientRect().width };
+}
+
+const isSmall = ({ width }: Holders): boolean => width > 0 && width < SMALL_CARD_WIDTH;
+
+const isTooNarrow = ({ width }: Holders): boolean => width > 0 && width < MIN_PRICED_CARD_WIDTH;
+
+function clearHolders({ card, front, preview }: Holders, keep?: HTMLElement): void {
+  for (const el of [card, front, preview]) {
+    if (el && el !== keep) {
+      clearBadge(el);
+      removeCopyButton(el);
+    }
+  }
+}
+
+const fontSizeOf = (holders: Holders, base: number): number =>
+  isSmall(holders) ? Math.max(SMALL_CARD_MIN_FONT, Math.round(base * Math.max(SMALL_CARD_MIN_SCALE, holders.width / SMALL_CARD_SCALE_BASE))) : base;
+
+function paint(holders: Holders, price: number, settings: Settings, shades: Shades): void {
+  const { target } = holders;
+  const priceText = effectivePrice(price, settings.commission).toFixed(PRICE_DECIMALS);
+  const tier = tierOf(+priceText);
+  target.setAttribute('data-senkuro-price', priceText);
+  target.setAttribute('data-senkuro-style', settings.badgeStyle);
+  target.setAttribute('data-senkuro-eff', settings[tier.effect] || NO_EFFECT);
+  target.setAttribute('data-senkuro-tier', tier.name);
+  target.style.setProperty('--s-size', `${fontSizeOf(holders, settings.fontSize)}px`);
+  target.style.setProperty('--s-pad', isSmall(holders) ? SMALL_PADDING : PADDING);
+  if (settings.badgeStyle === 'background') {
+    target.style.setProperty('--s-bg-color', shades.background);
+    target.style.removeProperty('--s-outline');
+  } else {
+    target.style.setProperty('--s-outline', shades.outline);
+    target.style.removeProperty('--s-bg-color');
+  }
+}
+
+function place({ target, preview }: Holders, settings: Settings): Spot {
+  const spot: Spot = {
+    positionX: coveredInStack(target) ? VISIBLE_EDGE : settings.positionX,
+    positionY: settings.positionY,
+    gap: preview ? faceGap(preview) : NO_GAP,
+  };
+  const key = `${spot.positionX}-${spot.positionY}${gapKey(spot.gap)}`;
+  if (target.dataset.badgePos !== key) {
+    target.dataset.badgePos = key;
+    applyPosition(target, spot.positionX, spot.positionY, spot.gap);
+  }
+  return spot;
+}
+
 export function createPriceBadges({ onImageLoad, touch }: { onImageLoad: () => void; touch: boolean }): PriceBadges {
   const waitingImages = new WeakSet<HTMLImageElement>();
   const positioned = new WeakSet<HTMLElement>();
 
-  function render(card: HTMLAnchorElement, db: Database, settings: Settings, shades: ReturnType<typeof shadesOf>): void {
+  function waitForImage(card: HTMLAnchorElement): void {
+    const img = card.querySelector('img');
+    if (!img || imageSource(img) || waitingImages.has(img)) return;
+    waitingImages.add(img);
+    img.addEventListener('load', onImageLoad, { once: true });
+  }
+
+  function makePositioned(target: HTMLElement): void {
+    if (positioned.has(target)) return;
+    if (getComputedStyle(target).position === 'static') target.style.position = 'relative';
+    positioned.add(target);
+  }
+
+  function show(holders: Holders, entry: CardEntry, settings: Settings, shades: Shades): void {
+    const { target } = holders;
+    makePositioned(target);
+    clearHolders(holders, target);
+    paint(holders, entry.price, settings, shades);
+    const spot = place(holders, settings);
+    if (settings.copyBtn && !isSmall(holders)) syncCopyButton(target, { name: entry.name || UNKNOWN_NAME, size: settings.copyBtnSize, ...spot, touch });
+    else removeCopyButton(target);
+  }
+
+  function render(card: HTMLAnchorElement, db: Database, settings: Settings, shades: Shades): void {
     if (!card.isConnected || card.closest(BACK_FACE)) return;
     const slug = slugFromHref(card.getAttribute('href'));
     if (!slug || card.dataset.priceBadgeAdded === slug) return;
     const entry = db[slug];
-    if (!entry || typeof entry.price !== 'number' || !Number.isFinite(entry.price)) return;
-
-    const img = card.querySelector('img');
-    if (img && !imageSource(img) && onImageLoad && !waitingImages.has(img)) {
-      waitingImages.add(img);
-      img.addEventListener('load', onImageLoad, { once: true });
-    }
-
-    const priceText = effectivePrice(entry.price, settings.commission).toFixed(PRICE_DECIMALS);
-    const tier = tierOf(+priceText);
-    const effect = settings[tier.effect];
-
-    const front = card.closest<HTMLElement>('.card-collect-preview__front');
-    const preview = card.closest<HTMLElement>('.card-collect-preview');
-    const target = preview ?? card;
-
-    const width = card.offsetWidth || card.getBoundingClientRect().width;
-    if (width > 0 && width < MIN_PRICED_CARD_WIDTH) {
-      for (const el of [card, front, preview]) {
-        if (el) {
-          clearBadge(el);
-          removeCopyButton(el);
-        }
-      }
-      card.dataset.priceBadgeAdded = slug;
-      return;
-    }
-
-    if (!positioned.has(target)) {
-      if (getComputedStyle(target).position === 'static') target.style.position = 'relative';
-      positioned.add(target);
-    }
-
-    const small = width > 0 && width < SMALL_CARD_WIDTH;
-    const fontSize = small
-      ? Math.max(SMALL_CARD_MIN_FONT, Math.round(settings.fontSize * Math.max(SMALL_CARD_MIN_SCALE, width / SMALL_CARD_SCALE_BASE)))
-      : settings.fontSize;
-
-    for (const el of [card, front, preview]) {
-      if (el && el !== target) {
-        clearBadge(el);
-        removeCopyButton(el);
-      }
-    }
-
-    target.setAttribute('data-senkuro-price', priceText);
-    target.setAttribute('data-senkuro-style', settings.badgeStyle);
-    target.setAttribute('data-senkuro-eff', effect || NO_EFFECT);
-    target.setAttribute('data-senkuro-tier', tier.name);
-    target.style.setProperty('--s-size', `${fontSize}px`);
-    target.style.setProperty('--s-pad', small ? SMALL_PADDING : PADDING);
-    if (settings.badgeStyle === 'background') {
-      target.style.setProperty('--s-bg-color', shades.background);
-      target.style.removeProperty('--s-outline');
-    } else {
-      target.style.setProperty('--s-outline', shades.outline);
-      target.style.removeProperty('--s-bg-color');
-    }
-
-    const positionX = coveredInStack(target) ? VISIBLE_EDGE : settings.positionX;
-    const positionY = settings.positionY;
-    const gap = preview ? faceGap(preview) : NO_GAP;
-    const posKey = `${positionX}-${positionY}${gapKey(gap)}`;
-    if (target.dataset.badgePos !== posKey) {
-      target.dataset.badgePos = posKey;
-      applyPosition(target, positionX, positionY, gap);
-    }
-
-    if (settings.copyBtn && !small) syncCopyButton(target, { name: entry.name || UNKNOWN_NAME, size: settings.copyBtnSize, positionX, positionY, gap, touch });
-    else removeCopyButton(target);
-
+    if (!entry || !Number.isFinite(entry.price)) return;
+    waitForImage(card);
+    const holders = holdersOf(card);
+    if (isTooNarrow(holders)) clearHolders(holders);
+    else show(holders, entry, settings, shades);
     card.dataset.priceBadgeAdded = slug;
   }
 
