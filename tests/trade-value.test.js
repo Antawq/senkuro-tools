@@ -178,7 +178,7 @@ describe('compareSides', () => {
   const side = (f, complete = true) => ({ f, complete });
 
   it('reports the gain relative to what is given', () => {
-    expect(compareSides(side(243), side(777.6))).toEqual({ kind: 'gain', text: 'Выгода +534.6F (+220%)', complete: true });
+    expect(compareSides(side(243), side(777.6))).toEqual({ kind: 'gain', text: 'Выгода +534.6F (+220%)', certain: true });
   });
 
   it('reports the loss relative to what is given', () => {
@@ -193,8 +193,9 @@ describe('compareSides', () => {
     expect(compareSides(side(0), side(81)).text).toBe('Выгода +81F');
   });
 
-  it('is incomplete when either side has unknown cards', () => {
-    expect(compareSides(side(1), side(1, false)).complete).toBe(false);
+  it('is uncertain only when a side with unknown cards has nothing priced', () => {
+    expect(compareSides(side(1), side(1, false)).certain).toBe(true);
+    expect(compareSides(side(1), side(0, false)).certain).toBe(false);
   });
 
   it('lets shards decide the verdict together with whole cards', () => {
@@ -235,7 +236,7 @@ describe('compareR', () => {
   });
 
   it('reports the gain and the loss in R', () => {
-    expect(compareR(sideOf([card('r-card')]), sideOf([card('r-card', 3)]))).toEqual({ kind: 'gain', text: 'R: Выгода +2R (+200%)', complete: true });
+    expect(compareR(sideOf([card('r-card')]), sideOf([card('r-card', 3)]))).toEqual({ kind: 'gain', text: 'R: Выгода +2R (+200%)', certain: true });
     expect(compareR(sideOf([card('r-card', 4)]), sideOf([card('r-card')])).text).toBe('R: Потеря -3R (-75%)');
   });
 
@@ -247,8 +248,8 @@ describe('compareR', () => {
     expect(compareR(sideOf([card('r-card')]), sideOf([card('r-card')])).kind).toBe('even');
   });
 
-  it('is incomplete when R shards or unknown cards are involved', () => {
-    expect(compareR(sideOf([card('r-card')]), sideOf([card('r-card', 1, true)])).complete).toBe(false);
-    expect(compareR(sideOf([card('r-card'), card('missing')]), sideOf([card('r-card')])).complete).toBe(false);
+  it('is uncertain only when a side holds nothing but unvalued R', () => {
+    expect(compareR(sideOf([card('r-card')]), sideOf([card('r-card', 1, true)])).certain).toBe(false);
+    expect(compareR(sideOf([card('r-card'), card('missing')]), sideOf([card('r-card')])).certain).toBe(true);
   });
 });

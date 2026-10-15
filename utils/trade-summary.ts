@@ -151,9 +151,7 @@ function table(sides: SideView[], settings: SummarySettings): HTMLElement {
   return grid;
 }
 
-const blind = (known: number, settled: boolean): boolean => known === 0 && !settled;
-
-const verdictState = (kind: Verdict['kind'], unsure: boolean): string => (unsure ? UNKNOWN : `${SUMMARY}__verdict--${kind}`);
+const verdictState = ({ kind, certain }: Verdict): string => (certain ? `${SUMMARY}__verdict--${kind}` : UNKNOWN);
 
 function expandToggle(summary: HTMLElement): HTMLButtonElement {
   const button = element('button', `${SUMMARY}__toggle`);
@@ -219,13 +217,9 @@ function render(
   const details = element('div', `${SUMMARY}__details`);
   details.append(panel(sides, settings));
   parts.push(details);
-  if (verdict && give && get) {
-    const unsure = blind(give.f, give.complete) || blind(get.f, get.complete);
-    parts.push(element('div', `${SUMMARY}__verdict ${verdictState(verdict.kind, unsure)}`, verdict.text));
-    if (rVerdict) {
-      const rUnsure = blind(give.r.value, give.r.complete) || blind(get.r.value, get.r.complete);
-      parts.push(element('div', `${SUMMARY}__verdict ${verdictState(rVerdict.kind, rUnsure)} ${SUMMARY}__verdict--r`, rVerdict.text));
-    }
+  if (verdict) {
+    parts.push(element('div', `${SUMMARY}__verdict ${verdictState(verdict)}`, verdict.text));
+    if (rVerdict) parts.push(element('div', `${SUMMARY}__verdict ${verdictState(rVerdict)} ${SUMMARY}__verdict--r`, rVerdict.text));
     parts.push(expandToggle(summary));
   }
   summary.querySelector(`.${SUMMARY}__content`)?.replaceChildren(...parts);

@@ -37,7 +37,12 @@ export interface SideValue {
 export interface Verdict {
   kind: 'even' | 'gain' | 'loss';
   text: string;
-  complete: boolean;
+  certain: boolean;
+}
+
+interface Scale {
+  prefix: string;
+  unit: string;
 }
 
 export interface Valuation {
@@ -143,17 +148,22 @@ export const formatByRank = (map: Map<string, number>): string[] =>
 export const formatShardsByRank = (map: Map<string, number>): string[] =>
   [...map.keys()].sort((a, b) => rankPosition(a) - rankPosition(b)).map((rank) => `${formatAmount(map.get(rank) ?? 0)}${SHARD_MARK}${rank}`);
 
-function compare(given: number, got: number, complete: boolean, prefix: string, unit: string): Verdict {
+const F_SCALE: Scale = { prefix: '', unit: F_UNIT };
+const R_SCALE: Scale = { prefix: 'R: ', unit: R_RANK };
+
+const priced = (known: number, settled: boolean): boolean => known > 0 || settled;
+
+function compare(given: number, got: number, certain: boolean, { prefix, unit }: Scale): Verdict {
   const diff = got - given;
   const shown = formatAmount(Math.abs(diff));
   const percent = given > 0 ? ` (${diff > 0 ? '+' : '-'}${Math.round(Math.abs(diff / given) * PERCENT)}%)` : '';
-  if (shown === '0') return { kind: 'even', text: `${prefix}Равноценно`, complete };
-  if (diff > 0) return { kind: 'gain', text: `${prefix}Выгода +${shown}${unit}${percent}`, complete };
-  return { kind: 'loss', text: `${prefix}Потеря -${shown}${unit}${percent}`, complete };
+  if (shown === '0') return { kind: 'even', text: `${prefix}Равноценно`, certain };
+  if (diff > 0) return { kind: 'gain', text: `${prefix}Выгода +${shown}${unit}${percent}`, certain };
+  return { kind: 'loss', text: `${prefix}Потеря -${shown}${unit}${percent}`, certain };
 }
 
 export const compareSides = (give: Pick<SideValue, 'f' | 'complete'>, get: Pick<SideValue, 'f' | 'complete'>): Verdict =>
-  compare(give.f, get.f, give.complete && get.complete, '', F_UNIT);
+  compare(give.f, get.f, priced(give.f, give.complete) && priced(get.f, get.complete), F_SCALE);
 
 export const compareR = (give: Pick<SideValue, 'r'>, get: Pick<SideValue, 'r'>): Verdict | null =>
-  hasR(give) || hasR(get) ? compare(give.r.value, get.r.value, give.r.complete && get.r.complete, 'R: ', R_RANK) : null;
+  hasR(give) || hasR(get) ? compare(give.r.value, get.r.value, priced(give.r.value, give.r.complete) && priced(get.r.value, get.r.complete), R_SCALE) : null;
