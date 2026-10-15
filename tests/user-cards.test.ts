@@ -1,14 +1,28 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Transport } from '../utils/graphql';
-import { MAX_PAGES, PAGE_SIZE, fetchUserCards, packCards, unpackCards } from '../utils/user-cards';
+import {
+  DEEP_THROTTLE_PAGES,
+  DEEP_THROTTLED_DELAY_MS,
+  FAST_DELAY_MS,
+  FAST_PAGES,
+  MAX_PAGES,
+  PAGE_SIZE,
+  RATE_LIMIT_COOLDOWN_MS,
+  THROTTLED_DELAY_MS,
+  delayForPage,
+  fetchUserCards,
+  packCards,
+  unpackCards,
+} from '../utils/user-cards';
 
 interface Sent {
   operationName: string;
   variables: Record<string, unknown>;
 }
 
-const json = (body: unknown, status = 200): Response => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+const json = (body: unknown, status = 200, headers: Record<string, string> = {}): Response =>
+  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });
 
 const node = (slug: string, quantity: number, shard = false) => ({ node: { quantity, shard, card: { slug } } });
 
@@ -18,16 +32,20 @@ const bodyOf = (init?: RequestInit): string => (typeof init?.body === 'string' ?
 
 const serve = (answer: (sent: Sent, index: number) => Response) => {
   const sent: Sent[] = [];
+  const sleeps: number[] = [];
   const transport: Transport = {
     fetch: (_url: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(bodyOf(init)) as Sent;
       sent.push(body);
       return Promise.resolve(answer(body, sent.length - 1));
     },
-    sleep: () => Promise.resolve(),
+    sleep: (ms: number) => {
+      sleeps.push(ms);
+      return Promise.resolve();
+    },
     random: () => 0,
   };
-  return { sent, transport };
+  return { sent, sleeps, transport };
 };
 
 describe('fetchUserCards', () => {
@@ -124,6 +142,39 @@ describe('fetchUserCards', () => {
     const error = await fetchUserCards(null, 'user-1', undefined, transport, controller.signal).catch((thrown: unknown) => thrown);
     expect(error).toMatchObject({ failure: 'network' });
     expect(sent).toHaveLength(0);
+  });
+
+  it('delays requests progressively based on page index', () => {
+    expect(delayForPage(0)).toBe(FAST_DELAY_MS);
+    expect(delayForPage(FAST_PAGES - 1)).toBe(FAST_DELAY_MS);
+    expect(delayForPage(FAST_PAGES)).toBe(THROTTLED_DELAY_MS);
+    expect(delayForPage(DEEP_THROTTLE_PAGES - 1)).toBe(THROTTLED_DELAY_MS);
+    expect(delayForPage(DEEP_THROTTLE_PAGES)).toBe(DEEP_THROTTLED_DELAY_MS);
+    expect(delayForPage(150)).toBe(DEEP_THROTTLED_DELAY_MS);
+  });
+
+  it('does not sleep between pages during the fast first 1,000 cards', async () => {
+    const pages: Record<string, unknown> = {
+      first: page([node('a-a', 1)], 'c1'),
+      c1: page([node('b-b', 1)], null),
+    };
+    const { transport, sleeps } = serve((req) => json(pages[(req.variables.after as string | null) ?? 'first']));
+    const cards = await fetchUserCards(null, 'user-1', undefined, transport);
+    expect(cards).toHaveLength(2);
+    expect(sleeps).toEqual([]);
+  });
+
+  it('retries and recovers when hitting rate limit 429', async () => {
+    let call = 0;
+    const { transport, sleeps } = serve(() => {
+      call++;
+      if (call === 1) return json({}, 429, { 'retry-after': '10' });
+      return json(page([node('a-a', 1)], null));
+    });
+    const cards = await fetchUserCards(null, 'user-1', undefined, transport);
+    expect(cards).toEqual([{ slug: 'a-a', quantity: 1, shard: false }]);
+    expect(call).toBe(2);
+    expect(sleeps).toContain(RATE_LIMIT_COOLDOWN_MS);
   });
 });
 

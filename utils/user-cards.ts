@@ -9,6 +9,19 @@ export interface UserCard {
 export const PAGE_SIZE = 100;
 export const MAX_PAGES = 300;
 export const PAGE_DELAY_MS = 120;
+export const FAST_PAGES = 10;
+export const FAST_DELAY_MS = 0;
+export const THROTTLED_DELAY_MS = 250;
+export const DEEP_THROTTLE_PAGES = 50;
+export const DEEP_THROTTLED_DELAY_MS = 350;
+export const RATE_LIMIT_COOLDOWN_MS = 3000;
+export const MAX_429_RETRIES = 3;
+
+export const delayForPage = (page: number): number => {
+  if (page < FAST_PAGES) return FAST_DELAY_MS;
+  if (page < DEEP_THROTTLE_PAGES) return THROTTLED_DELAY_MS;
+  return DEEP_THROTTLED_DELAY_MS;
+};
 
 const USER_CARDS =
   'query UserCards($userId: ID!, $first: Int = 20, $after: String, $orderBy: UserCardOrder!) { userCards(userId: $userId, first: $first, after: $after, orderBy: $orderBy) { pageInfo { hasNextPage endCursor } edges { node { quantity shard card { slug } } } } }';
@@ -48,7 +61,21 @@ export async function fetchUserCards(
   const sleep = transport?.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
   for (let page = 0; page < MAX_PAGES; page++) {
     if (signal?.aborted) throw new ApiError('network');
-    const data: PageData = await execute<PageData>(token, USER_CARDS, 'UserCards', { userId, first: PAGE_SIZE, after, orderBy: ORDER }, transport, signal);
+    let data: PageData | undefined;
+    for (let retry = 0; retry <= MAX_429_RETRIES; retry++) {
+      if (signal?.aborted) throw new ApiError('network');
+      try {
+        data = await execute<PageData>(token, USER_CARDS, 'UserCards', { userId, first: PAGE_SIZE, after, orderBy: ORDER }, transport, signal);
+        break;
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 429 && retry < MAX_429_RETRIES && !signal?.aborted) {
+          await sleep(RATE_LIMIT_COOLDOWN_MS * (retry + 1));
+          continue;
+        }
+        throw error;
+      }
+    }
+    if (!data) throw new ApiError('network');
     const connection = data.userCards;
     for (const edge of connection?.edges ?? []) {
       const card = toCard(edge?.node);
@@ -58,7 +85,8 @@ export async function fetchUserCards(
     const info = connection?.pageInfo;
     after = info?.hasNextPage && info.endCursor ? info.endCursor : null;
     if (after === null) return cards;
-    if (PAGE_DELAY_MS > 0) await sleep(PAGE_DELAY_MS);
+    const delay = delayForPage(page);
+    if (delay > 0) await sleep(delay);
   }
   throw new ApiError('limit');
 }
