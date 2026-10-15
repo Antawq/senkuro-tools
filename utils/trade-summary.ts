@@ -14,7 +14,7 @@ import {
   formatByRank,
   formatShardsByRank,
   hasR,
-  valueWith,
+  valueSide,
   type SideValue,
   type Valuation,
   type Verdict,
@@ -70,7 +70,7 @@ const describeR = ({ r }: SideValue): RView => ({
 });
 
 const describe = (column: Column, db: Database, settings: SummarySettings): SideView => {
-  const value = valueWith(column, db, settings);
+  const value = valueSide(column, db, settings);
 
   const countArray = formatByRank(value.count);
   const shardsArray = formatShardsByRank(value.shards);

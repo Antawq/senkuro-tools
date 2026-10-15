@@ -1,5 +1,5 @@
 import { PERCENT, PRICE_DECIMALS, effectivePrice } from './cards';
-import type { Database } from './database';
+import type { CardEntry, Database } from './database';
 import type { ValueBasis } from './settings';
 
 export interface CardRef {
@@ -76,67 +76,79 @@ const rankPosition = (rank: string): number => {
 
 const addTo = (map: Map<string, number>, rank: string, amount: number) => map.set(rank, (map.get(rank) ?? 0) + amount);
 
-const priceOf = (entry: { price?: unknown } | undefined): number | null =>
-  typeof entry?.price === 'number' && Number.isFinite(entry.price) ? entry.price : null;
+interface Pricing {
+  commission: boolean;
+  perRank: number;
+  basis: ValueBasis;
+}
 
-export function valueSide({ cards, hidden }: Side, db: Database, commission: boolean, perRank = CRAFT_PER_RANK, basis: ValueBasis = 'bank'): SideValue {
-  const side = {
-    f: 0,
-    bank: new Map<string, number>(),
-    count: new Map<string, number>(),
-    unknown: hidden,
-    beyondF: false,
-    shards: new Map<string, number>(),
-    shardBank: new Map<string, number>(),
-    shardUnknown: 0,
-    r: { value: 0, count: 0, shards: 0 },
-  };
+type Tally = Omit<SideValue, 'hasShards' | 'r' | 'complete'> & { r: Omit<RValue, 'complete'> };
 
-  for (const { slug, quantity, shard } of cards) {
-    const entry = slug ? db[slug] : undefined;
-    const price = priceOf(entry);
-    const rate = rateInF(entry?.rank, perRank);
-    if (shard) {
-      if (price === null || !entry) {
-        side.shardUnknown += quantity;
-        continue;
-      }
-      const required = SHARDS_REQUIRED[entry.rank] || 1;
-      const bank = effectivePrice(price, commission) * quantity;
-      addTo(side.shards, entry.rank, quantity);
-      addTo(side.shardBank, entry.rank, bank / required);
-      if (entry.rank === R_RANK) side.r.shards += quantity;
-      else if (rate === null) side.beyondF = true;
-      else side.f += ((basis === 'cards' ? quantity : bank) * rate) / required;
-      continue;
-    }
-    if (price === null || !entry) {
-      side.unknown += quantity;
-      continue;
-    }
-    const value = effectivePrice(price, commission) * quantity;
-    addTo(side.bank, entry.rank, value);
-    addTo(side.count, entry.rank, quantity);
-    const weight = basis === 'cards' ? quantity : value;
-    if (entry.rank === R_RANK) {
-      side.r.value += weight;
-      side.r.count += quantity;
-    } else if (rate === null) side.beyondF = true;
-    else side.f += weight * rate;
+const emptyTally = (hidden: number): Tally => ({
+  f: 0,
+  bank: new Map<string, number>(),
+  count: new Map<string, number>(),
+  unknown: hidden,
+  beyondF: false,
+  shards: new Map<string, number>(),
+  shardBank: new Map<string, number>(),
+  shardUnknown: 0,
+  r: { value: 0, count: 0, shards: 0 },
+});
+
+const pricedEntry = (slug: string | null, db: Database): CardEntry | null => {
+  const entry = slug ? db[slug] : undefined;
+  return entry && typeof entry.price === 'number' && Number.isFinite(entry.price) ? entry : null;
+};
+
+function addToF(tally: Tally, rank: string, weight: number, perRank: number): void {
+  const rate = rateInF(rank, perRank);
+  if (rate === null) tally.beyondF = true;
+  else tally.f += weight * rate;
+}
+
+function addCards(tally: Tally, { rank, price }: CardEntry, quantity: number, { commission, perRank, basis }: Pricing): void {
+  const value = effectivePrice(price, commission) * quantity;
+  const weight = basis === 'cards' ? quantity : value;
+  addTo(tally.bank, rank, value);
+  addTo(tally.count, rank, quantity);
+  if (rank !== R_RANK) addToF(tally, rank, weight, perRank);
+  else {
+    tally.r.value += weight;
+    tally.r.count += quantity;
   }
+}
 
-  const hasShards = side.shards.size > 0 || side.shardUnknown > 0;
-  const settled = side.unknown === 0 && side.shardUnknown === 0;
+function addShards(tally: Tally, { rank, price }: CardEntry, quantity: number, { commission, perRank, basis }: Pricing): void {
+  const perCard = SHARDS_REQUIRED[rank] || 1;
+  const bank = effectivePrice(price, commission) * quantity;
+  addTo(tally.shards, rank, quantity);
+  addTo(tally.shardBank, rank, bank / perCard);
+  if (rank !== R_RANK) addToF(tally, rank, (basis === 'cards' ? quantity : bank) / perCard, perRank);
+  else tally.r.shards += quantity;
+}
+
+function settle(tally: Tally): SideValue {
+  const settled = tally.unknown === 0 && tally.shardUnknown === 0;
   return {
-    ...side,
-    hasShards,
-    r: { ...side.r, complete: settled && side.r.shards === 0 },
-    complete: settled && !side.beyondF,
+    ...tally,
+    hasShards: tally.shards.size > 0 || tally.shardUnknown > 0,
+    r: { ...tally.r, complete: settled && tally.r.shards === 0 },
+    complete: settled && !tally.beyondF,
   };
 }
 
-export const valueWith = (side: Side, db: Database, { commission, valueBySplit, valueBasis }: Valuation): SideValue =>
-  valueSide(side, db, commission, valueBySplit ? SPLIT_PER_RANK : CRAFT_PER_RANK, valueBasis);
+export function valueSide({ cards, hidden }: Side, db: Database, { commission, valueBySplit, valueBasis }: Valuation): SideValue {
+  const pricing: Pricing = { commission, perRank: valueBySplit ? SPLIT_PER_RANK : CRAFT_PER_RANK, basis: valueBasis };
+  const tally = emptyTally(hidden);
+  for (const { slug, quantity, shard } of cards) {
+    const entry = pricedEntry(slug, db);
+    if (entry) (shard ? addShards : addCards)(tally, entry, quantity, pricing);
+    else if (shard) tally.shardUnknown += quantity;
+    else tally.unknown += quantity;
+  }
+  return settle(tally);
+}
 
 export const hasR = ({ r }: Pick<SideValue, 'r'>): boolean => r.count > 0 || r.shards > 0;
 

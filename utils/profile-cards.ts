@@ -1,6 +1,6 @@
 import type { Database } from './database';
 import { execute, type Transport } from './graphql';
-import { F_UNIT, R_RANK, formatAmount, formatByRank, formatShardsByRank, hasR, valueWith, type Valuation } from './trade-value';
+import { F_UNIT, R_RANK, formatAmount, formatByRank, formatShardsByRank, hasR, valueSide, type Valuation } from './trade-value';
 import { decodeSafely } from './uri';
 import { fetchUserCards, type UserCard } from './user-cards';
 
@@ -41,7 +41,7 @@ const rankOf = (slug: string, db: Database): string | null => db[slug]?.rank || 
 const sumQuantity = (cards: UserCard[]): number => cards.reduce((total, card) => total + card.quantity, 0);
 
 export function calculateProfileValue(cards: UserCard[], db: Database, valuation: Valuation): ProfileValueSummary {
-  const value = valueWith({ cards, hidden: 0 }, db, valuation);
+  const value = valueSide({ cards, hidden: 0 }, db, valuation);
   const whole = cards.filter((card) => !card.shard);
   const counts = new Map<string, number>();
   for (const card of whole) {
