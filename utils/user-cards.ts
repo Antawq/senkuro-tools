@@ -1,6 +1,6 @@
 import { ApiError, execute, type Transport } from './graphql';
 
-export interface AccountCard {
+export interface UserCard {
   slug: string;
   quantity: number;
   shard: boolean;
@@ -9,16 +9,10 @@ export interface AccountCard {
 export const PAGE_SIZE = 100;
 export const MAX_PAGES = 300;
 
-const VIEWER = 'query Viewer { viewer { user { id } } }';
-
 const USER_CARDS =
   'query UserCards($userId: ID!, $first: Int = 20, $after: String, $orderBy: UserCardOrder!) { userCards(userId: $userId, first: $first, after: $after, orderBy: $orderBy) { pageInfo { hasNextPage endCursor } edges { node { quantity shard card { slug } } } } }';
 
 const ORDER = { field: 'CREATED_AT', direction: 'ASC' } as const;
-
-interface ViewerData {
-  viewer: { user: { id: string } | null } | null;
-}
 
 interface UserCardNode {
   quantity?: unknown;
@@ -33,7 +27,7 @@ interface PageData {
   } | null;
 }
 
-function toCard(node: UserCardNode | null | undefined): AccountCard | null {
+function toCard(node: UserCardNode | null | undefined): UserCard | null {
   const slug = node?.card?.slug;
   const quantity = node?.quantity;
   if (typeof slug !== 'string' || !slug) return null;
@@ -41,11 +35,13 @@ function toCard(node: UserCardNode | null | undefined): AccountCard | null {
   return { slug, quantity, shard: node?.shard === true };
 }
 
-export async function fetchAccountCards(token: string, onProgress: (loaded: number) => void = () => undefined, transport?: Transport): Promise<AccountCard[]> {
-  const viewer = await execute<ViewerData>(token, VIEWER, 'Viewer', {}, transport);
-  const userId = viewer.viewer?.user?.id;
-  if (!userId) throw new ApiError('graphql', null, true);
-  const cards: AccountCard[] = [];
+export async function fetchUserCards(
+  token: string | null,
+  userId: string,
+  onProgress: (loaded: number) => void = () => undefined,
+  transport?: Transport
+): Promise<UserCard[]> {
+  const cards: UserCard[] = [];
   let after: string | null = null;
   for (let page = 0; page < MAX_PAGES; page++) {
     const data: PageData = await execute<PageData>(token, USER_CARDS, 'UserCards', { userId, first: PAGE_SIZE, after, orderBy: ORDER }, transport);
@@ -61,3 +57,13 @@ export async function fetchAccountCards(token: string, onProgress: (loaded: numb
   }
   throw new ApiError('limit');
 }
+
+type StoredCard = [string, number, 0 | 1];
+
+const isStoredCard = (value: unknown): value is StoredCard =>
+  Array.isArray(value) && value.length === 3 && typeof value[0] === 'string' && typeof value[1] === 'number' && (value[2] === 0 || value[2] === 1);
+
+export const packCards = (cards: UserCard[]): StoredCard[] => cards.map(({ slug, quantity, shard }): StoredCard => [slug, quantity, shard ? 1 : 0]);
+
+export const unpackCards = (list: unknown): UserCard[] =>
+  Array.isArray(list) ? list.filter(isStoredCard).map(([slug, quantity, shard]) => ({ slug, quantity, shard: shard === 1 })) : [];

@@ -6,6 +6,39 @@
     <title>SenkuTools</title>
     <meta name="manifest.default_icon" content="{ '16': '/icon-16.png', '32': '/icon-32.png', '48': '/icon-48.png', '128': '/icon-128.png' }" />
     <style>
+      :root {
+        --c-bg: #121216;
+        --c-scroll-track: #1a1a24;
+        --c-panel: #18181f;
+        --c-field: #1e1e24;
+        --c-raised: #25252c;
+        --c-line: #2d2d35;
+        --c-control: #3f3f46;
+        --c-line-strong: #3b3b4f;
+        --c-scroll-thumb-hover: #525270;
+        --c-line-hover: #4b5563;
+        --c-button: #334155;
+        --c-button-line: #475569;
+        --c-muted: #64748b;
+        --c-text-dim: #94a3b8;
+        --c-text-soft: #cbd5e1;
+        --c-text: #e2e8f0;
+        --c-heading: #f1f5f9;
+        --c-text-strong: #f8fafc;
+        --c-white: var(--senkuro-white);
+        --c-shadow: var(--senkuro-shade);
+        --c-accent: var(--senkuro-accent);
+        --c-accent-light: #818cf8;
+        --c-tier-red: var(--senkuro-tier-red);
+        --c-tier-yellow: var(--senkuro-tier-yellow);
+        --c-tier-purple: var(--senkuro-tier-purple);
+        --c-tier-green: var(--senkuro-tier-green);
+        --c-green-light: #86efac;
+        --duration-hover: var(--senkuro-hover);
+        --duration-toggle: 0.3s;
+        --duration-press: 0.1s;
+      }
+
       @font-face {
         font-family: 'Inter';
         font-style: normal;
@@ -30,8 +63,8 @@
         margin: 0;
         font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         font-size: 13px;
-        background-color: #121216;
-        color: #e2e8f0;
+        background-color: var(--c-bg);
+        color: var(--c-text);
         overflow-x: hidden;
       }
 
@@ -39,14 +72,11 @@
         width: 6px;
       }
       ::-webkit-scrollbar-track {
-        background: #1a1a24;
+        background: var(--c-scroll-track);
       }
       ::-webkit-scrollbar-thumb {
-        background: #3b3b4f;
+        background: var(--c-line-strong);
         border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #525270;
       }
 
       .toggle-container {
@@ -55,11 +85,8 @@
         gap: 10px;
         cursor: pointer;
         padding: 8px 0;
-        transition: opacity 0.2s;
+        transition: opacity var(--duration-hover);
         font-weight: 500;
-      }
-      .toggle-container:hover {
-        opacity: 0.9;
       }
 
       input[type='checkbox'] {
@@ -67,12 +94,12 @@
         -webkit-appearance: none;
         width: 40px;
         height: 20px;
-        background: #3f3f46;
+        background: var(--c-control);
         border-radius: 20px;
         position: relative;
         cursor: pointer;
         outline: none;
-        transition: background 0.3s ease;
+        transition: background var(--duration-toggle) ease;
         flex-shrink: 0;
       }
       input[type='checkbox']::after {
@@ -82,13 +109,13 @@
         left: 2px;
         width: 16px;
         height: 16px;
-        background: #fff;
+        background: var(--c-white);
         border-radius: 50%;
-        transition: transform 0.3s ease;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        transition: transform var(--duration-toggle) ease;
+        box-shadow: 0 2px 4px color-mix(in srgb, var(--c-shadow) 20%, transparent);
       }
       input[type='checkbox']:checked {
-        background: #6366f1;
+        background: var(--c-accent);
       }
       input[type='checkbox']:checked::after {
         transform: translateX(20px);
@@ -106,12 +133,12 @@
         justify-content: space-between;
         width: 100%;
         font-weight: 500;
-        color: #94a3b8;
+        color: var(--c-text-dim);
       }
       .field-value {
-        color: #f8fafc;
+        color: var(--c-text-strong);
         font-weight: 600;
-        background: #2d2d35;
+        background: var(--c-line);
         padding: 2px 6px;
         border-radius: 4px;
         font-size: 11px;
@@ -121,34 +148,31 @@
         width: 100%;
         padding: 8px 12px;
         border-radius: 6px;
-        background-color: #1e1e24;
-        border: 1px solid #3f3f46;
-        color: #f8fafc;
+        background-color: var(--c-field);
+        border: 1px solid var(--c-control);
+        color: var(--c-text-strong);
         font-family: 'Inter', sans-serif;
         font-size: 13px;
         font-weight: 500;
         cursor: pointer;
         outline: none;
-        transition: all 0.2s;
+        transition: all var(--duration-hover);
         appearance: none;
         background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2394a3b8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
         background-repeat: no-repeat;
         background-position: right 12px top 50%;
         background-size: 10px auto;
       }
-      select:hover {
-        border-color: #6366f1;
-      }
       select:focus {
-        border-color: #818cf8;
-        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+        border-color: var(--c-accent-light);
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-accent) 20%, transparent);
       }
 
       input[type='range'] {
         -webkit-appearance: none;
         width: 100%;
         height: 6px;
-        background: #3f3f46;
+        background: var(--c-control);
         border-radius: 3px;
         outline: none;
         margin-top: 4px;
@@ -159,22 +183,19 @@
         width: 16px;
         height: 16px;
         border-radius: 50%;
-        background: #6366f1;
+        background: var(--c-accent);
         cursor: pointer;
-        transition: transform 0.1s;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-      }
-      input[type='range']::-webkit-slider-thumb:hover {
-        transform: scale(1.2);
+        transition: transform var(--duration-press);
+        box-shadow: 0 2px 4px color-mix(in srgb, var(--c-shadow) 30%, transparent);
       }
       input[type='range']::-webkit-slider-thumb:active {
         transform: scale(1.1);
-        background: #818cf8;
+        background: var(--c-accent-light);
       }
 
       details.setting-group {
-        background: #18181f;
-        border: 1px solid #2d2d35;
+        background: var(--c-panel);
+        border: 1px solid var(--c-line);
         border-radius: 8px;
         margin-bottom: 12px;
         overflow: hidden;
@@ -183,10 +204,10 @@
         padding: 12px 14px;
         font-weight: 600;
         cursor: pointer;
-        background: #1e1e24;
+        background: var(--c-field);
         user-select: none;
         outline: none;
-        color: #f1f5f9;
+        color: var(--c-heading);
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -198,24 +219,21 @@
       details.setting-group > summary::after {
         content: '▼';
         font-size: 10px;
-        color: #64748b;
-        transition: transform 0.2s;
+        color: var(--c-muted);
+        transition: transform var(--duration-hover);
       }
       details.setting-group[open] > summary::after {
         transform: rotate(180deg);
       }
-      details.setting-group > summary:hover {
-        background: #25252c;
-      }
       .details-content {
         padding: 12px;
-        border-top: 1px solid #2d2d35;
+        border-top: 1px solid var(--c-line);
       }
 
       hr {
         margin: 20px 0;
         border: 0;
-        border-top: 1px solid #2d2d35;
+        border-top: 1px solid var(--c-line);
         display: none;
       }
 
@@ -223,11 +241,11 @@
         margin: 0 0 12px 0;
         font-size: 14px;
         text-align: center;
-        color: #f1f5f9;
+        color: var(--c-heading);
         font-weight: 600;
         letter-spacing: 0.5px;
         text-transform: uppercase;
-        background: linear-gradient(90deg, #818cf8, #c084fc);
+        background: linear-gradient(90deg, var(--c-accent-light), var(--c-tier-purple));
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
       }
@@ -242,23 +260,15 @@
         flex-direction: column;
         gap: 6px;
         font-size: 12px;
-        background: #18181f;
+        background: var(--c-panel);
         padding: 10px;
         border-radius: 8px;
-        border: 1px solid #2d2d35;
+        border: 1px solid var(--c-line);
         transition:
-          border-color 0.2s,
-          transform 0.2s;
-      }
-      .anim-grid label:hover {
-        border-color: #4b5563;
-        transform: translateY(-2px);
+          border-color var(--duration-hover),
+          transform var(--duration-hover);
       }
 
-      a:hover {
-        filter: brightness(1.2);
-        transform: translateY(-1px);
-      }
       a:active {
         transform: translateY(1px);
       }
@@ -267,9 +277,9 @@
         margin-top: 20px;
         width: 100%;
         padding: 10px;
-        background: #334155;
-        color: white;
-        border: 1px solid #475569;
+        background: var(--c-button);
+        color: var(--c-white);
+        border: 1px solid var(--c-button-line);
         border-radius: 6px;
         cursor: pointer;
         display: flex;
@@ -278,31 +288,27 @@
         gap: 8px;
         font-size: 14px;
         font-weight: 600;
-        transition: all 0.2s;
+        transition: all var(--duration-hover);
         font-family: 'Inter', sans-serif;
-      }
-      button:hover {
-        background: #475569;
-        border-color: #64748b;
       }
       button:active {
         transform: scale(0.98);
       }
       .version {
         font-size: 11px;
-        color: #94a3b8;
+        color: var(--c-text-dim);
       }
       .details-content > .toggle-container:first-child {
         padding-top: 0;
       }
       .toggle-text {
-        color: #cbd5e1;
+        color: var(--c-text-soft);
       }
       .hint {
         margin-top: 8px;
         font-size: 11px;
         line-height: 1.4;
-        color: #94a3b8;
+        color: var(--c-text-dim);
       }
       .header {
         display: flex;
@@ -317,8 +323,8 @@
       .title {
         margin: 0;
         font-size: 18px;
-        color: #f1f5f9;
-        background: linear-gradient(90deg, #818cf8, #c084fc);
+        color: var(--c-heading);
+        background: linear-gradient(90deg, var(--c-accent-light), var(--c-tier-purple));
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         font-weight: 700;
@@ -333,18 +339,18 @@
         align-items: center;
         justify-content: center;
         gap: 8px;
-        color: #818cf8;
+        color: var(--c-accent-light);
         text-decoration: none;
         font-weight: 500;
         padding: 8px;
-        background: #25252c;
+        background: var(--c-raised);
         border-radius: 6px;
-        border: 1px solid #3b3b4f;
-        transition: all 0.2s;
+        border: 1px solid var(--c-line-strong);
+        transition: all var(--duration-hover);
       }
       .support-caption {
         font-size: 11px;
-        color: #94a3b8;
+        color: var(--c-text-dim);
         text-align: center;
         margin-bottom: -4px;
       }
@@ -355,32 +361,32 @@
       .support-card {
         flex: 1;
         text-align: center;
-        color: #4ade80;
+        color: var(--c-tier-green);
         text-decoration: none;
         font-weight: 600;
         padding: 6px;
-        background: rgba(74, 222, 128, 0.1);
+        background: color-mix(in srgb, var(--c-tier-green) 10%, transparent);
         border-radius: 6px;
-        border: 1px solid rgba(74, 222, 128, 0.2);
-        transition: all 0.2s;
+        border: 1px solid color-mix(in srgb, var(--c-tier-green) 20%, transparent);
+        transition: all var(--duration-hover);
       }
       .tier {
         font-weight: 600;
       }
       .tier--red {
-        color: #f87171;
+        color: var(--c-tier-red);
       }
       .tier--yellow {
-        color: #fbbf24;
+        color: var(--c-tier-yellow);
       }
       .tier--purple {
-        color: #c084fc;
+        color: var(--c-tier-purple);
       }
       .tier--green {
-        color: #4ade80;
+        color: var(--c-tier-green);
       }
       .tier--white {
-        color: #e2e8f0;
+        color: var(--c-text);
       }
       .anim-grid .wide {
         grid-column: span 2;
@@ -392,125 +398,74 @@
       .special-thanks {
         margin-top: 16px;
         padding: 10px;
-        background: #1e1e24;
-        border: 1px dashed #3f3f46;
+        background: var(--c-field);
+        border: 1px dashed var(--c-control);
         border-radius: 8px;
         text-align: center;
       }
       .special-thanks-title {
         font-size: 11px;
-        color: #94a3b8;
+        color: var(--c-text-dim);
         margin-bottom: 4px;
       }
       .special-thanks strong {
-        color: #f1f5f9;
+        color: var(--c-heading);
       }
       .thanks-card {
         flex: 1;
         text-align: center;
-        color: #4ade80;
+        color: var(--c-tier-green);
         text-decoration: none;
         font-weight: 500;
         padding: 2px 4px;
         font-size: 10px;
-        background: rgba(74, 222, 128, 0.1);
+        background: color-mix(in srgb, var(--c-tier-green) 10%, transparent);
         border-radius: 4px;
-        border: 1px solid rgba(74, 222, 128, 0.2);
-        transition: all 0.2s;
-      }
-      .thanks-card:hover {
-        background: rgba(74, 222, 128, 0.2);
-        color: #86efac;
+        border: 1px solid color-mix(in srgb, var(--c-tier-green) 20%, transparent);
+        transition: all var(--duration-hover);
       }
       .special-thanks .support-row {
         margin-top: 6px;
-      }
-      [hidden] {
-        display: none !important;
-      }
-      .account {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-      }
-      .account-stats {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-      .stat {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 8px;
-      }
-      .stat-label {
-        color: #cbd5e1;
-      }
-      .stat-value {
-        color: #f8fafc;
-        font-size: 15px;
-        font-variant-numeric: tabular-nums;
-        text-align: right;
-      }
-      .stat-note {
-        margin-top: -4px;
-        font-size: 11px;
-        line-height: 1.4;
-        color: #94a3b8;
-      }
-      .stat-window {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        padding: 8px 10px;
-        border: 1px solid rgba(129, 140, 248, 0.4);
-        border-radius: 6px;
-        background: rgba(129, 140, 248, 0.08);
-      }
-      .stat-window-title {
-        font-weight: 700;
-        color: #818cf8;
-      }
-      .account-actions {
-        display: flex;
-        gap: 8px;
-      }
-      .account-button {
-        flex: 1 1 0;
-        width: auto;
-        margin-top: 0;
-        padding: 8px;
-        font: inherit;
-        font-weight: 600;
-        color: #818cf8;
-        cursor: pointer;
-        background: #25252c;
-        border: 1px solid #3b3b4f;
-        border-radius: 6px;
-        transition:
-          background 0.2s,
-          opacity 0.2s;
-      }
-      .account-button:hover:not(:disabled) {
-        background: #2d2d38;
-      }
-      .account-button:disabled {
-        opacity: 0.6;
-        cursor: default;
-      }
-      .account-button--quiet {
-        flex: 0 0 auto;
-        color: #94a3b8;
-      }
-      .hint--error {
-        color: #f87171;
       }
       .field-group--after-toggles {
         margin-top: 12px;
       }
       .toggle-container--separated {
         margin-top: 12px;
+      }
+
+      @media (hover: hover) {
+        ::-webkit-scrollbar-thumb:hover {
+          background: var(--c-scroll-thumb-hover);
+        }
+        .toggle-container:hover {
+          opacity: 0.9;
+        }
+        select:hover {
+          border-color: var(--c-accent);
+        }
+        input[type='range']::-webkit-slider-thumb:hover {
+          transform: scale(1.2);
+        }
+        details.setting-group > summary:hover {
+          background: var(--c-raised);
+        }
+        .anim-grid label:hover {
+          border-color: var(--c-line-hover);
+          transform: translateY(-2px);
+        }
+        a:hover {
+          filter: brightness(1.2);
+          transform: translateY(-1px);
+        }
+        button:hover {
+          background: var(--c-button-line);
+          border-color: var(--c-muted);
+        }
+        .thanks-card:hover {
+          background: color-mix(in srgb, var(--c-tier-green) 20%, transparent);
+          color: var(--c-green-light);
+        }
       }
     </style>
   </head>
@@ -540,47 +495,12 @@
       </div>
     </details>
 
-    <details class="setting-group" open>
-      <summary>Аккаунт</summary>
-      <div class="details-content account">
-        <div class="account-stats" id="accountStats" hidden>
-          <div class="stat">
-            <span class="stat-label">Карт на аккаунте</span>
-            <strong class="stat-value" id="accountCards">0</strong>
-          </div>
-          <div class="stat-note" id="accountCardsNote" hidden></div>
-          <div class="stat">
-            <span class="stat-label">Монет в банке</span>
-            <strong class="stat-value" id="accountBank">0</strong>
-          </div>
-          <div class="stat-note" id="accountBankNote" hidden></div>
-          <div class="stat-window" id="accountR" hidden>
-            <div class="stat-window-title">R</div>
-            <div class="stat">
-              <span class="stat-label">Карт</span>
-              <strong class="stat-value" id="accountRCards">0</strong>
-            </div>
-            <div class="stat">
-              <span class="stat-label">Монет</span>
-              <strong class="stat-value" id="accountRCoins">0</strong>
-            </div>
-            <div class="stat-note" id="accountRNote"></div>
-          </div>
-        </div>
-        <p class="hint" id="accountHint" aria-live="polite"></p>
-        <div class="account-actions">
-          <button type="button" class="account-button" id="accountLoad">Показать</button>
-          <button type="button" class="account-button account-button--quiet" id="accountClear" hidden>Забыть</button>
-        </div>
-      </div>
-    </details>
-
     <details class="setting-group">
       <summary>Основные & Внешний вид</summary>
       <div class="details-content">
         <label class="toggle-container">
           <input type="checkbox" id="commissionToggle" checked />
-          <span class="toggle-text">Учитывать комиссию (-20%)</span>
+          <span class="toggle-text">Учитывать комиссию (-<span data-commission-percent></span>%)</span>
         </label>
 
         <div class="field-group">
@@ -610,13 +530,13 @@
         </div>
 
         <div class="field-group">
-          <div class="field-title">Прозрачность фона: <span class="field-value" id="opacityValue">75%</span></div>
-          <input type="range" id="opacitySlider" min="0" max="100" value="75" />
+          <div class="field-title">Прозрачность фона: <span class="field-value" id="opacityValue"></span></div>
+          <input type="range" id="opacitySlider" min="0" max="100" />
         </div>
 
         <div class="field-group">
-          <div class="field-title">Размер текста: <span class="field-value" id="fontSizeValue">16px</span></div>
-          <input type="range" id="fontSizeSlider" min="9" max="24" value="16" />
+          <div class="field-title">Размер текста: <span class="field-value" id="fontSizeValue"></span></div>
+          <input type="range" id="fontSizeSlider" min="9" max="24" />
         </div>
       </div>
     </details>
@@ -641,8 +561,8 @@
           <span class="toggle-text">Показывать Выгоду/Потерю</span>
         </label>
         <div class="field-group field-group--after-toggles">
-          <div class="field-title">Размер текста в таблице: <span class="field-value" id="summaryFontSizeValue">12px</span></div>
-          <input type="range" id="summaryFontSizeSlider" min="6" max="24" value="12" />
+          <div class="field-title">Размер текста в таблице: <span class="field-value" id="summaryFontSizeValue"></span></div>
+          <input type="range" id="summaryFontSizeSlider" min="6" max="24" />
         </div>
       </div>
     </details>
@@ -655,8 +575,8 @@
           <span class="toggle-text">Показывать кнопку</span>
         </label>
         <div class="field-group">
-          <div class="field-title">Размер кнопки: <span class="field-value" id="copyBtnSizeValue">18px</span></div>
-          <input type="range" id="copyBtnSizeSlider" min="10" max="24" value="18" />
+          <div class="field-title">Размер кнопки: <span class="field-value" id="copyBtnSizeValue"></span></div>
+          <input type="range" id="copyBtnSizeSlider" min="10" max="24" />
         </div>
       </div>
     </details>
@@ -666,7 +586,7 @@
       <div class="details-content">
         <div class="anim-grid">
           <label>
-            <span class="tier tier--red">Красные (3.0+)</span>
+            <span class="tier tier--red">Красные (<span data-tier-range="red"></span>)</span>
             <select id="effectRed">
               <option value="">Нет</option>
               <option value="price-effect-pulse">Пульсация</option>
@@ -677,7 +597,7 @@
           </label>
 
           <label>
-            <span class="tier tier--yellow">Желтые (2.4+)</span>
+            <span class="tier tier--yellow">Желтые (<span data-tier-range="yellow"></span>)</span>
             <select id="effectYellow">
               <option value="">Нет</option>
               <option value="price-effect-pulse">Пульсация</option>
@@ -688,7 +608,7 @@
           </label>
 
           <label>
-            <span class="tier tier--purple">Фиолетовые (2.0+)</span>
+            <span class="tier tier--purple">Фиолетовые (<span data-tier-range="purple"></span>)</span>
             <select id="effectPurple">
               <option value="">Нет</option>
               <option value="price-effect-pulse">Пульсация</option>
@@ -699,7 +619,7 @@
           </label>
 
           <label>
-            <span class="tier tier--green">Зеленые (1.6+)</span>
+            <span class="tier tier--green">Зеленые (<span data-tier-range="green"></span>)</span>
             <select id="effectGreen">
               <option value="">Нет</option>
               <option value="price-effect-pulse">Пульсация</option>
@@ -710,7 +630,7 @@
           </label>
 
           <label class="wide">
-            <span class="tier tier--white">Белые (&lt; 1.6)</span>
+            <span class="tier tier--white">Белые (<span data-tier-range="white"></span>)</span>
             <select id="effectWhite">
               <option value="">Нет</option>
               <option value="price-effect-pulse">Пульсация</option>
@@ -728,10 +648,23 @@
       <div class="details-content">
         <label class="toggle-container">
           <input type="checkbox" id="valueBySplitToggle" />
-          <span class="toggle-text">Ценность в F по расколу (×2)</span>
+          <span class="toggle-text">Ценность в F по расколу (×<span data-rate="split"></span>)</span>
         </label>
         <p class="hint">
-          Выключено: по крафту, 3 карты в 1 рангом выше, ×3 за ранг. Включено: по расколу, 1 карта в 2 рангом ниже, ×2 за ранг. Влияет на итог обмена и осколки.
+          Выключено: по крафту, <span data-rate="craft"></span> карты в 1 рангом выше, ×<span data-rate="craft"></span> за ранг. Включено: по расколу, 1 карта в
+          <span data-rate="split"></span> рангом ниже, ×<span data-rate="split"></span> за ранг. Влияет на итог обмена, осколки и ценность профиля.
+        </p>
+
+        <div class="field-group">
+          <div class="field-title">Ценность в F считать по:</div>
+          <select id="valueBasisSelect">
+            <option value="bank">Банку (цены карт)</option>
+            <option value="cards">Картам (количество)</option>
+          </select>
+        </div>
+        <p class="hint">
+          По банку: цена каждой карты (с комиссией, если она включена) × её ранг. По картам: каждая карта считается по рангу, цены не учитываются. Влияет на
+          итог обмена, осколки и ценность профиля. Для R итог считается в монетах или в штуках.
         </p>
 
         <label class="toggle-container toggle-container--separated">

@@ -1,3 +1,4 @@
+import { debugLogger } from './debug';
 import type { CardRef } from './trade-value';
 
 export const TRADES_EVENT = 'senkutools:trades';
@@ -49,6 +50,7 @@ interface GraphUser {
 interface GraphPreview {
   quantity?: number;
   shard?: boolean | number;
+  slug?: string;
   card?: { slug?: string };
 }
 
@@ -70,22 +72,31 @@ interface ServerPayload {
 
 type CapturingWindow = Window & typeof globalThis & { __SENKURO__?: ServerPayload };
 
-const preview = (item: GraphPreview | undefined): CardRef => ({ slug: item?.card?.slug ?? null, quantity: item?.quantity ?? 1, shard: Boolean(item?.shard) });
+const preview = (item: GraphPreview | undefined): CardRef => ({
+  slug: item?.card?.slug ?? item?.slug ?? null,
+  quantity: item?.quantity ?? 1,
+  shard: Boolean(item?.shard),
+});
 
 const previews = (list: unknown): CardRef[] | null => (Array.isArray(list) ? (list as (GraphPreview | undefined)[]).map(preview) : null);
 
 const person = (user: GraphUser | undefined): Person => ({ id: user?.id ?? null, name: user?.name ?? '' });
 
+function kindOf(node: GraphNode): CapturedItem['kind'] | null {
+  if (node.__typename === 'CardTrade') return 'trade';
+  if (node.__typename === 'CardOffer') return 'offer';
+  if (node.__typename !== undefined) return null;
+  if (node.source && node.destination) return 'trade';
+  return node.user && typeof node.viewerDidAuthor === 'boolean' ? 'offer' : null;
+}
+
 function describe(node: GraphNode): CapturedItem | null {
   const offer = previews(node.offer);
   const request = previews(node.request);
   if (!node.id || !offer || !request) return null;
-  if (node.__typename === 'CardTrade') {
-    return { kind: 'trade', id: node.id, source: person(node.source), destination: person(node.destination), offer, request };
-  }
-  if (node.__typename === 'CardOffer') {
-    return { kind: 'offer', id: node.id, author: person(node.user), viewerDidAuthor: Boolean(node.viewerDidAuthor), offer, request };
-  }
+  const kind = kindOf(node);
+  if (kind === 'trade') return { kind, id: node.id, source: person(node.source), destination: person(node.destination), offer, request };
+  if (kind === 'offer') return { kind, id: node.id, author: person(node.user), viewerDidAuthor: Boolean(node.viewerDidAuthor), offer, request };
   return null;
 }
 
@@ -146,7 +157,7 @@ const requestUrl = (input: unknown): string => {
   return (input as { url?: string } | null)?.url ?? '';
 };
 
-export const isGraphqlRequest = (input: unknown, base: string): boolean => {
+const isGraphqlRequest = (input: unknown, base: string): boolean => {
   try {
     return new URL(requestUrl(input), base).pathname.endsWith('/graphql');
   } catch {
@@ -155,6 +166,7 @@ export const isGraphqlRequest = (input: unknown, base: string): boolean => {
 };
 
 export function installCapture(win: CapturingWindow): void {
+  const debug = debugLogger(win);
   const store = createTradeStore();
   const publish = (found: Capture) => win.document.dispatchEvent(new win.CustomEvent(TRADES_EVENT, { detail: JSON.stringify(found) }));
   const take = (found: Capture) => {
@@ -163,36 +175,33 @@ export function installCapture(win: CapturingWindow): void {
     publish(found);
   };
   const handle = (json: unknown) => {
-    if (json) take(captureTrades(json));
-  };
-  const later = (json: unknown) => {
-    Promise.resolve(json)
-      .then(handle)
-      .catch(() => null);
+    if (!json) return;
+    const found = captureTrades(json);
+    debug('answer read', { top: Object.keys((json as { data?: object }).data ?? json), items: found.items.length, viewer: Boolean(found.viewerId) });
+    take(found);
   };
 
-  const observe = (response: Response): Response => {
-    const readJson = response.json.bind(response);
-    const readText = response.text.bind(response);
-    response.json = () =>
-      readJson().then((value: unknown) => {
-        later(value);
-        return value;
-      });
-    response.text = () =>
-      readText().then((value) => {
-        later(parseJson(value));
-        return value;
-      });
-    return response;
+  const readCopy = async (response: Response): Promise<void> => {
+    try {
+      const text = await response.clone().text();
+      win.setTimeout(() => handle(parseJson(text)));
+    } catch (error) {
+      debug('answer not read', error instanceof Error ? error.name : String(error));
+    }
   };
 
   const nativeFetch = win.fetch.bind(win);
   win.fetch = (...args: Parameters<typeof fetch>) => {
     const pending = nativeFetch(...args);
     if (!isGraphqlRequest(args[0], win.location.href)) return pending;
-    return pending.then((response) => (STREAMED.test(response.headers.get('content-type') ?? '') ? response : observe(response)));
+    return pending.then(async (response) => {
+      const type = response.headers.get('content-type') ?? '';
+      debug('graphql answer', { status: response.status, type, streamed: STREAMED.test(type) });
+      if (!STREAMED.test(type)) await readCopy(response);
+      return response;
+    });
   };
+  debug('capture installed', win.document.readyState);
 
   win.document.addEventListener(REPLAY_EVENT, () => {
     captureServerPayload(win.__SENKURO__).forEach((found) => store.add(found));

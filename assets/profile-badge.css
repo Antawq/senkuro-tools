@@ -1,37 +1,21 @@
-/* Elevation rules so profile header and popover always paint ABOVE client-body cards */
-.client-top,
-.client-panel,
-.client-panel__info,
-.client-header {
-  position: relative !important;
-  z-index: 100 !important;
-}
-
-.client-header header {
-  position: relative !important;
-  z-index: 100 !important;
-  display: flex !important;
-  align-items: center !important;
-  flex-wrap: nowrap !important;
-  gap: 10px !important;
-}
-
 .senkuro-profile-f-chip {
   --senkuro-chip-fill: var(--bg-tertiary, color-mix(in srgb, var(--text-primary) 8%, transparent));
   --senkuro-chip-hover: var(--bg-secondary, color-mix(in srgb, var(--text-primary) 14%, transparent));
   --senkuro-chip-line: var(--border-secondary, color-mix(in srgb, var(--text-primary) 15%, transparent));
-  --senkuro-popover-bg: var(--bg-other, #202023);
+  --senkuro-popover-bg: var(--bg-other, var(--senkuro-fallback-surface));
   --senkuro-popover-line: var(--border-tertiary, color-mix(in srgb, var(--text-primary) 12%, transparent));
   --senkuro-radius-sm: var(--border-radius-sm, 8px);
   --senkuro-radius-md: var(--border-radius-md, 12px);
+  --senkuro-popover-gap: 8px;
+  --senkuro-popover-width: min(300px, calc(100vw - 2 * var(--senkuro-gutter)));
 
-  display: inline-flex !important;
-  align-items: center !important;
-  flex: none !important;
-  margin: 0 0 0 6px !important;
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  margin: 0 0 0 6px;
   vertical-align: middle;
-  position: relative !important;
-  z-index: 500 !important;
+  position: relative;
+  z-index: 500;
   height: 28px;
   padding: 0 10px;
   box-sizing: border-box;
@@ -39,24 +23,34 @@
   border: 1px solid var(--senkuro-chip-line);
   border-radius: var(--senkuro-radius-sm);
   cursor: pointer;
-  user-select: none;
   font: inherit;
   font-size: 1.2rem;
   font-weight: 600;
   color: var(--text-primary);
-  backdrop-filter: blur(12px);
-  box-shadow: var(--box-shadow, -4px 4px 15px 0 rgba(0, 0, 0, 0.2));
+  box-shadow: var(--box-shadow, -4px 4px 15px 0 color-mix(in srgb, var(--senkuro-shade) 20%, transparent));
   transition:
-    background var(--transition, 0.2s ease),
-    border-color var(--transition, 0.2s ease),
-    box-shadow var(--transition, 0.2s ease);
+    background var(--transition, var(--senkuro-hover) ease),
+    border-color var(--transition, var(--senkuro-hover) ease),
+    box-shadow var(--transition, var(--senkuro-hover) ease);
   white-space: nowrap;
 }
 
-.senkuro-profile-f-chip:hover {
-  background: var(--senkuro-chip-hover);
-  border-color: var(--accent);
-  box-shadow: 0 4px 16px var(--accent-tertiary, color-mix(in srgb, var(--accent) 20%, transparent));
+@media (hover: hover) {
+  .senkuro-profile-f-chip:hover {
+    background: var(--senkuro-chip-hover);
+    border-color: var(--accent);
+    box-shadow: 0 4px 16px var(--accent-tertiary, color-mix(in srgb, var(--accent) 20%, transparent));
+  }
+
+  .senkuro-profile-f-chip:hover .senkuro-profile-f-popover {
+    display: block;
+  }
+
+  .senkuro-popover-refresh:hover {
+    background: var(--accent);
+    color: var(--senkuro-white);
+    border-color: var(--accent-hover, var(--accent));
+  }
 }
 
 .senkuro-f-chip-content {
@@ -72,13 +66,15 @@
   border: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
   border-top-color: var(--accent);
   border-radius: 50%;
-  animation: senkuro-spin 0.75s linear infinite;
+  animation: senkuro-spin var(--senkuro-spin-period) linear infinite;
   flex-shrink: 0;
   vertical-align: middle;
 }
 
 @keyframes senkuro-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .senkuro-f-value {
@@ -90,7 +86,7 @@
 .senkuro-chip-arrow {
   display: inline-block;
   color: var(--text-tertiary);
-  transition: transform var(--transition, 0.2s ease);
+  transition: transform var(--transition, var(--senkuro-hover) ease);
   flex-shrink: 0;
   vertical-align: middle;
 }
@@ -100,12 +96,17 @@
 }
 
 @keyframes senkuro-pulse-f {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .senkuro-profile-f-chip.senkuro-loading {
-  animation: senkuro-pulse-f 1.4s infinite ease-in-out;
+  animation: senkuro-pulse-f var(--senkuro-breathe-period) infinite ease-in-out;
   border-color: var(--accent-secondary, color-mix(in srgb, var(--accent) 40%, transparent));
 }
 
@@ -114,30 +115,42 @@
   color: var(--error);
 }
 
-/* Native Senkuro Popover Menu */
 .senkuro-profile-f-popover {
   display: none;
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + var(--senkuro-popover-gap));
   left: 0;
-  z-index: 999999 !important;
-  background: var(--senkuro-popover-bg) !important;
-  border: 1px solid var(--senkuro-popover-line) !important;
-  border-radius: var(--senkuro-radius-md) !important;
+  z-index: 999999;
+  box-sizing: border-box;
+  width: max-content;
+  min-width: var(--senkuro-popover-width);
+  max-width: calc(100vw - 2 * var(--senkuro-gutter));
+  translate: var(--senkuro-popover-shift, 0);
+  background: var(--senkuro-popover-bg);
+  border: 1px solid var(--senkuro-popover-line);
+  border-radius: var(--senkuro-radius-md);
   padding: 12px 14px;
-  min-width: 300px;
-  box-shadow: var(--box-shadow, -4px 4px 20px 0 rgba(0, 0, 0, 0.4)), 0 16px 40px rgba(0, 0, 0, 0.8) !important;
-  backdrop-filter: blur(16px);
+  box-shadow:
+    var(--box-shadow, -4px 4px 20px 0 color-mix(in srgb, var(--senkuro-shade) 40%, transparent)),
+    0 16px 40px color-mix(in srgb, var(--senkuro-shade) 80%, transparent);
   color: var(--text-secondary);
   font: inherit;
   font-size: 1.2rem;
   line-height: 1.45;
+  white-space: normal;
   cursor: default;
-  user-select: text !important;
 }
 
-.senkuro-profile-f-chip.senkuro-popover-active .senkuro-profile-f-popover,
-.senkuro-profile-f-chip:hover .senkuro-profile-f-popover {
+.senkuro-profile-f-popover::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  left: 0;
+  height: var(--senkuro-popover-gap);
+}
+
+.senkuro-profile-f-chip.senkuro-popover-active .senkuro-profile-f-popover {
   display: block;
 }
 
@@ -155,7 +168,6 @@
   gap: 7px;
   font-size: 1.25rem;
   color: var(--text-primary);
-  user-select: text !important;
 }
 
 .senkuro-f-accent {
@@ -176,13 +188,7 @@
   line-height: 1;
   padding: 4px 6px;
   cursor: pointer;
-  transition: all var(--transition, 0.15s ease);
-}
-
-.senkuro-popover-refresh:hover {
-  background: var(--accent);
-  color: #ffffff;
-  border-color: var(--accent-hover, var(--accent));
+  transition: all var(--transition, var(--senkuro-hover) ease);
 }
 
 .senkuro-popover-meta {
@@ -191,7 +197,6 @@
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border-secondary, color-mix(in srgb, var(--text-primary) 12%, transparent));
   margin-bottom: 8px;
-  user-select: text !important;
 }
 
 .senkuro-popover-meta strong {
@@ -202,7 +207,6 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  user-select: text !important;
 }
 
 .senkuro-popover-row {
@@ -217,26 +221,22 @@
   border-radius: 4px;
   padding: 2px 4px;
   margin: 0 -4px;
-  user-select: text !important;
 }
 
 .senkuro-row-label {
   color: var(--text-tertiary);
   font-weight: 500;
   white-space: nowrap;
-  user-select: text !important;
 }
 
 .senkuro-row-val {
   color: var(--text-primary);
   font-weight: 600;
   text-align: right;
-  word-break: break-word;
-  user-select: text !important;
+  overflow-wrap: anywhere;
 }
 
 .senkuro-rank-r {
-  color: var(--guild-color-ruby, var(--error, #ff7f71));
+  color: var(--guild-color-ruby, var(--error, var(--senkuro-fallback-error)));
   font-weight: 700;
 }
-

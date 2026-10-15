@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_SETTINGS } from '../utils/settings';
 import { REPLAY_EVENT, createTradeStore } from '../utils/trade-capture';
-import { updateTradeSummaries } from '../utils/trade-summary';
+import { isTradeMutation, updateTradeSummaries } from '../utils/trade-summary';
 
 const db = {
   's-card': { price: 1.25, rank: 'S' },
@@ -136,6 +136,26 @@ describe('updateTradeSummaries', () => {
     });
   });
 
+  it('sums the cards by their rank alone when the value follows the cards', () => {
+    const el = modal('Выбери до 50 карт', constructorFooter([card('a-card', 2)], [card('s-card')]));
+    updateTradeSummaries(db, { ...settings, valueBasis: 'cards' }, store);
+    expect(summaryOf(el)).toEqual({
+      sides: ['Получаешь 162F Банк 2.4A Карты 2A', 'Отдаёшь 243F Банк 1S Карты 1S'],
+      verdict: 'Потеря -81F (-33%)',
+      grayVerdict: false,
+    });
+  });
+
+  it('draws the total again when the basis is switched', () => {
+    const el = modal('Выбери до 50 карт', constructorFooter([card('a-card', 2)], [card('s-card')]));
+    updateTradeSummaries(db, settings, store);
+    expect(summaryOf(el).verdict).toBe('Потеря -48.6F (-20%)');
+    updateTradeSummaries(db, { ...settings, valueBasis: 'cards' }, store);
+    expect(summaryOf(el).verdict).toBe('Потеря -81F (-33%)');
+    updateTradeSummaries(db, { ...settings, valueBasis: 'bank' }, store);
+    expect(summaryOf(el).verdict).toBe('Потеря -48.6F (-20%)');
+  });
+
   it('keeps the exact selection on the own review step where only three cards per side are drawn', () => {
     const offers = [card('s-card'), card('s-card'), card('s-card'), card('f-card'), card('f-card')];
     const el = modal('Выбери до 50 карт', constructorFooter([card('a-card')], offers));
@@ -181,16 +201,44 @@ describe('updateTradeSummaries', () => {
     expect(summaryOf(el).sides).toEqual([skySides[0], 'Отдаёшь 63F Банк 1.6B 2.2C 2X Карты 1B 2C 2X']);
   });
 
-  it('marks the cards an incoming trade does not draw as gray X', () => {
+  it('marks the cards an incoming trade does not draw as gray X and explains the mark', () => {
     const offers = [card('s-card'), card('s-card'), card('f-card')];
     const el = modal('Прими решение обмена', reviewBody(panel('Отправитель', 6, offers), panel('Я', 1, [card('s-card')])) + reviewFooter);
     updateTradeSummaries(db, settings, store);
     expect(summaryOf(el)).toEqual({
       sides: ['Получаешь 487F Банк 2S 1F 3X Карты 2S 1F 3X', 'Отдаёшь 243F Банк 1S Карты 1S'],
       verdict: 'Выгода +244F (+100%)',
-      grayVerdict: true,
+      grayVerdict: false,
     });
     expect(el.querySelector('.senkuro-trade-summary__cell strong.senkuro-trade-summary__unknown').textContent).toBe('487F');
+    expect(el.querySelector('.senkuro-trade-summary__verdict').classList.contains('senkuro-trade-summary__verdict--gain')).toBe(true);
+    expect(el.querySelector('.senkuro-trade-summary__panel > .senkuro-trade-summary__unknown').textContent).toBe('X - нет цены в базе');
+  });
+
+  it('colours a loss red when cards without a price sit next to priced ones', () => {
+    const el = modal('Прими решение обмена', reviewBody(panel('Отправитель', 3, [card('f-card')]), panel('Я', 1, [card('s-card')])) + reviewFooter);
+    updateTradeSummaries(db, settings, store);
+    expect(summaryOf(el)).toMatchObject({ verdict: 'Потеря -242F (-100%)', grayVerdict: false });
+    expect(el.querySelector('.senkuro-trade-summary__verdict').classList.contains('senkuro-trade-summary__verdict--loss')).toBe(true);
+  });
+
+  it('keeps the verdict gray when a whole side has no price to compare', () => {
+    const el = modal('Прими решение обмена', reviewBody(panel('Отправитель', 1, [card('missing')]), panel('Я', 1, [card('s-card')])) + reviewFooter);
+    updateTradeSummaries(db, settings, store);
+    expect(summaryOf(el)).toMatchObject({ grayVerdict: true });
+    expect(el.querySelector('.senkuro-trade-summary__verdict--loss')).toBeNull();
+  });
+
+  it('leaves the X legend out when every card has a price', () => {
+    const el = modal('Выбери до 50 карт', constructorFooter([card('a-card', 2)], [card('s-card')]));
+    updateTradeSummaries(db, settings, store);
+    expect(el.querySelector('.senkuro-trade-summary__panel > .senkuro-trade-summary__unknown')).toBeNull();
+  });
+
+  it('leaves the X legend out when neither row that shows X is on', () => {
+    const el = modal('Прими решение обмена', reviewBody(panel('Отправитель', 4, [card('s-card')]), panel('Я', 1, [card('s-card')])) + reviewFooter);
+    updateTradeSummaries(db, { ...settings, showSummaryBank: false, showSummaryCards: false }, store);
+    expect(el.querySelector('.senkuro-trade-summary__panel > .senkuro-trade-summary__unknown')).toBeNull();
   });
 
   it('takes the whole incoming trade from the site responses instead of gray X', () => {
@@ -207,7 +255,7 @@ describe('updateTradeSummaries', () => {
     const el = modal('', constructorFooter([card('s-card', 5, true), card('a-card')], [card('missing')]));
     updateTradeSummaries(db, settings, store);
     expect(summaryOf(el)).toEqual({
-      sides: ['Получаешь 218.7F Банк 1.2A Карты 1A 5oS', 'Отдаёшь 0F Банк 1X Карты 1X'],
+      sides: ['Получаешь 218.7F Банк 1.2A 0.5oS Карты 1A 5oS', 'Отдаёшь 0F Банк 1X Карты 1X'],
       verdict: 'Выгода +218.7F',
       grayVerdict: true,
     });
@@ -422,7 +470,7 @@ describe('R window', () => {
 });
 
 describe('summary variants', () => {
-  const offerCard = () => {
+  const offerCard = (markup) => {
     store.add({
       items: [
         {
@@ -437,19 +485,43 @@ describe('summary variants', () => {
     });
     const el = document.createElement('div');
     el.className = 'offer-card';
-    el.innerHTML = `
-      <div class="offer-card__top"><h3><span>Smile</span></h3><div class="offer-card__top-list">${card('f-card')}</div></div>
-      <div class="offer-card__cnt"><div class="offer-card__cnt-list">${card('s-card')}</div></div>`;
+    el.innerHTML = markup;
     document.body.append(el);
     return el;
   };
 
-  it('marks the summary of a fast trade so that it can be a block of its own', () => {
-    const el = offerCard();
+  const top = `<div class="offer-card__top"><h3><span>Smile</span></h3><div class="offer-card__top-list">${card('f-card')}</div></div>`;
+  const list = `<div class="offer-card__cnt-list">${card('s-card')}</div>`;
+
+  it('puts the summary of a fast trade at the end of the surface of the card', () => {
+    const el = offerCard(`${top}<div class="offer-card__cnt">${list}<button>Предложить карты</button></div>`);
     updateTradeSummaries(db, settings, store);
-    const classes = el.querySelector('.senkuro-trade-summary').classList;
-    expect(classes.contains('senkuro-trade-summary--offer')).toBe(true);
-    expect(classes.contains('senkuro-trade-summary--end')).toBe(true);
+    const summary = el.querySelector('.offer-card__cnt > .senkuro-trade-summary');
+    expect(summary).not.toBeNull();
+    expect(summary.parentElement.lastElementChild).toBe(summary);
+    expect(summary.classList.contains('senkuro-trade-summary--offer')).toBe(true);
+    expect(summary.classList.contains('senkuro-trade-summary--end')).toBe(true);
+    expect(el.querySelector(':scope > .senkuro-trade-summary')).toBeNull();
+  });
+
+  it('stays below the header when a wrapper holds the header and the surface together', () => {
+    const el = offerCard(`<div class="wrapper">${top}<div class="offer-card__cnt"><div class="inner">${list}</div></div></div>`);
+    updateTradeSummaries(db, settings, store);
+    expect(el.querySelector('.offer-card__cnt > .senkuro-trade-summary')).not.toBeNull();
+    expect(el.querySelector('.wrapper > .senkuro-trade-summary')).toBeNull();
+  });
+
+  it('falls back to the card itself when it has no surface of its own inside', () => {
+    const el = offerCard(`${top}${list}`);
+    updateTradeSummaries(db, settings, store);
+    expect(el.querySelector(':scope > .senkuro-trade-summary')).not.toBeNull();
+  });
+
+  it('keeps a single summary in the card across updates', () => {
+    const el = offerCard(`${top}<div class="offer-card__cnt">${list}</div>`);
+    updateTradeSummaries(db, settings, store);
+    updateTradeSummaries(db, settings, store);
+    expect(el.querySelectorAll('.senkuro-trade-summary')).toHaveLength(1);
   });
 
   it('leaves the summaries of modals, history entries and notifications as they are', () => {
@@ -600,5 +672,71 @@ describe('trade lists outside the modal', () => {
     document.body.append(el);
     updateTradeSummaries(db, settings, store);
     expect(summaryOf(el)).toEqual({ sides: skySides, verdict: 'Потеря -67.6F (-78%)', grayVerdict: false });
+  });
+});
+
+describe('isTradeMutation', () => {
+  const recordsOf = (act) => {
+    const observer = new MutationObserver(() => undefined);
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    act();
+    const records = observer.takeRecords();
+    observer.disconnect();
+    return records;
+  };
+
+  const fastTrade = () => {
+    const el = document.createElement('div');
+    el.className = 'offer-card';
+    el.innerHTML = `
+      <div class="offer-card__top"><h3><span>Smile</span></h3><div class="offer-card__top-list">${card('s-card')}</div></div>
+      <div class="offer-card__cnt"><div class="offer-card__cnt-list">${card('f-card')}</div></div>`;
+    return el;
+  };
+
+  it('notices a fast trade card drawn into a list', () => {
+    const list = document.createElement('div');
+    document.body.append(list);
+    expect(recordsOf(() => list.append(fastTrade())).some(isTradeMutation)).toBe(true);
+  });
+
+  it('notices a trade window that opens', () => {
+    expect(recordsOf(() => modal('Прими решение обмена', reviewFooter)).some(isTradeMutation)).toBe(true);
+  });
+
+  it('notices new counters on a notification, which draws no cards', () => {
+    const el = document.createElement('div');
+    el.className = 'card-notif';
+    el.innerHTML = '<div class="card-notif__info"><div class="card-notif__info-hint">Получишь 4 • Отдашь 5</div></div>';
+    document.body.append(el);
+    const hint = el.querySelector('.card-notif__info-hint').firstChild;
+    expect(recordsOf(() => (hint.data = 'Получишь 2 • Отдашь 1')).some(isTradeMutation)).toBe(true);
+  });
+
+  it('ignores cards drawn anywhere else', () => {
+    const list = document.createElement('div');
+    document.body.append(list);
+    expect(recordsOf(() => (list.innerHTML = card('s-card'))).some(isTradeMutation)).toBe(false);
+  });
+
+  it('ignores the summaries it draws itself, so a second pass changes nothing', () => {
+    store.add({
+      items: [
+        {
+          kind: 'offer',
+          id: 'o1',
+          author: { id: 'u3', name: 'Smile' },
+          viewerDidAuthor: false,
+          offer: previews([['f-card', 1]]),
+          request: previews([['s-card', 1]]),
+        },
+      ],
+    });
+    const el = fastTrade();
+    document.body.append(el);
+    const first = recordsOf(() => updateTradeSummaries(db, settings, store));
+    expect(summaryOf(el)).not.toBeNull();
+    expect(first.some(isTradeMutation)).toBe(false);
+    expect(recordsOf(() => updateTradeSummaries(db, settings, store))).toEqual([]);
   });
 });

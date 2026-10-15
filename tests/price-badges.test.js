@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { visibleName } from '../utils/copy-button';
 import { createPriceBadges } from '../utils/price-badges';
 import { DEFAULT_SETTINGS } from '../utils/settings';
 
@@ -70,25 +71,64 @@ describe('createPriceBadges', () => {
     expect(positionVars(holder)).toEqual({ ...AXIS_X.left, ...AXIS_Y.top });
   });
 
-  it('moves the price to the left edge in the trade fan where the next card covers the right one', () => {
-    render(`<div class="modal-trade__swap-cards">${preview()}${preview()}${preview()}</div>`);
-    const holders = [...document.querySelectorAll('.card-collect-preview')];
-    expect(holders.map((holder) => holder.dataset.badgePos)).toEqual(['left-center', 'left-center', 'left-center']);
-    expect(holders[0].style.getPropertyValue('--s-left')).toBe('5px');
-    expect(holders[0].style.getPropertyValue('--s-right')).toBe('');
-    expect(document.querySelectorAll('[data-senkuro-price]')).toHaveLength(3);
-  });
+  const stacked = (cls, layer) => preview().replace('class="card-collect-preview"', `class="card-collect-preview ${cls}" style="z-index: ${layer}"`);
+  const fan = (layers) =>
+    `<div class="modal-trade__swap-cards">${layers.map((layer) => stacked('modal-trade__card', layer)).join('')}<div class="modal-trade__swap-tag" style="z-index: 4"></div></div>`;
+  const offerList = (cards, more) =>
+    `<div class="offer-card__cnt-list">${stacked('offer-card__cnt-el', 2).repeat(cards)}${more ? '<div class="offer-card__cnt-el offer-card__cnt-el-more" style="z-index: 4">+6</div>' : ''}</div>`;
+  const positions = () => [...document.querySelectorAll('.card-collect-preview')].map((holder) => holder.dataset.badgePos);
 
-  it('overrides the chosen corner in the trade fan', () => {
-    document.body.innerHTML = `<div class="modal-trade__swap-cards">${preview()}</div>`;
+  it('follows the chosen position on a trade fan card that nothing covers', () => {
+    document.body.innerHTML = fan([2]);
     createPriceBadges({ onImageLoad: () => {}, touch: false }).update(db, { ...DEFAULT_SETTINGS, positionX: 'center', positionY: 'top' });
-    expect(document.querySelector('.card-collect-preview').dataset.badgePos).toBe('left-center');
+    expect(positions()).toEqual(['center-top']);
   });
 
-  it('puts the copy button on the same edge as the badge in the trade fan', () => {
-    document.body.innerHTML = `<div class="modal-trade__swap-cards">${preview()}</div>`;
+  it('moves only the covered trade fan cards to their visible left edge and keeps the chosen height', () => {
+    render(fan([2, 1, 3]));
+    expect(positions()).toEqual(['left-bottom', 'left-bottom', 'right-bottom']);
+    render(fan([2, 1]));
+    expect(positions()).toEqual(['right-bottom', 'left-bottom']);
+  });
+
+  it('moves every offer card but the last to its visible left edge', () => {
+    render(offerList(2, false));
+    expect(positions()).toEqual(['left-bottom', 'right-bottom']);
+  });
+
+  it('treats the card under the "+N" tile of an offer as covered too', () => {
+    render(offerList(3, true));
+    expect(positions()).toEqual(['left-bottom', 'left-bottom', 'left-bottom']);
+  });
+
+  it('puts the copy button on the same edge as the badge of a covered card', () => {
+    document.body.innerHTML = offerList(2, false);
     createPriceBadges({ onImageLoad: () => {}, touch: false }).update(db, { ...DEFAULT_SETTINGS, copyBtn: true });
-    expect(document.querySelector('.senkuro-copy-btn').dataset.btnPos).toBe('left-center');
+    expect([...document.querySelectorAll('.senkuro-copy-btn')].map((button) => button.dataset.btnPos)).toEqual(['left-bottom', 'right-bottom']);
+  });
+
+  it.each([
+    ['bottom', '--s-bottom', 'calc(5px + 20px)'],
+    ['center', '--s-mt', 'calc(-12px + -10px)'],
+    ['top', '--s-top', '5px'],
+  ])('measures the %s position from the card art, not from a taller card box', (positionY, prop, value) => {
+    document.body.innerHTML = fan([2]);
+    const root = document.querySelector('.card-collect-preview');
+    const face = root.querySelector('.card-collect-preview__flip-container');
+    Object.defineProperty(root, 'offsetHeight', { value: 170 });
+    Object.defineProperties(face, { offsetParent: { value: root }, offsetTop: { value: 0 }, offsetHeight: { value: 150 } });
+    createPriceBadges({ onImageLoad: () => {}, touch: false }).update(db, { ...DEFAULT_SETTINGS, positionY, copyBtn: true });
+    expect(root.style.getPropertyValue(prop)).toBe(value);
+    const button = root.querySelector('.senkuro-copy-btn');
+    expect(positionY === 'center' ? button.style.marginTop : button.style[positionY]).toBe(value);
+  });
+
+  it('copies a card name without the invisible characters some names carry', () => {
+    expect(visibleName('Элия\u200b Крисанакс')).toBe('Элия Крисанакс');
+    expect(visibleName('\u200eСоран\u200b ')).toBe('Соран');
+    document.body.innerHTML = preview();
+    createPriceBadges({ onImageLoad: () => {}, touch: false }).update({ soran: { ...db.soran, name: 'Со\u200bран' } }, { ...DEFAULT_SETTINGS, copyBtn: true });
+    expect(document.querySelector('.senkuro-copy-btn').dataset.charName).toBe('Соран');
   });
 
   it('prices card immediately even before its image loads or without img src', () => {
@@ -101,6 +141,29 @@ describe('createPriceBadges', () => {
     expect(holder.getAttribute('data-senkuro-price')).toBe('1.00');
   });
 
+  const renderAtWidth = (width) => {
+    document.body.innerHTML = preview();
+    for (const link of document.querySelectorAll('a.card-collect')) Object.defineProperty(link, 'offsetWidth', { value: width });
+    createPriceBadges({ onImageLoad: () => {}, touch: false }).update(db, DEFAULT_SETTINGS);
+  };
+
+  it('leaves a thumbnail too narrow for a readable price without one', () => {
+    renderAtWidth(24);
+    expect(document.querySelector('[data-senkuro-price]')).toBeNull();
+  });
+
+  it('prices the 36px cards of notifications', () => {
+    renderAtWidth(36);
+    expect(document.querySelector('[data-senkuro-price]')?.getAttribute('data-senkuro-price')).toBe('1.00');
+  });
+
+  it('still prices a small card that has room for the price, in a smaller font', () => {
+    renderAtWidth(50);
+    const holder = document.querySelector('[data-senkuro-price]');
+    expect(holder?.getAttribute('data-senkuro-price')).toBe('1.00');
+    expect(Number.parseFloat(holder?.style.getPropertyValue('--s-size') ?? '')).toBeLessThan(DEFAULT_SETTINGS.fontSize);
+  });
+
   it('prices only the provided batch of cards when specified', () => {
     document.body.innerHTML = `
       <div id="c1" class="card-collect-preview"><div class="card-collect-preview__front"><a class="card-collect" href="/cards/soran"></a></div></div>
@@ -111,4 +174,3 @@ describe('createPriceBadges', () => {
     expect(document.querySelector('#c2').hasAttribute('data-senkuro-price')).toBe(false);
   });
 });
-

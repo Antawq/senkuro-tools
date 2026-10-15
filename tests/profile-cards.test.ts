@@ -1,12 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  calculateProfileValue,
-  extractProfileSlug,
-  fetchProfileCards,
-  fetchProfileUser,
-  type ProfileCard,
-} from '../utils/profile-cards';
+import type { UserCard } from '../utils/user-cards';
+import { calculateProfileValue, extractProfileSlug, fetchProfileCards, fetchProfileUser } from '../utils/profile-cards';
+
+const plain = { commission: false, valueBySplit: false, valueBasis: 'bank' as const };
 
 const mockDb = {
   'soran-f': { price: 1.25, name: 'Соран', rank: 'F' },
@@ -30,17 +27,23 @@ describe('profile-cards', () => {
       expect(extractProfileSlug('/users/settings')).toBeNull();
       expect(extractProfileSlug('/users/notifications')).toBeNull();
     });
+
+    it('keeps a slug with a broken escape instead of throwing', () => {
+      expect(extractProfileSlug('/users/%E0%A4%A')).toBe('%E0%A4%A');
+    });
   });
 
   describe('fetchProfileUser', () => {
     it('queries user by slug and returns id and name', async () => {
       const mockTransport = {
-        fetch: async () =>
-          new Response(JSON.stringify({ data: { user: { id: 'usr-99', slug: 'tokunbek', name: 'Токунбек' } } }), {
-            status: 200,
-            headers: { 'content-type': 'application/json' },
-          }),
-        sleep: async () => {},
+        fetch: () =>
+          Promise.resolve(
+            new Response(JSON.stringify({ data: { user: { id: 'usr-99', slug: 'tokunbek', name: 'Токунбек' } } }), {
+              status: 200,
+              headers: { 'content-type': 'application/json' },
+            })
+          ),
+        sleep: () => Promise.resolve(),
         random: () => 0,
       };
 
@@ -50,12 +53,14 @@ describe('profile-cards', () => {
 
     it('returns null if user is not found', async () => {
       const mockTransport = {
-        fetch: async () =>
-          new Response(JSON.stringify({ data: { user: null } }), {
-            status: 200,
-            headers: { 'content-type': 'application/json' },
-          }),
-        sleep: async () => {},
+        fetch: () =>
+          Promise.resolve(
+            new Response(JSON.stringify({ data: { user: null } }), {
+              status: 200,
+              headers: { 'content-type': 'application/json' },
+            })
+          ),
+        sleep: () => Promise.resolve(),
         random: () => 0,
       };
 
@@ -68,7 +73,7 @@ describe('profile-cards', () => {
     it('fetches and flattens user card pages', async () => {
       let page = 0;
       const mockTransport = {
-        fetch: async () => {
+        fetch: () => {
           page++;
           const data =
             page === 1
@@ -87,9 +92,9 @@ describe('profile-cards', () => {
                     edges: [{ node: { quantity: 1, shard: false, card: { slug: 'luffy-s' } } }],
                   },
                 };
-          return new Response(JSON.stringify({ data }), { status: 200, headers: { 'content-type': 'application/json' } });
+          return Promise.resolve(new Response(JSON.stringify({ data }), { status: 200, headers: { 'content-type': 'application/json' } }));
         },
-        sleep: async () => {},
+        sleep: () => Promise.resolve(),
         random: () => 0,
       };
 
@@ -106,13 +111,13 @@ describe('profile-cards', () => {
 
   describe('calculateProfileValue', () => {
     it('calculates total value in F, bank, and shards', () => {
-      const cards: ProfileCard[] = [
+      const cards: UserCard[] = [
         { slug: 'soran-f', quantity: 1, shard: false },
         { slug: 'luffy-s', quantity: 1, shard: false },
         { slug: 'zoro-r', quantity: 2, shard: false },
       ];
 
-      const summary = calculateProfileValue(cards, mockDb, false);
+      const summary = calculateProfileValue(cards, mockDb, plain);
       expect(summary.totalCards).toBe(4);
       expect(summary.totalShards).toBe(0);
       expect(summary.totalF).toBeGreaterThan(0);
@@ -120,6 +125,19 @@ describe('profile-cards', () => {
       expect(summary.rValue).toBe('4R');
       expect(summary.rCards).toBe(2);
       expect(summary.cards[0]).toBe('2R');
+    });
+
+    it('follows the same valuation as the trade summary', () => {
+      const cards: UserCard[] = [{ slug: 'luffy-s', quantity: 1, shard: false }];
+      expect(calculateProfileValue(cards, mockDb, plain).formattedF).toBe('1215F');
+      expect(calculateProfileValue(cards, mockDb, { ...plain, commission: true }).formattedF).toBe('972F');
+      expect(calculateProfileValue(cards, mockDb, { ...plain, valueBySplit: true }).formattedF).toBe('160F');
+      expect(calculateProfileValue(cards, mockDb, { ...plain, valueBasis: 'cards' }).formattedF).toBe('243F');
+    });
+
+    it('counts an R card the database does not know yet by its slug', () => {
+      const summary = calculateProfileValue([{ slug: 'new-hero-r', quantity: 3, shard: false }], mockDb, plain);
+      expect(summary.cards).toEqual(['3R']);
     });
   });
 });

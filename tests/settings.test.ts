@@ -65,6 +65,12 @@ describe('settings', () => {
     stop();
   });
 
+  it('values the total by the bank unless told otherwise, and remembers the choice', async () => {
+    expect((await loadSettings()).valueBasis).toBe('bank');
+    await saveSetting('valueBasis', 'cards');
+    expect((await loadSettings()).valueBasis).toBe('cards');
+  });
+
   it('resets every setting to its default', async () => {
     await saveSetting('opacity', 10);
     await resetSettings();

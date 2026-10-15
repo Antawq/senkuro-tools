@@ -1,8 +1,7 @@
 import type { Offer, Trade } from './trade-capture';
 import type { CardRef, Side } from './trade-value';
 
-export const sameCard = (a: CardRef | undefined, b: CardRef | undefined): boolean =>
-  a?.slug === b?.slug && a?.quantity === b?.quantity && a?.shard === b?.shard;
+const sameCard = (a: CardRef | undefined, b: CardRef | undefined): boolean => a?.slug === b?.slug && a?.quantity === b?.quantity && a?.shard === b?.shard;
 
 export const totalOf = (side: Side): number => side.cards.length + side.hidden;
 

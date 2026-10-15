@@ -1,11 +1,10 @@
+import '@/assets/tokens.css';
 import { browser } from 'wxt/browser';
 
-import { readAccessToken } from '@/utils/access-token';
-import { clearSnapshot, loadSnapshot, saveSnapshot } from '@/utils/account-cache';
-import { fetchAccountCards } from '@/utils/account-cards';
-import { mountAccountPanel } from '@/utils/account-panel';
-import { loadDatabase } from '@/utils/database';
-import { DEFAULT_SETTINGS, loadSettings, resetSettings, saveSetting, watchSettings, type Settings } from '@/utils/settings';
+import { COMMISSION_SHARE_KEPT, PERCENT } from '@/utils/cards';
+import { DEFAULT_SETTINGS, loadSettings, resetSettings, saveSetting, type Settings } from '@/utils/settings';
+import { tierRange, type TierName } from '@/utils/tiers';
+import { CRAFT_PER_RANK, SPLIT_PER_RANK } from '@/utils/trade-value';
 
 const SAVE_DELAY_MS = 150;
 const TOKEN_WARNING =
@@ -13,7 +12,7 @@ const TOKEN_WARNING =
 
 type ToggleKey = 'commission' | 'copyBtn' | 'showToken' | 'valueBySplit' | 'showSummaryF' | 'showSummaryBank' | 'showSummaryCards' | 'showSummaryVerdict';
 type SliderKey = 'copyBtnSize' | 'opacity' | 'fontSize' | 'summaryFontSize';
-type ChoiceKey = 'positionX' | 'positionY' | 'badgeStyle' | 'effectRed' | 'effectPurple' | 'effectYellow' | 'effectGreen' | 'effectWhite';
+type ChoiceKey = 'positionX' | 'positionY' | 'badgeStyle' | 'valueBasis' | 'effectRed' | 'effectPurple' | 'effectYellow' | 'effectGreen' | 'effectWhite';
 
 interface Binding {
   show(settings: Settings): void;
@@ -86,6 +85,7 @@ const bindings = [
   choice('positionXSelect', 'positionX'),
   choice('positionYSelect', 'positionY'),
   choice('styleSelect', 'badgeStyle'),
+  choice('valueBasisSelect', 'valueBasis'),
   choice('effectRed', 'effectRed'),
   choice('effectPurple', 'effectPurple'),
   choice('effectYellow', 'effectYellow'),
@@ -95,6 +95,14 @@ const bindings = [
 
 const showAll = (settings: Settings) => bindings.forEach((binding) => binding.show(settings));
 
+const RATES: Record<string, number> = { craft: CRAFT_PER_RANK, split: SPLIT_PER_RANK };
+
+document.querySelectorAll<HTMLElement>('[data-tier-range]').forEach((el) => (el.textContent = tierRange(el.dataset.tierRange as TierName)));
+document.querySelectorAll<HTMLElement>('[data-rate]').forEach((el) => (el.textContent = String(RATES[el.dataset.rate ?? ''] ?? '')));
+document
+  .querySelectorAll<HTMLElement>('[data-commission-percent]')
+  .forEach((el) => (el.textContent = String(Math.round((1 - COMMISSION_SHARE_KEPT) * PERCENT))));
+
 const version = byId('version');
 if (version) version.textContent = `v${browser.runtime.getManifest().version}`;
 
@@ -102,22 +110,4 @@ byId('resetBtn')?.addEventListener('click', () => {
   void resetSettings().then(() => showAll(DEFAULT_SETTINGS));
 });
 
-void loadSettings().then((settings) => {
-  showAll(settings);
-  let commission = settings.commission;
-  const panel = mountAccountPanel(document, {
-    readToken: () => readAccessToken(),
-    fetchCards: (token, onProgress) => fetchAccountCards(token, onProgress),
-    loadDatabase,
-    loadSnapshot,
-    saveSnapshot,
-    clearSnapshot,
-    commission: () => commission,
-    now: Date.now,
-  });
-  watchSettings(settings, (next, key) => {
-    if (key !== 'commission') return;
-    commission = next.commission;
-    void panel.refresh();
-  });
-});
+void loadSettings().then(showAll);

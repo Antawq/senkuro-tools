@@ -1,0 +1,14 @@
+.card-notif__box-el .card-collect-preview__status {
+  padding-inline: 2px;
+}
+
+.card-notif__box-el .card-collect-preview__status .tag {
+  justify-content: flex-start;
+  padding-inline: 2px;
+}
+
+@media (width < 576px) {
+  .modal-trade__preview-el {
+    max-width: 100%;
+  }
+}

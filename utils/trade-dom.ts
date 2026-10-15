@@ -1,14 +1,23 @@
 import { slugFromHref } from './cards';
+import { debugLogger } from './debug';
 import { REPLAY_EVENT, type Trade, type TradeStore } from './trade-capture';
 import { matchOffer, matchTrade, matchTradeByCounts, shows } from './trade-match';
 import type { CardRef, Side } from './trade-value';
 
-export const MODAL = '.modal-content--trade';
+const MODAL = '.modal-content--trade';
+const CARD_LIST = '.modal-content--review';
+const HISTORY = '.card-trade';
+const OFFER = '.offer-card';
+const NOTIFICATION = '.card-notif__info';
+
+export const TRADE_PLACES = [MODAL, CARD_LIST, HISTORY, OFFER, NOTIFICATION].join(', ');
 
 const INCOMING_SUBTITLE = 'Прими решение обмена';
 const NOTIFICATION_COUNTS = /Получишь\s+(\d+)\D+?Отдашь\s+(\d+)/;
 const LIST_OWNER = /\sу\s(.+)$/;
 const ROLE_LABELS = { give: 'Отдаёшь', get: 'Получаешь' } as const;
+const OFFER_CAPTIONS = { authored: 'Если примут', received: 'Если примешь' } as const;
+const TRADE_SIDES = 2;
 
 export type Role = keyof typeof ROLE_LABELS;
 
@@ -85,7 +94,7 @@ function readConstructor(modal: Element): Column[] | null {
 }
 
 function rememberCardLists(): void {
-  for (const list of document.querySelectorAll('.modal-content--review')) {
+  for (const list of document.querySelectorAll(CARD_LIST)) {
     const owner = LIST_OWNER.exec(list.querySelector('.modal-trade__review-text')?.textContent?.trim() ?? '')?.[1];
     if (owner) fullLists.set(owner, readCards(list.querySelector('.modal-trade__review-slider')));
   }
@@ -96,29 +105,49 @@ const fromList = (name: string | undefined, side: Side): Side => {
   return list && shows(list, side) ? whole(list) : side;
 };
 
-function readReview(modal: Element, store: TradeStore): Column[] | null {
+interface Review {
+  incoming: boolean;
+  known: Selection | undefined;
+  store: TradeStore;
+}
+
+const reviewOf = (modal: Element, store: TradeStore): Review => {
   const incoming = modal.querySelector('header')?.textContent?.includes(INCOMING_SUBTITLE) ?? false;
-  const known = incoming ? undefined : selections.get(modal);
+  return { incoming, known: incoming ? undefined : selections.get(modal), store };
+};
 
-  const panels = [...modal.querySelectorAll('.modal-trade__swap-el')];
-  if (panels.length >= 2) {
-    const [left, right] = panels.map(readPanel);
-    if (!left || !right) return null;
-    if (known && shows(known.give.cards, left) && shows(known.get.cards, right)) return [column('give', known.give), column('get', known.get)];
-    const [sourceName = '', destinationName = ''] = panels.map(nameOf);
-    const trade = incoming ? matchTrade(store.trades(), [sourceName, destinationName], [left, right]) : null;
+const rolesOf = (incoming: boolean): [Role, Role] => (incoming ? ['get', 'give'] : ['give', 'get']);
+
+function readExchange(panels: Element[], { incoming, known, store }: Review): Column[] | null {
+  const [left, right] = panels.map(readPanel);
+  if (!left || !right) return null;
+  if (known && shows(known.give.cards, left) && shows(known.get.cards, right)) return [column('give', known.give), column('get', known.get)];
+  const [sourceName = '', destinationName = ''] = panels.map(nameOf);
+  if (incoming) {
+    const trade = matchTrade(store.trades(), [sourceName, destinationName], [left, right]);
     if (trade) return [column('get', whole(trade.offer)), column('give', whole(trade.request))];
-    if (incoming) askReplayOnce(store);
-    return [column(incoming ? 'get' : 'give', fromList(sourceName, left)), column(incoming ? 'give' : 'get', fromList(destinationName, right))];
+    askReplayOnce(store);
   }
+  const [first, second] = rolesOf(incoming);
+  return [column(first, fromList(sourceName, left)), column(second, fromList(destinationName, right))];
+}
 
-  const gift = modal.querySelector('.modal-trade__swap-gift__icon')?.closest('.modal-trade__swap-el');
-  if (!gift) return null;
+function readGift(gift: Element, { incoming, known, store }: Review): Column[] {
   const side = readPanel(gift);
   if (known && shows(known.give.cards, side)) return [column('give', known.give)];
-  const trade = incoming ? matchTrade(store.trades(), [nameOf(gift), null], [side, whole([])]) : null;
-  if (trade) return [column('get', whole(trade.offer))];
-  return [column(incoming ? 'get' : 'give', fromList(nameOf(gift), side))];
+  if (incoming) {
+    const trade = matchTrade(store.trades(), [nameOf(gift), null], [side, whole([])]);
+    if (trade) return [column('get', whole(trade.offer))];
+  }
+  return [column(rolesOf(incoming)[0], fromList(nameOf(gift), side))];
+}
+
+function readReview(modal: Element, store: TradeStore): Column[] | null {
+  const review = reviewOf(modal, store);
+  const panels = [...modal.querySelectorAll('.modal-trade__swap-el')];
+  if (panels.length >= TRADE_SIDES) return readExchange(panels, review);
+  const gift = modal.querySelector('.modal-trade__swap-gift__icon')?.closest('.modal-trade__swap-el');
+  return gift ? readGift(gift, review) : null;
 }
 
 const readModals = (store: TradeStore): Place[] =>
@@ -133,36 +162,67 @@ const readPreviewList = (list: Element): Side => ({
 });
 
 const readHistory = (store: TradeStore): Place[] =>
-  [...document.querySelectorAll('.card-trade')].map((host) => {
+  [...document.querySelectorAll(HISTORY)].map((host) => {
     const lists = [...host.children].filter((el) => el.matches('.card-preview-list'));
     const names = lists.map(nameOf);
     const [offerList, requestList] = lists;
     const trade =
-      lists.length === 2 && offerList && requestList
+      lists.length === TRADE_SIDES && offerList && requestList
         ? matchTrade(store.trades(), [names[0] ?? '', names[1] ?? ''], [readPreviewList(offerList), readPreviewList(requestList)])
         : null;
     return { host, placement: 'end', columns: trade ? viewerColumns(trade, store.viewerId(), names) : null };
   });
 
-const readOffers = (store: TradeStore): Place[] =>
-  [...document.querySelectorAll('.offer-card')].map((host) => {
-    const top = { cards: readCards(host.querySelector('.offer-card__top-list')), hidden: numberIn(host.querySelector('.offer-card__top-more')) };
-    const middle = { cards: readCards(host.querySelector('.offer-card__cnt-list')), hidden: numberIn(host.querySelector('.offer-card__cnt-el-more')) };
-    const author = host.querySelector('.offer-card__top h3 span')?.textContent?.trim() ?? '';
+const surfaceOf = (card: Element): Element => {
+  const top = card.querySelector('.offer-card__top');
+  let surface = card;
+  for (let el = card.querySelector('.offer-card__cnt-list')?.parentElement; el && el !== card && !el.contains(top); el = el.parentElement) surface = el;
+  return surface;
+};
+
+const unmatched = new Set<string>();
+
+const readOffers = (store: TradeStore): Place[] => {
+  const debug = debugLogger();
+  return [...document.querySelectorAll(OFFER)].map((card) => {
+    const host = surfaceOf(card);
+    const top = { cards: readCards(card.querySelector('.offer-card__top-list')), hidden: numberIn(card.querySelector('.offer-card__top-more')) };
+    const middle = { cards: readCards(card.querySelector('.offer-card__cnt-list')), hidden: numberIn(card.querySelector('.offer-card__cnt-el-more')) };
+    const author = card.querySelector('.offer-card__top h3 span')?.textContent?.trim() ?? '';
     const offer = matchOffer(store.offers(), author, top, middle);
-    if (!offer) return { host, placement: 'end', variant: 'offer', columns: null };
+    if (!offer) {
+      const key = `${author}|${store.offers().length}`;
+      if (!unmatched.has(key)) {
+        unmatched.add(key);
+        const first = (side: Side) => ({ shown: side.cards.map(({ slug, quantity }) => `${slug}x${quantity}`), hidden: side.hidden });
+        const stored = store.offers().filter((candidate) => candidate.author.name === author);
+        debug('offer not matched', {
+          author,
+          top: first(top),
+          middle: first(middle),
+          captured: store.offers().length,
+          sameAuthor: stored.map((candidate) => ({
+            offer: candidate.offer.length,
+            request: candidate.request.length,
+            first: [candidate.offer[0]?.slug, candidate.request[0]?.slug],
+          })),
+        });
+      }
+      return { host, placement: 'end', variant: 'offer', columns: null };
+    }
     const [give, get] = offer.viewerDidAuthor ? [offer.offer, offer.request] : [offer.request, offer.offer];
     return {
       host,
       placement: 'end',
       variant: 'offer',
-      caption: offer.viewerDidAuthor ? 'Если примут' : 'Если примешь',
+      caption: offer.viewerDidAuthor ? OFFER_CAPTIONS.authored : OFFER_CAPTIONS.received,
       columns: [column('give', whole(give)), column('get', whole(get))],
     };
   });
+};
 
 const readNotifications = (store: TradeStore): Place[] =>
-  [...document.querySelectorAll('.card-notif__info')].flatMap((host) => {
+  [...document.querySelectorAll(NOTIFICATION)].flatMap((host) => {
     const counts = [...host.querySelectorAll('.card-notif__info-hint')].map((el) => NOTIFICATION_COUNTS.exec(el.textContent ?? '')).find(Boolean);
     if (!counts) return [];
     const sender = host.closest('.card-notif')?.querySelector('.card-notif__source-title')?.textContent?.trim() ?? '';

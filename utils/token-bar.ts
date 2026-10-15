@@ -2,20 +2,24 @@ import { browser } from 'wxt/browser';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { createIntegratedUi, type IntegratedContentScriptUi } from 'wxt/utils/content-script-ui/integrated';
 
+import { readDocumentToken } from './access-token';
+import { element } from './dom';
 import { TOKEN_REQUEST, type TokenRequest, type TokenResponse } from './messages';
 
 const BAR = 'senkuro-token-bar';
-const TOKEN_COOKIE = /(?:^|;\s*)access_token=([^;]+)/;
 const COPIED_MS = 2500;
 const COPY_LABEL = 'Копировать токен';
+const COPIED_LABEL = '✓ Скопировано!';
+const MANUAL_COPY_PROMPT = 'Скопируй токен вручную (Ctrl+A, Ctrl+C):';
+const COPIED = `${BAR}__copy--done`;
 
 export interface TokenBar {
   sync(visible: boolean): Promise<void>;
 }
 
 async function readToken(): Promise<string | null> {
-  const cookie = TOKEN_COOKIE.exec(document.cookie)?.[1];
-  if (cookie) return decodeURIComponent(cookie);
+  const own = readDocumentToken();
+  if (own) return own;
   try {
     const request: TokenRequest = { type: TOKEN_REQUEST };
     const response = await browser.runtime.sendMessage<TokenRequest, TokenResponse | undefined>(request);
@@ -25,13 +29,6 @@ async function readToken(): Promise<string | null> {
   }
 }
 
-const element = <K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text: string): HTMLElementTagNameMap[K] => {
-  const el = document.createElement(tag);
-  el.className = className;
-  el.textContent = text;
-  return el;
-};
-
 function copyButton(token: string): HTMLButtonElement {
   const button = element('button', `${BAR}__copy`, COPY_LABEL);
   button.type = 'button';
@@ -40,14 +37,14 @@ function copyButton(token: string): HTMLButtonElement {
     event.stopPropagation();
     navigator.clipboard.writeText(token).then(
       () => {
-        button.textContent = '✓ Скопировано!';
-        button.classList.add(`${BAR}__copy--done`);
+        button.textContent = COPIED_LABEL;
+        button.classList.add(COPIED);
         setTimeout(() => {
           button.textContent = COPY_LABEL;
-          button.classList.remove(`${BAR}__copy--done`);
+          button.classList.remove(COPIED);
         }, COPIED_MS);
       },
-      () => prompt('Скопируй токен вручную (Ctrl+A, Ctrl+C):', token)
+      () => prompt(MANUAL_COPY_PROMPT, token)
     );
   });
   return button;

@@ -1,0 +1,23 @@
+:root {
+  --senkuro-white: #ffffff;
+  --senkuro-tier-red: #f87171;
+  --senkuro-tier-yellow: #fbbf24;
+  --senkuro-tier-purple: #c084fc;
+  --senkuro-tier-green: #4ade80;
+  --senkuro-tier-white: var(--senkuro-white);
+  --senkuro-rainbow-blue: #60a5fa;
+  --senkuro-shade: rgb(0 0 0);
+  --senkuro-amber-shade: rgb(60 45 0);
+  --senkuro-accent: #6366f1;
+  --senkuro-fallback-surface: #202023;
+  --senkuro-fallback-error: #ff7f71;
+  --senkuro-gutter: 12px;
+
+  --senkuro-hover: 0.2s;
+  --senkuro-effect-delay: 0.15s;
+  --senkuro-pulse-period: 1.2s;
+  --senkuro-rainbow-period: 2.5s;
+  --senkuro-swing-period: 0.8s;
+  --senkuro-spin-period: 0.75s;
+  --senkuro-breathe-period: 1.4s;
+}

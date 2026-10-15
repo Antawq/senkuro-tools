@@ -43,9 +43,9 @@
   white-space: nowrap;
   cursor: pointer;
   transition:
-    background 0.2s,
-    color 0.2s,
-    border-color 0.2s;
+    background var(--senkuro-hover),
+    color var(--senkuro-hover),
+    border-color var(--senkuro-hover);
 }
 
 .senkuro-token-bar__copy--done {
