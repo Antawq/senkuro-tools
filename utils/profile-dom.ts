@@ -21,6 +21,7 @@ const CACHE_TTL_MS = CACHE_TTL_MINUTES * MS_PER_MINUTE;
 const EMPTY = '-';
 
 const TEXT = {
+  idle: 'Посчитать ценность',
   counting: 'Считаем F...',
   retrying: 'Повтор...',
   refreshing: 'Обновление...',
@@ -59,6 +60,7 @@ const NICKNAME_HOSTS: [string, (host: Element, el: HTMLElement) => void][] = [
 export interface ProfileBadgeDeps {
   db: Database;
   valuation: Valuation;
+  auto?: boolean;
 }
 
 interface NicknameTarget {
@@ -184,6 +186,17 @@ function renderLoading(widget: HTMLElement, text: string): void {
   widget.replaceChildren(element('span', 'senkuro-chip-spinner'), element('span', 'senkuro-f-text', text));
 }
 
+function renderIdle(widget: HTMLElement, slug: string, deps: ProfileBadgeDeps): void {
+  widget.classList.remove(LOADING, FAILED);
+  widget.onmouseenter = null;
+  widget.replaceChildren(element('span', 'senkuro-f-text', TEXT.idle));
+  widget.onclick = (event) => {
+    event.stopPropagation();
+    renderLoading(widget, TEXT.counting);
+    load(slug, deps);
+  };
+}
+
 function renderError(widget: HTMLElement, slug: string, deps: ProfileBadgeDeps): void {
   widget.classList.remove(LOADING);
   widget.classList.add(FAILED);
@@ -306,8 +319,12 @@ function show(widget: HTMLElement, slug: string, deps: ProfileBadgeDeps): void {
   if (widget.dataset.valuation === key) return;
   const cards = readCache(slug);
   if (!cards) {
-    renderLoading(widget, TEXT.counting);
-    load(slug, deps);
+    if (deps.auto) {
+      renderLoading(widget, TEXT.counting);
+      load(slug, deps);
+    } else if (!widget.classList.contains(LOADING)) {
+      renderIdle(widget, slug, deps);
+    }
     return;
   }
   renderSummary(widget, slug, calculateProfileValue(cards, deps.db, deps.valuation), deps);

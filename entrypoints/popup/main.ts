@@ -10,7 +10,16 @@ const SAVE_DELAY_MS = 150;
 const TOKEN_WARNING =
   'ВНИМАНИЕ!\nТокен дает полный доступ к вашему аккаунту Senkuro. \nНикогда не передавайте его третьим лицам! \nВы уверены, что хотите отобразить токен?';
 
-type ToggleKey = 'commission' | 'copyBtn' | 'showToken' | 'valueBySplit' | 'showSummaryF' | 'showSummaryBank' | 'showSummaryCards' | 'showSummaryVerdict';
+type ToggleKey =
+  | 'commission'
+  | 'copyBtn'
+  | 'showToken'
+  | 'valueBySplit'
+  | 'showSummaryF'
+  | 'showSummaryBank'
+  | 'showSummaryCards'
+  | 'showSummaryVerdict'
+  | 'autoProfileValue';
 type SliderKey = 'copyBtnSize' | 'opacity' | 'fontSize' | 'summaryFontSize';
 type ChoiceKey = 'positionX' | 'positionY' | 'badgeStyle' | 'valueBasis' | 'effectRed' | 'effectPurple' | 'effectYellow' | 'effectGreen' | 'effectWhite';
 
@@ -74,6 +83,7 @@ const bindings = [
   toggle('copyBtnToggle', 'copyBtn'),
   toggle('showTokenToggle', 'showToken', TOKEN_WARNING),
   toggle('valueBySplitToggle', 'valueBySplit'),
+  toggle('autoProfileValueToggle', 'autoProfileValue'),
   toggle('showSummaryFToggle', 'showSummaryF'),
   toggle('showSummaryBankToggle', 'showSummaryBank'),
   toggle('showSummaryCardsToggle', 'showSummaryCards'),

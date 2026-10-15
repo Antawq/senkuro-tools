@@ -76,7 +76,7 @@ describe('profile-dom', () => {
       expect(widget()).toBeNull();
     });
 
-    it('inserts badge next to nickname when on profile page', () => {
+    it('inserts badge next to nickname when on profile page with auto: true', () => {
       window.history.pushState({}, '', '/users/phaivroh');
       document.body.innerHTML = `
         <div class="client-panel__info">
@@ -86,8 +86,29 @@ describe('profile-dom', () => {
           </div>
         </div>
       `;
-      updateProfileBadge({ db, valuation: plain });
+      updateProfileBadge({ db, valuation: plain, auto: true });
       expect(widget()?.classList.contains('senkuro-profile-f-chip')).toBe(true);
+      expect(widget()?.textContent).toContain('Считаем F...');
+      expect(widget()?.querySelector('.senkuro-chip-spinner')).not.toBeNull();
+    });
+
+    it('shows calculate button when auto is false and starts loading on click', () => {
+      window.history.pushState({}, '', '/users/phaivroh');
+      document.body.innerHTML = `
+        <div class="client-panel__info">
+          <div class="client-header">
+            <header><h1 class="caption">phaivroh</h1></header>
+            <a href="/levels">8</a>
+          </div>
+        </div>
+      `;
+      updateProfileBadge({ db, valuation: plain, auto: false });
+      expect(widget()?.classList.contains('senkuro-profile-f-chip')).toBe(true);
+      expect(widget()?.textContent).toContain('Посчитать ценность');
+      expect(widget()?.querySelector('.senkuro-chip-spinner')).toBeNull();
+      expect(fetchMock).not.toHaveBeenCalled();
+
+      (widget() as HTMLElement).click();
       expect(widget()?.textContent).toContain('Считаем F...');
       expect(widget()?.querySelector('.senkuro-chip-spinner')).not.toBeNull();
     });
@@ -173,10 +194,10 @@ describe('profile-dom', () => {
                 );
             })
       );
-      updateProfileBadge({ db, valuation: plain });
+      updateProfileBadge({ db, valuation: plain, auto: true });
       await settle();
       removeProfileBadge();
-      updateProfileBadge({ db, valuation: plain });
+      updateProfileBadge({ db, valuation: plain, auto: true });
       expect(widget()?.textContent).toContain('Считаем F...');
       release();
       await settle();
@@ -187,7 +208,7 @@ describe('profile-dom', () => {
     it('stops answering clicks with a reload once a retry has succeeded', async () => {
       window.history.pushState({}, '', '/users/phaivroh');
       document.body.innerHTML = header;
-      updateProfileBadge({ db, valuation: plain });
+      updateProfileBadge({ db, valuation: plain, auto: true });
       await settle();
       expect(widget()?.textContent).toContain('ошибка (повторить)');
 
@@ -232,7 +253,7 @@ describe('profile-dom', () => {
           ? Promise.resolve(reply({ user: { id: 'u1', name: 'phaivroh' } }))
           : new Promise<Response>(() => undefined)
       );
-      updateProfileBadge({ db, valuation: plain });
+      updateProfileBadge({ db, valuation: plain, auto: true });
       await settle();
       expect(widget()?.textContent).toContain('Считаем F...');
 

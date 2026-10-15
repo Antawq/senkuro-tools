@@ -40,7 +40,7 @@ export default defineContentScript({
       {
         cards: (db, cards) => badges.update(db, settings, cards),
         trades: (db) => updateTradeSummaries(db, settings, tradeStore),
-        profile: (db) => updateProfileBadge({ db, valuation: settings }),
+        profile: (db) => updateProfileBadge({ db, valuation: settings, auto: settings.autoProfileValue }),
       },
       loadDatabase,
       nextFrame
