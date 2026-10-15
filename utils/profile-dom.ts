@@ -1,11 +1,10 @@
-import { packCards, unpackCards } from './account-cache';
-import type { AccountCard } from './account-cards';
 import type { Database } from './database';
 import { element } from './dom';
 import { calculateProfileValue, extractProfileSlug, fetchProfileCards, fetchProfileUser, type ProfileValueSummary } from './profile-cards';
 import { svgIcon } from './svg';
 import { MS_PER_MINUTE } from './time';
 import { R_RANK, type Valuation } from './trade-value';
+import { packCards, unpackCards, type UserCard } from './user-cards';
 
 export const WIDGET_ID = 'senkuro-profile-card-value';
 
@@ -79,7 +78,7 @@ const cacheKey = (slug: string): string => `${CACHE_PREFIX}${slug}`;
 
 const valuationKey = ({ commission, valueBySplit, valueBasis }: Valuation): string => JSON.stringify([commission, valueBySplit, valueBasis]);
 
-function readCache(slug: string): AccountCard[] | null {
+function readCache(slug: string): UserCard[] | null {
   try {
     const raw = sessionStorage.getItem(cacheKey(slug));
     if (!raw) return null;
@@ -94,7 +93,7 @@ function readCache(slug: string): AccountCard[] | null {
   }
 }
 
-function writeCache(slug: string, cards: AccountCard[]): void {
+function writeCache(slug: string, cards: UserCard[]): void {
   try {
     sessionStorage.setItem(cacheKey(slug), JSON.stringify({ at: Date.now(), cards: packCards(cards) }));
   } catch (error) {

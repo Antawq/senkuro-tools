@@ -1,6 +1,6 @@
 import { ApiError, execute, type Transport } from './graphql';
 
-export interface AccountCard {
+export interface UserCard {
   slug: string;
   quantity: number;
   shard: boolean;
@@ -27,7 +27,7 @@ interface PageData {
   } | null;
 }
 
-function toCard(node: UserCardNode | null | undefined): AccountCard | null {
+function toCard(node: UserCardNode | null | undefined): UserCard | null {
   const slug = node?.card?.slug;
   const quantity = node?.quantity;
   if (typeof slug !== 'string' || !slug) return null;
@@ -40,8 +40,8 @@ export async function fetchUserCards(
   userId: string,
   onProgress: (loaded: number) => void = () => undefined,
   transport?: Transport
-): Promise<AccountCard[]> {
-  const cards: AccountCard[] = [];
+): Promise<UserCard[]> {
+  const cards: UserCard[] = [];
   let after: string | null = null;
   for (let page = 0; page < MAX_PAGES; page++) {
     const data: PageData = await execute<PageData>(token, USER_CARDS, 'UserCards', { userId, first: PAGE_SIZE, after, orderBy: ORDER }, transport);
@@ -57,3 +57,13 @@ export async function fetchUserCards(
   }
   throw new ApiError('limit');
 }
+
+type StoredCard = [string, number, 0 | 1];
+
+const isStoredCard = (value: unknown): value is StoredCard =>
+  Array.isArray(value) && value.length === 3 && typeof value[0] === 'string' && typeof value[1] === 'number' && (value[2] === 0 || value[2] === 1);
+
+export const packCards = (cards: UserCard[]): StoredCard[] => cards.map(({ slug, quantity, shard }): StoredCard => [slug, quantity, shard ? 1 : 0]);
+
+export const unpackCards = (list: unknown): UserCard[] =>
+  Array.isArray(list) ? list.filter(isStoredCard).map(([slug, quantity, shard]) => ({ slug, quantity, shard: shard === 1 })) : [];

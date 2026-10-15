@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { AccountCard } from '../utils/account-cards';
+import type { UserCard } from '../utils/user-cards';
 import { calculateProfileValue, extractProfileSlug, fetchProfileCards, fetchProfileUser } from '../utils/profile-cards';
 
 const plain = { commission: false, valueBySplit: false, valueBasis: 'bank' as const };
@@ -111,7 +111,7 @@ describe('profile-cards', () => {
 
   describe('calculateProfileValue', () => {
     it('calculates total value in F, bank, and shards', () => {
-      const cards: AccountCard[] = [
+      const cards: UserCard[] = [
         { slug: 'soran-f', quantity: 1, shard: false },
         { slug: 'luffy-s', quantity: 1, shard: false },
         { slug: 'zoro-r', quantity: 2, shard: false },
@@ -128,7 +128,7 @@ describe('profile-cards', () => {
     });
 
     it('follows the same valuation as the trade summary', () => {
-      const cards: AccountCard[] = [{ slug: 'luffy-s', quantity: 1, shard: false }];
+      const cards: UserCard[] = [{ slug: 'luffy-s', quantity: 1, shard: false }];
       expect(calculateProfileValue(cards, mockDb, plain).formattedF).toBe('1215F');
       expect(calculateProfileValue(cards, mockDb, { ...plain, commission: true }).formattedF).toBe('972F');
       expect(calculateProfileValue(cards, mockDb, { ...plain, valueBySplit: true }).formattedF).toBe('160F');

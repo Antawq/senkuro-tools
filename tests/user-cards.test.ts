@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { MAX_PAGES, PAGE_SIZE, fetchUserCards } from '../utils/account-cards';
 import type { Transport } from '../utils/graphql';
+import { MAX_PAGES, PAGE_SIZE, fetchUserCards, packCards, unpackCards } from '../utils/user-cards';
 
 interface Sent {
   operationName: string;
@@ -115,5 +115,31 @@ describe('fetchUserCards', () => {
   it('passes an api failure on', async () => {
     const { transport } = serve(() => json({}, 503));
     expect(await fetchUserCards(null, 'user-1', undefined, transport).catch((thrown: unknown) => thrown)).toMatchObject({ failure: 'http', status: 503 });
+  });
+});
+
+describe('packed cards', () => {
+  const cards = [
+    { slug: 'a-a', quantity: 2, shard: false },
+    { slug: 'b-b', quantity: 1, shard: true },
+  ];
+
+  it('stores every card as a short row', () => {
+    expect(packCards(cards)).toEqual([
+      ['a-a', 2, 0],
+      ['b-b', 1, 1],
+    ]);
+  });
+
+  it('reads back what it stored', () => {
+    expect(unpackCards(JSON.parse(JSON.stringify(packCards(cards))))).toEqual(cards);
+  });
+
+  it('survives damaged data by dropping what it cannot read', () => {
+    expect(unpackCards([['ok', 3, 0], 'junk', ['bad', '1', 0], ['flag', 1, 5], null, ['piece', 2, 1]])).toEqual([
+      { slug: 'ok', quantity: 3, shard: false },
+      { slug: 'piece', quantity: 2, shard: true },
+    ]);
+    expect(unpackCards('garbage')).toEqual([]);
   });
 });

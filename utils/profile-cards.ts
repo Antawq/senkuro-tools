@@ -1,8 +1,8 @@
-import { fetchUserCards, type AccountCard } from './account-cards';
 import type { Database } from './database';
 import { execute, type Transport } from './graphql';
 import { F_UNIT, R_RANK, formatAmount, formatByRank, formatShardsByRank, hasR, valueWith, type Valuation } from './trade-value';
 import { decodeSafely } from './uri';
+import { fetchUserCards, type UserCard } from './user-cards';
 
 export interface ProfileValueSummary {
   totalF: number;
@@ -33,14 +33,14 @@ export async function fetchProfileUser(slug: string, transport?: Transport): Pro
   return { id: String(user.id), name: user.name || slug };
 }
 
-export const fetchProfileCards = (userId: string, onProgress?: (loaded: number) => void, transport?: Transport): Promise<AccountCard[]> =>
+export const fetchProfileCards = (userId: string, onProgress?: (loaded: number) => void, transport?: Transport): Promise<UserCard[]> =>
   fetchUserCards(null, userId, onProgress, transport);
 
 const rankOf = (slug: string, db: Database): string | null => db[slug]?.rank || (slug.endsWith(R_SLUG_SUFFIX) ? R_RANK : null);
 
-const sumQuantity = (cards: AccountCard[]): number => cards.reduce((total, card) => total + card.quantity, 0);
+const sumQuantity = (cards: UserCard[]): number => cards.reduce((total, card) => total + card.quantity, 0);
 
-export function calculateProfileValue(cards: AccountCard[], db: Database, valuation: Valuation): ProfileValueSummary {
+export function calculateProfileValue(cards: UserCard[], db: Database, valuation: Valuation): ProfileValueSummary {
   const value = valueWith({ cards, hidden: 0 }, db, valuation);
   const whole = cards.filter((card) => !card.shard);
   const counts = new Map<string, number>();
