@@ -1,13 +1,8 @@
 import '@/assets/tokens.css';
 import { browser } from 'wxt/browser';
 
-import { readTokenFromSite } from '@/utils/access-token';
-import { clearSnapshot, loadSnapshot, saveSnapshot } from '@/utils/account-cache';
-import { fetchAccountCards } from '@/utils/account-cards';
-import { mountAccountPanel } from '@/utils/account-panel';
 import { COMMISSION_SHARE_KEPT, PERCENT } from '@/utils/cards';
-import { loadDatabase } from '@/utils/database';
-import { DEFAULT_SETTINGS, loadSettings, resetSettings, saveSetting, watchSettings, type Settings } from '@/utils/settings';
+import { DEFAULT_SETTINGS, loadSettings, resetSettings, saveSetting, type Settings } from '@/utils/settings';
 import { tierRange, type TierName } from '@/utils/tiers';
 import { CRAFT_PER_RANK, SPLIT_PER_RANK } from '@/utils/trade-value';
 
@@ -115,22 +110,4 @@ byId('resetBtn')?.addEventListener('click', () => {
   void resetSettings().then(() => showAll(DEFAULT_SETTINGS));
 });
 
-void loadSettings().then((settings) => {
-  showAll(settings);
-  let commission = settings.commission;
-  const panel = mountAccountPanel(document, {
-    readToken: readTokenFromSite,
-    fetchCards: (token, onProgress) => fetchAccountCards(token, onProgress),
-    loadDatabase,
-    loadSnapshot,
-    saveSnapshot,
-    clearSnapshot,
-    commission: () => commission,
-    now: Date.now,
-  });
-  watchSettings(settings, (next, key) => {
-    if (key !== 'commission') return;
-    commission = next.commission;
-    void panel.refresh();
-  });
-});
+void loadSettings().then(showAll);

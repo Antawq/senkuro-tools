@@ -9,16 +9,10 @@ export interface AccountCard {
 export const PAGE_SIZE = 100;
 export const MAX_PAGES = 300;
 
-const VIEWER = 'query Viewer { viewer { user { id } } }';
-
 const USER_CARDS =
   'query UserCards($userId: ID!, $first: Int = 20, $after: String, $orderBy: UserCardOrder!) { userCards(userId: $userId, first: $first, after: $after, orderBy: $orderBy) { pageInfo { hasNextPage endCursor } edges { node { quantity shard card { slug } } } } }';
 
 const ORDER = { field: 'CREATED_AT', direction: 'ASC' } as const;
-
-interface ViewerData {
-  viewer: { user: { id: string } | null } | null;
-}
 
 interface UserCardNode {
   quantity?: unknown;
@@ -62,11 +56,4 @@ export async function fetchUserCards(
     if (after === null) return cards;
   }
   throw new ApiError('limit');
-}
-
-export async function fetchAccountCards(token: string, onProgress: (loaded: number) => void = () => undefined, transport?: Transport): Promise<AccountCard[]> {
-  const viewer = await execute<ViewerData>(token, VIEWER, 'Viewer', {}, transport);
-  const userId = viewer.viewer?.user?.id;
-  if (!userId) throw new ApiError('graphql', null, true);
-  return fetchUserCards(token, userId, onProgress, transport);
 }

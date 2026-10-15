@@ -5,7 +5,6 @@ import '@/assets/token-bar.css';
 import '@/assets/trade-summary.css';
 import { defineContentScript } from '#imports';
 
-import { answerTokenRequests } from '@/utils/access-token';
 import { CARD_LINK } from '@/utils/cards';
 import { loadDatabase } from '@/utils/database';
 import { SENKURO_MATCHES } from '@/utils/hosts';
@@ -26,7 +25,6 @@ export default defineContentScript({
   matches: SENKURO_MATCHES,
   runAt: 'document_idle',
   async main(ctx) {
-    ctx.onInvalidated(answerTokenRequests());
     const touch = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
     let settings = await loadSettings();
     applySummaryFontSize(settings.summaryFontSize);

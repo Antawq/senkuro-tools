@@ -13,7 +13,6 @@
         --c-field: #1e1e24;
         --c-raised: #25252c;
         --c-line: #2d2d35;
-        --c-raised-hover: #2d2d38;
         --c-control: #3f3f46;
         --c-line-strong: #3b3b4f;
         --c-scroll-thumb-hover: #525270;
@@ -428,84 +427,6 @@
       .special-thanks .support-row {
         margin-top: 6px;
       }
-      [hidden] {
-        display: none !important;
-      }
-      .account {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-      }
-      .account-stats {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-      .stat {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 8px;
-      }
-      .stat-label {
-        color: var(--c-text-soft);
-      }
-      .stat-value {
-        color: var(--c-text-strong);
-        font-size: 15px;
-        font-variant-numeric: tabular-nums;
-        text-align: right;
-      }
-      .stat-note {
-        margin-top: -4px;
-        font-size: 11px;
-        line-height: 1.4;
-        color: var(--c-text-dim);
-      }
-      .stat-window {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        padding: 8px 10px;
-        border: 1px solid color-mix(in srgb, var(--c-accent-light) 40%, transparent);
-        border-radius: 6px;
-        background: color-mix(in srgb, var(--c-accent-light) 8%, transparent);
-      }
-      .stat-window-title {
-        font-weight: 700;
-        color: var(--c-accent-light);
-      }
-      .account-actions {
-        display: flex;
-        gap: 8px;
-      }
-      .account-button {
-        flex: 1 1 0;
-        width: auto;
-        margin-top: 0;
-        padding: 8px;
-        font: inherit;
-        font-weight: 600;
-        color: var(--c-accent-light);
-        cursor: pointer;
-        background: var(--c-raised);
-        border: 1px solid var(--c-line-strong);
-        border-radius: 6px;
-        transition:
-          background var(--duration-hover),
-          opacity var(--duration-hover);
-      }
-      .account-button:disabled {
-        opacity: 0.6;
-        cursor: default;
-      }
-      .account-button--quiet {
-        flex: 0 0 auto;
-        color: var(--c-text-dim);
-      }
-      .hint--error {
-        color: var(--c-tier-red);
-      }
       .field-group--after-toggles {
         margin-top: 12px;
       }
@@ -545,9 +466,6 @@
           background: color-mix(in srgb, var(--c-tier-green) 20%, transparent);
           color: var(--c-green-light);
         }
-        .account-button:hover:not(:disabled) {
-          background: var(--c-raised-hover);
-        }
       }
     </style>
   </head>
@@ -573,41 +491,6 @@
         <div class="support-row">
           <a class="support-card" href="https://senkuro.com/users/phaivroh" target="_blank">.COM</a>
           <a class="support-card" href="https://senkuro.me/users/phaivroh" target="_blank">.ME</a>
-        </div>
-      </div>
-    </details>
-
-    <details class="setting-group" open>
-      <summary>Аккаунт</summary>
-      <div class="details-content account">
-        <div class="account-stats" id="accountStats" hidden>
-          <div class="stat">
-            <span class="stat-label">Карт на аккаунте</span>
-            <strong class="stat-value" id="accountCards">0</strong>
-          </div>
-          <div class="stat-note" id="accountCardsNote" hidden></div>
-          <div class="stat">
-            <span class="stat-label">Монет в банке</span>
-            <strong class="stat-value" id="accountBank">0</strong>
-          </div>
-          <div class="stat-note" id="accountBankNote" hidden></div>
-          <div class="stat-window" id="accountR" hidden>
-            <div class="stat-window-title">R</div>
-            <div class="stat">
-              <span class="stat-label">Карт</span>
-              <strong class="stat-value" id="accountRCards">0</strong>
-            </div>
-            <div class="stat">
-              <span class="stat-label">Монет</span>
-              <strong class="stat-value" id="accountRCoins">0</strong>
-            </div>
-            <div class="stat-note" id="accountRNote"></div>
-          </div>
-        </div>
-        <p class="hint" id="accountHint" aria-live="polite"></p>
-        <div class="account-actions">
-          <button type="button" class="account-button" id="accountLoad">Показать</button>
-          <button type="button" class="account-button account-button--quiet" id="accountClear" hidden>Забыть</button>
         </div>
       </div>
     </details>
