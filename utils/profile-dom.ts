@@ -1,6 +1,7 @@
 import { packCards, unpackCards } from './account-cache';
 import type { AccountCard } from './account-cards';
 import type { Database } from './database';
+import { element } from './dom';
 import { calculateProfileValue, extractProfileSlug, fetchProfileCards, fetchProfileUser, type ProfileValueSummary } from './profile-cards';
 import { svgIcon } from './svg';
 import { MS_PER_MINUTE } from './time';
@@ -118,13 +119,6 @@ export function findNicknameTarget(): NicknameTarget | null {
   }
   return null;
 }
-
-const element = <K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] => {
-  const el = document.createElement(tag);
-  if (className) el.className = className;
-  if (text !== undefined) el.textContent = text;
-  return el;
-};
 
 const isR = (item: string): boolean => item.endsWith(R_RANK);
 

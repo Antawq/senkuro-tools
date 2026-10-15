@@ -1,4 +1,5 @@
 import type { Database } from './database';
+import { element } from './dom';
 import type { TradeStore } from './trade-capture';
 import { TRADE_PLACES, readTradePlaces, type Column, type Placement, type Role, type Variant } from './trade-dom';
 import { totalOf } from './trade-match';
@@ -88,13 +89,6 @@ const describe = (column: Column, db: Database, settings: SummarySettings): Side
     unknown: unknownStr,
     r: hasR(value) ? describeR(value) : null,
   };
-};
-
-const element = <K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] => {
-  const el = document.createElement(tag);
-  if (className) el.className = className;
-  if (text !== undefined) el.textContent = text;
-  return el;
 };
 
 const amounts = (cell: HTMLElement, parts: string[], unknown: string): HTMLElement => {

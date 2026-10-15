@@ -3,6 +3,7 @@ import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { createIntegratedUi, type IntegratedContentScriptUi } from 'wxt/utils/content-script-ui/integrated';
 
 import { readDocumentToken } from './access-token';
+import { element } from './dom';
 import { TOKEN_REQUEST, type TokenRequest, type TokenResponse } from './messages';
 
 const BAR = 'senkuro-token-bar';
@@ -27,13 +28,6 @@ async function readToken(): Promise<string | null> {
     return null;
   }
 }
-
-const element = <K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text: string): HTMLElementTagNameMap[K] => {
-  const el = document.createElement(tag);
-  el.className = className;
-  el.textContent = text;
-  return el;
-};
 
 function copyButton(token: string): HTMLButtonElement {
   const button = element('button', `${BAR}__copy`, COPY_LABEL);
