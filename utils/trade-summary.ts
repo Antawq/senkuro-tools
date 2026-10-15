@@ -16,6 +16,7 @@ import {
   valueWith,
   type SideValue,
   type Valuation,
+  type Verdict,
 } from './trade-value';
 
 const SUMMARY = 'senkuro-trade-summary';
@@ -27,6 +28,7 @@ const UNKNOWN = `${SUMMARY}__unknown`;
 const EXPAND_LABEL = 'Раскрыть полностью';
 const COLLAPSE_LABEL = 'Скрыть';
 const EMPTY_CELL = '-';
+const UNKNOWN_LEGEND = `${UNKNOWN_MARK} - нет цены в базе`;
 
 type RowKey = 'value' | 'bank' | 'count';
 
@@ -137,6 +139,8 @@ function panel(sides: SideView[], settings: SummarySettings): HTMLElement {
   wrapper.append(table(sides, settings));
   const window = rWindow(sides);
   if (window) wrapper.append(window);
+  const showsUnknown = settings.showSummaryBank || settings.showSummaryCards;
+  if (showsUnknown && sides.some((side) => side.unknown)) wrapper.append(element('div', UNKNOWN, UNKNOWN_LEGEND));
   return wrapper;
 }
 
@@ -152,6 +156,10 @@ function table(sides: SideView[], settings: SummarySettings): HTMLElement {
   }
   return grid;
 }
+
+const blind = (known: number, settled: boolean): boolean => known === 0 && !settled;
+
+const verdictState = (kind: Verdict['kind'], unsure: boolean): string => (unsure ? UNKNOWN : `${SUMMARY}__verdict--${kind}`);
 
 function expandToggle(summary: HTMLElement): HTMLButtonElement {
   const button = element('button', `${SUMMARY}__toggle`);
@@ -217,12 +225,12 @@ function render(
   const details = element('div', `${SUMMARY}__details`);
   details.append(panel(sides, settings));
   parts.push(details);
-  if (verdict) {
-    const state = verdict.complete ? `${SUMMARY}__verdict--${verdict.kind}` : UNKNOWN;
-    parts.push(element('div', `${SUMMARY}__verdict ${state}`, verdict.text));
+  if (verdict && give && get) {
+    const unsure = blind(give.f, give.complete) || blind(get.f, get.complete);
+    parts.push(element('div', `${SUMMARY}__verdict ${verdictState(verdict.kind, unsure)}`, verdict.text));
     if (rVerdict) {
-      const rState = rVerdict.complete ? `${SUMMARY}__verdict--${rVerdict.kind}` : UNKNOWN;
-      parts.push(element('div', `${SUMMARY}__verdict ${rState} ${SUMMARY}__verdict--r`, rVerdict.text));
+      const rUnsure = blind(give.r.value, give.r.complete) || blind(get.r.value, get.r.complete);
+      parts.push(element('div', `${SUMMARY}__verdict ${verdictState(rVerdict.kind, rUnsure)} ${SUMMARY}__verdict--r`, rVerdict.text));
     }
     parts.push(expandToggle(summary));
   }

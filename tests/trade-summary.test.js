@@ -201,16 +201,44 @@ describe('updateTradeSummaries', () => {
     expect(summaryOf(el).sides).toEqual([skySides[0], 'Отдаёшь 63F Банк 1.6B 2.2C 2X Карты 1B 2C 2X']);
   });
 
-  it('marks the cards an incoming trade does not draw as gray X', () => {
+  it('marks the cards an incoming trade does not draw as gray X and explains the mark', () => {
     const offers = [card('s-card'), card('s-card'), card('f-card')];
     const el = modal('Прими решение обмена', reviewBody(panel('Отправитель', 6, offers), panel('Я', 1, [card('s-card')])) + reviewFooter);
     updateTradeSummaries(db, settings, store);
     expect(summaryOf(el)).toEqual({
       sides: ['Получаешь 487F Банк 2S 1F 3X Карты 2S 1F 3X', 'Отдаёшь 243F Банк 1S Карты 1S'],
       verdict: 'Выгода +244F (+100%)',
-      grayVerdict: true,
+      grayVerdict: false,
     });
     expect(el.querySelector('.senkuro-trade-summary__cell strong.senkuro-trade-summary__unknown').textContent).toBe('487F');
+    expect(el.querySelector('.senkuro-trade-summary__verdict').classList.contains('senkuro-trade-summary__verdict--gain')).toBe(true);
+    expect(el.querySelector('.senkuro-trade-summary__panel > .senkuro-trade-summary__unknown').textContent).toBe('X - нет цены в базе');
+  });
+
+  it('colours a loss red when cards without a price sit next to priced ones', () => {
+    const el = modal('Прими решение обмена', reviewBody(panel('Отправитель', 3, [card('f-card')]), panel('Я', 1, [card('s-card')])) + reviewFooter);
+    updateTradeSummaries(db, settings, store);
+    expect(summaryOf(el)).toMatchObject({ verdict: 'Потеря -242F (-100%)', grayVerdict: false });
+    expect(el.querySelector('.senkuro-trade-summary__verdict').classList.contains('senkuro-trade-summary__verdict--loss')).toBe(true);
+  });
+
+  it('keeps the verdict gray when a whole side has no price to compare', () => {
+    const el = modal('Прими решение обмена', reviewBody(panel('Отправитель', 1, [card('missing')]), panel('Я', 1, [card('s-card')])) + reviewFooter);
+    updateTradeSummaries(db, settings, store);
+    expect(summaryOf(el)).toMatchObject({ grayVerdict: true });
+    expect(el.querySelector('.senkuro-trade-summary__verdict--loss')).toBeNull();
+  });
+
+  it('leaves the X legend out when every card has a price', () => {
+    const el = modal('Выбери до 50 карт', constructorFooter([card('a-card', 2)], [card('s-card')]));
+    updateTradeSummaries(db, settings, store);
+    expect(el.querySelector('.senkuro-trade-summary__panel > .senkuro-trade-summary__unknown')).toBeNull();
+  });
+
+  it('leaves the X legend out when neither row that shows X is on', () => {
+    const el = modal('Прими решение обмена', reviewBody(panel('Отправитель', 4, [card('s-card')]), panel('Я', 1, [card('s-card')])) + reviewFooter);
+    updateTradeSummaries(db, { ...settings, showSummaryBank: false, showSummaryCards: false }, store);
+    expect(el.querySelector('.senkuro-trade-summary__panel > .senkuro-trade-summary__unknown')).toBeNull();
   });
 
   it('takes the whole incoming trade from the site responses instead of gray X', () => {
