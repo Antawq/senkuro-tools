@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { visibleName } from '../utils/copy-button';
 import { createPriceBadges } from '../utils/price-badges';
 import { DEFAULT_SETTINGS } from '../utils/settings';
 
@@ -120,6 +121,14 @@ describe('createPriceBadges', () => {
     expect(root.style.getPropertyValue(prop)).toBe(value);
     const button = root.querySelector('.senkuro-copy-btn');
     expect(positionY === 'center' ? button.style.marginTop : button.style[positionY]).toBe(value);
+  });
+
+  it('copies a card name without the invisible characters some names carry', () => {
+    expect(visibleName('Элия\u200b Крисанакс')).toBe('Элия Крисанакс');
+    expect(visibleName('\u200eСоран\u200b ')).toBe('Соран');
+    document.body.innerHTML = preview();
+    createPriceBadges({ onImageLoad: () => {}, touch: false }).update({ soran: { ...db.soran, name: 'Со\u200bран' } }, { ...DEFAULT_SETTINGS, copyBtn: true });
+    expect(document.querySelector('.senkuro-copy-btn').dataset.charName).toBe('Соран');
   });
 
   it('prices card immediately even before its image loads or without img src', () => {

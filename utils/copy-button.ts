@@ -8,6 +8,7 @@ const COPIED_MS = 1500;
 const OFFSET = BADGE_INSET;
 const PADDING_STEP = 3.5;
 const MIN_PADDING = 2;
+const INVISIBLE = /\p{Cf}/gu;
 
 export interface CopyButtonOptions {
   name: string;
@@ -56,7 +57,10 @@ function place(button: HTMLElement, positionX: BadgePositionX, positionY: BadgeP
 
 export const removeCopyButton = (root: ParentNode): void => root.querySelector(`.${BUTTON}`)?.remove();
 
-export function syncCopyButton(target: HTMLElement, { name, size, positionX, positionY, gap = NO_GAP, touch }: CopyButtonOptions): void {
+export const visibleName = (name: string): string => name.replace(INVISIBLE, '').trim();
+
+export function syncCopyButton(target: HTMLElement, { name: rawName, size, positionX, positionY, gap = NO_GAP, touch }: CopyButtonOptions): void {
+  const name = visibleName(rawName);
   let button = target.querySelector<HTMLElement>(`.${BUTTON}`);
   if (!button) {
     button = document.createElement('div');
