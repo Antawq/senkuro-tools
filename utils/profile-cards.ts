@@ -10,6 +10,7 @@ export interface ProfileValueSummary {
   bank: string[];
   cards: string[];
   shards: string[];
+  shardBank: string[];
   totalCards: number;
   totalShards: number;
   rValue: string | null;
@@ -53,6 +54,7 @@ export function calculateProfileValue(cards: AccountCard[], db: Database, valuat
     bank: formatByRank(value.bank),
     cards: formatByRank(counts),
     shards: formatShardsByRank(value.shards),
+    shardBank: formatShardsByRank(value.shardBank),
     totalCards: sumQuantity(whole),
     totalShards: sumQuantity(cards.filter((card) => card.shard)),
     rValue: hasR(value) ? `${formatAmount(value.r.value)}${R_RANK}` : null,

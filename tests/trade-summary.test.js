@@ -227,7 +227,7 @@ describe('updateTradeSummaries', () => {
     const el = modal('', constructorFooter([card('s-card', 5, true), card('a-card')], [card('missing')]));
     updateTradeSummaries(db, settings, store);
     expect(summaryOf(el)).toEqual({
-      sides: ['Получаешь 218.7F Банк 1.2A Карты 1A 5oS', 'Отдаёшь 0F Банк 1X Карты 1X'],
+      sides: ['Получаешь 218.7F Банк 1.2A 0.5oS Карты 1A 5oS', 'Отдаёшь 0F Банк 1X Карты 1X'],
       verdict: 'Выгода +218.7F',
       grayVerdict: true,
     });

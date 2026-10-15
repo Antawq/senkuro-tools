@@ -81,7 +81,7 @@ const describe = (column: Column, db: Database, settings: SummarySettings): Side
     label: column.label,
     value,
     f: `${formatAmount(value.f)}${F_UNIT}`,
-    bank: formatByRank(value.bank),
+    bank: [...formatByRank(value.bank), ...formatShardsByRank(value.shardBank)],
     count: [...countArray, ...shardsArray],
     unknown: unknownStr,
     r: hasR(value) ? describeR(value) : null,

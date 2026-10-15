@@ -27,6 +27,7 @@ export interface SideValue {
   unknown: number;
   beyondF: boolean;
   shards: Map<string, number>;
+  shardBank: Map<string, number>;
   shardUnknown: number;
   hasShards: boolean;
   r: RValue;
@@ -56,7 +57,7 @@ const RANK_ORDER = [R_RANK, ...[...FORGE_LADDER].reverse()];
 export const CRAFT_PER_RANK = 3;
 export const SPLIT_PER_RANK = 2;
 
-const SHARDS_REQUIRED: Record<string, number> = { S: 10, A: 8, B: 6, C: 4, D: 2 };
+const SHARDS_REQUIRED: Record<string, number> = { R: 12, S: 10, A: 8, B: 6, C: 4, D: 2 };
 
 const rateInF = (rank: string | undefined, perRank: number): number | null => {
   const step = rank ? FORGE_LADDER.indexOf(rank) : -1;
@@ -81,6 +82,7 @@ export function valueSide({ cards, hidden }: Side, db: Database, commission: boo
     unknown: hidden,
     beyondF: false,
     shards: new Map<string, number>(),
+    shardBank: new Map<string, number>(),
     shardUnknown: 0,
     r: { value: 0, count: 0, shards: 0 },
   };
@@ -94,13 +96,13 @@ export function valueSide({ cards, hidden }: Side, db: Database, commission: boo
         side.shardUnknown += quantity;
         continue;
       }
+      const required = SHARDS_REQUIRED[entry.rank] || 1;
+      const bank = effectivePrice(price, commission) * quantity;
       addTo(side.shards, entry.rank, quantity);
+      addTo(side.shardBank, entry.rank, bank / required);
       if (entry.rank === R_RANK) side.r.shards += quantity;
       else if (rate === null) side.beyondF = true;
-      else {
-        const required = SHARDS_REQUIRED[entry.rank] || 1;
-        side.f += ((basis === 'cards' ? quantity : effectivePrice(price, commission) * quantity) * rate) / required;
-      }
+      else side.f += ((basis === 'cards' ? quantity : bank) * rate) / required;
       continue;
     }
     if (price === null || !entry) {

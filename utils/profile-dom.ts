@@ -224,7 +224,7 @@ function renderSummary(widget: HTMLElement, slug: string, summary: ProfileValueS
   if (summary.totalShards > 0) meta.append(TEXT.separator, element('strong', undefined, String(summary.totalShards)), TEXT.shards);
 
   const body = element('div', 'senkuro-popover-body');
-  body.append(row(TEXT.bankRow, [...summary.bank, ...summary.shards]), row(TEXT.cardsRow, [...summary.cards, ...summary.shards]));
+  body.append(row(TEXT.bankRow, [...summary.bank, ...summary.shardBank]), row(TEXT.cardsRow, [...summary.cards, ...summary.shards]));
 
   popover.append(header, meta, body);
   widget.onmouseenter = () => keepInView(popover);

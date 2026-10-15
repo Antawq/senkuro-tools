@@ -105,7 +105,7 @@ describe('profile-dom', () => {
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it('formats popover with bank (shards included) and cards (R first)', () => {
+    it('formats popover with the bank value of shards, the shard count and R first', () => {
       window.history.pushState({}, '', '/users/phaivroh');
       document.body.innerHTML = header;
       cache([
@@ -117,7 +117,7 @@ describe('profile-dom', () => {
       updateProfileBadge({ db, valuation: plain });
       const popover = widget()?.querySelector('.senkuro-profile-f-popover');
       const [bank, cards] = [...(popover?.querySelectorAll('.senkuro-row-val') ?? [])].map((cell) => cell.textContent);
-      expect(bank).toBe('4R 1oR 2S 1oA');
+      expect(bank).toBe('4R 0.17oR 2S 0.13oA');
       expect(cards).toBe('2R 1oR 1S 1oA');
       expect(popover?.querySelector('.senkuro-rank-r')?.textContent).toBe('4R');
       expect(popover?.querySelector('.senkuro-popover-meta')?.textContent).toBe('Всего: 3 карт · 2 осколков');
