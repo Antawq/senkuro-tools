@@ -1,7 +1,7 @@
 import type { Database } from './database';
 import { element } from './dom';
 import type { TradeStore } from './trade-capture';
-import { TRADE_PLACES, readTradePlaces, type Column, type Placement, type Role, type Variant } from './trade-dom';
+import { TRADE_PLACES, readTradePlaces, type Column, type Place, type Role } from './trade-dom';
 import { totalOf } from './trade-match';
 import {
   F_UNIT,
@@ -171,7 +171,7 @@ function expandToggle(summary: HTMLElement): HTMLButtonElement {
   return button;
 }
 
-function mount(host: Element, placement: Placement, variant: Variant | undefined, order: number): HTMLElement {
+function mount({ host, placement, variant }: Place, order: number): HTMLElement {
   const summary = element('div', `${SUMMARY} ${SUMMARY}--${placement}${variant ? ` ${SUMMARY}--${variant}` : ''}`);
   const gap = getComputedStyle(host).rowGap;
   summary.style.setProperty('--senkuro-host-gap', gap.endsWith('px') ? gap : '0px');
@@ -184,20 +184,24 @@ function mount(host: Element, placement: Placement, variant: Variant | undefined
   return summary;
 }
 
-function render(
-  host: Element,
-  placement: Placement,
-  variant: Variant | undefined,
-  caption: string | undefined,
-  sides: SideView[],
-  settings: SummarySettings,
-  nextOrder: () => number
-): void {
+interface View {
+  caption: string | undefined;
+  sides: SideView[];
+  settings: SummarySettings;
+  verdict: Verdict | null;
+  rVerdict: Verdict | null;
+}
+
+function viewOf(caption: string | undefined, columns: Column[], db: Database, settings: SummarySettings): View {
+  const sides = columns.map((column) => describe(column, db, settings));
   const give = sides.find((side) => side.role === 'give')?.value;
   const get = sides.find((side) => side.role === 'get')?.value;
-  const verdict = settings.showSummaryVerdict && give && get ? compareSides(give, get) : null;
-  const rVerdict = settings.showSummaryVerdict && give && get ? compareR(give, get) : null;
-  const signature = JSON.stringify([
+  if (!settings.showSummaryVerdict || !give || !get) return { caption, sides, settings, verdict: null, rVerdict: null };
+  return { caption, sides, settings, verdict: compareSides(give, get), rVerdict: compareR(give, get) };
+}
+
+const signatureOf = ({ caption, sides, settings, verdict, rVerdict }: View): string =>
+  JSON.stringify([
     caption,
     sides.map(({ label, f, bank, count, unknown, r }) => [label, f, bank, count, unknown, r]),
     verdict,
@@ -207,41 +211,40 @@ function render(
     settings.showSummaryCards,
   ]);
 
-  const summary = host.querySelector<HTMLElement>(`:scope > .${SUMMARY}`) ?? mount(host, placement, variant, nextOrder());
-  summary.classList.remove(CLOSED);
-  if (summary.dataset.signature === signature) return;
-  summary.dataset.signature = signature;
-  summary.classList.toggle(COLLAPSIBLE, Boolean(verdict));
+const verdictLine = (verdict: Verdict, ...extra: string[]): HTMLElement =>
+  element('div', [`${SUMMARY}__verdict`, verdictState(verdict), ...extra].join(' '), verdict.text);
 
-  const parts: HTMLElement[] = caption ? [element('div', `${SUMMARY}__label`, caption)] : [];
+function partsOf({ caption, sides, settings, verdict, rVerdict }: View, summary: HTMLElement): HTMLElement[] {
   const details = element('div', `${SUMMARY}__details`);
   details.append(panel(sides, settings));
-  parts.push(details);
-  if (verdict) {
-    parts.push(element('div', `${SUMMARY}__verdict ${verdictState(verdict)}`, verdict.text));
-    if (rVerdict) parts.push(element('div', `${SUMMARY}__verdict ${verdictState(rVerdict)} ${SUMMARY}__verdict--r`, rVerdict.text));
-    parts.push(expandToggle(summary));
-  }
-  summary.querySelector(`.${SUMMARY}__content`)?.replaceChildren(...parts);
+  const parts: HTMLElement[] = [...(caption ? [element('div', `${SUMMARY}__label`, caption)] : []), details];
+  if (!verdict) return parts;
+  parts.push(verdictLine(verdict));
+  if (rVerdict) parts.push(verdictLine(rVerdict, `${SUMMARY}__verdict--r`));
+  parts.push(expandToggle(summary));
+  return parts;
+}
+
+function render(place: Place, view: View, nextOrder: () => number): void {
+  const summary = place.host.querySelector<HTMLElement>(`:scope > .${SUMMARY}`) ?? mount(place, nextOrder());
+  summary.classList.remove(CLOSED);
+  const signature = signatureOf(view);
+  if (summary.dataset.signature === signature) return;
+  summary.dataset.signature = signature;
+  summary.classList.toggle(COLLAPSIBLE, Boolean(view.verdict));
+  summary.querySelector(`.${SUMMARY}__content`)?.replaceChildren(...partsOf(view, summary));
 }
 
 export function updateTradeSummaries(db: Database, settings: SummarySettings, store: TradeStore): void {
   let mounted = 0;
   const nextOrder = () => mounted++;
-  for (const { host, placement, variant, caption, columns } of readTradePlaces(store)) {
+  for (const place of readTradePlaces(store)) {
+    const { host, caption, columns } = place;
     if (!columns || columns.every((column) => totalOf(column) === 0)) {
       host.querySelector(`:scope > .${SUMMARY}`)?.classList.add(CLOSED);
       continue;
     }
-    render(
-      host,
-      placement,
-      variant,
-      caption,
-      columns.map((column) => describe(column, db, settings)),
-      settings,
-      nextOrder
-    );
+    render(place, viewOf(caption, columns, db, settings), nextOrder);
   }
 }
 
