@@ -13,9 +13,9 @@
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
     "zip:safari": "wxt zip -b safari",
-    "release:patch": "npm version patch --no-git-tag-version && npm run zip && npm run zip:firefox",
-    "release:minor": "npm version minor --no-git-tag-version && npm run zip && npm run zip:firefox",
-    "release:major": "npm version major --no-git-tag-version && npm run zip && npm run zip:firefox",
+    "release:patch": "npm version patch --no-git-tag-version && npm run zip && npm run zip:firefox && npm run zip:safari",
+    "release:minor": "npm version minor --no-git-tag-version && npm run zip && npm run zip:firefox && npm run zip:safari",
+    "release:major": "npm version major --no-git-tag-version && npm run zip && npm run zip:firefox && npm run zip:safari",
     "compile": "tsc --noEmit",
     "postinstall": "wxt prepare",
     "test": "vitest run"
