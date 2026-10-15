@@ -143,6 +143,11 @@ describe('createPriceBadges', () => {
     expect(document.querySelector('[data-senkuro-price]')).toBeNull();
   });
 
+  it('prices the 36px cards of notifications', () => {
+    renderAtWidth(36);
+    expect(document.querySelector('[data-senkuro-price]')?.getAttribute('data-senkuro-price')).toBe('1.00');
+  });
+
   it('still prices a small card that has room for the price, in a smaller font', () => {
     renderAtWidth(50);
     const holder = document.querySelector('[data-senkuro-price]');

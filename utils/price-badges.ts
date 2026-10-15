@@ -7,7 +7,7 @@ import { tierOf } from './tiers';
 
 const BADGE_ATTRIBUTES = ['data-senkuro-price', 'data-senkuro-style', 'data-senkuro-eff', 'data-senkuro-tier'];
 const SMALL_CARD_WIDTH = 60;
-const MIN_PRICED_CARD_WIDTH = 40;
+const MIN_PRICED_CARD_WIDTH = 30;
 const SMALL_CARD_SCALE_BASE = 70;
 const SMALL_CARD_MIN_SCALE = 0.6;
 const SMALL_CARD_MIN_FONT = 9;
