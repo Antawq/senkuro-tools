@@ -2,8 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import type { Transport } from '../utils/graphql';
 import {
-  DEEP_THROTTLE_PAGES,
-  DEEP_THROTTLED_DELAY_MS,
   FAST_DELAY_MS,
   FAST_PAGES,
   MAX_PAGES,
@@ -144,13 +142,11 @@ describe('fetchUserCards', () => {
     expect(sent).toHaveLength(0);
   });
 
-  it('delays requests progressively based on page index', () => {
+  it('delays requests after the first 1,000 cards', () => {
     expect(delayForPage(0)).toBe(FAST_DELAY_MS);
     expect(delayForPage(FAST_PAGES - 1)).toBe(FAST_DELAY_MS);
     expect(delayForPage(FAST_PAGES)).toBe(THROTTLED_DELAY_MS);
-    expect(delayForPage(DEEP_THROTTLE_PAGES - 1)).toBe(THROTTLED_DELAY_MS);
-    expect(delayForPage(DEEP_THROTTLE_PAGES)).toBe(DEEP_THROTTLED_DELAY_MS);
-    expect(delayForPage(150)).toBe(DEEP_THROTTLED_DELAY_MS);
+    expect(delayForPage(150)).toBe(THROTTLED_DELAY_MS);
   });
 
   it('does not sleep between pages during the fast first 1,000 cards', async () => {

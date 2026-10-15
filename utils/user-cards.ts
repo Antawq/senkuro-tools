@@ -8,20 +8,14 @@ export interface UserCard {
 
 export const PAGE_SIZE = 100;
 export const MAX_PAGES = 300;
-export const PAGE_DELAY_MS = 165;
+export const PAGE_DELAY_MS = 180;
 export const FAST_PAGES = 10;
 export const FAST_DELAY_MS = 0;
-export const THROTTLED_DELAY_MS = 165;
-export const DEEP_THROTTLE_PAGES = 50;
-export const DEEP_THROTTLED_DELAY_MS = 200;
+export const THROTTLED_DELAY_MS = 180;
 export const RATE_LIMIT_COOLDOWN_MS = 3000;
 export const MAX_429_RETRIES = 3;
 
-export const delayForPage = (page: number): number => {
-  if (page < FAST_PAGES) return FAST_DELAY_MS;
-  if (page < DEEP_THROTTLE_PAGES) return THROTTLED_DELAY_MS;
-  return DEEP_THROTTLED_DELAY_MS;
-};
+export const delayForPage = (page: number): number => (page < FAST_PAGES ? FAST_DELAY_MS : THROTTLED_DELAY_MS);
 
 const USER_CARDS =
   'query UserCards($userId: ID!, $first: Int = 20, $after: String, $orderBy: UserCardOrder!) { userCards(userId: $userId, first: $first, after: $after, orderBy: $orderBy) { pageInfo { hasNextPage endCursor } edges { node { quantity shard card { slug } } } } }';
