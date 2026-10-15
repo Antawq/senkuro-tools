@@ -1,4 +1,4 @@
-import { BADGE_INSET, CENTER, CENTER_SHIFT_X, CENTER_SHIFT_Y } from './badge-layout';
+import { BADGE_INSET, CENTER, CENTER_SHIFT_X, centerShiftY, faceGap, gapKey, insetAbove, insetBelow, NO_GAP, type FaceGap } from './badge-layout';
 import { CARD_LINK, PERCENT, PRICE_DECIMALS, effectivePrice, slugFromHref } from './cards';
 import { removeCopyButton, syncCopyButton } from './copy-button';
 import type { Database } from './database';
@@ -17,8 +17,8 @@ const OUTLINE_OFFSETS = ['1px 1px 0', '-1px -1px 0', '1px -1px 0', '-1px 1px 0',
 const UNKNOWN_NAME = 'Неизвестно';
 const NO_EFFECT = 'none';
 const BACK_FACE = '.card-collect-preview__back';
-const TRADE_FAN = '.modal-trade__swap-cards';
-const TRADE_FAN_POSITION: { x: BadgePositionX; y: BadgePositionY } = { x: 'left', y: 'center' };
+const STACK_ITEM = '.offer-card__cnt-el, .modal-trade__swap-cards > .modal-trade__card';
+const VISIBLE_EDGE: BadgePositionX = 'left';
 
 const POSITION_PROPS = ['--s-top', '--s-bottom', '--s-left', '--s-right', '--s-mt', '--s-ml', '--s-align'];
 
@@ -42,14 +42,14 @@ function imageSource(img: HTMLImageElement): string {
   return source.startsWith('data:') ? '' : source;
 }
 
-function applyPosition(target: HTMLElement, positionX: BadgePositionX, positionY: BadgePositionY): void {
+function applyPosition(target: HTMLElement, positionX: BadgePositionX, positionY: BadgePositionY, gap: FaceGap): void {
   POSITION_PROPS.forEach((prop) => target.style.removeProperty(prop));
 
-  if (positionY === 'top') target.style.setProperty('--s-top', BADGE_INSET);
-  else if (positionY === 'bottom') target.style.setProperty('--s-bottom', BADGE_INSET);
+  if (positionY === 'top') target.style.setProperty('--s-top', insetAbove(gap));
+  else if (positionY === 'bottom') target.style.setProperty('--s-bottom', insetBelow(gap));
   else if (positionY === 'center') {
     target.style.setProperty('--s-top', CENTER);
-    target.style.setProperty('--s-mt', CENTER_SHIFT_Y);
+    target.style.setProperty('--s-mt', centerShiftY(gap));
   }
 
   if (positionX === 'left') {
@@ -66,6 +66,18 @@ function applyPosition(target: HTMLElement, positionX: BadgePositionX, positionY
 }
 
 const clearBadge = (el: Element) => BADGE_ATTRIBUTES.forEach((attribute) => el.removeAttribute(attribute));
+
+const layerOf = (el: Element): number => Number.parseInt(getComputedStyle(el).zIndex, 10) || 0;
+
+const paintsAbove = (other: Element, item: Element): boolean => {
+  const layer = layerOf(other) - layerOf(item);
+  return layer > 0 || (layer === 0 && Boolean(item.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING));
+};
+
+function coveredInStack(target: HTMLElement): boolean {
+  if (!target.matches(STACK_ITEM)) return false;
+  return [...(target.parentElement?.children ?? [])].some((other) => other !== target && other.matches(STACK_ITEM) && paintsAbove(other, target));
+}
 
 export function createPriceBadges({ onImageLoad, touch }: { onImageLoad: () => void; touch: boolean }): PriceBadges {
   const waitingImages = new WeakSet<HTMLImageElement>();
@@ -135,14 +147,16 @@ export function createPriceBadges({ onImageLoad, touch }: { onImageLoad: () => v
       target.style.removeProperty('--s-bg-color');
     }
 
-    const { x: positionX, y: positionY } = target.closest(TRADE_FAN) ? TRADE_FAN_POSITION : { x: settings.positionX, y: settings.positionY };
-    const posKey = `${positionX}-${positionY}`;
+    const positionX = coveredInStack(target) ? VISIBLE_EDGE : settings.positionX;
+    const positionY = settings.positionY;
+    const gap = preview ? faceGap(preview) : NO_GAP;
+    const posKey = `${positionX}-${positionY}${gapKey(gap)}`;
     if (target.dataset.badgePos !== posKey) {
       target.dataset.badgePos = posKey;
-      applyPosition(target, positionX, positionY);
+      applyPosition(target, positionX, positionY, gap);
     }
 
-    if (settings.copyBtn && !small) syncCopyButton(target, { name: entry.name || UNKNOWN_NAME, size: settings.copyBtnSize, positionX, positionY, touch });
+    if (settings.copyBtn && !small) syncCopyButton(target, { name: entry.name || UNKNOWN_NAME, size: settings.copyBtnSize, positionX, positionY, gap, touch });
     else removeCopyButton(target);
 
     card.dataset.priceBadgeAdded = slug;

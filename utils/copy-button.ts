@@ -1,4 +1,4 @@
-import { BADGE_INSET, CENTER, CENTER_SHIFT_Y } from './badge-layout';
+import { BADGE_INSET, CENTER, centerShiftY, gapKey, insetAbove, insetBelow, NO_GAP, type FaceGap } from './badge-layout';
 import type { BadgePositionX, BadgePositionY } from './settings';
 import { svgIcon, type Shape } from './svg';
 
@@ -14,6 +14,7 @@ export interface CopyButtonOptions {
   size: number;
   positionX: BadgePositionX;
   positionY: BadgePositionY;
+  gap?: FaceGap;
   touch: boolean;
 }
 
@@ -28,7 +29,7 @@ const copyIcon = (size: number) =>
 
 const doneIcon = (size: number) => icon(size, [['polyline', { points: '20 6 9 17 4 12' }]]);
 
-function place(button: HTMLElement, positionX: BadgePositionX, positionY: BadgePositionY): void {
+function place(button: HTMLElement, positionX: BadgePositionX, positionY: BadgePositionY, gap: FaceGap): void {
   const right = positionX === 'right';
   const bottom = positionY === 'bottom';
 
@@ -45,17 +46,17 @@ function place(button: HTMLElement, positionX: BadgePositionX, positionY: BadgeP
   if (positionY === 'center') {
     button.style.top = CENTER;
     button.style.bottom = 'auto';
-    button.style.marginTop = CENTER_SHIFT_Y;
+    button.style.marginTop = centerShiftY(gap);
   } else {
     button.style.marginTop = '0';
-    button.style.bottom = bottom ? OFFSET : 'auto';
-    button.style.top = bottom ? 'auto' : OFFSET;
+    button.style.bottom = bottom ? insetBelow(gap) : 'auto';
+    button.style.top = bottom ? 'auto' : insetAbove(gap);
   }
 }
 
 export const removeCopyButton = (root: ParentNode): void => root.querySelector(`.${BUTTON}`)?.remove();
 
-export function syncCopyButton(target: HTMLElement, { name, size, positionX, positionY, touch }: CopyButtonOptions): void {
+export function syncCopyButton(target: HTMLElement, { name, size, positionX, positionY, gap = NO_GAP, touch }: CopyButtonOptions): void {
   let button = target.querySelector<HTMLElement>(`.${BUTTON}`);
   if (!button) {
     button = document.createElement('div');
@@ -70,10 +71,10 @@ export function syncCopyButton(target: HTMLElement, { name, size, positionX, pos
     current.replaceChildren(copyIcon(size));
   }
 
-  const posKey = `${positionX}-${positionY}`;
+  const posKey = `${positionX}-${positionY}${gapKey(gap)}`;
   if (current.dataset.btnPos !== posKey) {
     current.dataset.btnPos = posKey;
-    place(current, positionX, positionY);
+    place(current, positionX, positionY, gap);
   }
 
   if (current.dataset.charName === name) return;
