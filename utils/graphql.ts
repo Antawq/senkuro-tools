@@ -9,7 +9,8 @@ const BASE_DELAY_MS = 500;
 const BACKOFF_FACTOR = 2;
 const MAX_WAIT_MS = 8000;
 const JITTER = 0.25;
-const RETRIED_STATUSES = new Set([429, 502, 503, 504]);
+const HTTP_TOO_MANY_REQUESTS = 429;
+const RETRIED_STATUSES = new Set([HTTP_TOO_MANY_REQUESTS, 502, 503, 504]);
 const UNAUTHORIZED_CODES = new Set(['NOT_AUTHORIZED', 'UNAUTHENTICATED']);
 const HTTP_UNAUTHORIZED = 401;
 const JSON_HEADERS = { accept: 'application/json', 'content-type': 'application/json' };
@@ -51,7 +52,8 @@ const backoffMs = (attempt: number, random: () => number): number =>
 
 const retryDelayMs = (response: Response, attempt: number, random: () => number): number => {
   const header = response.headers.get('retry-after');
-  return header && /^\d+$/.test(header) ? Number(header) * MS_PER_SECOND : backoffMs(attempt, random);
+  if (header && /^\d+$/.test(header)) return Number(header) * MS_PER_SECOND;
+  return response.status === HTTP_TOO_MANY_REQUESTS ? Number.POSITIVE_INFINITY : backoffMs(attempt, random);
 };
 
 const isUnauthorizedEntry = (entry: unknown): boolean => {
@@ -73,16 +75,28 @@ async function decode<T>(response: Response): Promise<T> {
   return data as T;
 }
 
+const timeoutSignal = (ms: number): AbortSignal => (typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(ms) : new AbortController().signal);
+
+const combineSignals = (signal: AbortSignal | undefined, timeoutMs: number): AbortSignal => {
+  if (!signal) return timeoutSignal(timeoutMs);
+  if (typeof AbortSignal.any === 'function') {
+    return AbortSignal.any([signal, timeoutSignal(timeoutMs)]);
+  }
+  return signal;
+};
+
 export async function execute<T>(
   token: string | null,
   document: string,
   operationName: string,
   variables: Variables,
-  transport: Transport = browserTransport
+  transport: Transport = browserTransport,
+  signal?: AbortSignal
 ): Promise<T> {
   const body = JSON.stringify({ query: document, operationName, variables });
   const headers: Record<string, string> = { ...JSON_HEADERS, ...(token ? { authorization: `Bearer ${token}` } : {}) };
   for (let attempt = 1; ; attempt++) {
+    if (signal?.aborted) throw new ApiError('network');
     let response: Response;
     try {
       response = await transport.fetch(API_ENDPOINT, {
@@ -92,9 +106,10 @@ export async function execute<T>(
         credentials: 'omit',
         redirect: 'manual',
         referrerPolicy: 'no-referrer',
-        signal: AbortSignal.timeout(TIMEOUT_MS),
+        signal: combineSignals(signal, TIMEOUT_MS),
       });
     } catch {
+      if (signal?.aborted) throw new ApiError('network');
       if (attempt >= MAX_ATTEMPTS) throw new ApiError('network');
       await transport.sleep(backoffMs(attempt, transport.random));
       continue;

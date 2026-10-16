@@ -2,7 +2,7 @@ import type { Database } from './database';
 import { execute, type Transport } from './graphql';
 import { F_UNIT, R_RANK, formatAmount, formatByRank, formatShardsByRank, hasR, valueSide, type Valuation } from './trade-value';
 import { decodeSafely } from './uri';
-import { fetchUserCards, type UserCard } from './user-cards';
+import { fetchUserCards, type FetchOptions, type UserCard } from './user-cards';
 
 export interface ProfileValueSummary {
   totalF: number;
@@ -26,15 +26,15 @@ interface UserData {
   user?: { id?: string; name?: string | null } | null;
 }
 
-export async function fetchProfileUser(slug: string, transport?: Transport): Promise<{ id: string; name: string } | null> {
-  const data = await execute<UserData>(null, USER_BY_SLUG, 'User', { slug }, transport);
+export async function fetchProfileUser(slug: string, transport?: Transport, signal?: AbortSignal): Promise<{ id: string; name: string } | null> {
+  const data = await execute<UserData>(null, USER_BY_SLUG, 'User', { slug }, transport, signal);
   const user = data?.user;
   if (!user?.id) return null;
   return { id: String(user.id), name: user.name || slug };
 }
 
-export const fetchProfileCards = (userId: string, onProgress?: (loaded: number) => void, transport?: Transport): Promise<UserCard[]> =>
-  fetchUserCards(null, userId, onProgress, transport);
+export const fetchProfileCards = (userId: string, options?: FetchOptions, transport?: Transport): Promise<UserCard[]> =>
+  fetchUserCards(null, userId, options, transport);
 
 const rankOf = (slug: string, db: Database): string | null => db[slug]?.rank || (slug.endsWith(R_SLUG_SUFFIX) ? R_RANK : null);
 

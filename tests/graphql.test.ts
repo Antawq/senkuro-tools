@@ -96,6 +96,13 @@ describe('execute', () => {
     expect(calls).toHaveLength(1);
   });
 
+  it('stops at a 429 that names no wait instead of asking again', async () => {
+    const { result, sleeps, calls } = run([reply('', 429)]);
+    expect(await failure(result)).toMatchObject({ failure: 'http', status: 429 });
+    expect(sleeps).toEqual([]);
+    expect(calls).toHaveLength(1);
+  });
+
   it('retries a network error and then reports it', async () => {
     const recovered = run([new TypeError('Failed to fetch'), reply({ data: { ok: true } })]);
     expect(await recovered.result).toEqual({ ok: true });
@@ -136,5 +143,14 @@ describe('execute', () => {
       expect(String(error)).not.toContain(TOKEN);
       expect(JSON.stringify(error)).not.toContain(TOKEN);
     }
+  });
+
+  it('fails with network error immediately when signal is aborted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const harness = transportOf([reply({ data: { ok: true } })]);
+    const promise = execute<{ ok: boolean }>(TOKEN, 'query Q { ok }', 'Q', { a: 1 }, harness.transport, controller.signal);
+    expect(await failure(promise)).toMatchObject({ failure: 'network' });
+    expect(harness.calls).toHaveLength(0);
   });
 });

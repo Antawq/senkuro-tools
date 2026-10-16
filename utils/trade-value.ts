@@ -123,7 +123,7 @@ function addShards(tally: Tally, { rank, price }: CardEntry, quantity: number, {
   const perCard = SHARDS_REQUIRED[rank] || 1;
   const bank = effectivePrice(price, commission) * quantity;
   addTo(tally.shards, rank, quantity);
-  addTo(tally.shardBank, rank, bank / perCard);
+  addTo(tally.shardBank, rank, bank);
   if (rank !== R_RANK) addToF(tally, rank, (basis === 'cards' ? quantity : bank) / perCard, perRank);
   else tally.r.shards += quantity;
 }

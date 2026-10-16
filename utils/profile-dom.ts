@@ -1,26 +1,24 @@
 import type { Database } from './database';
 import { element } from './dom';
 import { calculateProfileValue, extractProfileSlug, fetchProfileCards, fetchProfileUser, type ProfileValueSummary } from './profile-cards';
+import { isComplete, readCollection, saveCollection, type Collection } from './profile-store';
 import { svgIcon } from './svg';
-import { MS_PER_MINUTE } from './time';
 import { R_RANK, type Valuation } from './trade-value';
-import { packCards, unpackCards, type UserCard } from './user-cards';
 
 export const WIDGET_ID = 'senkuro-profile-card-value';
 
 const CHIP = 'senkuro-profile-f-chip';
 const LOADING = 'senkuro-loading';
 const FAILED = 'senkuro-error';
+const IDLE = 'senkuro-idle';
 const ACTIVE = 'senkuro-popover-active';
 const R_HIGHLIGHT = 'senkuro-rank-r';
 const GUTTER_PROPERTY = '--senkuro-gutter';
 const SHIFT_PROPERTY = '--senkuro-popover-shift';
-const CACHE_PREFIX = 'senkutools:profile_cards:';
-const CACHE_TTL_MINUTES = 10;
-const CACHE_TTL_MS = CACHE_TTL_MINUTES * MS_PER_MINUTE;
 const EMPTY = '-';
 
 const TEXT = {
+  idle: 'Посчитать ценность',
   counting: 'Считаем F...',
   retrying: 'Повтор...',
   refreshing: 'Обновление...',
@@ -59,6 +57,7 @@ const NICKNAME_HOSTS: [string, (host: Element, el: HTMLElement) => void][] = [
 export interface ProfileBadgeDeps {
   db: Database;
   valuation: Valuation;
+  redraw?: () => void;
 }
 
 interface NicknameTarget {
@@ -66,47 +65,47 @@ interface NicknameTarget {
   insert: (el: HTMLElement) => void;
 }
 
-interface CacheEntry {
-  at?: unknown;
-  cards?: unknown;
-}
-
-const inProgress = new Set<string>();
+const inProgress = new Map<string, AbortController>();
+const known = new Map<string, Collection | null>();
+const reading = new Set<string>();
 let closingBound = false;
 
-const cacheKey = (slug: string): string => `${CACHE_PREFIX}${slug}`;
+export const isTradeOpen = (): boolean => Boolean(document.querySelector('.modal-content--trade, .modal-trade'));
+
+export function abortProfileLoading(slug?: string): void {
+  if (slug) {
+    inProgress.get(slug)?.abort();
+    inProgress.delete(slug);
+  } else {
+    for (const controller of inProgress.values()) {
+      controller.abort();
+    }
+    inProgress.clear();
+  }
+}
 
 const valuationKey = ({ commission, valueBySplit, valueBasis }: Valuation): string => JSON.stringify([commission, valueBySplit, valueBasis]);
 
-function readCache(slug: string): UserCard[] | null {
-  try {
-    const raw = sessionStorage.getItem(cacheKey(slug));
-    if (!raw) return null;
-    const entry = JSON.parse(raw) as CacheEntry;
-    if (typeof entry.at !== 'number' || Date.now() - entry.at > CACHE_TTL_MS) {
-      sessionStorage.removeItem(cacheKey(slug));
-      return null;
-    }
-    return unpackCards(entry.cards);
-  } catch {
-    return null;
-  }
+const warnStore = (error: unknown): null => {
+  console.warn('SenkuTools: profile store', error);
+  return null;
+};
+
+function remember(slug: string, collection: Collection): void {
+  known.set(slug, collection);
+  void saveCollection(slug, collection).catch(warnStore);
 }
 
-function writeCache(slug: string, cards: UserCard[]): void {
-  try {
-    sessionStorage.setItem(cacheKey(slug), JSON.stringify({ at: Date.now(), cards: packCards(cards) }));
-  } catch (error) {
-    console.warn('SenkuTools: profile cache', error);
-  }
-}
-
-function clearCache(slug: string): void {
-  try {
-    sessionStorage.removeItem(cacheKey(slug));
-  } catch (error) {
-    console.warn('SenkuTools: profile cache', error);
-  }
+function readStored(slug: string, deps: ProfileBadgeDeps): void {
+  if (reading.has(slug)) return;
+  reading.add(slug);
+  void readCollection(slug)
+    .catch(warnStore)
+    .then((collection) => {
+      reading.delete(slug);
+      if (!known.has(slug)) known.set(slug, collection);
+      deps.redraw?.();
+    });
 }
 
 export function findNicknameTarget(): NicknameTarget | null {
@@ -157,31 +156,45 @@ function bindOutsideClose(): void {
 
 export function removeProfileBadge(): void {
   document.getElementById(WIDGET_ID)?.remove();
+  known.clear();
 }
 
-export const profileBadgeMissing = (): boolean => Boolean(extractProfileSlug(window.location.pathname) && !document.getElementById(WIDGET_ID));
+export const profileBadgeMissing = (): boolean =>
+  !isTradeOpen() && Boolean(extractProfileSlug(window.location.pathname) && !document.getElementById(WIDGET_ID));
 
 function renderLoading(widget: HTMLElement, text: string): void {
   widget.classList.add(LOADING);
-  widget.classList.remove(FAILED);
+  widget.classList.remove(FAILED, IDLE);
   widget.onclick = null;
   widget.onmouseenter = null;
   widget.replaceChildren(element('span', 'senkuro-chip-spinner'), element('span', 'senkuro-f-text', text));
 }
 
+function renderIdle(widget: HTMLElement, slug: string, deps: ProfileBadgeDeps): void {
+  widget.classList.remove(LOADING, FAILED);
+  widget.classList.add(IDLE);
+  widget.onmouseenter = null;
+  widget.replaceChildren(element('span', 'senkuro-f-text', TEXT.idle));
+  widget.onclick = (event) => {
+    event.stopPropagation();
+    renderLoading(widget, TEXT.counting);
+    load(slug, deps);
+  };
+}
+
 function renderError(widget: HTMLElement, slug: string, deps: ProfileBadgeDeps): void {
-  widget.classList.remove(LOADING);
+  widget.classList.remove(LOADING, IDLE);
   widget.classList.add(FAILED);
   widget.onmouseenter = null;
   widget.replaceChildren(element('span', 'senkuro-f-text', TEXT.failed));
   widget.onclick = (event) => {
     event.stopPropagation();
-    reload(widget, slug, deps, TEXT.retrying);
+    reload(widget, slug, deps, false);
   };
 }
 
 function renderSummary(widget: HTMLElement, slug: string, summary: ProfileValueSummary, deps: ProfileBadgeDeps): void {
-  widget.classList.remove(LOADING, FAILED);
+  widget.classList.remove(LOADING, FAILED, IDLE);
   widget.onclick = null;
   widget.onmouseenter = null;
 
@@ -208,7 +221,7 @@ function renderSummary(widget: HTMLElement, slug: string, summary: ProfileValueS
   refresh.addEventListener('click', (event) => {
     event.stopPropagation();
     widget.classList.remove(ACTIVE);
-    reload(widget, slug, deps, TEXT.refreshing);
+    reload(widget, slug, deps, true);
   });
 
   const header = element('div', 'senkuro-popover-header');
@@ -226,11 +239,10 @@ function renderSummary(widget: HTMLElement, slug: string, summary: ProfileValueS
   widget.replaceChildren(chip, popover);
 }
 
-function reload(widget: HTMLElement, slug: string, deps: ProfileBadgeDeps, text: string): void {
-  clearCache(slug);
+function reload(widget: HTMLElement, slug: string, deps: ProfileBadgeDeps, fresh: boolean): void {
   delete widget.dataset.valuation;
-  renderLoading(widget, text);
-  load(slug, deps);
+  renderLoading(widget, fresh ? TEXT.refreshing : TEXT.retrying);
+  load(slug, deps, fresh);
 }
 
 const widgetFor = (slug: string): HTMLElement | null => {
@@ -238,55 +250,91 @@ const widgetFor = (slug: string): HTMLElement | null => {
   return widget?.dataset.slug === slug ? widget : null;
 };
 
-function load(slug: string, deps: ProfileBadgeDeps): void {
-  if (inProgress.has(slug)) return;
-  inProgress.add(slug);
+async function download(slug: string, signal: AbortSignal, fresh: boolean, onPage: (latest: Collection) => void): Promise<Collection | null> {
+  const stored = fresh ? null : ((await readCollection(slug).catch(warnStore)) ?? known.get(slug) ?? null);
+  if (stored && isComplete(stored)) {
+    known.set(slug, stored);
+    return stored;
+  }
+  const userId = stored?.userId ?? (await fetchProfileUser(slug, undefined, signal))?.id;
+  if (!userId) return null;
+  const started: Collection = stored ?? { at: Date.now(), userId, cards: [], after: null, pages: 0 };
+  let latest = started;
+  await fetchProfileCards(userId, {
+    from: started,
+    signal,
+    onPage: (page) => {
+      latest = { ...started, ...page };
+      onPage(latest);
+      const widget = widgetFor(slug);
+      if (widget?.classList.contains(LOADING)) renderLoading(widget, progressText(page.cards.length));
+    },
+  });
+  remember(slug, latest);
+  return latest;
+}
+
+function load(slug: string, deps: ProfileBadgeDeps, fresh = false): void {
+  if (inProgress.has(slug) || isTradeOpen()) return;
+  const controller = new AbortController();
+  inProgress.set(slug, controller);
+  const progress: { latest?: Collection } = {};
+
   void (async () => {
     try {
-      const user = await fetchProfileUser(slug);
-      if (!user) {
-        const widget = widgetFor(slug);
-        if (widget) renderError(widget, slug, deps);
-        return;
-      }
-      const cards = await fetchProfileCards(user.id, (loaded) => {
-        const widget = widgetFor(slug);
-        if (widget?.classList.contains(LOADING)) renderLoading(widget, progressText(loaded));
+      const collection = await download(slug, controller.signal, fresh, (latest) => {
+        progress.latest = latest;
       });
-      writeCache(slug, cards);
       const widget = widgetFor(slug);
       if (!widget) return;
-      renderSummary(widget, slug, calculateProfileValue(cards, deps.db, deps.valuation), deps);
+      if (!collection) {
+        renderError(widget, slug, deps);
+        return;
+      }
+      renderSummary(widget, slug, calculateProfileValue(collection.cards, deps.db, deps.valuation), deps);
       widget.dataset.valuation = valuationKey(deps.valuation);
     } catch (error) {
+      if (progress.latest) remember(slug, progress.latest);
+      if (controller.signal.aborted) return;
       console.error('SenkuTools: failed to fetch profile cards', error);
       const widget = widgetFor(slug);
       if (widget) renderError(widget, slug, deps);
     } finally {
-      inProgress.delete(slug);
+      if (inProgress.get(slug) === controller) {
+        inProgress.delete(slug);
+      }
     }
   })();
 }
 
 function show(widget: HTMLElement, slug: string, deps: ProfileBadgeDeps): void {
-  if (widget.classList.contains(FAILED)) return;
+  if (widget.classList.contains(FAILED) || isTradeOpen()) return;
   if (inProgress.has(slug)) {
     if (!widget.classList.contains(LOADING)) renderLoading(widget, TEXT.counting);
     return;
   }
-  const key = valuationKey(deps.valuation);
-  if (widget.dataset.valuation === key) return;
-  const cards = readCache(slug);
-  if (!cards) {
-    renderLoading(widget, TEXT.counting);
-    load(slug, deps);
+  const collection = known.get(slug);
+  if (!collection || !isComplete(collection)) {
+    if (!widget.classList.contains(IDLE)) renderIdle(widget, slug, deps);
     return;
   }
-  renderSummary(widget, slug, calculateProfileValue(cards, deps.db, deps.valuation), deps);
+  const key = valuationKey(deps.valuation);
+  if (widget.dataset.valuation === key) return;
+  renderSummary(widget, slug, calculateProfileValue(collection.cards, deps.db, deps.valuation), deps);
   widget.dataset.valuation = key;
 }
 
+function pauseCount(deps: ProfileBadgeDeps): void {
+  abortProfileLoading();
+  const widget = document.getElementById(WIDGET_ID);
+  if (widget?.dataset.slug && widget.classList.contains(LOADING)) renderIdle(widget, widget.dataset.slug, deps);
+}
+
 export function updateProfileBadge(deps: ProfileBadgeDeps): void {
+  if (isTradeOpen()) {
+    pauseCount(deps);
+    return;
+  }
   const slug = extractProfileSlug(window.location.pathname);
   if (!slug) {
     removeProfileBadge();
@@ -294,6 +342,10 @@ export function updateProfileBadge(deps: ProfileBadgeDeps): void {
   }
   const target = findNicknameTarget();
   if (!target) return;
+  if (!known.has(slug)) {
+    readStored(slug, deps);
+    return;
+  }
   let widget = document.getElementById(WIDGET_ID);
   if (widget && widget.dataset.slug !== slug) {
     widget.remove();

@@ -114,9 +114,9 @@ describe('valueSide', () => {
     expect(eight.f).toBeCloseTo(1.2 * 81);
   });
 
-  it('puts shards into the bank at their share of the card price, R at twelve per card', () => {
+  it('puts shards into the bank at their shard value based on card price', () => {
     const side = valueSide({ cards: [card('d-card', 78, true), card('b-card', 2, true), card('r-card', 3, true), card('s-card')], hidden: 0 }, db, plain);
-    expect(formatShardsByRank(side.shardBank)).toEqual(['0.25oR', '0.33oB', '62.4oD']);
+    expect(formatShardsByRank(side.shardBank)).toEqual(['3oR', '2oB', '124.8oD']);
     expect(formatByRank(side.bank)).toEqual(['1S']);
     expect(formatShardsByRank(side.shards)).toEqual(['3oR', '2oB', '78oD']);
   });
