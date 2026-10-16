@@ -1,18 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Transport } from '../utils/graphql';
-import {
-  FAST_DELAY_MS,
-  FAST_PAGES,
-  MAX_PAGES,
-  PAGE_SIZE,
-  RATE_LIMIT_COOLDOWN_MS,
-  THROTTLED_DELAY_MS,
-  delayForPage,
-  fetchUserCards,
-  packCards,
-  unpackCards,
-} from '../utils/user-cards';
+import { FAST_DELAY_MS, FAST_PAGES, MAX_PAGES, PAGE_SIZE, THROTTLED_DELAY_MS, delayForPage, fetchUserCards, packCards, unpackCards } from '../utils/user-cards';
 
 interface Sent {
   operationName: string;
@@ -160,17 +149,12 @@ describe('fetchUserCards', () => {
     expect(sleeps).toEqual([]);
   });
 
-  it('retries and recovers when hitting rate limit 429', async () => {
+  it('waits out a short retry-after once and carries on', async () => {
     let call = 0;
-    const { transport, sleeps } = serve(() => {
-      call++;
-      if (call === 1) return json({}, 429, { 'retry-after': '10' });
-      return json(page([node('a-a', 1)], null));
-    });
-    const cards = await fetchUserCards(null, 'user-1', undefined, transport);
-    expect(cards).toEqual([{ slug: 'a-a', quantity: 1, shard: false }]);
+    const { transport, sleeps } = serve(() => (++call === 1 ? json({}, 429, { 'retry-after': '2' }) : json(page([node('a-a', 1)], null))));
+    expect(await fetchUserCards(null, 'user-1', undefined, transport)).toEqual([{ slug: 'a-a', quantity: 1, shard: false }]);
     expect(call).toBe(2);
-    expect(sleeps).toContain(RATE_LIMIT_COOLDOWN_MS);
+    expect(sleeps).toEqual([2000]);
   });
 });
 

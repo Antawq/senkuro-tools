@@ -12,8 +12,6 @@ export const PAGE_DELAY_MS = 180;
 export const FAST_PAGES = 10;
 export const FAST_DELAY_MS = 0;
 export const THROTTLED_DELAY_MS = 180;
-export const RATE_LIMIT_COOLDOWN_MS = 3000;
-export const MAX_429_RETRIES = 3;
 
 export const delayForPage = (page: number): number => (page < FAST_PAGES ? FAST_DELAY_MS : THROTTLED_DELAY_MS);
 
@@ -54,22 +52,7 @@ export async function fetchUserCards(
   let after: string | null = null;
   const sleep = transport?.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
   for (let page = 0; page < MAX_PAGES; page++) {
-    if (signal?.aborted) throw new ApiError('network');
-    let data: PageData | undefined;
-    for (let retry = 0; retry <= MAX_429_RETRIES; retry++) {
-      if (signal?.aborted) throw new ApiError('network');
-      try {
-        data = await execute<PageData>(token, USER_CARDS, 'UserCards', { userId, first: PAGE_SIZE, after, orderBy: ORDER }, transport, signal);
-        break;
-      } catch (error) {
-        if (error instanceof ApiError && error.status === 429 && retry < MAX_429_RETRIES && !signal?.aborted) {
-          await sleep(RATE_LIMIT_COOLDOWN_MS * (retry + 1));
-          continue;
-        }
-        throw error;
-      }
-    }
-    if (!data) throw new ApiError('network');
+    const data: PageData = await execute<PageData>(token, USER_CARDS, 'UserCards', { userId, first: PAGE_SIZE, after, orderBy: ORDER }, transport, signal);
     const connection = data.userCards;
     for (const edge of connection?.edges ?? []) {
       const card = toCard(edge?.node);
