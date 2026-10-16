@@ -156,6 +156,12 @@ describe('fetchUserCards', () => {
     expect(call).toBe(2);
     expect(sleeps).toEqual([2000]);
   });
+
+  it('stops at the first 429 that names no wait', async () => {
+    const { transport, sent } = serve(() => json({}, 429));
+    expect(await fetchUserCards(null, 'user-1', undefined, transport).catch((thrown: unknown) => thrown)).toMatchObject({ failure: 'http', status: 429 });
+    expect(sent).toHaveLength(1);
+  });
 });
 
 describe('packed cards', () => {

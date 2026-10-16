@@ -96,6 +96,13 @@ describe('execute', () => {
     expect(calls).toHaveLength(1);
   });
 
+  it('stops at a 429 that names no wait instead of asking again', async () => {
+    const { result, sleeps, calls } = run([reply('', 429)]);
+    expect(await failure(result)).toMatchObject({ failure: 'http', status: 429 });
+    expect(sleeps).toEqual([]);
+    expect(calls).toHaveLength(1);
+  });
+
   it('retries a network error and then reports it', async () => {
     const recovered = run([new TypeError('Failed to fetch'), reply({ data: { ok: true } })]);
     expect(await recovered.result).toEqual({ ok: true });
