@@ -281,15 +281,13 @@ function load(slug: string, deps: ProfileBadgeDeps): void {
         if (widget) renderError(widget, slug, deps);
         return;
       }
-      const cards = await fetchProfileCards(
-        user.id,
-        (loaded) => {
+      const cards = await fetchProfileCards(user.id, {
+        onPage: ({ cards: loaded }) => {
           const widget = widgetFor(slug);
-          if (widget?.classList.contains(LOADING)) renderLoading(widget, progressText(loaded));
+          if (widget?.classList.contains(LOADING)) renderLoading(widget, progressText(loaded.length));
         },
-        undefined,
-        signal
-      );
+        signal,
+      });
       if (signal.aborted) return;
       writeCache(slug, cards);
       const widget = widgetFor(slug);

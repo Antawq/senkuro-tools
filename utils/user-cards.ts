@@ -8,7 +8,6 @@ export interface UserCard {
 
 export const PAGE_SIZE = 100;
 export const MAX_PAGES = 300;
-export const PAGE_DELAY_MS = 180;
 export const FAST_PAGES = 10;
 export const FAST_DELAY_MS = 0;
 export const THROTTLED_DELAY_MS = 180;
@@ -41,26 +40,37 @@ function toCard(node: UserCardNode | null | undefined): UserCard | null {
   return { slug, quantity, shard: node?.shard === true };
 }
 
+export interface PageState {
+  cards: UserCard[];
+  after: string | null;
+  pages: number;
+}
+
+export interface FetchOptions {
+  from?: PageState;
+  onPage?: (state: PageState) => void;
+  signal?: AbortSignal;
+}
+
 export async function fetchUserCards(
   token: string | null,
   userId: string,
-  onProgress: (loaded: number) => void = () => undefined,
-  transport?: Transport,
-  signal?: AbortSignal
+  { from, onPage, signal }: FetchOptions = {},
+  transport?: Transport
 ): Promise<UserCard[]> {
-  const cards: UserCard[] = [];
-  let after: string | null = null;
+  const cards = [...(from?.cards ?? [])];
+  let after = from?.after ?? null;
   const sleep = transport?.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
-  for (let page = 0; page < MAX_PAGES; page++) {
+  for (let page = from?.pages ?? 0; page < MAX_PAGES; page++) {
     const data: PageData = await execute<PageData>(token, USER_CARDS, 'UserCards', { userId, first: PAGE_SIZE, after, orderBy: ORDER }, transport, signal);
     const connection = data.userCards;
     for (const edge of connection?.edges ?? []) {
       const card = toCard(edge?.node);
       if (card) cards.push(card);
     }
-    onProgress(cards.length);
     const info = connection?.pageInfo;
     after = info?.hasNextPage && info.endCursor ? info.endCursor : null;
+    onPage?.({ cards: [...cards], after, pages: page + 1 });
     if (after === null) return cards;
     const delay = delayForPage(page);
     if (delay > 0) await sleep(delay);

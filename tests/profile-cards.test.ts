@@ -99,7 +99,7 @@ describe('profile-cards', () => {
       };
 
       const progress: number[] = [];
-      const cards = await fetchProfileCards('usr-99', (count) => progress.push(count), mockTransport);
+      const cards = await fetchProfileCards('usr-99', { onPage: ({ cards: loaded }) => progress.push(loaded.length) }, mockTransport);
 
       expect(cards).toHaveLength(3);
       expect(cards[0]).toEqual({ slug: 'soran-f', quantity: 2, shard: false });
