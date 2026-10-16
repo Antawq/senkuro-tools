@@ -28,7 +28,6 @@ export interface Settings {
   showSummaryBank: boolean;
   showSummaryCards: boolean;
   showSummaryVerdict: boolean;
-  autoProfileValue: boolean;
 }
 
 export type SettingKey = keyof Settings;
@@ -55,7 +54,6 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = {
   showSummaryBank: true,
   showSummaryCards: true,
   showSummaryVerdict: true,
-  autoProfileValue: false,
 };
 
 const KEYS = Object.keys(DEFAULT_SETTINGS) as SettingKey[];

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
-import { abortProfileLoading, findNicknameTarget, isTradeOpen, profileBadgeMissing, removeProfileBadge, updateProfileBadge, WIDGET_ID } from '../utils/profile-dom';
+import { findNicknameTarget, isTradeOpen, profileBadgeMissing, removeProfileBadge, updateProfileBadge, WIDGET_ID } from '../utils/profile-dom';
 
 const db = {
   'soran-f': { price: 1, name: 'Соран', rank: 'F' },
@@ -76,7 +76,7 @@ describe('profile-dom', () => {
       expect(widget()).toBeNull();
     });
 
-    it('inserts badge next to nickname when on profile page with auto: true', () => {
+    it('shows a count button and starts loading only on click', () => {
       window.history.pushState({}, '', '/users/phaivroh');
       document.body.innerHTML = `
         <div class="client-panel__info">
@@ -86,23 +86,7 @@ describe('profile-dom', () => {
           </div>
         </div>
       `;
-      updateProfileBadge({ db, valuation: plain, auto: true });
-      expect(widget()?.classList.contains('senkuro-profile-f-chip')).toBe(true);
-      expect(widget()?.textContent).toContain('Считаем F...');
-      expect(widget()?.querySelector('.senkuro-chip-spinner')).not.toBeNull();
-    });
-
-    it('shows calculate button when auto is false and starts loading on click', () => {
-      window.history.pushState({}, '', '/users/phaivroh');
-      document.body.innerHTML = `
-        <div class="client-panel__info">
-          <div class="client-header">
-            <header><h1 class="caption">phaivroh</h1></header>
-            <a href="/levels">8</a>
-          </div>
-        </div>
-      `;
-      updateProfileBadge({ db, valuation: plain, auto: false });
+      updateProfileBadge({ db, valuation: plain });
       expect(widget()?.classList.contains('senkuro-profile-f-chip')).toBe(true);
       expect(widget()?.textContent).toContain('Посчитать ценность');
       expect(widget()?.querySelector('.senkuro-chip-spinner')).toBeNull();
@@ -194,10 +178,11 @@ describe('profile-dom', () => {
                 );
             })
       );
-      updateProfileBadge({ db, valuation: plain, auto: true });
+      updateProfileBadge({ db, valuation: plain });
+      (widget() as HTMLElement).click();
       await settle();
       removeProfileBadge();
-      updateProfileBadge({ db, valuation: plain, auto: true });
+      updateProfileBadge({ db, valuation: plain });
       expect(widget()?.textContent).toContain('Считаем F...');
       release();
       await settle();
@@ -208,7 +193,8 @@ describe('profile-dom', () => {
     it('stops answering clicks with a reload once a retry has succeeded', async () => {
       window.history.pushState({}, '', '/users/phaivroh');
       document.body.innerHTML = header;
-      updateProfileBadge({ db, valuation: plain, auto: true });
+      updateProfileBadge({ db, valuation: plain });
+      (widget() as HTMLElement).click();
       await settle();
       expect(widget()?.textContent).toContain('ошибка (повторить)');
 
@@ -249,11 +235,10 @@ describe('profile-dom', () => {
       window.history.pushState({}, '', '/users/phaivroh');
       document.body.innerHTML = header;
       fetchMock.mockImplementation((_input: unknown, init?: RequestInit) =>
-        operationOf(init) === 'User'
-          ? Promise.resolve(reply({ user: { id: 'u1', name: 'phaivroh' } }))
-          : new Promise<Response>(() => undefined)
+        operationOf(init) === 'User' ? Promise.resolve(reply({ user: { id: 'u1', name: 'phaivroh' } })) : new Promise<Response>(() => undefined)
       );
-      updateProfileBadge({ db, valuation: plain, auto: true });
+      updateProfileBadge({ db, valuation: plain });
+      (widget() as HTMLElement).click();
       await settle();
       expect(widget()?.textContent).toContain('Считаем F...');
 
@@ -267,4 +252,3 @@ describe('profile-dom', () => {
     });
   });
 });
-

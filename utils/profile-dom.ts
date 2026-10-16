@@ -60,7 +60,6 @@ const NICKNAME_HOSTS: [string, (host: Element, el: HTMLElement) => void][] = [
 export interface ProfileBadgeDeps {
   db: Database;
   valuation: Valuation;
-  auto?: boolean;
 }
 
 interface NicknameTarget {
@@ -317,12 +316,7 @@ function show(widget: HTMLElement, slug: string, deps: ProfileBadgeDeps): void {
   if (widget.dataset.valuation === key) return;
   const cards = readCache(slug);
   if (!cards) {
-    if (deps.auto) {
-      renderLoading(widget, TEXT.counting);
-      load(slug, deps);
-    } else if (!widget.classList.contains(LOADING)) {
-      renderIdle(widget, slug, deps);
-    }
+    if (!widget.classList.contains(LOADING)) renderIdle(widget, slug, deps);
     return;
   }
   renderSummary(widget, slug, calculateProfileValue(cards, deps.db, deps.valuation), deps);
