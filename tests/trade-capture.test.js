@@ -34,6 +34,7 @@ describe('captureTrades', () => {
         source: { id: 'u1', name: 'Phaivroh | WL' },
         destination: { id: 'u2', name: 'Молюсь на Sky | WS' },
         createdAt: '2026-10-17T18:31:05.923657',
+        status: 'PENDING',
         offer: [
           { slug: 'a', quantity: 2, shard: false },
           { slug: 'b', quantity: 1, shard: false },
@@ -46,6 +47,12 @@ describe('captureTrades', () => {
   it('leaves the time of a trade empty when the answer has none', () => {
     const found = captureTrades({ data: { cardTrades: { edges: [{ node: { ...trade, createdAt: undefined } }] } } });
     expect(found.items[0].createdAt).toBeNull();
+  });
+
+  it('takes the status a notification names under its own alias', () => {
+    const notifiable = { ...trade, status: undefined, tradeStatus: 'REJECTED' };
+    const found = captureTrades({ data: { notificationFeeds: { edges: [{ node: { notifiable } }] } } });
+    expect(found.items[0].status).toBe('REJECTED');
   });
 
   it('finds a trade nested in a notification and the viewer', () => {

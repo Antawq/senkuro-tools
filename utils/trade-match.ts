@@ -27,7 +27,10 @@ const single = <T extends Trade | Offer>(hits: T[]): T | null => {
 
 const singleTrade = (hits: Trade[]): Trade | null => {
   const trade = single(hits);
-  return trade && hits.some((hit) => hit.createdAt !== trade.createdAt) ? { ...trade, createdAt: null } : trade;
+  if (!trade) return null;
+  const agreed = <K extends 'createdAt' | 'status'>(key: K): Trade[K] | null => (hits.every((hit) => hit[key] === trade[key]) ? trade[key] : null);
+  const [createdAt, status] = [agreed('createdAt'), agreed('status')];
+  return createdAt === trade.createdAt && status === trade.status ? trade : { ...trade, createdAt, status };
 };
 
 export const matchTrade = (trades: Trade[], [sourceName, destinationName]: [string, string | null], [offerSide, requestSide]: [Side, Side]): Trade | null =>

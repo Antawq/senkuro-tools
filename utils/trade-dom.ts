@@ -1,6 +1,7 @@
 import { slugFromHref } from './cards';
 import { debugLogger } from './debug';
 import { REPLAY_EVENT, type Trade, type TradeStore } from './trade-capture';
+import { departureOf, type Departure } from './trade-departure';
 import { matchOffer, matchTrade, matchTradeByCounts, shows } from './trade-match';
 import type { CardRef, Side } from './trade-value';
 
@@ -36,6 +37,7 @@ export interface Place {
   variant?: Variant;
   caption?: string;
   sentAt?: string | null;
+  departure?: Departure | null;
   columns: Column[] | null;
 }
 
@@ -179,7 +181,13 @@ const readHistory = (store: TradeStore): Place[] =>
         ? matchTrade(store.trades(), [names[0] ?? '', names[1] ?? ''], [readPreviewList(offerList), readPreviewList(requestList)])
         : null;
     if (!trade) return { host, placement: 'end', columns: null };
-    return { host, placement: 'end', columns: viewerColumns(trade, store.viewerId(), names), sentAt: trade.createdAt };
+    return {
+      host,
+      placement: 'end',
+      columns: viewerColumns(trade, store.viewerId(), names),
+      sentAt: trade.createdAt,
+      departure: departureOf(trade, store.trades()),
+    };
   });
 
 const surfaceOf = (card: Element): Element => {

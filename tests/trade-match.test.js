@@ -37,6 +37,13 @@ describe('matchTrade', () => {
     expect(matchTrade([at('t1', '2026-10-17T10:00:00'), at('t2', '2026-10-18T09:00:00')], ['Он', null], sides)).toMatchObject({ id: 't1', createdAt: null });
   });
 
+  it('keeps the status of identical trades only when they agree on it', () => {
+    const with_ = (id, status) => ({ ...trade(id, four, []), status });
+    const sides = [side(four.slice(0, 3), 1), side([])];
+    expect(matchTrade([with_('t1', 'REJECTED'), with_('t2', 'REJECTED')], ['Он', null], sides)?.status).toBe('REJECTED');
+    expect(matchTrade([with_('t1', 'REJECTED'), with_('t2', 'ACCEPTED')], ['Он', null], sides)?.status).toBeNull();
+  });
+
   it('checks the names and the quantities', () => {
     const trades = [trade('t1', four, [])];
     expect(matchTrade(trades, ['Другой', null], [side(four.slice(0, 3), 1), side([])])).toBeNull();
