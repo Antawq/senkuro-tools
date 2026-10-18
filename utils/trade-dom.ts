@@ -35,8 +35,11 @@ export interface Place {
   placement: Placement;
   variant?: Variant;
   caption?: string;
+  sentAt?: string | null;
   columns: Column[] | null;
 }
+
+type Reading = Pick<Place, 'columns' | 'sentAt'>;
 
 interface Selection {
   give: Side;
@@ -118,42 +121,47 @@ const reviewOf = (modal: Element, store: TradeStore): Review => {
 
 const rolesOf = (incoming: boolean): [Role, Role] => (incoming ? ['get', 'give'] : ['give', 'get']);
 
-function readExchange(panels: Element[], { incoming, known, store }: Review): Column[] | null {
+function readExchange(panels: Element[], { incoming, known, store }: Review): Reading {
   const [left, right] = panels.map(readPanel);
-  if (!left || !right) return null;
-  if (known && shows(known.give.cards, left) && shows(known.get.cards, right)) return [column('give', known.give), column('get', known.get)];
+  if (!left || !right) return { columns: null };
+  if (known && shows(known.give.cards, left) && shows(known.get.cards, right)) return { columns: [column('give', known.give), column('get', known.get)] };
   const [sourceName = '', destinationName = ''] = panels.map(nameOf);
   if (incoming) {
     const trade = matchTrade(store.trades(), [sourceName, destinationName], [left, right]);
-    if (trade) return [column('get', whole(trade.offer)), column('give', whole(trade.request))];
+    if (trade) return { columns: [column('get', whole(trade.offer)), column('give', whole(trade.request))], sentAt: trade.createdAt };
     askReplayOnce(store);
   }
   const [first, second] = rolesOf(incoming);
-  return [column(first, fromList(sourceName, left)), column(second, fromList(destinationName, right))];
+  return { columns: [column(first, fromList(sourceName, left)), column(second, fromList(destinationName, right))] };
 }
 
-function readGift(gift: Element, { incoming, known, store }: Review): Column[] {
+function readGift(gift: Element, { incoming, known, store }: Review): Reading {
   const side = readPanel(gift);
-  if (known && shows(known.give.cards, side)) return [column('give', known.give)];
+  if (known && shows(known.give.cards, side)) return { columns: [column('give', known.give)] };
   if (incoming) {
     const trade = matchTrade(store.trades(), [nameOf(gift), null], [side, whole([])]);
-    if (trade) return [column('get', whole(trade.offer))];
+    if (trade) return { columns: [column('get', whole(trade.offer))], sentAt: trade.createdAt };
   }
-  return [column(rolesOf(incoming)[0], fromList(nameOf(gift), side))];
+  return { columns: [column(rolesOf(incoming)[0], fromList(nameOf(gift), side))] };
 }
 
-function readReview(modal: Element, store: TradeStore): Column[] | null {
+function readReview(modal: Element, store: TradeStore): Reading {
   const review = reviewOf(modal, store);
   const panels = [...modal.querySelectorAll('.modal-trade__swap-el')];
   if (panels.length >= TRADE_SIDES) return readExchange(panels, review);
   const gift = modal.querySelector('.modal-trade__swap-gift__icon')?.closest('.modal-trade__swap-el');
-  return gift ? readGift(gift, review) : null;
+  return gift ? readGift(gift, review) : { columns: null };
 }
+
+const readModal = (modal: Element, store: TradeStore): Reading => {
+  const composed = readConstructor(modal);
+  return composed ? { columns: composed } : readReview(modal, store);
+};
 
 const readModals = (store: TradeStore): Place[] =>
   [...document.querySelectorAll(MODAL)].flatMap((modal) => {
     const host = modal.querySelector('.modal-trade__footer');
-    return host ? [{ host, placement: 'start' as const, columns: readConstructor(modal) ?? readReview(modal, store) }] : [];
+    return host ? [{ host, placement: 'start' as const, ...readModal(modal, store) }] : [];
   });
 
 const readPreviewList = (list: Element): Side => ({
@@ -170,7 +178,8 @@ const readHistory = (store: TradeStore): Place[] =>
       lists.length === TRADE_SIDES && offerList && requestList
         ? matchTrade(store.trades(), [names[0] ?? '', names[1] ?? ''], [readPreviewList(offerList), readPreviewList(requestList)])
         : null;
-    return { host, placement: 'end', columns: trade ? viewerColumns(trade, store.viewerId(), names) : null };
+    if (!trade) return { host, placement: 'end', columns: null };
+    return { host, placement: 'end', columns: viewerColumns(trade, store.viewerId(), names), sentAt: trade.createdAt };
   });
 
 const surfaceOf = (card: Element): Element => {

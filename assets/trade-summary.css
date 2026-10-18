@@ -177,6 +177,11 @@
   color: var(--text-tertiary);
 }
 
+.senkuro-trade-summary__time {
+  color: var(--text-secondary, var(--text-primary));
+  font-variant-numeric: tabular-nums;
+}
+
 .senkuro-trade-summary__verdict {
   font-weight: 600;
   text-align: center;

@@ -17,6 +17,7 @@ const trade = {
   __typename: 'CardTrade',
   id: 't1',
   status: 'PENDING',
+  createdAt: '2026-10-17T18:31:05.923657',
   source: user('u1', 'Phaivroh | WL'),
   destination: user('u2', 'Молюсь на Sky | WS'),
   offer: [preview('a', 2), preview('b')],
@@ -32,6 +33,7 @@ describe('captureTrades', () => {
         id: 't1',
         source: { id: 'u1', name: 'Phaivroh | WL' },
         destination: { id: 'u2', name: 'Молюсь на Sky | WS' },
+        createdAt: '2026-10-17T18:31:05.923657',
         offer: [
           { slug: 'a', quantity: 2, shard: false },
           { slug: 'b', quantity: 1, shard: false },
@@ -39,6 +41,11 @@ describe('captureTrades', () => {
         request: [{ slug: 'c', quantity: 1, shard: true }],
       },
     ]);
+  });
+
+  it('leaves the time of a trade empty when the answer has none', () => {
+    const found = captureTrades({ data: { cardTrades: { edges: [{ node: { ...trade, createdAt: undefined } }] } } });
+    expect(found.items[0].createdAt).toBeNull();
   });
 
   it('finds a trade nested in a notification and the viewer', () => {

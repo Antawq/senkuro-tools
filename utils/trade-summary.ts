@@ -1,5 +1,6 @@
 import type { Database } from './database';
 import { element } from './dom';
+import { formatTradeTime, parseApiTime } from './time';
 import type { TradeStore } from './trade-capture';
 import { TRADE_PLACES, readTradePlaces, type Column, type Place, type Role } from './trade-dom';
 import { totalOf } from './trade-match';
@@ -30,6 +31,7 @@ const EXPAND_LABEL = 'Раскрыть полностью';
 const COLLAPSE_LABEL = 'Скрыть';
 const EMPTY_CELL = '-';
 const UNKNOWN_LEGEND = `${UNKNOWN_MARK} - нет цены в базе`;
+const SENT_LABEL = 'Отправлен';
 
 type RowKey = 'value' | 'bank' | 'count';
 
@@ -186,23 +188,26 @@ function mount({ host, placement, variant }: Place, order: number): HTMLElement 
 
 interface View {
   caption: string | undefined;
+  sentAt: Date | null;
   sides: SideView[];
   settings: SummarySettings;
   verdict: Verdict | null;
   rVerdict: Verdict | null;
 }
 
-function viewOf(caption: string | undefined, columns: Column[], db: Database, settings: SummarySettings): View {
+function viewOf({ caption, sentAt }: Place, columns: Column[], db: Database, settings: SummarySettings): View {
   const sides = columns.map((column) => describe(column, db, settings));
   const give = sides.find((side) => side.role === 'give')?.value;
   const get = sides.find((side) => side.role === 'get')?.value;
-  if (!settings.showSummaryVerdict || !give || !get) return { caption, sides, settings, verdict: null, rVerdict: null };
-  return { caption, sides, settings, verdict: compareSides(give, get), rVerdict: compareR(give, get) };
+  const base = { caption, sentAt: parseApiTime(sentAt), sides, settings };
+  if (!settings.showSummaryVerdict || !give || !get) return { ...base, verdict: null, rVerdict: null };
+  return { ...base, verdict: compareSides(give, get), rVerdict: compareR(give, get) };
 }
 
-const signatureOf = ({ caption, sides, settings, verdict, rVerdict }: View): string =>
+const signatureOf = ({ caption, sentAt, sides, settings, verdict, rVerdict }: View): string =>
   JSON.stringify([
     caption,
+    sentAt,
     sides.map(({ label, f, bank, count, unknown, r }) => [label, f, bank, count, unknown, r]),
     verdict,
     rVerdict,
@@ -214,10 +219,16 @@ const signatureOf = ({ caption, sides, settings, verdict, rVerdict }: View): str
 const verdictLine = (verdict: Verdict, ...extra: string[]): HTMLElement =>
   element('div', [`${SUMMARY}__verdict`, verdictState(verdict), ...extra].join(' '), verdict.text);
 
-function partsOf({ caption, sides, settings, verdict, rVerdict }: View, summary: HTMLElement): HTMLElement[] {
+function sentLine(sentAt: Date): HTMLElement {
+  const time = element('time', `${SUMMARY}__time`, `${SENT_LABEL} ${formatTradeTime(sentAt)}`);
+  time.dateTime = sentAt.toISOString();
+  return time;
+}
+
+function partsOf({ caption, sentAt, sides, settings, verdict, rVerdict }: View, summary: HTMLElement): HTMLElement[] {
   const details = element('div', `${SUMMARY}__details`);
   details.append(panel(sides, settings));
-  const parts: HTMLElement[] = [...(caption ? [element('div', `${SUMMARY}__label`, caption)] : []), details];
+  const parts: HTMLElement[] = [...(caption ? [element('div', `${SUMMARY}__label`, caption)] : []), ...(sentAt ? [sentLine(sentAt)] : []), details];
   if (!verdict) return parts;
   parts.push(verdictLine(verdict));
   if (rVerdict) parts.push(verdictLine(rVerdict, `${SUMMARY}__verdict--r`));
@@ -239,12 +250,12 @@ export function updateTradeSummaries(db: Database, settings: SummarySettings, st
   let mounted = 0;
   const nextOrder = () => mounted++;
   for (const place of readTradePlaces(store)) {
-    const { host, caption, columns } = place;
+    const { host, columns } = place;
     if (!columns || columns.every((column) => totalOf(column) === 0)) {
       host.querySelector(`:scope > .${SUMMARY}`)?.classList.add(CLOSED);
       continue;
     }
-    render(place, viewOf(caption, columns, db, settings), nextOrder);
+    render(place, viewOf(place, columns, db, settings), nextOrder);
   }
 }
 
