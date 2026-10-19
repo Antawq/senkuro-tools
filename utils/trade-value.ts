@@ -62,7 +62,7 @@ const RANK_ORDER = [R_RANK, ...[...FORGE_LADDER].reverse()];
 export const CRAFT_PER_RANK = 3;
 export const SPLIT_PER_RANK = 2;
 
-const SHARDS_REQUIRED: Record<string, number> = { R: 12, S: 10, A: 8, B: 6, C: 4, D: 2 };
+const SHARDS_REQUIRED: Record<string, number> = { S: 10, A: 8, B: 6, C: 4, D: 2 };
 
 const rateInF = (rank: string | undefined, perRank: number): number | null => {
   const step = rank ? FORGE_LADDER.indexOf(rank) : -1;
