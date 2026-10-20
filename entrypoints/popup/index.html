@@ -29,6 +29,7 @@
         --c-shadow: var(--senkuro-shade);
         --c-accent: var(--senkuro-accent);
         --c-accent-light: #818cf8;
+        --title-gradient: linear-gradient(135deg in oklch, var(--c-accent-light), oklch(from var(--c-accent-light) l c calc(h + 22)));
         --c-tier-red: var(--senkuro-tier-red);
         --c-tier-yellow: var(--senkuro-tier-yellow);
         --c-tier-purple: var(--senkuro-tier-purple);
@@ -245,7 +246,7 @@
         font-weight: 600;
         letter-spacing: 0.5px;
         text-transform: uppercase;
-        background: linear-gradient(90deg, var(--c-accent-light), var(--c-tier-purple));
+        background: var(--title-gradient);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
       }
@@ -324,7 +325,7 @@
         margin: 0;
         font-size: 18px;
         color: var(--c-heading);
-        background: linear-gradient(90deg, var(--c-accent-light), var(--c-tier-purple));
+        background: var(--title-gradient);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         font-weight: 700;
