@@ -13,10 +13,15 @@ const tradeModal = (footer: string) => `
     <div class="modal-trade__footer">${footer}</div>
   </div>`;
 
+const profileHeader = (extra: string) => `
+  <div class="client-header">
+    <header><h1>Tantumque_Profecit</h1>${extra}</header>
+  </div>`;
+
 const styleOf = (selector: string) => getComputedStyle(document.querySelector(selector) as Element);
 
 beforeEach(() => {
-  document.head.innerHTML = `<style>${stylesheet('site-fixes.css')}</style>`;
+  document.head.innerHTML = `<style>${stylesheet('profile-badge.css')}${stylesheet('site-fixes.css')}</style>`;
 });
 
 describe('trade modal layout', () => {
@@ -29,5 +34,30 @@ describe('trade modal layout', () => {
   it('keeps the layout of the site while no summary is mounted in the footer', () => {
     document.body.innerHTML = tradeModal('<div class="modal-trade__actions"></div>');
     expect(styleOf('.modal-content--trade').display).not.toBe('flex');
+  });
+});
+
+describe('profile header layout', () => {
+  it('wraps once it holds the value chip so a long nickname does not push the chip out of the card', () => {
+    document.body.innerHTML = profileHeader('<div class="senkuro-profile-f-chip"></div>');
+    expect(styleOf('.client-header header').flexWrap).toBe('wrap');
+  });
+
+  it('keeps the header of the site as it is without the chip', () => {
+    document.body.innerHTML = profileHeader('');
+    expect(styleOf('.client-header header').flexWrap).not.toBe('wrap');
+  });
+
+  it('puts the chip behind the status icons of the nickname, so wrapping moves only the chip', () => {
+    document.body.innerHTML = `${profileHeader('<div class="senkuro-profile-f-chip"></div><span class="emoji-status"></span>')}<div class="nav-mobile__left"><div class="senkuro-profile-f-chip"></div></div>`;
+    expect(styleOf('.client-header header > .senkuro-profile-f-chip').order).toBe('1');
+    expect(styleOf('.client-header header > .emoji-status').order).not.toBe('1');
+    expect(styleOf('.nav-mobile__left > .senkuro-profile-f-chip').order).not.toBe('1');
+  });
+
+  it('lines the chip up with the nickname when it wraps, and keeps its own offset elsewhere', () => {
+    document.body.innerHTML = `${profileHeader('<div class="senkuro-profile-f-chip"></div>')}<div class="nav-mobile__left"><div class="senkuro-profile-f-chip"></div></div>`;
+    expect(styleOf('.client-header header > .senkuro-profile-f-chip').marginLeft).toMatch(/^0(px)?$/);
+    expect(styleOf('.nav-mobile__left > .senkuro-profile-f-chip').marginLeft).toBe('6px');
   });
 });

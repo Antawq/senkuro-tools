@@ -17,3 +17,12 @@
   display: flex;
   flex-direction: column;
 }
+
+.client-header header:has(> .senkuro-profile-f-chip) {
+  flex-wrap: wrap;
+}
+
+.client-header header > .senkuro-profile-f-chip {
+  order: 1;
+  margin-left: 0;
+}
