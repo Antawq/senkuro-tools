@@ -79,7 +79,8 @@ export function abortProfileLoading(slug?: string): void {
   }
 }
 
-const valuationKey = ({ commission, valueBySplit, valueBasis }: Valuation): string => JSON.stringify([commission, valueBySplit, valueBasis]);
+const valuationKey = ({ commission, valueBySplit, valueBasis, excludeShards }: Valuation): string =>
+  JSON.stringify([commission, valueBySplit, valueBasis, excludeShards]);
 
 const warnStore = (error: unknown): null => {
   console.warn('SenkuTools: profile store', error);

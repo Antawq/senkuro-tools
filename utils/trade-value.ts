@@ -49,6 +49,7 @@ export interface Valuation {
   commission: boolean;
   valueBySplit: boolean;
   valueBasis: ValueBasis;
+  excludeShards: boolean;
 }
 
 export const R_RANK = 'R';
@@ -80,6 +81,7 @@ interface Pricing {
   commission: boolean;
   perRank: number;
   basis: ValueBasis;
+  excludeShards: boolean;
 }
 
 type Tally = Omit<SideValue, 'hasShards' | 'r' | 'complete'> & { r: Omit<RValue, 'complete'> };
@@ -119,17 +121,18 @@ function addCards(tally: Tally, { rank, price }: CardEntry, quantity: number, { 
   }
 }
 
-function addShards(tally: Tally, { rank, price }: CardEntry, quantity: number, { commission, perRank, basis }: Pricing): void {
+function addShards(tally: Tally, { rank, price }: CardEntry, quantity: number, { commission, perRank, basis, excludeShards }: Pricing): void {
   const perCard = SHARDS_REQUIRED[rank] || 1;
   const bank = effectivePrice(price, commission) * quantity;
   addTo(tally.shards, rank, quantity);
   addTo(tally.shardBank, rank, bank);
+  if (excludeShards) return;
   if (rank !== R_RANK) addToF(tally, rank, (basis === 'cards' ? quantity : bank) / perCard, perRank);
   else tally.r.shards += quantity;
 }
 
-function settle(tally: Tally): SideValue {
-  const settled = tally.unknown === 0 && tally.shardUnknown === 0;
+function settle(tally: Tally, excludeShards: boolean): SideValue {
+  const settled = tally.unknown === 0 && (excludeShards || tally.shardUnknown === 0);
   return {
     ...tally,
     hasShards: tally.shards.size > 0 || tally.shardUnknown > 0,
@@ -138,8 +141,8 @@ function settle(tally: Tally): SideValue {
   };
 }
 
-export function valueSide({ cards, hidden }: Side, db: Database, { commission, valueBySplit, valueBasis }: Valuation): SideValue {
-  const pricing: Pricing = { commission, perRank: valueBySplit ? SPLIT_PER_RANK : CRAFT_PER_RANK, basis: valueBasis };
+export function valueSide({ cards, hidden }: Side, db: Database, { commission, valueBySplit, valueBasis, excludeShards }: Valuation): SideValue {
+  const pricing: Pricing = { commission, perRank: valueBySplit ? SPLIT_PER_RANK : CRAFT_PER_RANK, basis: valueBasis, excludeShards };
   const tally = emptyTally(hidden);
   for (const { slug, quantity, shard } of cards) {
     const entry = pricedEntry(slug, db);
@@ -147,7 +150,7 @@ export function valueSide({ cards, hidden }: Side, db: Database, { commission, v
     else if (shard) tally.shardUnknown += quantity;
     else tally.unknown += quantity;
   }
-  return settle(tally);
+  return settle(tally, excludeShards);
 }
 
 export const hasR = ({ r }: Pick<SideValue, 'r'>): boolean => r.count > 0 || r.shards > 0;

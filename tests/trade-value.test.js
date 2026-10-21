@@ -82,6 +82,42 @@ describe('valueSide', () => {
     });
   });
 
+  describe('when shards are left out of the value', () => {
+    const noShards = { ...plain, excludeShards: true };
+    const mixed = { cards: [card('s-card'), card('s-card', 3, true), card('r-card', 2, true), card('missing', 4, true)], hidden: 0 };
+
+    it('drops shards from F and keeps whole cards', () => {
+      const side = valueSide(mixed, db, noShards);
+      expect(side.f).toBeCloseTo(243);
+      expect(valueSide(mixed, db, plain).f).toBeCloseTo(243 + (3 * 243) / 10);
+    });
+
+    it('still lists the shards in the shard rows', () => {
+      const side = valueSide(mixed, db, noShards);
+      expect(formatShardsByRank(side.shards)).toEqual(['2oR', '3oS']);
+      expect(formatShardsByRank(side.shardBank)).toEqual(['2oR', '3oS']);
+      expect(side.hasShards).toBe(true);
+    });
+
+    it('does not let shards unsettle the total', () => {
+      expect(valueSide(mixed, db, plain).complete).toBe(false);
+      expect(valueSide(mixed, db, noShards).complete).toBe(true);
+    });
+
+    it('drops shards from the cards basis as well', () => {
+      expect(valueSide(mixed, db, { ...noShards, valueBasis: 'cards' }).f).toBeCloseTo(243);
+    });
+
+    it('leaves the R branch with its cards only and settled', () => {
+      const side = valueSide({ cards: [card('r-card', 2), card('r-card', 2, true)], hidden: 0 }, db, noShards);
+      expect(side.r).toEqual({ value: 2 * 1.25 * 0.8, count: 2, shards: 0, complete: true });
+    });
+
+    it('still cannot settle hidden cards', () => {
+      expect(valueSide({ cards: [card('s-card', 1, true)], hidden: 1 }, db, noShards).complete).toBe(false);
+    });
+  });
+
   it('uses the raw base price when the commission is off', () => {
     expect(valueSide({ cards: [card('s-card')], hidden: 0 }, db, { ...plain, commission: false }).f).toBeCloseTo(1.25 * 243);
   });

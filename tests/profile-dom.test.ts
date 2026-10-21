@@ -18,7 +18,7 @@ const db = {
   'nami-a': { price: 1, name: 'Нами', rank: 'A' },
 };
 
-const plain = { commission: false, valueBySplit: false, valueBasis: 'bank' as const };
+const plain = { commission: false, valueBySplit: false, valueBasis: 'bank' as const, excludeShards: false };
 
 const header = `
   <div class="client-header">
@@ -198,6 +198,21 @@ describe('profile-dom', () => {
       expect(value()).toBe('388.8F');
       updateProfileBadge({ db, valuation: { ...plain, valueBySplit: true } });
       expect(value()).toBe('64F');
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('recalculates when shards are left out of the value, keeping them in the lists', async () => {
+      window.history.pushState({}, '', '/users/phaivroh');
+      document.body.innerHTML = header;
+      await store([
+        ['luffy-s', 1, 0],
+        ['soran-f', 1, 1],
+      ]);
+      await draw();
+      expect(value()).toBe('487F');
+      updateProfileBadge({ db, valuation: { ...plain, excludeShards: true } });
+      expect(value()).toBe('486F');
+      expect(widget()?.querySelector('.senkuro-popover-meta')?.textContent).toContain('1 осколков');
       expect(fetchMock).not.toHaveBeenCalled();
     });
 

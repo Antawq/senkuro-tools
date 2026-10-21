@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { UserCard } from '../utils/user-cards';
 import { calculateProfileValue, extractProfileSlug, fetchProfileCards, fetchProfileUser } from '../utils/profile-cards';
 
-const plain = { commission: false, valueBySplit: false, valueBasis: 'bank' as const };
+const plain = { commission: false, valueBySplit: false, valueBasis: 'bank' as const, excludeShards: false };
 
 const mockDb = {
   'soran-f': { price: 1.25, name: 'Соран', rank: 'F' },
@@ -133,6 +133,18 @@ describe('profile-cards', () => {
       expect(calculateProfileValue(cards, mockDb, { ...plain, commission: true }).formattedF).toBe('972F');
       expect(calculateProfileValue(cards, mockDb, { ...plain, valueBySplit: true }).formattedF).toBe('160F');
       expect(calculateProfileValue(cards, mockDb, { ...plain, valueBasis: 'cards' }).formattedF).toBe('243F');
+    });
+
+    it('leaves shards out of the total when asked, and still lists them', () => {
+      const cards: UserCard[] = [
+        { slug: 'luffy-s', quantity: 1, shard: false },
+        { slug: 'nami-d', quantity: 2, shard: true },
+      ];
+      expect(calculateProfileValue(cards, mockDb, plain).formattedF).toBe('1222.5F');
+      const summary = calculateProfileValue(cards, mockDb, { ...plain, excludeShards: true });
+      expect(summary.formattedF).toBe('1215F');
+      expect(summary.shards).toEqual(['2oD']);
+      expect(summary.totalShards).toBe(2);
     });
 
     it('counts an R card the database does not know yet by its slug', () => {

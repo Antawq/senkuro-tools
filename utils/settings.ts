@@ -24,6 +24,7 @@ export interface Settings {
   showToken: boolean;
   valueBySplit: boolean;
   valueBasis: ValueBasis;
+  excludeShards: boolean;
   showSummaryF: boolean;
   showSummaryBank: boolean;
   showSummaryCards: boolean;
@@ -50,6 +51,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = {
   showToken: false,
   valueBySplit: false,
   valueBasis: 'bank',
+  excludeShards: false,
   showSummaryF: true,
   showSummaryBank: true,
   showSummaryCards: true,

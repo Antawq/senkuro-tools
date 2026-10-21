@@ -65,6 +65,12 @@ describe('settings', () => {
     stop();
   });
 
+  it('counts shards into the value unless told otherwise, and remembers the choice', async () => {
+    expect((await loadSettings()).excludeShards).toBe(false);
+    await saveSetting('excludeShards', true);
+    expect((await loadSettings()).excludeShards).toBe(true);
+  });
+
   it('values the total by the bank unless told otherwise, and remembers the choice', async () => {
     expect((await loadSettings()).valueBasis).toBe('bank');
     await saveSetting('valueBasis', 'cards');
