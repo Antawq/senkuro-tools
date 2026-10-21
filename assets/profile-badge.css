@@ -59,6 +59,12 @@
   gap: 6px;
 }
 
+@supports (text-box: trim-both cap alphabetic) {
+  .senkuro-profile-f-chip :is(.senkuro-f-text, .senkuro-f-value) {
+    text-box: trim-both cap alphabetic;
+  }
+}
+
 .senkuro-chip-spinner {
   display: inline-block;
   width: 12px;
