@@ -132172,5 +132172,431 @@
         "name": "Коко",
         "rank": "R",
         "manga": "Ателье колдовских колпаков"
+    },
+    "gob-chan-kang-s": {
+        "price": 1.25,
+        "name": "Кан Чхан",
+        "rank": "S",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-miyeong-kim-s": {
+        "price": 1.25,
+        "name": "Ким Ми Ён",
+        "rank": "S",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-hyungjung-kim-s": {
+        "price": 1.25,
+        "name": "Ким Хён Джун",
+        "rank": "S",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-hye-sook-yoo-s": {
+        "price": 1.25,
+        "name": "Мать Чхан Кана",
+        "rank": "S",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-ms-michelle-s": {
+        "price": 1.5,
+        "name": "Мишель",
+        "rank": "S",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-kwangtaek-oh-s": {
+        "price": 1.25,
+        "name": "О Кван Тхэк",
+        "rank": "S",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-lanoke-s": {
+        "price": 1.25,
+        "name": "Ранок",
+        "rank": "S",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-smiden-s": {
+        "price": 1.25,
+        "name": "Смиден",
+        "rank": "S",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-kang-ho-seok-s": {
+        "price": 1.25,
+        "name": "Сок Кан Хо",
+        "rank": "S",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-eunsil-heo-s": {
+        "price": 1.25,
+        "name": "Хо Ын Сыль",
+        "rank": "S",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-shahran-s": {
+        "price": 1.25,
+        "name": "Шахран",
+        "rank": "S",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-chan-kang-a": {
+        "price": 1.25,
+        "name": "Кан Чхан",
+        "rank": "A",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-miyeong-kim-a": {
+        "price": 1.25,
+        "name": "Ким Ми Ён",
+        "rank": "A",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-hyungjung-kim-a": {
+        "price": 1.25,
+        "name": "Ким Хён Джун",
+        "rank": "A",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-hye-sook-yoo-a": {
+        "price": 1.25,
+        "name": "Мать Чхан Кана",
+        "rank": "A",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-ms-michelle-a": {
+        "price": 1.25,
+        "name": "Мишель",
+        "rank": "A",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-kwangtaek-oh-a": {
+        "price": 1.25,
+        "name": "О Кван Тхэк",
+        "rank": "A",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-lanoke-a": {
+        "price": 1.25,
+        "name": "Ранок",
+        "rank": "A",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-smiden-a": {
+        "price": 1.25,
+        "name": "Смиден",
+        "rank": "A",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-kang-ho-seok-a": {
+        "price": 1.25,
+        "name": "Сок Кан Хо",
+        "rank": "A",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-eunsil-heo-a": {
+        "price": 1.5,
+        "name": "Хо Ын Сыль",
+        "rank": "A",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-shahran-a": {
+        "price": 1.25,
+        "name": "Шахран",
+        "rank": "A",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-chan-kang-b": {
+        "price": 1.25,
+        "name": "Кан Чхан",
+        "rank": "B",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-miyeong-kim-b": {
+        "price": 1.25,
+        "name": "Ким Ми Ён",
+        "rank": "B",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-hyungjung-kim-b": {
+        "price": 1.25,
+        "name": "Ким Хён Джун",
+        "rank": "B",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-hye-sook-yoo-b": {
+        "price": 1.25,
+        "name": "Мать Чхан Кана",
+        "rank": "B",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-ms-michelle-b": {
+        "price": 1.25,
+        "name": "Мишель",
+        "rank": "B",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-kwangtaek-oh-b": {
+        "price": 1.25,
+        "name": "О Кван Тхэк",
+        "rank": "B",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-lanoke-b": {
+        "price": 1.25,
+        "name": "Ранок",
+        "rank": "B",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-smiden-b": {
+        "price": 1.25,
+        "name": "Смиден",
+        "rank": "B",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-kang-ho-seok-b": {
+        "price": 1.25,
+        "name": "Сок Кан Хо",
+        "rank": "B",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-eunsil-heo-b": {
+        "price": 1.25,
+        "name": "Хо Ын Сыль",
+        "rank": "B",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-shahran-b": {
+        "price": 1.25,
+        "name": "Шахран",
+        "rank": "B",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-chan-kang-c": {
+        "price": 1.25,
+        "name": "Кан Чхан",
+        "rank": "C",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-miyeong-kim-c": {
+        "price": 1.25,
+        "name": "Ким Ми Ён",
+        "rank": "C",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-hyungjung-kim-c": {
+        "price": 1.25,
+        "name": "Ким Хён Джун",
+        "rank": "C",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-hye-sook-yoo-c": {
+        "price": 1.25,
+        "name": "Мать Чхан Кана",
+        "rank": "C",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-ms-michelle-c": {
+        "price": 1.25,
+        "name": "Мишель",
+        "rank": "C",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-kwangtaek-oh-c": {
+        "price": 1.25,
+        "name": "О Кван Тхэк",
+        "rank": "C",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-lanoke-c": {
+        "price": 1.25,
+        "name": "Ранок",
+        "rank": "C",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-smiden-c": {
+        "price": 1.25,
+        "name": "Смиден",
+        "rank": "C",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-kang-ho-seok-c": {
+        "price": 1.25,
+        "name": "Сок Кан Хо",
+        "rank": "C",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-eunsil-heo-c": {
+        "price": 1.25,
+        "name": "Хо Ын Сыль",
+        "rank": "C",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-shahran-c": {
+        "price": 1.25,
+        "name": "Шахран",
+        "rank": "C",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-gerard-jui-d": {
+        "price": 1.25,
+        "name": "Жерар Жюи",
+        "rank": "D",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-chan-kang-d": {
+        "price": 1.25,
+        "name": "Кан Чхан",
+        "rank": "D",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-miyeong-kim-d": {
+        "price": 1.25,
+        "name": "Ким Ми Ён",
+        "rank": "D",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-hyungjung-kim-d": {
+        "price": 1.25,
+        "name": "Ким Хён Джун",
+        "rank": "D",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-hye-sook-yoo-d": {
+        "price": 1.25,
+        "name": "Мать Чхан Кана",
+        "rank": "D",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-ms-michelle-d": {
+        "price": 1.25,
+        "name": "Мишель",
+        "rank": "D",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-kwangtaek-oh-d": {
+        "price": 1.25,
+        "name": "О Кван Тхэк",
+        "rank": "D",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-lanoke-d": {
+        "price": 1.25,
+        "name": "Ранок",
+        "rank": "D",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-smiden-d": {
+        "price": 1.25,
+        "name": "Смиден",
+        "rank": "D",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-kang-ho-seok-d": {
+        "price": 1.25,
+        "name": "Сок Кан Хо",
+        "rank": "D",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-eunsil-heo-d": {
+        "price": 1.25,
+        "name": "Хо Ын Сыль",
+        "rank": "D",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-shahran-d": {
+        "price": 1.25,
+        "name": "Шахран",
+        "rank": "D",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-adrienne-lanoque-f": {
+        "price": 1.25,
+        "name": "Адриенна Ранок",
+        "rank": "F",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-gerard-jui-f": {
+        "price": 1.25,
+        "name": "Жерар Жюи",
+        "rank": "F",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-chan-kang-f": {
+        "price": 1.25,
+        "name": "Кан Чхан",
+        "rank": "F",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-miyeong-kim-f": {
+        "price": 1.25,
+        "name": "Ким Ми Ён",
+        "rank": "F",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-taejin-kim-f": {
+        "price": 1.25,
+        "name": "Ким Тхэ Джин",
+        "rank": "F",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-hyungjung-kim-f": {
+        "price": 1.25,
+        "name": "Ким Хён Джун",
+        "rank": "F",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-hye-sook-yoo-f": {
+        "price": 1.25,
+        "name": "Мать Чхан Кана",
+        "rank": "F",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-ms-michelle-f": {
+        "price": 1.25,
+        "name": "Мишель",
+        "rank": "F",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-kwangtaek-oh-f": {
+        "price": 1.25,
+        "name": "О Кван Тхэк",
+        "rank": "F",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-lanoke-f": {
+        "price": 1.25,
+        "name": "Ранок",
+        "rank": "F",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-smiden-f": {
+        "price": 1.25,
+        "name": "Смиден",
+        "rank": "F",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-kang-ho-seok-f": {
+        "price": 1.25,
+        "name": "Сок Кан Хо",
+        "rank": "F",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-eunsil-heo-f": {
+        "price": 1.25,
+        "name": "Хо Ын Сыль",
+        "rank": "F",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-shahran-f": {
+        "price": 1.25,
+        "name": "Шахран",
+        "rank": "F",
+        "manga": "Реинкарнация военного"
+    },
+    "gob-dr-heonwoo-yoo-f": {
+        "price": 1.25,
+        "name": "Ю Хон У",
+        "rank": "F",
+        "manga": "Реинкарнация военного"
     }
 }
