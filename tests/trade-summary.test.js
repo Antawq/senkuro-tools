@@ -298,8 +298,9 @@ describe('updateTradeSummaries', () => {
     updateTradeSummaries(db, settings, store);
     const summary = el.querySelector('.senkuro-trade-summary');
     const toggle = () => summary.querySelector('.senkuro-trade-summary__toggle');
+    const state = () => [toggle().getAttribute('aria-label'), toggle().getAttribute('aria-expanded')];
     expect(summary.classList.contains('senkuro-trade-summary--collapsible')).toBe(true);
-    expect([toggle().textContent, toggle().getAttribute('aria-expanded')]).toEqual(['Раскрыть полностью', 'false']);
+    expect(state()).toEqual(['Подробности', 'false']);
     let bubbled = false;
     el.addEventListener('click', () => (bubbled = true));
     toggle().click();
@@ -307,7 +308,31 @@ describe('updateTradeSummaries', () => {
     expect(summary.classList.contains('senkuro-trade-summary--expanded')).toBe(true);
     el.querySelectorAll('.modal-trade__preview-cnt')[1].insertAdjacentHTML('beforeend', card('f-card'));
     updateTradeSummaries(db, settings, store);
-    expect([toggle().textContent, toggle().getAttribute('aria-expanded')]).toEqual(['Скрыть', 'true']);
+    expect(state()).toEqual(['Подробности', 'true']);
+  });
+
+  it('places the details after the verdict that holds the toggle, so reading on from the button reaches the table', () => {
+    const el = modal('', constructorFooter([card('r-card', 2)], [card('s-card')]));
+    updateTradeSummaries(db, settings, store);
+    const parts = [...el.querySelector('.senkuro-trade-summary__content').children];
+    const main = parts.find((part) => part.matches('.senkuro-trade-summary__verdict:not(.senkuro-trade-summary__verdict--r)'));
+    const details = parts.find((part) => part.matches('.senkuro-trade-summary__details'));
+    const rVerdict = parts.find((part) => part.matches('.senkuro-trade-summary__verdict--r'));
+    expect(parts.indexOf(main)).toBeLessThan(parts.indexOf(details));
+    expect(parts.indexOf(details)).toBeLessThan(parts.indexOf(rVerdict));
+  });
+
+  it('puts the toggle in the main verdict, so the verdict keeps its own text and the R verdict stays plain', () => {
+    const el = modal('', constructorFooter([card('r-card', 2)], [card('s-card')]));
+    updateTradeSummaries(db, settings, store);
+    const main = el.querySelector('.senkuro-trade-summary__verdict:not(.senkuro-trade-summary__verdict--r)');
+    const toggle = main.querySelector('.senkuro-trade-summary__toggle');
+    expect(toggle).not.toBeNull();
+    expect(toggle.textContent).toBe('');
+    expect(toggle.querySelector('svg')).not.toBeNull();
+    expect(main.textContent).toBe('Потеря -243F (-100%)');
+    expect(el.querySelectorAll('.senkuro-trade-summary__toggle')).toHaveLength(1);
+    expect(el.querySelector('.senkuro-trade-summary__verdict--r .senkuro-trade-summary__toggle')).toBeNull();
   });
 
   it('does not touch the summary when nothing changed', () => {

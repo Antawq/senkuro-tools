@@ -7,7 +7,18 @@
   --senkuro-blur: 4px;
   --senkuro-shift: -4px;
   --senkuro-touch: 36px;
+  --senkuro-pill-inset: 12px;
   --senkuro-delay: calc(var(--senkuro-order, 0) * var(--senkuro-step));
+  --senkuro-line: var(--border-tertiary, color-mix(in srgb, var(--text-primary) 12%, transparent));
+  --senkuro-radius: var(--border-radius-md, 12px);
+  --senkuro-gain-fill: var(--success-tertiary, color-mix(in srgb, var(--success) 18%, transparent));
+  --senkuro-loss-fill: var(--error-tertiary, color-mix(in srgb, var(--error) 18%, transparent));
+  --senkuro-gain-text: color-mix(in srgb, var(--success) 50%, var(--text-primary));
+  --senkuro-loss-text: color-mix(in srgb, var(--error) 50%, var(--text-primary));
+  --senkuro-accent-fill: var(--accent-tertiary, color-mix(in srgb, var(--accent) 10%, transparent));
+  --senkuro-accent-line: color-mix(in srgb, var(--accent) 40%, transparent);
+  --senkuro-neutral-fill: color-mix(in srgb, var(--text-tertiary) 22%, transparent);
+  --senkuro-swap: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 8h14M14 4l4 4-4 4M20 16H6M10 12l-4 4 4 4'/%3E%3C/svg%3E");
   display: grid;
   grid-template-rows: 1fr;
   font-size: var(--senkuro-summary-font-size, 1.2rem);
@@ -109,20 +120,77 @@
 
 .senkuro-trade-summary__toggle {
   display: none;
-  align-self: center;
-  min-height: var(--senkuro-touch);
-  padding: 0 var(--senkuro-spacing);
+  flex: none;
+  align-items: center;
+  padding: 0;
   border: 0;
   background: none;
-  color: var(--accent);
-  font: inherit;
-  font-weight: 500;
+  color: inherit;
   cursor: pointer;
 }
 
+.senkuro-trade-summary__toggle::after {
+  content: '';
+  position: absolute;
+  inset-block: min(0px, calc((100% - var(--senkuro-touch)) / 2));
+  inset-inline: 0;
+}
+
+.senkuro-trade-summary__toggle:focus-visible {
+  outline: none;
+}
+
+.senkuro-trade-summary__toggle svg {
+  transform: rotate(180deg);
+  transition: transform var(--senkuro-exit) var(--senkuro-ease-out);
+}
+
+.senkuro-trade-summary--expanded .senkuro-trade-summary__toggle svg {
+  transform: none;
+}
+
 @media (width < 576px), (height <= 480px) {
+  .senkuro-trade-summary--collapsible {
+    --senkuro-neutral-fill: color-mix(in srgb, var(--text-tertiary) 10%, transparent);
+  }
+
   .senkuro-trade-summary--collapsible .senkuro-trade-summary__toggle {
-    display: block;
+    display: inline-flex;
+  }
+
+  .senkuro-trade-summary--collapsible .senkuro-trade-summary__verdict:not(.senkuro-trade-summary__verdict--r) {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    align-self: center;
+    gap: var(--senkuro-spacing);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .senkuro-trade-summary--collapsible:not(.senkuro-trade-summary--offer) .senkuro-trade-summary__verdict:not(.senkuro-trade-summary__verdict--r) {
+    min-height: var(--senkuro-touch);
+    padding-inline: var(--senkuro-pill-inset);
+    border-radius: 999px;
+    background: var(--senkuro-pill-fill);
+    color: var(--senkuro-pill-text);
+  }
+
+  .senkuro-trade-summary--collapsible.senkuro-trade-summary--start .senkuro-trade-summary__content {
+    padding-bottom: max(var(--senkuro-spacing), var(--senkuro-host-gap, 0px));
+  }
+
+  .senkuro-trade-summary--collapsible.senkuro-trade-summary--offer .senkuro-trade-summary__verdict:not(.senkuro-trade-summary__verdict--r) {
+    margin-left: 0;
+  }
+
+  .senkuro-trade-summary--collapsible .senkuro-trade-summary__verdict--r:is(.senkuro-trade-summary__verdict--gain, .senkuro-trade-summary__verdict--loss) {
+    color: var(--senkuro-pill-text);
+  }
+
+  .senkuro-trade-summary--collapsible .senkuro-trade-summary__verdict:has(.senkuro-trade-summary__toggle:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 
   .senkuro-trade-summary--collapsible:not(.senkuro-trade-summary--expanded) .senkuro-trade-summary__details {
@@ -184,31 +252,28 @@
 }
 
 .senkuro-trade-summary__verdict {
+  --senkuro-pill-fill: var(--senkuro-neutral-fill);
+  --senkuro-pill-text: var(--text-secondary, var(--text-primary));
+  order: 1;
   font-weight: 600;
   text-align: center;
 }
 
 .senkuro-trade-summary__verdict--r {
+  order: 2;
   font-weight: 500;
 }
 
 .senkuro-trade-summary__verdict--gain {
+  --senkuro-pill-fill: var(--senkuro-gain-fill);
+  --senkuro-pill-text: var(--senkuro-gain-text);
   color: var(--success);
 }
 
 .senkuro-trade-summary__verdict--loss {
+  --senkuro-pill-fill: var(--senkuro-loss-fill);
+  --senkuro-pill-text: var(--senkuro-loss-text);
   color: var(--error);
-}
-
-.senkuro-trade-summary--offer {
-  --senkuro-line: var(--border-tertiary, color-mix(in srgb, var(--text-primary) 12%, transparent));
-  --senkuro-radius: var(--border-radius-md, 12px);
-  --senkuro-gain-fill: var(--success-tertiary, color-mix(in srgb, var(--success) 18%, transparent));
-  --senkuro-loss-fill: var(--error-tertiary, color-mix(in srgb, var(--error) 18%, transparent));
-  --senkuro-accent-fill: var(--accent-tertiary, color-mix(in srgb, var(--accent) 10%, transparent));
-  --senkuro-accent-line: color-mix(in srgb, var(--accent) 40%, transparent);
-  --senkuro-neutral-fill: color-mix(in srgb, var(--text-tertiary) 22%, transparent);
-  --senkuro-swap: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 8h14M14 4l4 4-4 4M20 16H6M10 12l-4 4 4 4'/%3E%3C/svg%3E");
 }
 
 .senkuro-trade-summary--offer .senkuro-trade-summary__content {
@@ -245,19 +310,9 @@
   margin-left: auto;
   padding: 1px calc(var(--senkuro-spacing) - 2px);
   border-radius: 999px;
-  background: var(--senkuro-neutral-fill);
-  color: var(--text-secondary, var(--text-primary));
+  background: var(--senkuro-pill-fill);
+  color: var(--senkuro-pill-text);
   white-space: nowrap;
-}
-
-.senkuro-trade-summary--offer .senkuro-trade-summary__content > .senkuro-trade-summary__verdict--gain {
-  background: var(--senkuro-gain-fill);
-  color: var(--success);
-}
-
-.senkuro-trade-summary--offer .senkuro-trade-summary__content > .senkuro-trade-summary__verdict--loss {
-  background: var(--senkuro-loss-fill);
-  color: var(--error);
 }
 
 .senkuro-trade-summary--offer .senkuro-trade-summary__content > .senkuro-trade-summary__verdict--r {
@@ -269,9 +324,12 @@
   flex: 1 0 100%;
 }
 
-.senkuro-trade-summary--offer .senkuro-trade-summary__content > .senkuro-trade-summary__toggle {
-  order: 5;
-  flex: 1 0 100%;
+.senkuro-trade-summary--offer .senkuro-trade-summary__toggle svg {
+  transform: none;
+}
+
+.senkuro-trade-summary--offer.senkuro-trade-summary--expanded .senkuro-trade-summary__toggle svg {
+  transform: rotate(180deg);
 }
 
 .senkuro-trade-summary--offer .senkuro-trade-summary__table {

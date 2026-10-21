@@ -1,6 +1,7 @@
 import { visibleName } from './copy-button';
 import type { Database } from './database';
 import { element } from './dom';
+import { chevronIcon } from './svg';
 import { formatTradeTime, parseApiTime } from './time';
 import type { TradeStore } from './trade-capture';
 import type { Departure } from './trade-departure';
@@ -29,8 +30,7 @@ const COLLAPSIBLE = `${SUMMARY}--collapsible`;
 const EXPANDED = `${SUMMARY}--expanded`;
 const STAGGER_LIMIT = 6;
 const UNKNOWN = `${SUMMARY}__unknown`;
-const EXPAND_LABEL = 'Раскрыть полностью';
-const COLLAPSE_LABEL = 'Скрыть';
+const TOGGLE_LABEL = 'Подробности';
 const EMPTY_CELL = '-';
 const UNKNOWN_LEGEND = `${UNKNOWN_MARK} - нет цены в базе`;
 const SENT_LABEL = 'Отправлен';
@@ -161,11 +161,9 @@ const verdictState = ({ kind, certain }: Verdict): string => (certain ? `${SUMMA
 function expandToggle(summary: HTMLElement): HTMLButtonElement {
   const button = element('button', `${SUMMARY}__toggle`);
   button.type = 'button';
-  const sync = () => {
-    const expanded = summary.classList.contains(EXPANDED);
-    button.textContent = expanded ? COLLAPSE_LABEL : EXPAND_LABEL;
-    button.setAttribute('aria-expanded', String(expanded));
-  };
+  button.setAttribute('aria-label', TOGGLE_LABEL);
+  button.append(chevronIcon());
+  const sync = () => button.setAttribute('aria-expanded', String(summary.classList.contains(EXPANDED)));
   button.addEventListener('click', (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -241,17 +239,15 @@ function sentLine(sentAt: Date): HTMLElement {
 function partsOf({ caption, sentAt, departure, sides, settings, verdict, rVerdict }: View, summary: HTMLElement): HTMLElement[] {
   const details = element('div', `${SUMMARY}__details`);
   details.append(panel(sides, settings));
-  const parts: HTMLElement[] = [
+  const lead = [
     ...(caption ? [element('div', `${SUMMARY}__label`, caption)] : []),
     ...(sentAt ? [sentLine(sentAt)] : []),
     ...(departure ? [element('div', `${SUMMARY}__departure`, departure)] : []),
-    details,
   ];
-  if (!verdict) return parts;
-  parts.push(verdictLine(verdict));
-  if (rVerdict) parts.push(verdictLine(rVerdict, `${SUMMARY}__verdict--r`));
-  parts.push(expandToggle(summary));
-  return parts;
+  if (!verdict) return [...lead, details];
+  const main = verdictLine(verdict);
+  main.append(expandToggle(summary));
+  return [...lead, main, details, ...(rVerdict ? [verdictLine(rVerdict, `${SUMMARY}__verdict--r`)] : [])];
 }
 
 function render(place: Place, view: View, nextOrder: () => number): void {
