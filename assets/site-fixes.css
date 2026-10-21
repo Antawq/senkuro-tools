@@ -12,3 +12,8 @@
     max-width: 100%;
   }
 }
+
+.modal-content--trade:has(.senkuro-trade-summary) {
+  display: flex;
+  flex-direction: column;
+}
