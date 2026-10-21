@@ -162,7 +162,9 @@ function renderLoading(widget: HTMLElement, text: string): void {
   widget.classList.remove(FAILED, IDLE);
   widget.onclick = null;
   widget.onmouseenter = null;
-  widget.replaceChildren(element('span', 'senkuro-chip-spinner'), element('span', 'senkuro-f-text', text));
+  const content = element('div', 'senkuro-f-chip-content');
+  content.append(element('span', 'senkuro-chip-spinner'), element('span', 'senkuro-f-text', text));
+  widget.replaceChildren(content);
 }
 
 function renderIdle(widget: HTMLElement, slug: string, deps: ProfileBadgeDeps): void {

@@ -147,7 +147,7 @@ describe('profile-dom', () => {
 
       (widget() as HTMLElement).click();
       expect(widget()?.textContent).toContain('Считаем F...');
-      expect(widget()?.querySelector('.senkuro-chip-spinner')).not.toBeNull();
+      expect(widget()?.querySelectorAll('.senkuro-f-chip-content > .senkuro-chip-spinner, .senkuro-f-chip-content > .senkuro-f-text')).toHaveLength(2);
     });
 
     it('shows a collection another tab counted without a click or a request', async () => {
