@@ -2,7 +2,7 @@ import type { Database } from './database';
 import { element } from './dom';
 import { calculateProfileValue, extractProfileSlug, fetchProfileCards, fetchProfileUser, type ProfileValueSummary } from './profile-cards';
 import { isComplete, readCollection, saveCollection, type Collection } from './profile-store';
-import { svgIcon } from './svg';
+import { chevronIcon, svgIcon } from './svg';
 import { R_RANK, type Valuation } from './trade-value';
 
 export const WIDGET_ID = 'senkuro-profile-card-value';
@@ -34,11 +34,6 @@ const TEXT = {
 } as const;
 
 const progressText = (loaded: number): string => `Карт: ${loaded}...`;
-
-const chevronIcon = (): SVGSVGElement =>
-  svgIcon({ class: 'senkuro-chip-arrow', viewBox: '0 0 10 6', width: '9', height: '6', stroke: 'currentColor', 'stroke-width': '1.8' }, [
-    ['path', { d: 'm1 1 4 4 4-4' }],
-  ]);
 
 const refreshIcon = (): SVGSVGElement =>
   svgIcon({ viewBox: '0 0 16 16', width: '13', height: '13', stroke: 'currentColor', 'stroke-width': '1.7' }, [
@@ -200,7 +195,7 @@ function renderSummary(widget: HTMLElement, slug: string, summary: ProfileValueS
 
   const popover = element('div', 'senkuro-profile-f-popover');
   const chip = element('div', 'senkuro-f-chip-content');
-  chip.append(element('span', 'senkuro-f-value', summary.formattedF), chevronIcon());
+  chip.append(element('span', 'senkuro-f-value', summary.formattedF), chevronIcon('senkuro-chip-arrow'));
   chip.addEventListener('click', (event) => {
     event.stopPropagation();
     document.querySelectorAll(`.${ACTIVE}`).forEach((el) => {

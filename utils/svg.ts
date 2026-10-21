@@ -14,3 +14,8 @@ export function svgIcon(attributes: Record<string, string>, shapes: Shape[]): SV
   }
   return svg;
 }
+
+export const chevronIcon = (className?: string): SVGSVGElement =>
+  svgIcon({ ...(className ? { class: className } : {}), viewBox: '0 0 10 6', width: '9', height: '6', stroke: 'currentColor', 'stroke-width': '1.8' }, [
+    ['path', { d: 'm1 1 4 4 4-4' }],
+  ]);
