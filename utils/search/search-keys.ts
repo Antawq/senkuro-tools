@@ -1,4 +1,4 @@
-import { ACTIVE, FIELD, MIN_QUERY_LENGTH, MODAL, fieldOf as fieldIn, rowsOf as rowsIn, topModal } from './search-dom';
+import { ACTIVE, FIELD, MIN_QUERY_LENGTH, MODAL, TAB_ACTIVE, fieldOf as fieldIn, rowsOf as rowsIn, topModal } from './search-dom';
 import type { SearchSignals } from './search-signal';
 
 const CONTROL = 'button, a, input, select, textarea, [contenteditable], [role="button"], [role="radio"]';
@@ -33,6 +33,8 @@ const isComposing = (event: KeyboardEvent): boolean => event.isComposing || even
 
 const isSearchHotkey = (event: KeyboardEvent): boolean => event.ctrlKey && event.code === 'KeyK';
 
+const askedOf = (modal: HTMLElement): string => JSON.stringify([fieldIn(modal)?.value, modal.querySelector(TAB_ACTIVE)?.textContent]);
+
 const take = (event: Event): void => {
   event.preventDefault();
   event.stopImmediatePropagation();
@@ -50,6 +52,7 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
   let knownValue = '';
   let waiting = false;
   let waitStartedAt = 0;
+  let waitAsked = '';
 
   const openModal = (): HTMLElement | null => topModal(doc, (modal) => spent.has(modal));
 
@@ -89,7 +92,7 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
 
   const check = (startedAt: number, owner: HTMLElement): void => {
     if (!waiting || startedAt !== waitStartedAt) return;
-    if (session !== owner || openModal() !== owner) {
+    if (session !== owner || openModal() !== owner || askedOf(owner) !== waitAsked) {
       waiting = false;
       return;
     }
@@ -128,6 +131,7 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
 
   const wait = (owner: HTMLElement): void => {
     waiting = true;
+    waitAsked = askedOf(owner);
     waitStartedAt = Date.now();
     const started = waitStartedAt;
     check(started, owner);
@@ -155,6 +159,8 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
     target === doc.body || target === doc.documentElement || (target instanceof Node && modal.contains(target));
 
   const dispose = (): void => {
+    index = null;
+    mark(rowsOf());
     observer?.disconnect();
     observer = null;
     session = null;
@@ -176,14 +182,13 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
         field?.select();
         return;
       }
-      if (isComposing(event)) {
-        if (!HANDLED_KEYS.has(event.key) && !HANDLED_CODES.has(event.code)) return;
-        const composing = adopt();
-        if (composing && owns(event.target, composing)) event.stopImmediatePropagation();
+      const aside = isComposing(event) || isModified(event);
+      if (!HANDLED_KEYS.has(event.key) && !(aside && HANDLED_CODES.has(event.code))) return;
+      const modal = adopt();
+      if (aside) {
+        if (modal && owns(event.target, modal)) event.stopImmediatePropagation();
         return;
       }
-      if (isModified(event) || !HANDLED_KEYS.has(event.key)) return;
-      const modal = adopt();
       if (!modal || !owns(event.target, modal)) return;
       const onControl = event.target instanceof HTMLElement && !event.target.matches(FIELD) && event.target.closest(CONTROL) !== null;
       if (onControl) {

@@ -191,6 +191,80 @@ describe('Enter', () => {
     expect(clicked).toEqual(['/manga/late']);
   });
 
+  describe('a wait that was overtaken by the user', () => {
+    const withTabs = () => {
+      (document.querySelector('.modal-content--search') as HTMLElement).insertAdjacentHTML(
+        'afterbegin',
+        '<div class="tabs"><button class="tabs-tab tabs-tab--active">Манга</button><button class="tabs-tab">Аниме</button></div>'
+      );
+    };
+
+    const switchTab = () => {
+      const [first, second] = [...document.querySelectorAll('.tabs-tab')];
+      first?.classList.remove('tabs-tab--active');
+      second?.classList.add('tabs-tab--active');
+    };
+
+    it('does not open the results of a query edited after Enter was pressed', async () => {
+      open([]);
+      withTabs();
+      typed('nartuo');
+      press('Enter');
+      await settle(300);
+      typed('naruto');
+      await arrive('a', 'b');
+      await settle(3000);
+      expect(clicked).toEqual([]);
+    });
+
+    it('does not open the results of a query changed without an input event, as by a chip', async () => {
+      open([]);
+      withTabs();
+      typed('nartuo');
+      press('Enter');
+      await settle(300);
+      input().value = 'naruto';
+      await arrive('a', 'b');
+      await settle(3000);
+      expect(clicked).toEqual([]);
+    });
+
+    it('does not open the results of another tab switched to after Enter was pressed', async () => {
+      open([]);
+      withTabs();
+      typed('nartuo');
+      press('Enter');
+      await settle(300);
+      switchTab();
+      await arrive('a', 'b');
+      await settle(3000);
+      expect(clicked).toEqual([]);
+    });
+
+    it('still opens the results that arrive for the query Enter was pressed on', async () => {
+      open([]);
+      withTabs();
+      typed('naruto');
+      press('Enter');
+      await settle(300);
+      await arrive('late');
+      await settle(1500);
+      expect(clicked).toEqual(['/manga/late']);
+    });
+
+    it('works again for the next Enter after the user moved on', async () => {
+      open([]);
+      withTabs();
+      typed('nartuo');
+      press('Enter');
+      typed('naruto');
+      await arrive('a', 'b');
+      await settle(1000);
+      press('Enter');
+      expect(clicked).toEqual(['/manga/a']);
+    });
+  });
+
   it('does not click again while the modal fades out after a click', async () => {
     await ready(['a', 'b']);
     press('Enter');
@@ -251,11 +325,43 @@ describe('Enter', () => {
     ['metaKey', { metaKey: true }],
     ['altKey', { altKey: true }],
     ['shiftKey', { shiftKey: true }],
-  ])('is left alone with %s', (_name, init) => {
+  ])('opens nothing and keeps the key from the site, which would jump to the catalog, with %s', (_name, init) => {
     open(['a']);
     const event = press('Enter', init);
     expect(clicked).toEqual([]);
     expect(event.defaultPrevented).toBe(false);
+    expect(siteSaw).not.toContain('site:Enter');
+  });
+
+  it.each([
+    ['ctrlKey', { ctrlKey: true }],
+    ['metaKey', { metaKey: true }],
+    ['altKey', { altKey: true }],
+    ['shiftKey', { shiftKey: true }],
+  ])('keeps a modified arrow from the site so only one row is highlighted, with %s', async (_name, init) => {
+    await ready(['a', 'b']);
+    const event = press('ArrowDown', init);
+    expect(event.defaultPrevented).toBe(false);
+    expect(siteSaw).not.toContain('site:ArrowDown');
+    expect(activeIndexes()).toEqual([]);
+  });
+
+  it('keeps a modified keypad Enter from the site too', () => {
+    open(['a']);
+    press('Enter', { code: 'NumpadEnter', ctrlKey: true });
+    expect(siteSaw).not.toContain('site:Enter');
+  });
+
+  it('leaves a modified Enter outside the modal to the page', () => {
+    open(['a']);
+    document.body.insertAdjacentHTML('beforeend', '<div class="editor" contenteditable="true"></div>');
+    press('Enter', { ctrlKey: true }, document.querySelector('.editor') as HTMLElement);
+    expect(siteSaw).toContain('site:Enter');
+  });
+
+  it('leaves a modified Enter to the site when the search is not open', () => {
+    document.body.innerHTML = '<input class="input-el" value="naruto">';
+    press('Enter', { ctrlKey: true });
     expect(siteSaw).toContain('site:Enter');
   });
 
@@ -299,6 +405,16 @@ describe('Enter', () => {
     const event = press('Enter');
     expect(clicked).toEqual([]);
     expect(event.defaultPrevented).toBe(false);
+  });
+});
+
+describe('dispose', () => {
+  it('takes its highlight off the page', async () => {
+    await ready(['a', 'b']);
+    press('ArrowDown');
+    expect(activeIndexes()).toEqual([0]);
+    keys.dispose();
+    expect(activeIndexes()).toEqual([]);
   });
 });
 
