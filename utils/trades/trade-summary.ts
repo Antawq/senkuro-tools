@@ -224,7 +224,7 @@ const signatureOf = ({ caption, sentAt, departure, sides, settings, verdict, rVe
     caption,
     sentAt,
     departure,
-    sides.map(({ label, f, bank, count, unknown, r }) => [label, f, bank, count, unknown, r]),
+    sides.map(({ label, f, bank, count, unknown, r, value }) => [label, f, bank, count, unknown, r, value.complete]),
     verdict,
     rVerdict,
     settings.showSummaryF,

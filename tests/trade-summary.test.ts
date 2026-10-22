@@ -399,6 +399,15 @@ describe('summary settings', () => {
     expect(summary.classList.contains('senkuro-trade-summary--collapsible')).toBe(false);
   });
 
+  it('settles the value of a side once its unpriced shards are left out of it', () => {
+    const el = modal('', constructorFooter([card('f-card')], [card('s-card'), card('missing', 2, true)]));
+    const unsettled = () => [...el.querySelectorAll('.senkuro-trade-summary__cell strong.senkuro-trade-summary__unknown')].map((value) => value.textContent);
+    updateTradeSummaries(db, settings, store);
+    expect(unsettled()).toEqual(['243F']);
+    updateTradeSummaries(db, { ...settings, excludeShards: true }, store);
+    expect(unsettled()).toEqual([]);
+  });
+
   it('leaves out the verdict together with the toggle that unfolds the table', () => {
     const el = composing();
     updateTradeSummaries(db, { ...settings, showSummaryVerdict: false }, store);
