@@ -396,7 +396,20 @@ describe('summary settings', () => {
     expect(summary.querySelector('.senkuro-trade-summary__verdict')).not.toBeNull();
     expect(summary.querySelector('.senkuro-trade-summary__table')).toBeNull();
     expect(summary.querySelector('.senkuro-trade-summary__toggle')).toBeNull();
+    expect(summary.querySelector('.senkuro-trade-summary__details')).toBeNull();
     expect(summary.classList.contains('senkuro-trade-summary--collapsible')).toBe(false);
+  });
+
+  it('closes the summary when every row and the verdict are switched off, and opens it again with the verdict', () => {
+    const el = composing();
+    const rowsOff = { ...settings, showSummaryF: false, showSummaryBank: false, showSummaryCards: false };
+    updateTradeSummaries(db, { ...rowsOff, showSummaryVerdict: false }, store);
+    const summary = el.querySelector('.senkuro-trade-summary') as HTMLElement;
+    expect(summary.classList.contains('senkuro-trade-summary--closed')).toBe(true);
+    expect(summary.querySelector('.senkuro-trade-summary__details')).toBeNull();
+    updateTradeSummaries(db, rowsOff, store);
+    expect(summary.classList.contains('senkuro-trade-summary--closed')).toBe(false);
+    expect(summary.querySelector('.senkuro-trade-summary__verdict')).not.toBeNull();
   });
 
   it('settles the value of a side once its unpriced shards are left out of it', () => {

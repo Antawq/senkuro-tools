@@ -241,29 +241,38 @@ function sentLine(sentAt: Date): HTMLElement {
   return time;
 }
 
-function partsOf({ caption, sentAt, departure, verdict, rVerdict }: View, summary: HTMLElement, body: HTMLElement | null): HTMLElement[] {
+function detailsOf(body: HTMLElement): HTMLElement {
   const details = element('div', `${SUMMARY}__details`);
-  if (body) details.append(body);
+  details.append(body);
+  return details;
+}
+
+function partsOf({ caption, sentAt, departure, verdict, rVerdict }: View, summary: HTMLElement, body: HTMLElement | null): HTMLElement[] {
   const lead = [
     ...(caption ? [element('div', `${SUMMARY}__label`, caption)] : []),
     ...(sentAt ? [sentLine(sentAt)] : []),
     ...(departure ? [element('div', `${SUMMARY}__departure`, departure)] : []),
   ];
-  if (!verdict) return [...lead, details];
+  const details = body ? [detailsOf(body)] : [];
+  if (!verdict) return [...lead, ...details];
   const main = verdictLine(verdict);
   if (body) main.append(expandToggle(summary));
-  return [...lead, main, details, ...(rVerdict ? [verdictLine(rVerdict, `${SUMMARY}__verdict--r`)] : [])];
+  return [...lead, main, ...details, ...(rVerdict ? [verdictLine(rVerdict, `${SUMMARY}__verdict--r`)] : [])];
 }
 
 function render(place: Place, view: View, nextOrder: () => number): void {
   const summary = place.host.querySelector<HTMLElement>(`:scope > .${SUMMARY}`) ?? mount(place, nextOrder());
   summary.classList.remove(CLOSED);
   const signature = signatureOf(view);
-  if (summary.dataset.signature === signature) return;
-  summary.dataset.signature = signature;
-  const body = panel(view.sides, view.settings);
-  summary.classList.toggle(COLLAPSIBLE, Boolean(view.verdict && body));
-  summary.querySelector(`.${SUMMARY}__content`)?.replaceChildren(...partsOf(view, summary, body));
+  if (summary.dataset.signature !== signature) {
+    summary.dataset.signature = signature;
+    const body = panel(view.sides, view.settings);
+    const parts = partsOf(view, summary, body);
+    summary.classList.toggle(COLLAPSIBLE, Boolean(view.verdict && body));
+    summary.dataset.empty = String(parts.length === 0);
+    summary.querySelector(`.${SUMMARY}__content`)?.replaceChildren(...parts);
+  }
+  if (summary.dataset.empty === 'true') summary.classList.add(CLOSED);
 }
 
 export function updateTradeSummaries(db: Database, settings: SummarySettings, store: TradeStore): void {
