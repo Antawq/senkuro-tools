@@ -44,6 +44,8 @@ const ROWS: RowKey[] = ['value', 'bank', 'count'];
 
 const R_ROWS: RowKey[] = ['value', 'count'];
 
+const ROW_SETTINGS = { value: 'showSummaryF', bank: 'showSummaryBank', count: 'showSummaryCards' } as const;
+
 export interface SummarySettings extends Valuation {
   showSummaryF: boolean;
   showSummaryBank: boolean;
@@ -123,36 +125,39 @@ function rCell(side: SideView, key: RowKey): HTMLElement {
   return cell;
 }
 
-function rWindow(sides: SideView[]): HTMLElement | null {
-  if (!sides.some((side) => side.r)) return null;
+const rowsShown = (rows: RowKey[], settings: SummarySettings): RowKey[] => rows.filter((key) => settings[ROW_SETTINGS[key]]);
+
+function rWindow(sides: SideView[], settings: SummarySettings): HTMLElement | null {
+  const rows = rowsShown(R_ROWS, settings);
+  if (rows.length === 0 || !sides.some((side) => side.r)) return null;
   const grid = element('div', `${SUMMARY}__table`);
   grid.style.setProperty('--senkuro-columns', String(sides.length));
-  for (const key of R_ROWS) grid.append(element('span', `${SUMMARY}__label`, ROW_LABELS[key]), ...sides.map((side) => rCell(side, key)));
+  for (const key of rows) grid.append(element('span', `${SUMMARY}__label`, ROW_LABELS[key]), ...sides.map((side) => rCell(side, key)));
   const window = element('div', `${SUMMARY}__window`);
   window.append(element('div', `${SUMMARY}__window-title`, R_RANK), grid);
   return window;
 }
 
-function panel(sides: SideView[], settings: SummarySettings): HTMLElement {
-  const wrapper = element('div', `${SUMMARY}__panel`);
-  wrapper.append(table(sides, settings));
-  const window = rWindow(sides);
-  if (window) wrapper.append(window);
+function panel(sides: SideView[], settings: SummarySettings): HTMLElement | null {
   const showsUnknown = settings.showSummaryBank || settings.showSummaryCards;
-  if (showsUnknown && sides.some((side) => side.unknown)) wrapper.append(element('div', UNKNOWN, UNKNOWN_LEGEND));
+  const parts = [
+    table(sides, settings),
+    rWindow(sides, settings),
+    showsUnknown && sides.some((side) => side.unknown) ? element('div', UNKNOWN, UNKNOWN_LEGEND) : null,
+  ].filter((part): part is HTMLElement => part !== null);
+  if (parts.length === 0) return null;
+  const wrapper = element('div', `${SUMMARY}__panel`);
+  wrapper.append(...parts);
   return wrapper;
 }
 
-function table(sides: SideView[], settings: SummarySettings): HTMLElement {
+function table(sides: SideView[], settings: SummarySettings): HTMLElement | null {
+  const rows = rowsShown(ROWS, settings);
+  if (rows.length === 0) return null;
   const grid = element('div', `${SUMMARY}__table`);
   grid.style.setProperty('--senkuro-columns', String(sides.length));
   grid.append(element('span'), ...sides.map((side) => element('span', `${SUMMARY}__side`, side.label)));
-  for (const key of ROWS) {
-    if (key === 'value' && !settings.showSummaryF) continue;
-    if (key === 'bank' && !settings.showSummaryBank) continue;
-    if (key === 'count' && !settings.showSummaryCards) continue;
-    grid.append(element('span', `${SUMMARY}__label`, ROW_LABELS[key]), ...sides.map((side) => cellOf(side, key)));
-  }
+  for (const key of rows) grid.append(element('span', `${SUMMARY}__label`, ROW_LABELS[key]), ...sides.map((side) => cellOf(side, key)));
   return grid;
 }
 
@@ -236,9 +241,9 @@ function sentLine(sentAt: Date): HTMLElement {
   return time;
 }
 
-function partsOf({ caption, sentAt, departure, sides, settings, verdict, rVerdict }: View, summary: HTMLElement): HTMLElement[] {
+function partsOf({ caption, sentAt, departure, verdict, rVerdict }: View, summary: HTMLElement, body: HTMLElement | null): HTMLElement[] {
   const details = element('div', `${SUMMARY}__details`);
-  details.append(panel(sides, settings));
+  if (body) details.append(body);
   const lead = [
     ...(caption ? [element('div', `${SUMMARY}__label`, caption)] : []),
     ...(sentAt ? [sentLine(sentAt)] : []),
@@ -246,7 +251,7 @@ function partsOf({ caption, sentAt, departure, sides, settings, verdict, rVerdic
   ];
   if (!verdict) return [...lead, details];
   const main = verdictLine(verdict);
-  main.append(expandToggle(summary));
+  if (body) main.append(expandToggle(summary));
   return [...lead, main, details, ...(rVerdict ? [verdictLine(rVerdict, `${SUMMARY}__verdict--r`)] : [])];
 }
 
@@ -256,8 +261,9 @@ function render(place: Place, view: View, nextOrder: () => number): void {
   const signature = signatureOf(view);
   if (summary.dataset.signature === signature) return;
   summary.dataset.signature = signature;
-  summary.classList.toggle(COLLAPSIBLE, Boolean(view.verdict));
-  summary.querySelector(`.${SUMMARY}__content`)?.replaceChildren(...partsOf(view, summary));
+  const body = panel(view.sides, view.settings);
+  summary.classList.toggle(COLLAPSIBLE, Boolean(view.verdict && body));
+  summary.querySelector(`.${SUMMARY}__content`)?.replaceChildren(...partsOf(view, summary, body));
 }
 
 export function updateTradeSummaries(db: Database, settings: SummarySettings, store: TradeStore): void {

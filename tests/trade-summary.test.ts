@@ -389,6 +389,16 @@ describe('summary settings', () => {
     expect(labelsOf(el)).toEqual(['Ценность', 'Банк', 'Карты']);
   });
 
+  it('shows no table, no toggle and no collapsible pill when every row is switched off', () => {
+    const el = composing();
+    updateTradeSummaries(db, { ...settings, showSummaryF: false, showSummaryBank: false, showSummaryCards: false }, store);
+    const summary = el.querySelector('.senkuro-trade-summary') as HTMLElement;
+    expect(summary.querySelector('.senkuro-trade-summary__verdict')).not.toBeNull();
+    expect(summary.querySelector('.senkuro-trade-summary__table')).toBeNull();
+    expect(summary.querySelector('.senkuro-trade-summary__toggle')).toBeNull();
+    expect(summary.classList.contains('senkuro-trade-summary--collapsible')).toBe(false);
+  });
+
   it('leaves out the verdict together with the toggle that unfolds the table', () => {
     const el = composing();
     updateTradeSummaries(db, { ...settings, showSummaryVerdict: false }, store);
@@ -474,6 +484,14 @@ describe('R window', () => {
     ]);
     expect((el.querySelector('.senkuro-trade-summary__window strong') as HTMLElement).classList.contains('senkuro-trade-summary__unknown')).toBe(true);
     expect((el.querySelector('.senkuro-trade-summary__verdict--r') as HTMLElement).classList.contains('senkuro-trade-summary__unknown')).toBe(true);
+  });
+
+  it('leaves out of the window the rows switched off for the summary', () => {
+    const el = composing([card('r-card')], [card('s-card')]);
+    updateTradeSummaries(db, { ...settings, showSummaryCards: false }, store);
+    expect(windowOf(el)?.rows).toEqual([['Ценность', '1R', '-']]);
+    updateTradeSummaries(db, { ...settings, showSummaryF: false, showSummaryCards: false }, store);
+    expect(windowOf(el)).toBeNull();
   });
 
   it('folds together with the table', () => {
