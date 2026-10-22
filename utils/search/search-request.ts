@@ -3,22 +3,16 @@ import type { Sink } from 'wonka';
 import { claimPage } from '../shared/page-claim';
 import { operationName, whenClient, type QueryClient, type QueryRequest } from '../shared/urql-client';
 import { tapSource, type SourceResult } from '../shared/urql-source';
+import { SEARCH_EVENT, type SearchSignal } from './search-signal';
 
 export const SEARCH_OPERATION = 'search';
 export const SEARCH_PAGE_SIZE = 30;
-export const SEARCH_EVENT = 'senkutools:search';
 
 const PAGE_ARGUMENT = 'first';
 const INT_LITERAL = 'IntValue';
 const DOCUMENT_KEY = '__key';
 const KEY_MIX = 0x5bd1e995;
 const KEY_STRIDE = 31;
-
-export interface SearchSignal {
-  phase: 'start' | 'done';
-  query: string;
-  type: string;
-}
 
 type Publish = (signal: SearchSignal) => void;
 

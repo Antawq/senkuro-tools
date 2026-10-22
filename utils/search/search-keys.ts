@@ -1,3 +1,5 @@
+import type { SearchSignals } from './search-signal';
+
 const MODAL = '.modal-content--search';
 const HOST = '.vfm';
 const CLOSING = 'vfm--prevent-none';
@@ -7,6 +9,7 @@ const ACTIVE = 'card-search--active';
 const CONTROL = 'button, a, input, select, textarea, [contenteditable], [role="button"], [role="radio"]';
 const MIN_QUERY_LENGTH = 2;
 const DEBOUNCE_MS = 250;
+const PAINT_MS = 60;
 const SETTLE_MS = 900;
 const GIVE_UP_MS = 3000;
 const HANDLED_KEYS = new Set(['Enter', 'ArrowDown', 'ArrowUp']);
@@ -14,6 +17,7 @@ const HANDLED_KEYS = new Set(['Enter', 'ArrowDown', 'ArrowUp']);
 export interface SearchKeysHost {
   later: (run: () => void, ms: number) => void;
   alive: () => boolean;
+  signals: SearchSignals;
 }
 
 export interface SearchKeys {
@@ -34,7 +38,7 @@ const take = (event: Event): void => {
   event.stopImmediatePropagation();
 };
 
-export function createSearchKeys(doc: Document, { later, alive }: SearchKeysHost): SearchKeys {
+export function createSearchKeys(doc: Document, { later, alive, signals }: SearchKeysHost): SearchKeys {
   const spent = new WeakSet<HTMLElement>();
   let session: HTMLElement | null = null;
   let observer: MutationObserver | null = null;
@@ -71,7 +75,11 @@ export function createSearchKeys(doc: Document, { later, alive }: SearchKeysHost
     return rows;
   };
 
-  const isFresh = (): boolean => changedAt >= typedAt + DEBOUNCE_MS || Date.now() - typedAt >= SETTLE_MS;
+  const isFresh = (): boolean => {
+    const sinceTyped = Date.now() - typedAt;
+    if (!signals.live()) return changedAt >= typedAt + DEBOUNCE_MS || sinceTyped >= SETTLE_MS;
+    return sinceTyped >= DEBOUNCE_MS && !signals.pending() && Date.now() - signals.doneAt() >= PAINT_MS;
+  };
 
   const noticeTyping = (): void => {
     const value = fieldOf()?.value ?? '';
@@ -127,9 +135,18 @@ export function createSearchKeys(doc: Document, { later, alive }: SearchKeysHost
     const started = waitStartedAt;
     check(started, owner);
     if (!waiting) return;
+    later(() => check(started, owner), Math.max(0, typedAt + DEBOUNCE_MS - started) + PAINT_MS);
     later(() => check(started, owner), Math.max(0, typedAt + SETTLE_MS - started));
     later(() => check(started, owner), GIVE_UP_MS);
   };
+
+  signals.subscribe(() => {
+    const owner = session;
+    if (!waiting || !owner) return;
+    const started = waitStartedAt;
+    check(started, owner);
+    if (waiting) later(() => check(started, owner), PAINT_MS);
+  });
 
   const step = (rows: HTMLElement[], delta: number): void => {
     index = index === null ? 0 : Math.min(Math.max(index + delta, 0), rows.length - 1);

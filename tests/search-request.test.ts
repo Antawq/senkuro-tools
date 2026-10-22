@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { Window } from 'happy-dom';
 import { make } from 'wonka';
 
-import { SEARCH_EVENT, SEARCH_PAGE_SIZE, installSearchRequest, widenSearch, widenSearches, type SearchSignal } from '../utils/search/search-request';
+import { SEARCH_PAGE_SIZE, installSearchRequest, widenSearch, widenSearches } from '../utils/search/search-request';
+import { SEARCH_EVENT, type SearchSignal } from '../utils/search/search-signal';
 import type { QueryClient, QueryRequest } from '../utils/shared/urql-client';
 
 const argument = (name: string, value: string) => ({ kind: 'Argument', name: { value: name }, value: { kind: 'IntValue', value } });

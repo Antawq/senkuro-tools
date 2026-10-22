@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createSearchKeys, type SearchKeys } from '../utils/search/search-keys';
+import { createSearchSignals, type SearchSignals } from '../utils/search/search-signal';
 
 const ACTIVE = 'card-search--active';
 
@@ -38,6 +39,7 @@ let siteSaw: string[];
 let keys: SearchKeys;
 let detach: (() => void)[];
 let alive: boolean;
+let signals: SearchSignals;
 
 const press = (key: string, init: KeyboardEventInit = {}, target: EventTarget = input()) => {
   const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });
@@ -78,7 +80,8 @@ beforeEach(() => {
   siteSaw = [];
   detach = [];
   alive = true;
-  keys = createSearchKeys(document, { later: (run, ms) => void setTimeout(run, ms), alive: () => alive });
+  signals = createSearchSignals();
+  keys = createSearchKeys(document, { later: (run, ms) => void setTimeout(run, ms), alive: () => alive, signals });
   listen('keydown', keys.keydown, { capture: true });
   listen('input', keys.input, { capture: true });
   listen('keydown', (event: KeyboardEvent) => siteSaw.push(`site:${event.key}`));
@@ -378,5 +381,94 @@ describe('arrows', () => {
     expect(event.defaultPrevented).toBe(false);
     expect(siteSaw).not.toContain('site:ArrowDown');
     expect(activeIndexes()).toEqual([]);
+  });
+});
+
+describe('with signals from the page', () => {
+  const emit = (phase: 'start' | 'done', query: string) =>
+    signals.event(new CustomEvent('senkutools:search', { detail: JSON.stringify({ phase, query, type: 'MANGA' }) }));
+
+  const heardOnce = () => {
+    emit('start', 'earlier');
+    emit('done', 'earlier');
+  };
+
+  it('opens the first result only after the search for what was typed has come back', async () => {
+    open(['old-a'], '');
+    heardOnce();
+    typed('naruto');
+    press('Enter');
+    await settle(210);
+    emit('start', 'naruto');
+    await settle(100);
+    expect(clicked).toEqual([]);
+    await arrive('final-a');
+    expect(clicked).toEqual([]);
+    emit('done', 'naruto');
+    await settle(100);
+    expect(clicked).toEqual(['/manga/final-a']);
+  });
+
+  it('gives the page a moment to paint an answer before it opens anything', async () => {
+    open(['old-a'], '');
+    heardOnce();
+    typed('naruto');
+    press('Enter');
+    await settle(210);
+    emit('start', 'naruto');
+    await settle(100);
+    emit('done', 'naruto');
+    await settle(30);
+    await arrive('new-a');
+    await settle(100);
+    expect(clicked).toEqual(['/manga/new-a']);
+  });
+
+  it('is not taken in by the answer to a partial query that lands right after the last key', async () => {
+    open(['old-a'], '');
+    heardOnce();
+    emit('start', 'naru');
+    typed('naruto');
+    press('Enter');
+    await settle(100);
+    await arrive('partial-a');
+    emit('done', 'naru');
+    await settle(100);
+    expect(clicked).toEqual([]);
+    await settle(100);
+    emit('start', 'naruto');
+    await settle(200);
+    await arrive('final-a');
+    emit('done', 'naruto');
+    await settle(100);
+    expect(clicked).toEqual(['/manga/final-a']);
+  });
+
+  it('opens what is shown when no new search was needed for what was typed', async () => {
+    open(['a', 'b'], '');
+    heardOnce();
+    typed('naruto');
+    press('Enter');
+    await settle(400);
+    expect(clicked).toEqual(['/manga/a']);
+  });
+
+  it('gives up quietly on a search that never answers', async () => {
+    open(['a'], '');
+    heardOnce();
+    typed('naruto');
+    press('Enter');
+    await settle(210);
+    emit('start', 'naruto');
+    await settle(5000);
+    expect(clicked).toEqual([]);
+  });
+
+  it('falls back to the timing it has without signals when the page never speaks', async () => {
+    open(['a', 'b'], '');
+    typed('naruto');
+    press('Enter');
+    await settle(2000);
+    expect(clicked).toEqual(['/manga/a']);
   });
 });

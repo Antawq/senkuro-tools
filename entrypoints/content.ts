@@ -11,6 +11,7 @@ import { SENKURO_MATCHES } from '@/utils/shared/hosts';
 import { createPriceBadges } from '@/utils/badges/price-badges';
 import { profileBadgeMissing, removeProfileBadge, updateProfileBadge } from '@/utils/profile/profile-dom';
 import { createSearchKeys } from '@/utils/search/search-keys';
+import { SEARCH_EVENT, createSearchSignals } from '@/utils/search/search-signal';
 import { addedCards, createRenderLoop } from '@/utils/shared/render-loop';
 import { loadSettings, watchSettings } from '@/utils/shared/settings';
 import { createTokenBar } from '@/utils/token/token-bar';
@@ -73,7 +74,9 @@ export default defineContentScript({
       })
     );
 
-    const searchKeys = createSearchKeys(document, { later: (run, ms) => void ctx.setTimeout(run, ms), alive: () => !ctx.isInvalid });
+    const searchSignals = createSearchSignals();
+    const searchKeys = createSearchKeys(document, { later: (run, ms) => void ctx.setTimeout(run, ms), alive: () => !ctx.isInvalid, signals: searchSignals });
+    ctx.addEventListener(document, SEARCH_EVENT, searchSignals.event);
     ctx.onInvalidated(searchKeys.dispose);
     ctx.addEventListener(document, 'keydown', searchKeys.keydown, { capture: true });
     ctx.addEventListener(document, 'input', searchKeys.input, { capture: true });
