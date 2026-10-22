@@ -15,6 +15,20 @@ const open = (slugs: string[], query: string, hostClass = 'vfm') => {
     </div>`;
 };
 
+class FakeHighlight extends Set<Range> {
+  constructor(...ranges: Range[]) {
+    super(ranges);
+  }
+}
+
+const titledRows = (...titles: string[]) =>
+  titles.map((title, index) => `<a class="card-search" data-index="${index}" href="/manga/t${index}"><h3 class="card-title">${title}</h3></a>`).join('');
+
+const openTitled = (titles: string[], query: string, name = 'card-title') => {
+  open([], query);
+  list().innerHTML = titledRows(...titles).replaceAll('card-title', name);
+};
+
 const modal = () => document.querySelector('.modal-content--search') as HTMLElement;
 const field = () => document.querySelector('input.input-el') as HTMLInputElement;
 const list = () => document.querySelector('.nav-search__cnt') as HTMLElement;
@@ -25,12 +39,23 @@ const say = (phase: 'start' | 'done', query = 'naruto') => {
   signals.event(new CustomEvent(SEARCH_EVENT, { detail: JSON.stringify({ phase, query, type: 'MANGA' }) }));
 };
 
+let registry: Map<string, Set<Range>>;
 let signals: SearchSignals;
 let view: SearchView;
 let alive: boolean;
 
+const installHighlights = () => {
+  registry = new Map();
+  const win = document.defaultView as unknown as object;
+  Object.defineProperty(win, 'Highlight', { value: FakeHighlight, configurable: true });
+  Object.defineProperty(win, 'CSS', { value: { highlights: registry }, configurable: true });
+};
+
+const matched = () => [...(registry.get('senkutools-match') ?? [])].map((range) => range.toString());
+
 beforeEach(() => {
   vi.useFakeTimers();
+  installHighlights();
   alive = true;
   signals = createSearchSignals();
   view = createSearchView(document, {
@@ -42,6 +67,8 @@ beforeEach(() => {
 
 afterEach(() => {
   view.dispose();
+  Reflect.deleteProperty(document.defaultView as unknown as object, 'Highlight');
+  Reflect.deleteProperty(document.defaultView as unknown as object, 'CSS');
   vi.useRealTimers();
   document.body.innerHTML = '';
 });
@@ -194,5 +221,104 @@ describe('which modal it looks at', () => {
     list().innerHTML = rowsOf('a');
     await settle();
     expect(modal().hasAttribute('data-stale')).toBe(false);
+  });
+});
+
+describe('matching words', () => {
+  it('marks every occurrence of the typed words in the titles, whatever their case', () => {
+    openTitled(['Наруто и НАРУТО', 'Боруто', 'Цикл Naruto'], 'наруто');
+    view.touch();
+    expect(matched()).toEqual(['Наруто', 'НАРУТО']);
+    field().value = 'naruto';
+    view.touch();
+    expect(matched()).toEqual(['Naruto']);
+  });
+
+  it('does not care about the case the query was typed in', () => {
+    openTitled(['Наруто'], 'НАРУТО');
+    view.touch();
+    expect(matched()).toEqual(['Наруто']);
+  });
+
+  it('marks side by side matches once, not overlapping ones', () => {
+    openTitled(['aaaa'], 'aa');
+    view.touch();
+    expect(matched()).toEqual(['aa', 'aa']);
+  });
+
+  it('marks each word of a longer query', () => {
+    openTitled(['Naruto Uzumaki Boruto'], 'uzumaki naruto');
+    view.touch();
+    expect(matched().sort()).toEqual(['Naruto', 'Uzumaki']);
+  });
+
+  it('marks the names of other kinds of rows too', () => {
+    openTitled(['chumei_'], 'chu', 'card-name');
+    view.touch();
+    expect(matched()).toEqual(['chu']);
+  });
+
+  it('marks nothing, and leaves no mark behind, when the titles do not contain the query', () => {
+    openTitled(['Naruto'], 'naruto');
+    view.touch();
+    expect(registry.has('senkutools-match')).toBe(true);
+    field().value = 'bleach';
+    view.touch();
+    expect(registry.has('senkutools-match')).toBe(false);
+  });
+
+  it('leaves out a one-letter word of a longer query', () => {
+    openTitled(['Naruto a Uzumaki'], 'a naruto');
+    view.touch();
+    expect(matched()).toEqual(['Naruto']);
+  });
+
+  it('marks nothing while the results are those of a query that is no longer there', () => {
+    openTitled(['Naruto'], 'naruto');
+    view.touch();
+    field().value = 'n';
+    view.touch();
+    expect(registry.has('senkutools-match')).toBe(false);
+  });
+
+  it('follows the titles the page draws afterwards, including a changed text', async () => {
+    openTitled(['Naruto'], 'naruto');
+    view.touch();
+    list().innerHTML = titledRows('Boruto', 'Naruto Shippuden');
+    await settle();
+    expect(matched()).toEqual(['Naruto']);
+    const title = list().querySelector('h3.card-title');
+    if (title?.firstChild) title.firstChild.nodeValue = 'Naruto naruto';
+    await settle();
+    expect(matched()).toEqual(['Naruto', 'naruto', 'Naruto']);
+  });
+
+  it('skips a text whose lower case is longer than itself rather than mark the wrong letters', () => {
+    openTitled(['İ naruto'], 'naruto');
+    view.touch();
+    expect(registry.has('senkutools-match')).toBe(false);
+  });
+
+  it('removes its marks when it is disposed', () => {
+    openTitled(['Naruto'], 'naruto');
+    view.touch();
+    expect(registry.has('senkutools-match')).toBe(true);
+    view.dispose();
+    expect(registry.has('senkutools-match')).toBe(false);
+  });
+
+  it('removes its marks once the modal is gone', () => {
+    openTitled(['Naruto'], 'naruto');
+    view.touch();
+    document.body.innerHTML = '';
+    view.touch();
+    expect(registry.has('senkutools-match')).toBe(false);
+  });
+
+  it('works without the highlight API', () => {
+    Reflect.deleteProperty(document.defaultView as unknown as object, 'Highlight');
+    openTitled(['Naruto'], 'naruto');
+    expect(() => view.touch()).not.toThrow();
+    expect(registry.has('senkutools-match')).toBe(false);
   });
 });
