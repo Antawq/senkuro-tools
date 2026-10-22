@@ -1,4 +1,5 @@
 import { debugLogger } from '../shared/debug';
+import { parseJson } from '../shared/json';
 import type { CardRef } from '../shared/trade-value';
 
 export const TRADES_EVENT = 'senkutools:trades';
@@ -129,14 +130,6 @@ export function captureTrades(json: unknown): Capture {
   visit(json);
   return { viewerId, items };
 }
-
-const parseJson = (text: string): unknown => {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-};
 
 export const captureServerPayload = (payload: ServerPayload | undefined): Capture[] =>
   Object.values(payload?.graphql ?? {})
