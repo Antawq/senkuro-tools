@@ -1,4 +1,5 @@
 import { debugLogger } from '../shared/debug';
+import { claimPage } from '../shared/page-claim';
 import { parseJson } from '../shared/json';
 import type { CardRef } from '../shared/trade-value';
 
@@ -169,6 +170,7 @@ const isGraphqlRequest = (input: unknown, base: string): boolean => {
 };
 
 export function installCapture(win: CapturingWindow): void {
+  if (!claimPage(win, 'trade-capture')) return;
   const debug = debugLogger(win);
   const store = createTradeStore();
   const publish = (found: Capture) => win.document.dispatchEvent(new win.CustomEvent(TRADES_EVENT, { detail: JSON.stringify(found) }));

@@ -1,4 +1,5 @@
 import { debugLogger } from '../shared/debug';
+import { claimPage } from '../shared/page-claim';
 import { findClient, operationName, recordLists, tapMutations, type MutationResult, type QueryClient } from './client-hooks';
 import { createListRecord, needsRefresh, type Family, type ListRecord, type ReceivedCard } from './list-families';
 import { refreshFamilies, type RefreshEnv } from './list-refresh';
@@ -34,6 +35,7 @@ export function planRefresh(result: MutationResult, families: Family[]): Family[
 }
 
 export function installInventoryGuard(win: GuardWindow): void {
+  if (!claimPage(win, 'inventory-guard')) return;
   const debug = debugLogger(win);
   const record = createListRecord();
   const silent = new WeakSet<object>();
