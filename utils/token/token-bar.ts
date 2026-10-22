@@ -62,18 +62,20 @@ function bar(token: string | null): HTMLElement {
 
 export function createTokenBar(ctx: ContentScriptContext): TokenBar {
   let ui: IntegratedContentScriptUi<void> | null = null;
+  let latest = 0;
   const hide = () => {
     ui?.remove();
     ui = null;
   };
   return {
     async sync(visible) {
+      const request = ++latest;
       if (!visible) {
         hide();
         return;
       }
       const token = await readToken();
-      if (ctx.isInvalid) return;
+      if (ctx.isInvalid || request !== latest) return;
       hide();
       ui = createIntegratedUi(ctx, { position: 'inline', anchor: 'body', onMount: (wrapper) => wrapper.append(bar(token)) });
       ui.mount();
