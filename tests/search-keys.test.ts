@@ -83,6 +83,13 @@ describe('Enter', () => {
     expect(siteSaw).not.toContain('site:Enter');
   });
 
+  it('opens the first result from the numeric keypad key too, which the site ignores', () => {
+    open(['a', 'b']);
+    watchClicks();
+    press('Enter', { code: 'NumpadEnter' });
+    expect(clicked).toEqual(['/manga/a']);
+  });
+
   it('opens the highlighted result', () => {
     open(['a', 'b', 'c']);
     watchClicks();
