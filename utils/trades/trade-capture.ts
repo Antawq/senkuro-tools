@@ -1,5 +1,5 @@
 import { debugLogger } from '../shared/debug';
-import type { CardRef } from './trade-value';
+import type { CardRef } from '../shared/trade-value';
 
 export const TRADES_EVENT = 'senkutools:trades';
 export const REPLAY_EVENT = 'senkutools:trades-replay';

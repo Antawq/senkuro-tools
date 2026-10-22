@@ -3,7 +3,7 @@ import { element } from '../shared/dom';
 import { calculateProfileValue, extractProfileSlug, fetchProfileCards, fetchProfileUser, type ProfileValueSummary } from './profile-cards';
 import { isComplete, readCollection, saveCollection, type Collection } from './profile-store';
 import { chevronIcon, svgIcon } from '../shared/svg';
-import { R_RANK, type Valuation } from '../trades/trade-value';
+import { R_RANK, type Valuation } from '../shared/trade-value';
 
 export const WIDGET_ID = 'senkuro-profile-card-value';
 

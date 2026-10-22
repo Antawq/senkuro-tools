@@ -1,6 +1,6 @@
-import { PERCENT, PRICE_DECIMALS, effectivePrice } from '../shared/cards';
-import type { CardEntry, Database } from '../shared/database';
-import type { ValueBasis } from '../shared/settings';
+import { PERCENT, PRICE_DECIMALS, effectivePrice } from './cards';
+import type { CardEntry, Database } from './database';
+import type { ValueBasis } from './settings';
 
 export interface CardRef {
   slug: string | null;

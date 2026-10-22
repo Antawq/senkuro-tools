@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { Person, Trade } from '../utils/trades/trade-capture';
 import { departureOf } from '../utils/trades/trade-departure';
-import type { CardRef } from '../utils/trades/trade-value';
+import type { CardRef } from '../utils/shared/trade-value';
 
 const card = (slug: string, shard = false): CardRef => ({ slug, quantity: 1, shard });
 const nafar: Person = { id: 'n', name: 'Nafarmillion' };

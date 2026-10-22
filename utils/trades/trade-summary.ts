@@ -22,7 +22,7 @@ import {
   type SideValue,
   type Valuation,
   type Verdict,
-} from './trade-value';
+} from '../shared/trade-value';
 
 const SUMMARY = 'senkuro-trade-summary';
 const CLOSED = `${SUMMARY}--closed`;

@@ -1,6 +1,6 @@
 import type { Database } from '../shared/database';
 import { execute, type Transport } from '../shared/graphql';
-import { F_UNIT, R_RANK, formatAmount, formatByRank, formatShardsByRank, hasR, valueSide, type Valuation } from '../trades/trade-value';
+import { F_UNIT, R_RANK, formatAmount, formatByRank, formatShardsByRank, hasR, valueSide, type Valuation } from '../shared/trade-value';
 import { decodeSafely } from '../shared/uri';
 import { fetchUserCards, type FetchOptions, type UserCard } from './user-cards';
 
