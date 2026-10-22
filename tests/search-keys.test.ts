@@ -572,6 +572,70 @@ describe('dispose', () => {
   });
 });
 
+describe('arrows pressed before the results of what was typed have arrived', () => {
+  it('apply to the new results, not to the ones they replace', async () => {
+    open(['old-a', 'old-b', 'old-c']);
+    typed('naruto');
+    press('ArrowDown');
+    press('ArrowDown');
+    await arrive('new-a', 'new-b', 'new-c');
+    await settle(1000);
+    expect(activeIndexes()).toEqual([1]);
+    press('Enter');
+    expect(clicked).toEqual(['/manga/new-b']);
+  });
+
+  it('stay on the last row of a shorter new list', async () => {
+    open(['old-a', 'old-b', 'old-c']);
+    typed('naruto');
+    press('ArrowDown');
+    press('ArrowDown');
+    press('ArrowDown');
+    await arrive('new-a', 'new-b');
+    await settle(1000);
+    expect(activeIndexes()).toEqual([1]);
+  });
+
+  it('survive a moment with no rows between the two lists', async () => {
+    open(['old-a', 'old-b', 'old-c']);
+    typed('naruto');
+    press('ArrowDown');
+    press('ArrowDown');
+    await arrive();
+    await arrive('new-a', 'new-b', 'new-c');
+    await settle(1000);
+    expect(activeIndexes()).toEqual([1]);
+  });
+
+  it('are dropped when the query is typed again afterwards', async () => {
+    open(['old-a', 'old-b', 'old-c']);
+    typed('naruto');
+    press('ArrowDown');
+    typed('naruto 2');
+    await arrive('new-a', 'new-b');
+    await settle(1000);
+    expect(activeIndexes()).toEqual([]);
+  });
+
+  it('are not carried over when the results had already settled', async () => {
+    await ready(['a', 'b', 'c']);
+    press('ArrowDown');
+    press('ArrowDown');
+    await arrive('x', 'y', 'z');
+    expect(activeIndexes()).toEqual([]);
+  });
+});
+
+describe('the highlighted row scrolling into view', () => {
+  it('jumps instead of gliding, so a held arrow never lags behind the list', async () => {
+    await ready(['a', 'b', 'c']);
+    const scrolled = vi.spyOn(Element.prototype, 'scrollIntoView');
+    press('ArrowDown');
+    expect(scrolled).toHaveBeenCalledWith({ block: 'nearest', behavior: 'instant' });
+    scrolled.mockRestore();
+  });
+});
+
 describe('arrows', () => {
   it.each(['ArrowDown', 'ArrowUp'])('highlights the first result on the first %s', (key) => {
     open(['a', 'b', 'c']);
@@ -609,7 +673,7 @@ describe('arrows', () => {
   });
 
   it('forgets the highlight when the results change without typing, as on a tab switch', async () => {
-    open(['a', 'b', 'c', 'd', 'e', 'f']);
+    await ready(['a', 'b', 'c', 'd', 'e', 'f']);
     for (let i = 0; i < 6; i += 1) press('ArrowDown');
     await arrive('x', 'y');
     press('ArrowDown');
@@ -617,7 +681,7 @@ describe('arrows', () => {
   });
 
   it('forgets the highlight when the same results are mounted again, as on switching tabs back', async () => {
-    open(['a', 'b', 'c', 'd']);
+    await ready(['a', 'b', 'c', 'd']);
     for (let i = 0; i < 3; i += 1) press('ArrowDown');
     await arrive('a', 'b', 'c', 'd');
     press('ArrowDown');

@@ -72,6 +72,7 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
   let waitStartedAt = 0;
   let waitAsked = '';
   let waitNewTab: { ctrlKey: boolean; metaKey: boolean } | null = null;
+  let steppedBeforeAnswer = false;
 
   const openModal = (): HTMLElement | null => topModal(doc, (modal) => spent.has(modal));
 
@@ -88,7 +89,10 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
     }
     if (!sameElements(rows, shownRows)) {
       shownRows = rows;
-      index = null;
+      if (rows.length > 0 || !steppedBeforeAnswer) {
+        index = steppedBeforeAnswer && index !== null ? Math.min(index, rows.length - 1) : null;
+        steppedBeforeAnswer = false;
+      }
       mark(rows);
     }
     return rows;
@@ -174,9 +178,10 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
   });
 
   const step = (rows: HTMLElement[], delta: number): void => {
+    steppedBeforeAnswer = !isFresh();
     index = index === null ? 0 : Math.min(Math.max(index + delta, 0), rows.length - 1);
     mark(rows);
-    rows[index]?.scrollIntoView({ block: 'nearest' });
+    rows[index]?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
   };
 
   const owns = (target: EventTarget | null, modal: HTMLElement): boolean =>
