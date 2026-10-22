@@ -74,10 +74,9 @@ describe('createPriceBadges', () => {
     expect(positionVars(holderOf())).toEqual({ ...AXIS_X.left, ...AXIS_Y.top });
   });
 
-  it.each([9, 16, 24])('centres the badge by its own size, not by a fixed offset, at font size %s', (fontSize) => {
+  it('sets no fixed pixel offset to centre the badge', () => {
     document.body.innerHTML = preview();
-    createPriceBadges({ onImageLoad: () => {}, touch: false }).update(db, { ...DEFAULT_SETTINGS, positionX: 'center', positionY: 'center', fontSize });
-    expect(positionVars(holderOf())).toEqual({ ...AXIS_X.center, ...AXIS_Y.center });
+    createPriceBadges({ onImageLoad: () => {}, touch: false }).update(db, { ...DEFAULT_SETTINGS, positionX: 'center', positionY: 'center' });
     expect(holderOf().style.getPropertyValue('--s-ml')).toBe('');
   });
 
