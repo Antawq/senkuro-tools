@@ -10,6 +10,7 @@ import { loadDatabase } from '@/utils/shared/database';
 import { SENKURO_MATCHES } from '@/utils/shared/hosts';
 import { createPriceBadges } from '@/utils/badges/price-badges';
 import { profileBadgeMissing, removeProfileBadge, updateProfileBadge } from '@/utils/profile/profile-dom';
+import { createSearchKeys } from '@/utils/search/search-keys';
 import { addedCards, createRenderLoop } from '@/utils/shared/render-loop';
 import { loadSettings, watchSettings } from '@/utils/shared/settings';
 import { createTokenBar } from '@/utils/token/token-bar';
@@ -71,6 +72,10 @@ export default defineContentScript({
         void loop.renderAll();
       })
     );
+
+    const searchKeys = createSearchKeys(document, (run, ms) => void ctx.setTimeout(run, ms));
+    ctx.addEventListener(document, 'keydown', searchKeys.keydown, { capture: true });
+    ctx.addEventListener(document, 'input', searchKeys.input, { capture: true });
 
     ctx.addEventListener(window, 'wxt:locationchange', () => {
       badges.resetPage();
