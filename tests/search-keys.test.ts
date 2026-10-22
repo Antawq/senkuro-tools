@@ -35,6 +35,7 @@ const rows = () => [...document.querySelectorAll<HTMLAnchorElement>('[data-index
 const activeIndexes = () => rows().flatMap((el, index) => (el.classList.contains(ACTIVE) ? [index] : []));
 
 const clicked: string[] = [];
+const clickKeys: string[] = [];
 let siteSaw: string[];
 let keys: SearchKeys;
 let detach: (() => void)[];
@@ -59,6 +60,7 @@ function watchClicks() {
     el.addEventListener('click', (event) => {
       event.preventDefault();
       clicked.push(el.getAttribute('href') ?? '');
+      clickKeys.push(`${event.ctrlKey ? 'ctrl' : ''}${event.metaKey ? 'meta' : ''}`);
     });
   }
 }
@@ -77,6 +79,7 @@ const listen = (type: string, handler: (event: never) => void, options?: AddEven
 beforeEach(() => {
   vi.useFakeTimers();
   clicked.length = 0;
+  clickKeys.length = 0;
   siteSaw = [];
   detach = [];
   alive = true;
@@ -321,10 +324,10 @@ describe('Enter', () => {
   });
 
   it.each([
-    ['ctrlKey', { ctrlKey: true }],
-    ['metaKey', { metaKey: true }],
     ['altKey', { altKey: true }],
     ['shiftKey', { shiftKey: true }],
+    ['ctrlKey and shiftKey', { ctrlKey: true, shiftKey: true }],
+    ['metaKey and altKey', { metaKey: true, altKey: true }],
   ])('opens nothing and keeps the key from the site, which would jump to the catalog, with %s', (_name, init) => {
     open(['a']);
     const event = press('Enter', init);
@@ -405,6 +408,157 @@ describe('Enter', () => {
     const event = press('Enter');
     expect(clicked).toEqual([]);
     expect(event.defaultPrevented).toBe(false);
+  });
+});
+
+describe('Ctrl or Meta+Enter', () => {
+  it.each([
+    ['ctrlKey', { ctrlKey: true }, 'ctrl'],
+    ['metaKey', { metaKey: true }, 'meta'],
+  ])('opens the first result as a new tab click with %s, leaving the search open', async (_name, init, expected) => {
+    await ready(['a', 'b']);
+    const event = press('Enter', init);
+    expect(clicked).toEqual(['/manga/a']);
+    expect(clickKeys).toEqual([expected]);
+    expect(event.defaultPrevented).toBe(true);
+    expect(siteSaw).not.toContain('site:Enter');
+    press('Enter');
+    expect(clicked).toEqual(['/manga/a', '/manga/a']);
+    expect(clickKeys).toEqual([expected, '']);
+  });
+
+  it('opens the highlighted result', async () => {
+    await ready(['a', 'b', 'c']);
+    press('ArrowDown');
+    press('ArrowDown');
+    press('Enter', { ctrlKey: true });
+    expect(clicked).toEqual(['/manga/b']);
+  });
+
+  it('works from the numeric keypad key too', async () => {
+    await ready(['a']);
+    press('Enter', { code: 'NumpadEnter', ctrlKey: true });
+    expect(clicked).toEqual(['/manga/a']);
+    expect(clickKeys).toEqual(['ctrl']);
+  });
+
+  it('waits for the results of what was just typed, like Enter does', async () => {
+    open(['old-a']);
+    typed('naruto');
+    press('Enter', { ctrlKey: true });
+    expect(clicked).toEqual([]);
+    await arrive('new-a');
+    await settle(1000);
+    expect(clicked).toEqual(['/manga/new-a']);
+    expect(clickKeys).toEqual(['ctrl']);
+  });
+
+  it('opens nothing for a query under two letters', async () => {
+    await ready(['a'], 'n');
+    press('Enter', { ctrlKey: true });
+    expect(clicked).toEqual([]);
+  });
+
+  it('is left to the input method inside a composition, as Enter is', async () => {
+    await ready(['a']);
+    const event = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', ctrlKey: true, isComposing: true, bubbles: true, cancelable: true });
+    input().dispatchEvent(event);
+    expect(clicked).toEqual([]);
+  });
+
+  it('keeps the key from the site on a focused button, which acts on it itself', () => {
+    open(['a']);
+    press('Enter', { ctrlKey: true }, document.querySelector('.close') as HTMLElement);
+    expect(clicked).toEqual([]);
+    expect(siteSaw).not.toContain('site:Enter');
+  });
+
+  it('does nothing once the extension has been unloaded', async () => {
+    await ready(['a']);
+    alive = false;
+    press('Enter', { ctrlKey: true });
+    expect(clicked).toEqual([]);
+    expect(siteSaw).toContain('site:Enter');
+  });
+});
+
+describe('the slash key', () => {
+  let opened = 0;
+
+  const page = (extra = '') => {
+    document.body.innerHTML = `<header><button class="nav-search__btn">Поиск</button></header><main>${extra}</main>`;
+    opened = 0;
+    document.querySelector('.nav-search__btn')?.addEventListener('click', () => (opened += 1));
+  };
+
+  const slash = (init: KeyboardEventInit = {}, target: EventTarget = document.body) => press('/', init, target);
+
+  it('opens the search from the header button and keeps the slash out of the page', () => {
+    page();
+    const event = slash();
+    expect(opened).toBe(1);
+    expect(event.defaultPrevented).toBe(true);
+    expect(siteSaw).not.toContain('site:/');
+  });
+
+  it('works with shift, as a layout that types the slash that way needs', () => {
+    page();
+    slash({ shiftKey: true });
+    expect(opened).toBe(1);
+  });
+
+  it.each([
+    ['an input', '<input id="f">'],
+    ['a textarea', '<textarea id="f"></textarea>'],
+    ['a select', '<select id="f"><option>a</option></select>'],
+    ['an editable element', '<div id="f" contenteditable="true"></div>'],
+  ])('is left to the page while typing in %s', (_name, markup) => {
+    page(markup);
+    const event = slash({}, document.getElementById('f') as HTMLElement);
+    expect(opened).toBe(0);
+    expect(event.defaultPrevented).toBe(false);
+    expect(siteSaw).toContain('site:/');
+  });
+
+  it('opens from a focused non-editable element such as a link', () => {
+    page('<a id="f" href="/x">x</a>');
+    slash({}, document.getElementById('f') as HTMLElement);
+    expect(opened).toBe(1);
+  });
+
+  it('is left alone while any modal is open, the search itself or another', () => {
+    page('<div class="modal-content modal-content--trade"></div>');
+    expect(slash().defaultPrevented).toBe(false);
+    expect(opened).toBe(0);
+    open(['a']);
+    document.body.insertAdjacentHTML('beforeend', '<button class="nav-search__btn">x</button>');
+    expect(slash().defaultPrevented).toBe(false);
+  });
+
+  it('is left alone on a page without the search button', () => {
+    document.body.innerHTML = '<main></main>';
+    const event = slash();
+    expect(event.defaultPrevented).toBe(false);
+    expect(siteSaw).toContain('site:/');
+  });
+
+  it.each([
+    ['ctrlKey', { ctrlKey: true }],
+    ['metaKey', { metaKey: true }],
+    ['altKey', { altKey: true }],
+    ['a held key', { repeat: true }],
+    ['a composition', { isComposing: true }],
+  ])('is left alone with %s', (_name, init) => {
+    page();
+    slash(init);
+    expect(opened).toBe(0);
+  });
+
+  it('does nothing once the extension has been unloaded', () => {
+    page();
+    alive = false;
+    slash();
+    expect(opened).toBe(0);
   });
 });
 

@@ -1,4 +1,16 @@
-import { ACTIVE, FIELD, MIN_QUERY_LENGTH, MODAL, TAB_ACTIVE, fieldOf as fieldIn, rowsOf as rowsIn, topModal } from './search-dom';
+import {
+  ACTIVE,
+  ANY_MODAL,
+  EDITABLE,
+  FIELD,
+  MIN_QUERY_LENGTH,
+  MODAL,
+  OPEN_BUTTON,
+  TAB_ACTIVE,
+  fieldOf as fieldIn,
+  rowsOf as rowsIn,
+  topModal,
+} from './search-dom';
 import type { SearchSignals } from './search-signal';
 
 const CONTROL = 'button, a, input, select, textarea, [contenteditable], [role="button"], [role="radio"]';
@@ -33,6 +45,12 @@ const isComposing = (event: KeyboardEvent): boolean => event.isComposing || even
 
 const isSearchHotkey = (event: KeyboardEvent): boolean => event.ctrlKey && event.code === 'KeyK';
 
+const isOpenKey = (event: KeyboardEvent): boolean =>
+  event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.repeat && !isComposing(event);
+
+const isNewTabEnter = (event: KeyboardEvent): boolean =>
+  (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key === 'Enter' && !isComposing(event);
+
 const askedOf = (modal: HTMLElement): string => JSON.stringify([fieldIn(modal)?.value, modal.querySelector(TAB_ACTIVE)?.textContent]);
 
 const take = (event: Event): void => {
@@ -53,6 +71,7 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
   let waiting = false;
   let waitStartedAt = 0;
   let waitAsked = '';
+  let waitNewTab: { ctrlKey: boolean; metaKey: boolean } | null = null;
 
   const openModal = (): HTMLElement | null => topModal(doc, (modal) => spent.has(modal));
 
@@ -99,8 +118,12 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
     const rows = refresh();
     if (rows.length > 0 && isFresh()) {
       waiting = false;
-      spent.add(owner);
-      rows[index ?? 0]?.click();
+      const row = rows[index ?? 0];
+      if (waitNewTab) row?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: doc.defaultView, ...waitNewTab }));
+      else {
+        spent.add(owner);
+        row?.click();
+      }
       return;
     }
     if (Date.now() - startedAt >= GIVE_UP_MS) waiting = false;
@@ -129,8 +152,9 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
     return found;
   };
 
-  const wait = (owner: HTMLElement): void => {
+  const wait = (owner: HTMLElement, newTab: { ctrlKey: boolean; metaKey: boolean } | null): void => {
     waiting = true;
+    waitNewTab = newTab;
     waitAsked = askedOf(owner);
     waitStartedAt = Date.now();
     const started = waitStartedAt;
@@ -173,6 +197,14 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
         dispose();
         return;
       }
+      if (isOpenKey(event)) {
+        const opener = doc.querySelector<HTMLElement>(OPEN_BUTTON);
+        if (event.target instanceof Element && event.target.closest(EDITABLE)) return;
+        if (!opener || doc.querySelector(ANY_MODAL)) return;
+        take(event);
+        opener.click();
+        return;
+      }
       if (isSearchHotkey(event)) {
         const open = adopt();
         if (!open) return;
@@ -182,7 +214,8 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
         field?.select();
         return;
       }
-      const aside = isComposing(event) || isModified(event);
+      const newTab = isNewTabEnter(event);
+      const aside = !newTab && (isComposing(event) || isModified(event));
       if (!HANDLED_KEYS.has(event.key) && !(aside && HANDLED_CODES.has(event.code))) return;
       const modal = adopt();
       if (aside) {
@@ -203,7 +236,7 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
         return;
       }
       if (waiting || (fieldOf()?.value.trim().length ?? 0) < MIN_QUERY_LENGTH) return;
-      wait(modal);
+      wait(modal, newTab ? { ctrlKey: event.ctrlKey, metaKey: event.metaKey } : null);
     },
     input(event) {
       if (!alive() || !(event.target instanceof HTMLElement) || !event.target.matches(`${MODAL} ${FIELD}`)) return;
