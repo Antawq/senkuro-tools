@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 const path = (relative: string) => resolve(dirname(fileURLToPath(import.meta.url)), '..', relative);
 
-const html = readFileSync(path('entrypoints/popup/index.html'), 'utf8');
+const html = ['entrypoints/popup/index.html', 'entrypoints/popup/style.css'].map((file) => readFileSync(path(file), 'utf8')).join('\n');
 
 const REMOTE = /^(?:[a-z][a-z0-9+.-]*:)?\/\//i;
 const TAG_RESOURCES = /<(?:link|script|img|source|iframe|video|audio|embed)\b[^>]*?\b(?:href|src)=["']([^"']+)["']/gi;

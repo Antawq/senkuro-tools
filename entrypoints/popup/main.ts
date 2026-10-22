@@ -1,4 +1,5 @@
 import '@/assets/tokens.css';
+import './style.css';
 import { browser } from 'wxt/browser';
 
 import { COMMISSION_SHARE_KEPT, PERCENT } from '@/utils/cards';
