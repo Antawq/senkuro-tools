@@ -30,6 +30,27 @@ describe('search signals', () => {
     expect(signals.doneAt()).toBe(1300);
   });
 
+  it('tells how long the oldest search in flight has been waiting', () => {
+    const { clock, signals } = clocked();
+    expect(signals.waited()).toBe(0);
+    signals.event(start('nar'));
+    clock.time = 1400;
+    signals.event(start('naruto'));
+    clock.time = 1700;
+    expect(signals.waited()).toBe(700);
+    signals.event(done('nar'));
+    expect(signals.waited()).toBe(300);
+    signals.event(done('naruto'));
+    expect(signals.waited()).toBe(0);
+  });
+
+  it('does not count a search it has stopped waiting for', () => {
+    const { clock, signals } = clocked();
+    signals.event(start());
+    clock.time = 1000 + 5000;
+    expect(signals.waited()).toBe(0);
+  });
+
   it('counts overlapping searches and stays pending until each is done', () => {
     const { signals } = clocked();
     signals.event(start('nar'));

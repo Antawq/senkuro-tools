@@ -87,13 +87,25 @@ describe('stale results', () => {
 });
 
 describe('searching', () => {
-  it('is on from the page-world start of a search to its end', () => {
+  it('turns on once a search has taken a while and off when it ends', async () => {
     open(['a'], 'naruto');
     view.touch();
-    expect(modal().hasAttribute('data-searching')).toBe(false);
     say('start');
+    await settle(299);
+    expect(modal().hasAttribute('data-searching')).toBe(false);
+    await settle(1);
     expect(modal().hasAttribute('data-searching')).toBe(true);
     say('done');
+    expect(modal().hasAttribute('data-searching')).toBe(false);
+  });
+
+  it('never shows for a search that answers quickly', async () => {
+    open(['a'], 'naruto');
+    view.touch();
+    say('start');
+    await settle(250);
+    say('done');
+    await settle(500);
     expect(modal().hasAttribute('data-searching')).toBe(false);
   });
 
@@ -103,10 +115,11 @@ describe('searching', () => {
     expect(modal().hasAttribute('data-searching')).toBe(false);
   });
 
-  it('stays off for a query too short to be searched', () => {
+  it('stays off for a query too short to be searched', async () => {
     open(['a'], 'n');
     view.touch();
     say('start', 'n');
+    await settle(400);
     expect(modal().hasAttribute('data-searching')).toBe(false);
   });
 
@@ -114,8 +127,9 @@ describe('searching', () => {
     open(['a'], 'naruto');
     view.touch();
     say('start');
+    await settle(400);
     expect(modal().hasAttribute('data-searching')).toBe(true);
-    await settle(5100);
+    await settle(4700);
     expect(modal().hasAttribute('data-searching')).toBe(false);
   });
 });
@@ -128,6 +142,15 @@ describe('scroll position', () => {
     list().innerHTML = rowsOf('x', 'y', 'z');
     await settle();
     expect(list().scrollTop).toBe(0);
+  });
+
+  it('jumps instead of gliding, so the old position is never seen scrolling away', async () => {
+    open(['a', 'b', 'c'], 'naruto');
+    view.touch();
+    const scrollTo = vi.spyOn(list(), 'scrollTo');
+    list().innerHTML = rowsOf('x', 'y', 'z');
+    await settle();
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'instant' });
   });
 
   it('is left alone while the same results stay', async () => {

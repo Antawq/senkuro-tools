@@ -3,6 +3,7 @@ import { MAX_PENDING_MS, type SearchSignals } from './search-signal';
 
 const STALE = 'data-stale';
 const SEARCHING = 'data-searching';
+const SLOW_SEARCH_MS = 300;
 
 export interface SearchViewHost {
   later: (run: () => void, ms: number) => void;
@@ -33,12 +34,11 @@ export function createSearchView(doc: Document, { later, alive, signals }: Searc
     const rows = rowsOf(modal);
     const tooShort = isTooShort(query);
     flag(modal, STALE, tooShort && rows.length > 0);
-    flag(modal, SEARCHING, !tooShort && signals.pending());
+    flag(modal, SEARCHING, !tooShort && signals.waited() >= SLOW_SEARCH_MS);
     const signature = signatureOf(rows);
     if (signature === shownSignature) return;
     shownSignature = signature;
-    const list = modal.querySelector<HTMLElement>(LIST);
-    if (list) list.scrollTop = 0;
+    modal.querySelector<HTMLElement>(LIST)?.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   const dispose = (): void => {
@@ -61,7 +61,9 @@ export function createSearchView(doc: Document, { later, alive, signals }: Searc
 
   signals.subscribe(() => {
     render();
-    if (session && signals.pending()) later(render, MAX_PENDING_MS + 50);
+    if (!session || !signals.pending()) return;
+    later(render, SLOW_SEARCH_MS);
+    later(render, MAX_PENDING_MS + 50);
   });
 
   return {

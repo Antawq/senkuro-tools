@@ -13,6 +13,7 @@ export interface SearchSignals {
   subscribe: (listener: () => void) => void;
   live: () => boolean;
   pending: () => boolean;
+  waited: () => number;
   doneAt: () => number;
 }
 
@@ -48,6 +49,10 @@ export function createSearchSignals(now: () => number = Date.now): SearchSignals
     subscribe: (listener) => void listeners.push(listener),
     live: () => seen,
     pending: () => starts.some((startedAt) => now() - startedAt < MAX_PENDING_MS),
+    waited() {
+      const oldest = starts.find((startedAt) => now() - startedAt < MAX_PENDING_MS);
+      return oldest === undefined ? 0 : now() - oldest;
+    },
     doneAt: () => lastDone,
   };
 }
