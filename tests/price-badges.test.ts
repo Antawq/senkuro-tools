@@ -128,10 +128,10 @@ describe('createPriceBadges', () => {
   });
 
   it('copies a card name without the invisible characters some names carry', () => {
-    expect(visibleName('Элия​ Крисанакс')).toBe('Элия Крисанакс');
-    expect(visibleName('‎Соран​ ')).toBe('Соран');
+    expect(visibleName('Элия\u200b Крисанакс')).toBe('Элия Крисанакс');
+    expect(visibleName('\u200eСоран\u200b ')).toBe('Соран');
     document.body.innerHTML = preview();
-    createPriceBadges({ onImageLoad: () => {}, touch: false }).update({ soran: { ...db.soran, name: 'Со​ран' } }, { ...DEFAULT_SETTINGS, copyBtn: true });
+    createPriceBadges({ onImageLoad: () => {}, touch: false }).update({ soran: { ...db.soran, name: 'Со\u200bран' } }, { ...DEFAULT_SETTINGS, copyBtn: true });
     expect((document.querySelector('.senkuro-copy-btn') as HTMLElement).dataset.charName).toBe('Соран');
   });
 
