@@ -18,7 +18,7 @@ const preview = () => `
 
 const render = (html: string) => {
   document.body.innerHTML = html;
-  createPriceBadges({ onImageLoad: () => {}, touch: false }).update(db, DEFAULT_SETTINGS);
+  createPriceBadges({ touch: false }).update(db, DEFAULT_SETTINGS);
 };
 
 beforeEach(() => document.body.replaceChildren());
@@ -58,7 +58,7 @@ describe('createPriceBadges', () => {
     'places the badge at %s %s',
     (x, y) => {
       document.body.innerHTML = preview();
-      createPriceBadges({ onImageLoad: () => {}, touch: false }).update(db, { ...DEFAULT_SETTINGS, positionX: x, positionY: y });
+      createPriceBadges({ touch: false }).update(db, { ...DEFAULT_SETTINGS, positionX: x, positionY: y });
       expect(holderOf().dataset.badgePos).toBe(`${x}-${y}`);
       expect(positionVars(holderOf())).toEqual({ ...AXIS_X[x], ...AXIS_Y[y] });
     }
@@ -66,7 +66,7 @@ describe('createPriceBadges', () => {
 
   it('moves the badge when the position changes', () => {
     document.body.innerHTML = preview();
-    const badges = createPriceBadges({ onImageLoad: () => {}, touch: false });
+    const badges = createPriceBadges({ touch: false });
     badges.update(db, DEFAULT_SETTINGS);
     badges.reset();
     badges.update(db, { ...DEFAULT_SETTINGS, positionX: 'left', positionY: 'top' });
@@ -76,7 +76,7 @@ describe('createPriceBadges', () => {
 
   it('sets no fixed pixel offset to centre the badge', () => {
     document.body.innerHTML = preview();
-    createPriceBadges({ onImageLoad: () => {}, touch: false }).update(db, { ...DEFAULT_SETTINGS, positionX: 'center', positionY: 'center' });
+    createPriceBadges({ touch: false }).update(db, { ...DEFAULT_SETTINGS, positionX: 'center', positionY: 'center' });
     expect(holderOf().style.getPropertyValue('--s-ml')).toBe('');
   });
 
@@ -86,7 +86,7 @@ describe('createPriceBadges', () => {
     ['left', 'top', '0 0'],
   ] as const)('centres the copy button by its own size next to a %s %s badge', (positionX, positionY, translate) => {
     document.body.innerHTML = preview();
-    createPriceBadges({ onImageLoad: () => {}, touch: false }).update(db, { ...DEFAULT_SETTINGS, copyBtn: true, positionX, positionY });
+    createPriceBadges({ touch: false }).update(db, { ...DEFAULT_SETTINGS, copyBtn: true, positionX, positionY });
     const button = holderOf().querySelector('.senkuro-copy-btn') as HTMLElement;
     expect(button.style.getPropertyValue('translate')).toBe(translate);
   });
@@ -97,7 +97,7 @@ describe('createPriceBadges', () => {
     ['bottom', 'top'],
   ] as const)('keeps the copy button clear of a badge centred at the %s by moving it to the %s edge', (badgeY, edge) => {
     document.body.innerHTML = preview();
-    createPriceBadges({ onImageLoad: () => {}, touch: false }).update(db, { ...DEFAULT_SETTINGS, copyBtn: true, positionX: 'center', positionY: badgeY });
+    createPriceBadges({ touch: false }).update(db, { ...DEFAULT_SETTINGS, copyBtn: true, positionX: 'center', positionY: badgeY });
     const button = holderOf().querySelector('.senkuro-copy-btn') as HTMLElement;
     expect([button.style.left, button.style.top, button.style.bottom]).toEqual(['50%', edge === 'top' ? '5px' : 'auto', edge === 'bottom' ? '5px' : 'auto']);
   });
@@ -112,7 +112,7 @@ describe('createPriceBadges', () => {
 
   it('follows the chosen position on a trade fan card that nothing covers', () => {
     document.body.innerHTML = fan([2]);
-    createPriceBadges({ onImageLoad: () => {}, touch: false }).update(db, { ...DEFAULT_SETTINGS, positionX: 'center', positionY: 'top' });
+    createPriceBadges({ touch: false }).update(db, { ...DEFAULT_SETTINGS, positionX: 'center', positionY: 'top' });
     expect(positions()).toEqual(['center-top']);
   });
 
@@ -135,7 +135,7 @@ describe('createPriceBadges', () => {
 
   it('puts the copy button on the same edge as the badge of a covered card', () => {
     document.body.innerHTML = offerList(2, false);
-    createPriceBadges({ onImageLoad: () => {}, touch: false }).update(db, { ...DEFAULT_SETTINGS, copyBtn: true });
+    createPriceBadges({ touch: false }).update(db, { ...DEFAULT_SETTINGS, copyBtn: true });
     expect([...document.querySelectorAll<HTMLElement>('.senkuro-copy-btn')].map((button) => button.dataset.btnPos)).toEqual(['left-bottom', 'right-bottom']);
   });
 
@@ -149,7 +149,7 @@ describe('createPriceBadges', () => {
     const face = root.querySelector('.card-collect-preview__flip-container') as HTMLElement;
     Object.defineProperty(root, 'offsetHeight', { value: 170 });
     Object.defineProperties(face, { offsetParent: { value: root }, offsetTop: { value: 0 }, offsetHeight: { value: 150 } });
-    createPriceBadges({ onImageLoad: () => {}, touch: false }).update(db, { ...DEFAULT_SETTINGS, positionY, copyBtn: true });
+    createPriceBadges({ touch: false }).update(db, { ...DEFAULT_SETTINGS, positionY, copyBtn: true });
     expect(root.style.getPropertyValue(prop)).toBe(value);
     const button = root.querySelector('.senkuro-copy-btn') as HTMLElement;
     expect(positionY === 'center' ? button.style.marginTop : button.style[positionY]).toBe(value);
@@ -159,7 +159,7 @@ describe('createPriceBadges', () => {
     expect(visibleName('Элия\u200b Крисанакс')).toBe('Элия Крисанакс');
     expect(visibleName('\u200eСоран\u200b ')).toBe('Соран');
     document.body.innerHTML = preview();
-    createPriceBadges({ onImageLoad: () => {}, touch: false }).update({ soran: { ...db.soran, name: 'Со\u200bран' } }, { ...DEFAULT_SETTINGS, copyBtn: true });
+    createPriceBadges({ touch: false }).update({ soran: { ...db.soran, name: 'Со\u200bран' } }, { ...DEFAULT_SETTINGS, copyBtn: true });
     expect((document.querySelector('.senkuro-copy-btn') as HTMLElement).dataset.charName).toBe('Соран');
   });
 
@@ -168,14 +168,14 @@ describe('createPriceBadges', () => {
       <div class="card-collect-preview">
         <div class="card-collect-preview__front"><a class="card-collect" href="/cards/soran"><img></a></div>
       </div>`;
-    createPriceBadges({ onImageLoad: () => {}, touch: false }).update(db, DEFAULT_SETTINGS);
+    createPriceBadges({ touch: false }).update(db, DEFAULT_SETTINGS);
     expect(holderOf().getAttribute('data-senkuro-price')).toBe('1.00');
   });
 
   const renderAtWidth = (width: number) => {
     document.body.innerHTML = preview();
     for (const link of document.querySelectorAll('a.card-collect')) Object.defineProperty(link, 'offsetWidth', { value: width });
-    createPriceBadges({ onImageLoad: () => {}, touch: false }).update(db, DEFAULT_SETTINGS);
+    createPriceBadges({ touch: false }).update(db, DEFAULT_SETTINGS);
   };
 
   it('leaves a thumbnail too narrow for a readable price without one', () => {
@@ -200,7 +200,7 @@ describe('createPriceBadges', () => {
       <div id="c1" class="card-collect-preview"><div class="card-collect-preview__front"><a class="card-collect" href="/cards/soran"></a></div></div>
       <div id="c2" class="card-collect-preview"><div class="card-collect-preview__front"><a class="card-collect" href="/cards/soran"></a></div></div>`;
     const card1 = document.querySelector('#c1 a.card-collect') as HTMLAnchorElement;
-    createPriceBadges({ onImageLoad: () => {}, touch: false }).update(db, DEFAULT_SETTINGS, [card1]);
+    createPriceBadges({ touch: false }).update(db, DEFAULT_SETTINGS, [card1]);
     expect(document.querySelector('#c1')?.getAttribute('data-senkuro-price')).toBe('1.00');
     expect(document.querySelector('#c2')?.hasAttribute('data-senkuro-price')).toBe(false);
   });

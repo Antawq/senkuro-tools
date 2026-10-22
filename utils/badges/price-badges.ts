@@ -33,15 +33,6 @@ const shadesOf = (opacity: number) => {
   return { background: shade, outline: OUTLINE_OFFSETS.map((offset) => `${offset} ${shade}`).join(',') };
 };
 
-function imageSource(img: HTMLImageElement): string {
-  let source = img.src && img.src !== document.baseURI ? img.src : '';
-  if (!source || source.startsWith('data:')) {
-    const srcset = img.getAttribute('srcset') || img.getAttribute('data-srcset') || '';
-    source = srcset.trim().split(/[,\s]/)[0]?.trim() ?? '';
-  }
-  return source.startsWith('data:') ? '' : source;
-}
-
 function applyPosition(target: HTMLElement, positionX: BadgePositionX, positionY: BadgePositionY, gap: FaceGap): void {
   POSITION_PROPS.forEach((prop) => target.style.removeProperty(prop));
 
@@ -151,16 +142,8 @@ function place({ target, preview }: Holders, settings: Settings): Spot {
   return spot;
 }
 
-export function createPriceBadges({ onImageLoad, touch }: { onImageLoad: () => void; touch: boolean }): PriceBadges {
-  const waitingImages = new WeakSet<HTMLImageElement>();
+export function createPriceBadges({ touch }: { touch: boolean }): PriceBadges {
   const positioned = new WeakSet<HTMLElement>();
-
-  function waitForImage(card: HTMLAnchorElement): void {
-    const img = card.querySelector('img');
-    if (!img || imageSource(img) || waitingImages.has(img)) return;
-    waitingImages.add(img);
-    img.addEventListener('load', onImageLoad, { once: true });
-  }
 
   function makePositioned(target: HTMLElement): void {
     if (positioned.has(target)) return;
@@ -184,7 +167,6 @@ export function createPriceBadges({ onImageLoad, touch }: { onImageLoad: () => v
     if (!slug || card.dataset.priceBadgeAdded === slug) return;
     const entry = db[slug];
     if (!entry || !Number.isFinite(entry.price)) return;
-    waitForImage(card);
     const holders = holdersOf(card);
     if (isTooNarrow(holders)) clearHolders(holders);
     else show(holders, entry, settings, shades);

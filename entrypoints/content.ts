@@ -17,7 +17,6 @@ import { createTradeStore, listenForTrades } from '@/utils/trades/trade-capture'
 import { isTradeMutation, updateTradeSummaries } from '@/utils/trades/trade-summary';
 
 const LATE_RENDER_DELAYS_MS = [400, 1500];
-const WATCHED_ATTRIBUTES = ['src', 'srcset', 'data-srcset'];
 
 const applySummaryFontSize = (size: number) => document.documentElement.style.setProperty('--senkuro-summary-font-size', `${size}px`);
 
@@ -45,7 +44,7 @@ export default defineContentScript({
       loadDatabase,
       nextFrame
     );
-    const badges = createPriceBadges({ onImageLoad: loop.schedule, touch });
+    const badges = createPriceBadges({ touch });
 
     const observer = new MutationObserver((mutations) => {
       const cards = addedCards(mutations);
@@ -54,7 +53,7 @@ export default defineContentScript({
       if (tradesChanged) loop.markTrades();
       if (cards.length > 0 || tradesChanged || profileBadgeMissing()) loop.schedule();
     });
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: WATCHED_ATTRIBUTES });
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     ctx.onInvalidated(() => observer.disconnect());
 
     ctx.onInvalidated(
