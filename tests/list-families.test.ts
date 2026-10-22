@@ -46,9 +46,10 @@ describe('family and page ids', () => {
     expect(familyIdOf({ a: 1 })).not.toBe(familyIdOf({ a: 2 }));
   });
 
-  it('treats an absent cursor and an undefined one alike but not a null one', () => {
+  it('treats an absent, an undefined and a null cursor as the same first page', () => {
     expect(pageIdOf({ a: 1, after: undefined })).toBe(pageIdOf({ a: 1 }));
-    expect(pageIdOf({ a: 1, after: null })).not.toBe(pageIdOf({ a: 1 }));
+    expect(pageIdOf({ a: 1, after: null })).toBe(pageIdOf({ a: 1 }));
+    expect(pageIdOf({ a: 1, after: 'c1' })).not.toBe(pageIdOf({ a: 1 }));
   });
 });
 
@@ -183,9 +184,11 @@ describe('createListRecord', () => {
 
   it('records a page once however many times it runs', () => {
     const record = createListRecord();
+    record.record(page({ ...splitPicker, after: null }));
+    record.record(page({ ...splitPicker, after: null }));
     record.record(page({ ...splitPicker, after: 'c1' }));
     record.record(page({ ...splitPicker, after: 'c1' }));
-    expect(record.families()[0]?.pages).toHaveLength(1);
+    expect(record.families()[0]?.pages).toHaveLength(2);
   });
 
   it('inserts filler pages right after their anchor', () => {
@@ -197,6 +200,32 @@ describe('createListRecord', () => {
     const [family] = record.families();
     record.insertAfter(family!, first, [page({ ...profileGrid, after: 'x1' }), page({ ...profileGrid, after: 'x2' })]);
     expect(family?.pages.map((p) => p.variables.after)).toEqual([undefined, 'x1', 'x2', 'c1']);
+  });
+
+  it('adds the first page when only later pages were seen, as when the page was loaded before the client was found', () => {
+    const record = createListRecord();
+    record.record({ document: 'doc', variables: { ...profileGrid, after: 'c1' }, options: { suspense: true } });
+    record.record({ document: 'doc', variables: { ...profileGrid, after: 'c2' }, options: { suspense: true } });
+    const [family] = record.families();
+    expect(family?.pages.map((p) => p.variables.after)).toEqual([undefined, 'c1', 'c2']);
+    expect(family?.pages[0]).toEqual({ document: 'doc', variables: profileGrid, options: { suspense: true } });
+  });
+
+  it('keeps a single first page whichever way it is spelled or whenever it is recorded', () => {
+    const record = createListRecord();
+    record.record(page({ ...splitPicker, after: 'c1' }));
+    record.record(page({ ...splitPicker, after: null }));
+    record.record(page({ ...splitPicker, after: undefined }));
+    const [family] = record.families();
+    expect(family?.pages).toHaveLength(2);
+    expect(family?.pages.filter((p) => p.variables.after == null)).toHaveLength(1);
+  });
+
+  it('does not invent a first page for a list that already has one', () => {
+    const record = createListRecord();
+    record.record(page({ ...profileGrid }));
+    record.record(page({ ...profileGrid, after: 'c1' }));
+    expect(record.families()[0]?.pages).toHaveLength(2);
   });
 
   it('does not insert a page it already knows', () => {

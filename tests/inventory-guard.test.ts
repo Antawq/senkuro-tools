@@ -132,7 +132,7 @@ describe('installInventoryGuard', () => {
     browse(splitPicker('USER:1', 'c1'));
     await mutate('forgeCards');
     await settle();
-    expect(queries.map((query) => query.variables.after)).toEqual(['c1']);
+    expect(queries.map((query) => query.variables.after)).toEqual([undefined, 'c1']);
     await win.happyDOM.close();
   });
 

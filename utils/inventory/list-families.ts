@@ -56,7 +56,9 @@ const withoutCursor = (variables: Variables): Variables => Object.fromEntries(Ob
 
 export const familyIdOf = (variables: Variables): string => stable(withoutCursor(variables));
 
-export const pageIdOf = (variables: Variables): string => stable(variables);
+const hasCursor = (variables: Variables): boolean => variables[CURSOR_KEY] != null;
+
+export const pageIdOf = (variables: Variables): string => stable(hasCursor(variables) ? variables : withoutCursor(variables));
 
 export const isNewestFirst = (filters: Variables): boolean =>
   (filters.orderField == null || filters.orderField === NEWEST_FIRST_FIELD) &&
@@ -125,6 +127,7 @@ export function createListRecord(): ListRecord {
       const family = known.get(id) ?? { id, filters: withoutCursor(page.variables), pages: [] };
       known.set(id, family);
       if (!knows(family, page)) family.pages.push(page);
+      if (!family.pages.some((known) => !hasCursor(known.variables))) family.pages.unshift({ ...page, variables: family.filters });
     },
     families: () => [...known.values()],
     insertAfter(family, anchor, pages) {

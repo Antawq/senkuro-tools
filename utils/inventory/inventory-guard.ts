@@ -1,6 +1,6 @@
 import { debugLogger } from '../shared/debug';
 import { findClient, operationName, recordLists, tapMutations, type MutationResult, type QueryClient } from './client-hooks';
-import { createListRecord, needsRefresh, type Family, type ReceivedCard } from './list-families';
+import { createListRecord, needsRefresh, type Family, type ListRecord, type ReceivedCard } from './list-families';
 import { refreshFamilies, type RefreshEnv } from './list-refresh';
 
 const FORGE_OPERATION = 'forgeCards';
@@ -18,6 +18,12 @@ function forgePlan(forged: ForgeAnswer | null | undefined, families: Family[]): 
   const received = Array.isArray(forged.addUserCards) ? (forged.addUserCards as ReceivedCard[]) : [];
   return families.filter((family) => family.filters.userId === forged.userId && needsRefresh(family, received));
 }
+
+const pageCounts = (record: ListRecord): string =>
+  record
+    .families()
+    .map((family) => family.pages.length)
+    .join('+');
 
 export function planRefresh(result: MutationResult, families: Family[]): Family[] {
   const name = result.operation ? operationName(result.operation) : undefined;
@@ -38,13 +44,7 @@ export function installInventoryGuard(win: GuardWindow): void {
 
   const onMutation = (client: QueryClient) => (result: MutationResult) => {
     const plan = planRefresh(result, record.families());
-    debug('inventory change', {
-      recorded: record
-        .families()
-        .map((family) => family.pages.length)
-        .join('+'),
-      refreshing: plan.length,
-    });
+    debug('inventory change', { recorded: pageCounts(record), refreshing: plan.length });
     if (plan.length === 0) return;
     queue = queue
       .then(() => refreshFamilies(environment(client), plan))
