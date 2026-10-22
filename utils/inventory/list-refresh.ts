@@ -1,5 +1,5 @@
 import { parseJson } from '../shared/json';
-import type { QueryClient } from './client-hooks';
+import type { QueryClient } from '../shared/urql-client';
 import { linked, readRawPage, type Family, type ListRecord, type PageRequest, type RawPage } from './list-families';
 
 export const REFRESH_POLICY = 'network-only';

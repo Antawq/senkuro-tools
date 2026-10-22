@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { QueryClient } from '../utils/inventory/client-hooks';
+import type { QueryClient } from '../utils/shared/urql-client';
 import { createListRecord, type Family, type PageRequest, type Variables } from '../utils/inventory/list-families';
 import { MAX_FILL_ROUNDS, REFRESH_POLICY, refreshFamilies, type RefreshEnv } from '../utils/inventory/list-refresh';
 

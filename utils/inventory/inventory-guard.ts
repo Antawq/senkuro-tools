@@ -1,6 +1,7 @@
 import { debugLogger } from '../shared/debug';
 import { claimPage } from '../shared/page-claim';
-import { findClient, operationName, recordLists, tapMutations, type MutationResult, type QueryClient } from './client-hooks';
+import { operationName, whenClient, type QueryClient } from '../shared/urql-client';
+import { recordLists, tapMutations, type MutationResult } from './client-hooks';
 import { createListRecord, needsRefresh, type Family, type ListRecord, type ReceivedCard } from './list-families';
 import { refreshFamilies, type RefreshEnv } from './list-refresh';
 
@@ -40,7 +41,6 @@ export function installInventoryGuard(win: GuardWindow): void {
   const record = createListRecord();
   const silent = new WeakSet<object>();
   let queue: Promise<unknown> = Promise.resolve();
-  let searched = false;
 
   const environment = (client: QueryClient): RefreshEnv => ({ client, fetch: (input, init) => win.fetch(input, init), silent, record });
 
@@ -56,20 +56,9 @@ export function installInventoryGuard(win: GuardWindow): void {
       );
   };
 
-  const attach = () => {
-    if (searched) return;
-    const client = findClient(win.document);
-    if (!client) return;
-    searched = true;
+  whenClient(win, (client) => {
     const recording = recordLists(client, (page) => record.record(page), silent);
     const tapping = tapMutations(client, onMutation(client));
     debug('urql client', recording && tapping ? 'attached' : 'not replaceable');
-  };
-
-  const nativeFetch = win.fetch.bind(win);
-  win.fetch = (...args: Parameters<typeof fetch>) => {
-    const pending = nativeFetch(...args);
-    pending.then(attach, () => undefined);
-    return pending;
-  };
+  });
 }

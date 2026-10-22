@@ -3,9 +3,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { Window } from 'happy-dom';
 import { make } from 'wonka';
 
-import type { MutationResult, QueryClient, QueryRequest } from '../utils/inventory/client-hooks';
+import type { MutationResult } from '../utils/inventory/client-hooks';
 import { installInventoryGuard } from '../utils/inventory/inventory-guard';
 import { LIST_OPERATION, type Variables } from '../utils/inventory/list-families';
+import type { QueryClient, QueryRequest } from '../utils/shared/urql-client';
 import { TRADES_EVENT, installCapture, type Capture } from '../utils/trades/trade-capture';
 
 const GRAPHQL = 'https://api.senkuro.me/graphql';

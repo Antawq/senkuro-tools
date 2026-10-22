@@ -1,19 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { Window } from 'happy-dom';
 import { filter, make, onPush, pipe, subscribe, take, toPromise } from 'wonka';
 import type { Source } from 'wonka';
 
-import {
-  findClient,
-  operationName,
-  recordLists,
-  tapMutations,
-  type MutationResult,
-  type QueryClient,
-  type QueryRequest,
-} from '../utils/inventory/client-hooks';
+import { recordLists, tapMutations, type MutationResult } from '../utils/inventory/client-hooks';
 import { LIST_OPERATION, type PageRequest } from '../utils/inventory/list-families';
+import type { QueryClient, QueryRequest } from '../utils/shared/urql-client';
 
 const request = (name: string, variables: Record<string, unknown> = {}): QueryRequest => ({
   key: 1,
@@ -51,45 +43,6 @@ const clientWith = (results: MutationResult[] = [settled({ done: true })]) => {
   };
   return { client, calls };
 };
-
-describe('operationName', () => {
-  it('reads the operation name past other definitions', () => {
-    expect(operationName(request('forgeCards'))).toBe('forgeCards');
-    expect(operationName({})).toBeUndefined();
-    expect(operationName({ query: { definitions: [{ kind: 'FragmentDefinition', name: { value: 'Part' } }] } })).toBeUndefined();
-  });
-});
-
-describe('findClient', () => {
-  const pageWith = (provided: unknown) => {
-    const win = new Window({ url: 'https://senkuro.me/forge/split' });
-    win.document.body.innerHTML = '<div id="app"></div>';
-    const app = win.document.querySelector('#app') as unknown as { __vue_app__?: unknown };
-    if (provided !== undefined) app.__vue_app__ = { _context: { provides: { $urql: provided } } };
-    return win;
-  };
-
-  it('finds the client the site provides inside a ref, or directly', async () => {
-    const { client } = clientWith();
-    for (const provided of [{ value: client }, client]) {
-      const win = pageWith(provided);
-      expect(findClient(win.document as unknown as Document)).toBe(client);
-      await win.happyDOM.close();
-    }
-  });
-
-  it('returns null when the app, the provide or a needed method is missing', async () => {
-    const partial = { executeQuery: () => null };
-    for (const provided of [undefined, {}, { value: {} }, { value: null }, 'text', partial, { value: partial }]) {
-      const win = pageWith(provided);
-      expect(findClient(win.document as unknown as Document)).toBeNull();
-      await win.happyDOM.close();
-    }
-    const bare = new Window({ url: 'https://senkuro.me/' });
-    expect(findClient(bare.document as unknown as Document)).toBeNull();
-    await bare.happyDOM.close();
-  });
-});
 
 describe('recordLists', () => {
   const record = (client: QueryClient, silent = new WeakSet<object>()) => {

@@ -1,19 +1,10 @@
 import { filter, onPush, pipe, subscribe, take, toPromise } from 'wonka';
 import type { Sink } from 'wonka';
 
-import { LIST_OPERATION, type PageRequest, type Variables } from './list-families';
+import { operationName, type QueryClient, type QueryRequest } from '../shared/urql-client';
+import { LIST_OPERATION, type PageRequest } from './list-families';
 
-const APP_ROOT = '#app';
-const CLIENT_KEY = '$urql';
-const OPERATION_KIND = 'OperationDefinition';
 const POLICY_OPTION = 'requestPolicy';
-const CLIENT_METHODS = ['executeQuery', 'executeMutation', 'query'];
-
-export interface QueryRequest {
-  key?: number;
-  variables?: Variables;
-  query?: { definitions?: { kind?: string; name?: { value?: string } }[] };
-}
 
 export interface MutationResult {
   operation?: QueryRequest;
@@ -23,12 +14,6 @@ export interface MutationResult {
   hasNext?: boolean;
 }
 
-export interface QueryClient {
-  executeQuery(request: QueryRequest, options?: Record<string, unknown>): unknown;
-  executeMutation(request: QueryRequest, options?: Record<string, unknown>): unknown;
-  query(document: unknown, variables: Variables, options?: Record<string, unknown>): { toPromise(): Promise<unknown> };
-}
-
 interface TappedSource {
   (sink: Sink<MutationResult>): void;
   toPromise(): Promise<MutationResult>;
@@ -36,26 +21,8 @@ interface TappedSource {
   subscribe(callback: (result: MutationResult) => void): { unsubscribe(): void };
 }
 
-interface VueApp {
-  _context?: { provides?: Record<string, unknown> };
-}
-
 const recording = new WeakSet<QueryClient>();
 const tapping = new WeakSet<QueryClient>();
-
-export const operationName = (request: QueryRequest): string | undefined =>
-  request.query?.definitions?.find((part) => part.kind === OPERATION_KIND)?.name?.value;
-
-const isClient = (value: unknown): value is QueryClient =>
-  CLIENT_METHODS.every((name) => typeof (value as Record<string, unknown> | null)?.[name] === 'function');
-
-export function findClient(doc: Document): QueryClient | null {
-  const app = doc.querySelector<Element & { __vue_app__?: VueApp }>(APP_ROOT)?.__vue_app__;
-  const provided = app?._context?.provides?.[CLIENT_KEY];
-  if (isClient(provided)) return provided;
-  const inner = (provided as { value?: unknown } | null | undefined)?.value;
-  return isClient(inner) ? inner : null;
-}
 
 const withoutPolicy = (options: Record<string, unknown> | undefined): Record<string, unknown> =>
   Object.fromEntries(Object.entries(options ?? {}).filter(([name]) => name !== POLICY_OPTION));

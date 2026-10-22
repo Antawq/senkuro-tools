@@ -3,10 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { Window } from 'happy-dom';
 import { make } from 'wonka';
 
-import type { MutationResult, QueryClient, QueryRequest } from '../utils/inventory/client-hooks';
+import type { MutationResult } from '../utils/inventory/client-hooks';
 import { LIST_OPERATION, createListRecord, type Variables } from '../utils/inventory/list-families';
 import { installInventoryGuard, planRefresh } from '../utils/inventory/inventory-guard';
 import { REFRESH_POLICY } from '../utils/inventory/list-refresh';
+import type { QueryClient, QueryRequest } from '../utils/shared/urql-client';
 
 const GRAPHQL = 'https://api.senkuro.me/graphql';
 
