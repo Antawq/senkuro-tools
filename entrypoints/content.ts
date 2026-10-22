@@ -1,4 +1,5 @@
 import '@/assets/tokens.css';
+import '@/assets/better-search.css';
 import '@/assets/price-badges.css';
 import '@/assets/profile-badge.css';
 import '@/assets/site-fixes.css';

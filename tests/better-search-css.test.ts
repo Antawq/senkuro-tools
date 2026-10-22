@@ -1,0 +1,83 @@
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { beforeEach, describe, expect, it } from 'vitest';
+
+const stylesheet = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../assets/better-search.css'), 'utf8').replaceAll(
+  String.fromCharCode(13),
+  ''
+);
+
+const SITE_TOKENS = new Set([
+  '--accent-pressed',
+  '--accent-quaternary',
+  '--accent-secondary',
+  '--accent-tertiary',
+  '--bg-primary',
+  '--bg-quaternary',
+  '--text-primary',
+  '--text-secondary',
+  '--transition',
+]);
+
+const modal = (attributes = '') => `
+  <div class="modal-content--search" ${attributes}>
+    <div class="nav-search__cnt">
+      <a class="card-search" href="/manga/a" data-index="0">A</a>
+      <a class="card-search card-search--active" href="/manga/b" data-index="1">B</a>
+      <div class="nav-search__cnt-empty">Ничего не найдено</div>
+    </div>
+  </div>`;
+
+const styleOf = (selector: string) => getComputedStyle(document.querySelector(selector) as Element);
+
+beforeEach(() => {
+  document.head.innerHTML = `<style>${stylesheet}</style>`;
+});
+
+describe('better-search stylesheet values', () => {
+  it('takes every colour from the site tokens and invents none', () => {
+    expect(stylesheet).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+    expect(stylesheet).not.toMatch(/\brgba?\(|\bhsla?\(|\boklch\(/i);
+    const declared = new Set([...stylesheet.matchAll(/^\s*(--[\w-]+):/gm)].map((match) => match[1] ?? ''));
+    const used = [...stylesheet.matchAll(/var\((--[\w-]+)/g)].map((match) => match[1] ?? '');
+    expect(used.length).toBeGreaterThan(0);
+    expect(used.filter((name) => !SITE_TOKENS.has(name) && !declared.has(name))).toEqual([]);
+  });
+
+  it('adds no hover outside a hover-capable pointer and no raw durations', () => {
+    const outsideHoverMedia = stylesheet.replace(/@media \(hover: hover\) \{[\s\S]*?\n\}\n/g, '');
+    expect(outsideHoverMedia).not.toContain(':hover');
+    expect(stylesheet).not.toMatch(/\d+m?s\b/);
+    expect(stylesheet).not.toContain('!important');
+  });
+
+  it('keeps the tab arrows tinted like the form they sit in', () => {
+    expect(stylesheet).toContain('linear-gradient(var(--bg-quaternary), var(--bg-quaternary)), var(--bg-primary)');
+  });
+});
+
+describe('better-search page states', () => {
+  it('dims the list while a search is in flight and hides the stale empty message', () => {
+    document.body.innerHTML = modal('data-searching');
+    expect(styleOf('.nav-search__cnt').opacity).toBe('0.6');
+    expect(styleOf('.nav-search__cnt-empty').visibility).toBe('hidden');
+  });
+
+  it('leaves the list alone when nothing is in flight', () => {
+    document.body.innerHTML = modal();
+    expect(styleOf('.nav-search__cnt').opacity).not.toBe('0.6');
+    expect(styleOf('.nav-search__cnt-empty').visibility).not.toBe('hidden');
+  });
+
+  it('hides the rows of a query that is too short to search', () => {
+    document.body.innerHTML = modal('data-stale');
+    expect(styleOf('.card-search').display).toBe('none');
+  });
+
+  it('shows the rows otherwise', () => {
+    document.body.innerHTML = modal();
+    expect(styleOf('.card-search').display).not.toBe('none');
+  });
+});
