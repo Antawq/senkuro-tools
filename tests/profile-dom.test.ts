@@ -237,6 +237,14 @@ describe('profile-dom', () => {
         expect(shiftOf()).toBe('-150px');
       });
 
+      it('pulls a popover back into the window when it is redrawn while it is open', async () => {
+        underCursor(false);
+        await showCollection();
+        widget()?.classList.add('senkuro-popover-active');
+        updateProfileBadge({ db, valuation: { ...plain, commission: true } });
+        expect(shiftOf()).toBe('-150px');
+      });
+
       it('leaves the popover where it is until the cursor enters the chip', async () => {
         underCursor(false);
         await showCollection();

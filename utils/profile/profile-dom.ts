@@ -245,7 +245,7 @@ function renderSummary(widget: HTMLElement, slug: string, summary: ProfileValueS
   popover.append(header, meta, body);
   widget.onmouseenter = () => keepInView(popover);
   widget.replaceChildren(chip, popover);
-  if (widget.matches(':hover')) keepInView(popover);
+  if (widget.matches(':hover') || widget.classList.contains(ACTIVE)) keepInView(popover);
 }
 
 function reload(widget: HTMLElement, slug: string, deps: ProfileBadgeDeps, fresh: boolean): void {
