@@ -56,7 +56,20 @@ describe('better-search stylesheet values', () => {
   it('ends the list above the phone dock and cuts it through a row, not at a sliver of one', () => {
     expect(stylesheet).toMatch(/^\.modal-content--search \{\s+--better-search-chrome: 246px;/m);
     expect(stylesheet).toMatch(/\(width >= 576px\) \{\s+\.modal-content--search \{\s+--better-search-chrome: 260px;/);
-    expect(stylesheet).toContain('max-height: min(588px, calc(100dvh - var(--better-search-chrome)));');
+  });
+
+  it('cuts the list through the middle of a row, with a plain height for browsers without round()', () => {
+    expect(stylesheet).toContain('--better-search-row: 88px;');
+    expect(stylesheet).toContain('calc(16px + 7.5 * var(--better-search-row))');
+    expect(stylesheet).toContain('calc(100dvh - var(--better-search-chrome))');
+    const [plain, snapped] = stylesheet.match(/max-height: [^;]+;/g) ?? [];
+    expect(plain).toBe('max-height: var(--better-search-room);');
+    expect(snapped).toContain('round(down, var(--better-search-room) - var(--better-search-tail), var(--better-search-row))');
+  });
+
+  it('keeps the whole height of the list on a phone held sideways, where a snapped height would cost a row', () => {
+    const sideways = stylesheet.slice(stylesheet.indexOf('@media (max-height: 480px)'));
+    expect(sideways).toContain('max-height: var(--better-search-room);');
   });
 
   it('trades the site top margin for list height on a phone held sideways', () => {

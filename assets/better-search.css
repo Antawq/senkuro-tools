@@ -15,7 +15,11 @@
 }
 
 .modal-content--search .nav-search__cnt {
-  max-height: min(588px, calc(100dvh - var(--better-search-chrome)));
+  --better-search-row: 88px;
+  --better-search-tail: calc(16px + var(--better-search-row) / 2);
+  --better-search-room: min(calc(16px + 7.5 * var(--better-search-row)), calc(100dvh - var(--better-search-chrome)));
+  max-height: var(--better-search-room);
+  max-height: calc(round(down, var(--better-search-room) - var(--better-search-tail), var(--better-search-row)) + var(--better-search-tail));
   scroll-padding-block: 8px;
 }
 
@@ -110,5 +114,9 @@
   .modal-content.modal-content--search {
     --better-search-chrome: 190px;
     margin-top: 8px;
+  }
+
+  .modal-content--search .nav-search__cnt {
+    max-height: var(--better-search-room);
   }
 }
