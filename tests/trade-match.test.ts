@@ -1,17 +1,21 @@
 import { describe, expect, it } from 'vitest';
 
+import type { Offer, Trade } from '../utils/trade-capture';
 import { matchOffer, matchTrade, matchTradeByCounts } from '../utils/trade-match';
+import type { CardRef, Side } from '../utils/trade-value';
 
-const card = (slug, quantity = 1) => ({ slug, quantity, shard: false });
-const trade = (id, offer, request, source = 'Он', destination = 'Я') => ({
+const card = (slug: string, quantity = 1): CardRef => ({ slug, quantity, shard: false });
+const trade = (id: string, offer: CardRef[], request: CardRef[], source = 'Он', destination = 'Я'): Trade => ({
   kind: 'trade',
   id,
   source: { id: 's', name: source },
   destination: { id: 'd', name: destination },
+  createdAt: null,
+  status: null,
   offer,
   request,
 });
-const side = (cards, hidden = 0) => ({ cards, hidden });
+const side = (cards: CardRef[], hidden = 0): Side => ({ cards, hidden });
 
 const four = [card('a', 2), card('b'), card('c', 3), card('d', 3)];
 
@@ -31,15 +35,15 @@ describe('matchTrade', () => {
   });
 
   it('keeps the time of identical trades only when they were sent together', () => {
-    const at = (id, createdAt) => ({ ...trade(id, four, []), createdAt });
-    const sides = [side(four.slice(0, 3), 1), side([])];
+    const at = (id: string, createdAt: string): Trade => ({ ...trade(id, four, []), createdAt });
+    const sides: [Side, Side] = [side(four.slice(0, 3), 1), side([])];
     expect(matchTrade([at('t1', '2026-10-17T10:00:00'), at('t2', '2026-10-17T10:00:00')], ['Он', null], sides)?.createdAt).toBe('2026-10-17T10:00:00');
     expect(matchTrade([at('t1', '2026-10-17T10:00:00'), at('t2', '2026-10-18T09:00:00')], ['Он', null], sides)).toMatchObject({ id: 't1', createdAt: null });
   });
 
   it('keeps the status of identical trades only when they agree on it', () => {
-    const with_ = (id, status) => ({ ...trade(id, four, []), status });
-    const sides = [side(four.slice(0, 3), 1), side([])];
+    const with_ = (id: string, status: string): Trade => ({ ...trade(id, four, []), status });
+    const sides: [Side, Side] = [side(four.slice(0, 3), 1), side([])];
     expect(matchTrade([with_('t1', 'REJECTED'), with_('t2', 'REJECTED')], ['Он', null], sides)?.status).toBe('REJECTED');
     expect(matchTrade([with_('t1', 'REJECTED'), with_('t2', 'ACCEPTED')], ['Он', null], sides)?.status).toBeNull();
   });
@@ -58,7 +62,14 @@ describe('matchTradeByCounts', () => {
 });
 
 describe('matchOffer', () => {
-  const offer = { kind: 'offer', id: 'o1', author: { id: 'u', name: 'Smile' }, viewerDidAuthor: false, offer: [card('a')], request: [card('b'), card('c')] };
+  const offer: Offer = {
+    kind: 'offer',
+    id: 'o1',
+    author: { id: 'u', name: 'Smile' },
+    viewerDidAuthor: false,
+    offer: [card('a')],
+    request: [card('b'), card('c')],
+  };
 
   it('matches whichever way the card shows the two lists', () => {
     expect(matchOffer([offer], 'Smile', side([card('b')], 1), side([card('a')]))).toBe(offer);
@@ -67,7 +78,7 @@ describe('matchOffer', () => {
 });
 
 describe('matching a stack drawn copy by copy', () => {
-  const stacked = {
+  const stacked: Offer = {
     kind: 'offer',
     id: 'o2',
     author: { id: 'u', name: 'Токунбек' },
@@ -105,7 +116,7 @@ describe('matching a stack drawn copy by copy', () => {
   });
 
   it('does not match previews whose card has not been drawn yet', () => {
-    const blank = { slug: null, quantity: 1, shard: false };
+    const blank: CardRef = { slug: null, quantity: 1, shard: false };
     const offer = { ...stacked, offer: [{ ...blank }, { ...blank }], request: [{ ...blank, quantity: 2 }] };
     expect(matchOffer([offer], 'Токунбек', side([blank], 1), side([blank, blank]))).toBeNull();
   });
