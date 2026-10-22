@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Transport } from '../utils/shared/graphql';
 import {
   FAST_DELAY_MS,
   FAST_PAGES,
@@ -12,6 +11,7 @@ import {
   packCards,
   unpackCards,
 } from '../utils/profile/user-cards';
+import type { Transport } from '../utils/shared/graphql';
 
 interface Sent {
   operationName: string;

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { visibleName } from '../utils/shared/copy-button';
 import { createPriceBadges } from '../utils/badges/price-badges';
+import { visibleName } from '../utils/shared/copy-button';
 import { DEFAULT_SETTINGS } from '../utils/shared/settings';
 
 const db = { soran: { price: 1.25, name: 'Соран', rank: 'F' } };

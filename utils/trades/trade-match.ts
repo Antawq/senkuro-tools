@@ -1,5 +1,5 @@
-import type { Offer, Trade } from './trade-capture';
 import type { CardRef, Side } from '../shared/trade-value';
+import type { Offer, Trade } from './trade-capture';
 
 const sameCard = (a: CardRef | undefined, b: CardRef | undefined): boolean => a?.slug === b?.slug && a?.quantity === b?.quantity && a?.shard === b?.shard;
 

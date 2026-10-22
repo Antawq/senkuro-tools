@@ -3,10 +3,6 @@ import type { Database } from '../shared/database';
 import { element } from '../shared/dom';
 import { chevronIcon } from '../shared/svg';
 import { formatTradeTime, parseApiTime } from '../shared/time';
-import type { TradeStore } from './trade-capture';
-import type { Departure } from './trade-departure';
-import { TRADE_PLACES, readTradePlaces, type Column, type Place, type Role } from './trade-dom';
-import { totalOf } from './trade-match';
 import {
   F_UNIT,
   R_RANK,
@@ -23,6 +19,10 @@ import {
   type Valuation,
   type Verdict,
 } from '../shared/trade-value';
+import type { TradeStore } from './trade-capture';
+import type { Departure } from './trade-departure';
+import { TRADE_PLACES, readTradePlaces, type Column, type Place, type Role } from './trade-dom';
+import { totalOf } from './trade-match';
 
 const SUMMARY = 'senkuro-trade-summary';
 const CLOSED = `${SUMMARY}--closed`;

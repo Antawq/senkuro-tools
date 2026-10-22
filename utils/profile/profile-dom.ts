@@ -1,9 +1,9 @@
 import type { Database } from '../shared/database';
 import { element } from '../shared/dom';
-import { calculateProfileValue, extractProfileSlug, fetchProfileCards, fetchProfileUser, type ProfileValueSummary } from './profile-cards';
-import { isComplete, readCollection, saveCollection, type Collection } from './profile-store';
 import { chevronIcon, svgIcon } from '../shared/svg';
 import { R_RANK, type Valuation } from '../shared/trade-value';
+import { calculateProfileValue, extractProfileSlug, fetchProfileCards, fetchProfileUser, type ProfileValueSummary } from './profile-cards';
+import { isComplete, readCollection, saveCollection, type Collection } from './profile-store';
 
 export const WIDGET_ID = 'senkuro-profile-card-value';
 

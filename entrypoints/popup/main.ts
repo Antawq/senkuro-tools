@@ -1,10 +1,10 @@
-import '@/assets/tokens.css';
 import './style.css';
+import '@/assets/tokens.css';
 import { browser } from 'wxt/browser';
 
+import { tierRange, type TierName } from '@/utils/badges/tiers';
 import { COMMISSION_SHARE_KEPT, PERCENT } from '@/utils/shared/cards';
 import { DEFAULT_SETTINGS, loadSettings, resetSettings, saveSetting, type Settings } from '@/utils/shared/settings';
-import { tierRange, type TierName } from '@/utils/badges/tiers';
 import { CRAFT_PER_RANK, SPLIT_PER_RANK } from '@/utils/shared/trade-value';
 
 const SAVE_DELAY_MS = 150;

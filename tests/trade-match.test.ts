@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import type { CardRef, Side } from '../utils/shared/trade-value';
 import type { Offer, Trade } from '../utils/trades/trade-capture';
 import { matchOffer, matchTrade, matchTradeByCounts } from '../utils/trades/trade-match';
-import type { CardRef, Side } from '../utils/shared/trade-value';
 
 const card = (slug: string, quantity = 1): CardRef => ({ slug, quantity, shard: false });
 const trade = (id: string, offer: CardRef[], request: CardRef[], source = 'Он', destination = 'Я'): Trade => ({

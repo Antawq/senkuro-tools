@@ -1,6 +1,6 @@
 import { parseApiTime } from '../shared/time';
-import type { Person, Trade } from './trade-capture';
 import type { CardRef } from '../shared/trade-value';
+import type { Person, Trade } from './trade-capture';
 
 const ACCEPTED = 'ACCEPTED';
 const REJECTED = 'REJECTED';
