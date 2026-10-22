@@ -24,8 +24,8 @@ const SITE_TOKENS = new Set([
 const modal = (attributes = '') => `
   <div class="modal-content--search" ${attributes}>
     <div class="nav-search__cnt">
-      <a class="card-search" href="/manga/a" data-index="0">A</a>
-      <a class="card-search card-search--active" href="/manga/b" data-index="1">B</a>
+      <a class="card-search" href="/manga/a" data-index="0"><div class="cover-wrapper"></div><div class="card-body">A</div></a>
+      <a class="card-search card-search--active" href="/manga/b" data-index="1"><div class="cover-wrapper"></div><div class="card-body">B</div></a>
       <div class="nav-search__cnt-empty">Ничего не найдено</div>
     </div>
   </div>`;
@@ -60,22 +60,28 @@ describe('better-search stylesheet values', () => {
     expect(sideways).toContain('--better-search-chrome: 190px');
   });
 
+  it('sizes the popular query chips through the button size variable, not by overriding the height', () => {
+    expect(stylesheet).toContain('.button-size--sm');
+    expect(stylesheet).toContain('--button-size: 36px');
+    expect(stylesheet).not.toContain('min-height');
+  });
+
   it('keeps the tab arrows tinted like the form they sit in', () => {
     expect(stylesheet).toContain('linear-gradient(var(--bg-quaternary), var(--bg-quaternary)), var(--bg-primary)');
   });
 });
 
 describe('better-search page states', () => {
-  it('dims the list while a search is in flight and hides the stale empty message', () => {
+  it('dims the covers while a search is in flight but never the text, which would drop under 4.5:1', () => {
     document.body.innerHTML = modal('data-searching');
-    expect(styleOf('.nav-search__cnt').opacity).toBe('0.6');
-    expect(styleOf('.nav-search__cnt-empty').visibility).toBe('hidden');
+    expect(styleOf('.cover-wrapper').opacity).toBe('0.6');
+    expect(styleOf('.card-body').opacity).not.toBe('0.6');
+    expect(styleOf('.nav-search__cnt').opacity).not.toBe('0.6');
   });
 
-  it('leaves the list alone when nothing is in flight', () => {
+  it('leaves the covers alone when nothing is in flight', () => {
     document.body.innerHTML = modal();
-    expect(styleOf('.nav-search__cnt').opacity).not.toBe('0.6');
-    expect(styleOf('.nav-search__cnt-empty').visibility).not.toBe('hidden');
+    expect(styleOf('.cover-wrapper').opacity).not.toBe('0.6');
   });
 
   it('hides the rows of a query that is too short to search', () => {

@@ -11,15 +11,14 @@
 .modal-content--search .nav-search__cnt {
   max-height: min(640px, calc(100dvh - var(--better-search-chrome)));
   scroll-padding-block: 8px;
+}
+
+.modal-content--search .card-search > :first-child {
   transition: opacity var(--transition);
 }
 
-.modal-content--search[data-searching] .nav-search__cnt {
+.modal-content--search[data-searching] .card-search > :first-child {
   opacity: 0.6;
-}
-
-.modal-content--search[data-searching] .nav-search__cnt-empty {
-  visibility: hidden;
 }
 
 @media (hover: hover) {
@@ -84,19 +83,19 @@
   transform: scaleX(-1);
 }
 
-.modal-content--search :is(.button, .icon-click):focus-visible {
+.modal-content--search .button:focus-visible {
   outline: 2px solid var(--text-primary);
   outline-offset: -2px;
 }
 
 @media (width < 992px) {
-  .modal-content--search .nav-search__cnt-space > * {
-    min-height: 36px;
+  .modal-content--search .nav-search__cnt-space .button-size--sm {
+    --button-size: 36px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .modal-content--search .nav-search__cnt {
+  .modal-content--search .card-search > :first-child {
     transition: none;
   }
 }
