@@ -185,6 +185,21 @@ input[type='range']::-webkit-slider-thumb:active {
   transform: scale(1.1);
   background: var(--c-accent-light);
 }
+input[type='range']::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--c-accent);
+  cursor: pointer;
+  transition: transform var(--duration-press);
+  box-shadow: 0 2px 4px color-mix(in srgb, var(--c-shadow) 30%, transparent);
+}
+input[type='range']::-moz-range-thumb:active {
+  transform: scale(1.1);
+  background: var(--c-accent-light);
+}
 
 details.setting-group {
   background: var(--c-panel);
@@ -438,6 +453,9 @@ button:active {
     border-color: var(--c-accent);
   }
   input[type='range']::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+  }
+  input[type='range']::-moz-range-thumb:hover {
     transform: scale(1.2);
   }
   details.setting-group > summary:hover {
