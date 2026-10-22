@@ -1,4 +1,4 @@
-import { ACTIVE, LIST, ROW, TITLE, fieldOf, isTooShort, rowsOf, topModal } from './search-dom';
+import { ACTIVE, LIST, ROW, TAB, TAB_ACTIVE, TITLE, fieldOf, isTooShort, rowsOf, topModal } from './search-dom';
 import { MAX_PENDING_MS, type SearchSignals } from './search-signal';
 
 const STALE = 'data-stale';
@@ -6,6 +6,7 @@ const SEARCHING = 'data-searching';
 const MATCH = 'senkutools-match';
 const LIST_ID = 'senkutools-search-list';
 const OPTION_ID = 'senkutools-search-option-';
+const TAB_ID = 'senkutools-search-tab-';
 const MIN_WORD_LENGTH = 2;
 const SLOW_SEARCH_MS = 300;
 const REFOCUS = '.tabs-tab, .icon-click, .nav-search__cnt-space button';
@@ -78,20 +79,22 @@ export function createSearchView(doc: Document, { later, alive, signals }: Searc
     else view.CSS.highlights.delete(MATCH);
   };
 
-  const announce = (modal: HTMLElement, rows: HTMLElement[], shown: boolean): void => {
+  const announce = (modal: HTMLElement, rows: HTMLElement[], shown: boolean, managed = true): void => {
     const active = rows.find((row) => row.classList.contains(ACTIVE));
     const field = fieldOf(modal);
     if (field) {
-      attribute(field, 'role', 'combobox');
-      attribute(field, 'aria-autocomplete', 'list');
-      attribute(field, 'aria-expanded', String(shown));
+      attribute(field, 'role', managed ? 'combobox' : null);
+      attribute(field, 'aria-autocomplete', managed ? 'list' : null);
+      attribute(field, 'aria-expanded', managed ? String(shown) : null);
       attribute(field, 'aria-controls', shown ? LIST_ID : null);
       attribute(field, 'aria-activedescendant', shown && active ? active.id : null);
     }
+    modal.querySelectorAll<HTMLElement>(TAB).forEach((tab, index) => attribute(tab, 'id', managed ? `${TAB_ID}${index}` : null));
     const list = modal.querySelector<HTMLElement>(LIST);
     if (list) {
       attribute(list, 'role', shown ? 'listbox' : null);
       attribute(list, 'id', shown ? LIST_ID : null);
+      attribute(list, 'aria-labelledby', shown ? (modal.querySelector<HTMLElement>(TAB_ACTIVE)?.id ?? null) : null);
     }
     rows.forEach((row, index) => {
       attribute(row, 'role', shown ? 'option' : null);
@@ -122,6 +125,11 @@ export function createSearchView(doc: Document, { later, alive, signals }: Searc
   };
 
   const dispose = (): void => {
+    if (session) {
+      flag(session, STALE, false);
+      flag(session, SEARCHING, false);
+      announce(session, rowsOf(session), false, false);
+    }
     unpaint();
     observer?.disconnect();
     observer = null;

@@ -6,6 +6,7 @@ export const LIST = '.nav-search__cnt';
 export const ROW = '[data-index]';
 export const ACTIVE = 'card-search--active';
 export const TITLE = '.card-title, .card-name';
+export const TAB = '.tabs-tab';
 export const TAB_ACTIVE = '.tabs-tab--active';
 export const MIN_QUERY_LENGTH = 2;
 

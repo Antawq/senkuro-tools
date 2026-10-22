@@ -214,6 +214,35 @@ describe('which modal it looks at', () => {
     expect(modal().hasAttribute('data-stale')).toBe(false);
   });
 
+  it('takes back everything it put on the page when it is disposed', async () => {
+    open(['a', 'b'], 'naruto');
+    modal().insertAdjacentHTML('afterbegin', '<div class="tabs"><button class="tabs-tab tabs-tab--active">Манга</button></div>');
+    document.querySelector('[data-index]')?.classList.add('card-search--active');
+    view.touch();
+    say('start');
+    await settle(400);
+    field().value = '';
+    view.touch();
+    const marked = (element: Element) =>
+      [...element.attributes]
+        .map((attribute) => attribute.name)
+        .filter((name) => name !== 'class' && name !== 'href' && name !== 'data-index' && name !== 'value' && name !== 'type');
+    expect(marked(modal()).length + marked(field()).length + marked(list()).length).toBeGreaterThan(0);
+    view.dispose();
+    const everything = [modal(), field(), list(), ...document.querySelectorAll('[data-index], .tabs-tab')];
+    expect(everything.flatMap((element) => marked(element))).toEqual([]);
+  });
+
+  it('takes the in-flight flag back when it is disposed during a slow search', async () => {
+    open(['a'], 'naruto');
+    view.touch();
+    say('start');
+    await settle(400);
+    expect(modal().hasAttribute('data-searching')).toBe(true);
+    view.dispose();
+    expect(modal().hasAttribute('data-searching')).toBe(false);
+  });
+
   it('stops watching the page after dispose', async () => {
     open([], '');
     view.touch();
@@ -334,6 +363,30 @@ describe('screen reader wiring', () => {
     expect(field().getAttribute('aria-expanded')).toBe('true');
     expect(field().getAttribute('aria-controls')).toBe(list().id);
     expect(list().getAttribute('role')).toBe('listbox');
+  });
+
+  it('names the listbox by the tab it belongs to, so a screen reader says which kind of results these are', async () => {
+    open(['a'], 'naruto');
+    modal().insertAdjacentHTML(
+      'afterbegin',
+      '<div class="tabs"><button class="tabs-tab tabs-tab--active">Манга</button><button class="tabs-tab">Аниме</button></div>'
+    );
+    view.touch();
+    const labelOf = () => document.getElementById(list().getAttribute('aria-labelledby') ?? '')?.textContent;
+    expect(labelOf()).toBe('Манга');
+    const [first, second] = [...document.querySelectorAll('.tabs-tab')];
+    first?.classList.remove('tabs-tab--active');
+    second?.classList.add('tabs-tab--active');
+    await settle();
+    expect(labelOf()).toBe('Аниме');
+    expect(new Set([...document.querySelectorAll('.tabs-tab')].map((tab) => tab.id)).size).toBe(2);
+  });
+
+  it('leaves the listbox unnamed while it is not one', () => {
+    open([], 'naruto');
+    modal().insertAdjacentHTML('afterbegin', '<div class="tabs"><button class="tabs-tab tabs-tab--active">Манга</button></div>');
+    view.touch();
+    expect(list().hasAttribute('aria-labelledby')).toBe(false);
   });
 
   it('gives each result the option role and an id of its own', () => {
