@@ -70,6 +70,11 @@ describe('widenSearch', () => {
     expect(widenSearch(other).key).not.toBe(widenSearch(one).key);
   });
 
+  it('widens a document once and reuses the copy, so the client does not print and hash a new one per search', () => {
+    const one = request('search');
+    expect(widenSearch(one).query).toBe(widenSearch(one).query);
+  });
+
   it('uses the size it is given', () => {
     expect(firstOf(widenSearch(request('search'), 40))).toEqual(['40', '5']);
   });
