@@ -196,6 +196,52 @@ describe('profile-dom', () => {
       expect(popover?.querySelector('.senkuro-popover-meta')?.textContent).toBe('Всего: 3 карт · 2 осколков');
     });
 
+    describe('popover position', () => {
+      const POPOVER_RECT = { left: 300, right: 650 } as DOMRect;
+      const SHIFT = '--senkuro-popover-shift';
+
+      const shiftOf = () => widget()?.querySelector<HTMLElement>('.senkuro-profile-f-popover')?.style.getPropertyValue(SHIFT);
+
+      const underCursor = (hovered: boolean) => {
+        const matches = Reflect.get(Element.prototype, 'matches') as (this: Element, selector: string) => boolean;
+        vi.spyOn(Element.prototype, 'matches').mockImplementation(function (this: Element, selector: string) {
+          return selector === ':hover' ? hovered && this.id === WIDGET_ID : matches.call(this, selector);
+        });
+      };
+
+      beforeEach(() => {
+        vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+          return this.classList.contains('senkuro-profile-f-popover') ? POPOVER_RECT : new DOMRect();
+        });
+        vi.spyOn(document.documentElement, 'clientWidth', 'get').mockReturnValue(500);
+      });
+
+      afterEach(() => {
+        vi.restoreAllMocks();
+      });
+
+      const showCollection = async () => {
+        window.history.pushState({}, '', '/users/phaivroh');
+        document.body.innerHTML = header;
+        await store([['luffy-s', 1, 0]]);
+        await draw();
+      };
+
+      it('pulls the popover back into the window when it appears under the cursor', async () => {
+        underCursor(true);
+        await showCollection();
+        expect(shiftOf()).toBe('-150px');
+      });
+
+      it('leaves the popover where it is until the cursor enters the chip', async () => {
+        underCursor(false);
+        await showCollection();
+        expect(shiftOf()).toBe('');
+        widget()?.dispatchEvent(new MouseEvent('mouseenter'));
+        expect(shiftOf()).toBe('-150px');
+      });
+    });
+
     it('works on /users/phaivroh/cards subpage as well', async () => {
       window.history.pushState({}, '', '/users/phaivroh/cards');
       document.body.innerHTML = header;
