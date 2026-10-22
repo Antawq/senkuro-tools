@@ -13,7 +13,7 @@ export interface Side {
   hidden: number;
 }
 
-export interface RValue {
+interface RValue {
   value: number;
   count: number;
   shards: number;

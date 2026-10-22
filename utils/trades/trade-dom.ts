@@ -27,9 +27,9 @@ export interface Column extends Side {
   label: string;
 }
 
-export type Placement = 'start' | 'end';
+type Placement = 'start' | 'end';
 
-export type Variant = 'offer';
+type Variant = 'offer';
 
 export interface Place {
   host: Element;

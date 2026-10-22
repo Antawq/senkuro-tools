@@ -2,9 +2,9 @@ import { storage, type WxtStorageItem } from 'wxt/utils/storage';
 
 export type BadgePositionX = 'left' | 'center' | 'right';
 export type BadgePositionY = 'top' | 'center' | 'bottom';
-export type BadgeStyle = 'background' | 'outline';
+type BadgeStyle = 'background' | 'outline';
 export type ValueBasis = 'bank' | 'cards';
-export type PriceEffect = '' | 'price-effect-rgb' | 'price-effect-tilt' | 'price-effect-bg' | 'price-effect-pulse';
+type PriceEffect = '' | 'price-effect-rgb' | 'price-effect-tilt' | 'price-effect-bg' | 'price-effect-pulse';
 
 export interface Settings {
   commission: boolean;

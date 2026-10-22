@@ -1,6 +1,6 @@
 export type TierName = 'red' | 'yellow' | 'purple' | 'green' | 'white';
 
-export type EffectKey = 'effectRed' | 'effectYellow' | 'effectPurple' | 'effectGreen' | 'effectWhite';
+type EffectKey = 'effectRed' | 'effectYellow' | 'effectPurple' | 'effectGreen' | 'effectWhite';
 
 export interface Tier {
   name: TierName;
