@@ -1,14 +1,26 @@
+import type { Sink } from 'wonka';
+
 import { claimPage } from '../shared/page-claim';
 import { operationName, whenClient, type QueryClient, type QueryRequest } from '../shared/urql-client';
+import { tapSource, type SourceResult } from '../shared/urql-source';
 
 export const SEARCH_OPERATION = 'search';
 export const SEARCH_PAGE_SIZE = 30;
+export const SEARCH_EVENT = 'senkutools:search';
 
 const PAGE_ARGUMENT = 'first';
 const INT_LITERAL = 'IntValue';
 const DOCUMENT_KEY = '__key';
 const KEY_MIX = 0x5bd1e995;
 const KEY_STRIDE = 31;
+
+export interface SearchSignal {
+  phase: 'start' | 'done';
+  query: string;
+  type: string;
+}
+
+type Publish = (signal: SearchSignal) => void;
 
 interface AstNode {
   kind?: string;
@@ -56,11 +68,33 @@ export function widenSearch(request: QueryRequest, size = SEARCH_PAGE_SIZE): Que
   return query ? { ...request, key: keyFor(request.key, size), query: query } : request;
 }
 
-export function widenSearches(client: QueryClient, size = SEARCH_PAGE_SIZE): boolean {
+function announce(source: unknown, request: QueryRequest, publish: Publish): unknown {
+  const { query, type } = request.variables ?? {};
+  if (typeof source !== 'function' || typeof query !== 'string' || typeof type !== 'string') return source;
+  let open = 0;
+  const finish = () => {
+    if (open === 0) return;
+    open -= 1;
+    publish({ phase: 'done', query, type });
+  };
+  return tapSource(source as (sink: Sink<SourceResult>) => void, {
+    start: () => {
+      open += 1;
+      publish({ phase: 'start', query, type });
+    },
+    settled: finish,
+    end: finish,
+  });
+}
+
+export function widenSearches(client: QueryClient, publish: Publish = () => undefined, size = SEARCH_PAGE_SIZE): boolean {
   if (patched.has(client)) return true;
   const original = client.executeQuery.bind(client);
   try {
-    client.executeQuery = (request, options) => original(widenSearch(request, size), options);
+    client.executeQuery = (request, options) => {
+      const source = original(widenSearch(request, size), options);
+      return operationName(request) === SEARCH_OPERATION ? announce(source, request, publish) : source;
+    };
   } catch {
     return false;
   }
@@ -68,7 +102,8 @@ export function widenSearches(client: QueryClient, size = SEARCH_PAGE_SIZE): boo
   return true;
 }
 
-export function installSearchSize(win: Window & typeof globalThis): void {
-  if (!claimPage(win, 'search-size')) return;
-  whenClient(win, (client) => void widenSearches(client));
+export function installSearchRequest(win: Window & typeof globalThis): void {
+  if (!claimPage(win, 'search-request')) return;
+  const publish: Publish = (signal) => win.document.dispatchEvent(new win.CustomEvent(SEARCH_EVENT, { detail: JSON.stringify(signal) }));
+  whenClient(win, (client) => void widenSearches(client, publish));
 }

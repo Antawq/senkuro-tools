@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { Window } from 'happy-dom';
+import { make } from 'wonka';
 
-import { SEARCH_PAGE_SIZE, installSearchSize, widenSearch, widenSearches } from '../utils/search/search-size';
+import { SEARCH_EVENT, SEARCH_PAGE_SIZE, installSearchRequest, widenSearch, widenSearches, type SearchSignal } from '../utils/search/search-request';
 import type { QueryClient, QueryRequest } from '../utils/shared/urql-client';
 
 const argument = (name: string, value: string) => ({ kind: 'Argument', name: { value: name }, value: { kind: 'IntValue', value } });
@@ -128,20 +129,97 @@ describe('widenSearches', () => {
   });
 });
 
-describe('installSearchSize', () => {
+describe('installSearchRequest', () => {
   it('widens the searches once the site client exists, and installs once per page', async () => {
     const win = new Window({ url: 'https://senkuro.me/' });
     win.document.body.innerHTML = '<div id="app"></div>';
     const { client, asked } = clientWith();
     (win.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = { _context: { provides: { $urql: { value: client } } } };
     win.fetch = (() => Promise.resolve(new Response('{}'))) as unknown as typeof win.fetch;
-    const typed = win as unknown as Parameters<typeof installSearchSize>[0];
-    installSearchSize(typed);
-    installSearchSize(typed);
+    const typed = win as unknown as Parameters<typeof installSearchRequest>[0];
+    installSearchRequest(typed);
+    installSearchRequest(typed);
     await win.fetch('https://api.senkuro.me/graphql');
     await new Promise((resolve) => setTimeout(resolve, 0));
     client.executeQuery(request('search'));
     expect(asked).toHaveLength(1);
     expect(firstOf(asked[0] as QueryRequest)).toEqual([String(SEARCH_PAGE_SIZE), '5']);
+  });
+});
+
+describe('search signals', () => {
+  const streamingClient = (results: { stale?: boolean }[] = [{}], complete = true): QueryClient => ({
+    executeQuery: () =>
+      make<{ stale?: boolean }>((observer) => {
+        results.forEach((entry) => observer.next(entry));
+        if (complete) observer.complete();
+        return () => undefined;
+      }),
+    executeMutation: () => null,
+    query: () => ({ toPromise: () => Promise.resolve({}) }),
+  });
+
+  const streaming = (results?: { stale?: boolean }[], complete?: boolean) => {
+    const signals: SearchSignal[] = [];
+    const client = streamingClient(results, complete);
+    widenSearches(client, (signal) => signals.push(signal));
+    return { client, signals };
+  };
+
+  it('announces a search when it starts and when its answer is in, with what was asked', async () => {
+    const { client, signals } = streaming([{ stale: true }, {}]);
+    const source = client.executeQuery(request('search'));
+    expect(signals).toEqual([]);
+    await (source as { toPromise(): Promise<unknown> }).toPromise();
+    expect(signals).toEqual([
+      { phase: 'start', query: 'naruto', type: 'MANGA' },
+      { phase: 'done', query: 'naruto', type: 'MANGA' },
+    ]);
+  });
+
+  it('announces the end of a search the page gave up on', () => {
+    const { client, signals } = streaming([{ stale: true }], false);
+    const subscription = (client.executeQuery(request('search')) as { subscribe(callback: () => void): { unsubscribe(): void } }).subscribe(() => undefined);
+    expect(signals.map((signal) => signal.phase)).toEqual(['start']);
+    subscription.unsubscribe();
+    expect(signals.map((signal) => signal.phase)).toEqual(['start', 'done']);
+  });
+
+  it('says nothing about other operations, or about a search whose variables are unknown', () => {
+    const { client, signals } = streaming();
+    const other = client.executeQuery(request('fetchUserCards'));
+    expect(typeof other).toBe('function');
+    expect((other as { toPromise?: unknown }).toPromise).toBeUndefined();
+    const bare: QueryRequest = { ...request('search'), variables: undefined };
+    const unknown = client.executeQuery(bare);
+    expect((unknown as { toPromise?: unknown }).toPromise).toBeUndefined();
+    expect(signals).toEqual([]);
+  });
+
+  it('hands back an answer that is not a stream untouched', () => {
+    const plain = { not: 'a source' };
+    const client: QueryClient = { executeQuery: () => plain, executeMutation: () => null, query: () => ({ toPromise: () => Promise.resolve({}) }) };
+    const signals: SearchSignal[] = [];
+    widenSearches(client, (signal) => signals.push(signal));
+    expect(client.executeQuery(request('search'))).toBe(plain);
+    expect(signals).toEqual([]);
+  });
+
+  it('reaches the extension as a document event with a JSON detail', async () => {
+    const win = new Window({ url: 'https://senkuro.me/' });
+    win.document.body.innerHTML = '<div id="app"></div>';
+    const client = streamingClient();
+    (win.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = { _context: { provides: { $urql: { value: client } } } };
+    win.fetch = (() => Promise.resolve(new Response('{}'))) as unknown as typeof win.fetch;
+    installSearchRequest(win as unknown as Parameters<typeof installSearchRequest>[0]);
+    const heard: unknown[] = [];
+    win.document.addEventListener(SEARCH_EVENT, (event) => heard.push(JSON.parse((event as unknown as CustomEvent<string>).detail)));
+    await win.fetch('https://api.senkuro.me/graphql');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await (client.executeQuery(request('search')) as { toPromise(): Promise<unknown> }).toPromise();
+    expect(heard).toEqual([
+      { phase: 'start', query: 'naruto', type: 'MANGA' },
+      { phase: 'done', query: 'naruto', type: 'MANGA' },
+    ]);
   });
 });
