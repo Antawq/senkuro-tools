@@ -1,15 +1,21 @@
 .modal-content--search {
-  --better-search-chrome: 190px;
+  --better-search-chrome: 246px;
 }
 
 @media (width >= 576px) {
+  .modal-content--search {
+    --better-search-chrome: 260px;
+  }
+}
+
+@media (width >= 992px) {
   .modal-content--search {
     --better-search-chrome: 246px;
   }
 }
 
 .modal-content--search .nav-search__cnt {
-  max-height: min(640px, calc(100dvh - var(--better-search-chrome)));
+  max-height: min(588px, calc(100dvh - var(--better-search-chrome)));
   scroll-padding-block: 8px;
 }
 

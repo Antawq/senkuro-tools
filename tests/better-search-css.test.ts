@@ -53,6 +53,12 @@ describe('better-search stylesheet values', () => {
     expect(stylesheet).not.toContain('!important');
   });
 
+  it('ends the list above the phone dock and cuts it through a row, not at a sliver of one', () => {
+    expect(stylesheet).toMatch(/^\.modal-content--search \{\s+--better-search-chrome: 246px;/m);
+    expect(stylesheet).toMatch(/\(width >= 576px\) \{\s+\.modal-content--search \{\s+--better-search-chrome: 260px;/);
+    expect(stylesheet).toContain('max-height: min(588px, calc(100dvh - var(--better-search-chrome)));');
+  });
+
   it('trades the site top margin for list height on a phone held sideways', () => {
     const sideways = stylesheet.slice(stylesheet.indexOf('@media (max-height: 480px)'));
     expect(sideways).toContain('.modal-content.modal-content--search');
