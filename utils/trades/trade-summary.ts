@@ -7,6 +7,7 @@ import {
   F_UNIT,
   R_RANK,
   SHARD_MARK,
+  UNKNOWN_LEGEND,
   UNKNOWN_MARK,
   compareR,
   compareSides,
@@ -32,7 +33,6 @@ const STAGGER_LIMIT = 6;
 const UNKNOWN = `${SUMMARY}__unknown`;
 const TOGGLE_LABEL = 'Подробности';
 const EMPTY_CELL = '-';
-const UNKNOWN_LEGEND = `${UNKNOWN_MARK} - нет цены в базе`;
 const SENT_LABEL = 'Отправлен';
 const DEPARTED_WORDS = { card: ['Карта', 'ушла'], shards: ['Осколки', 'ушли'] } as const;
 

@@ -193,6 +193,10 @@ describe('profile-dom', () => {
       const popover = widget()?.querySelector('.senkuro-profile-f-popover');
       const [, cards] = [...(popover?.querySelectorAll('.senkuro-row-val') ?? [])].map((cell) => cell.textContent);
       expect(cards).toBe('1S 2X 2oX');
+      expect([...(popover?.querySelectorAll('span[title]') ?? [])].map((item) => [item.textContent, item.getAttribute('title')])).toEqual([
+        ['2X', 'X - нет цены в базе'],
+        ['2oX', 'X - нет цены в базе'],
+      ]);
       expect(popover?.querySelector('.senkuro-popover-meta')?.textContent).toBe('Всего: 3 карт · 2 осколков');
     });
 

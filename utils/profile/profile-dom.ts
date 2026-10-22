@@ -1,7 +1,7 @@
 import type { Database } from '../shared/database';
 import { element } from '../shared/dom';
 import { chevronIcon, svgIcon } from '../shared/svg';
-import { R_RANK, type Valuation } from '../shared/trade-value';
+import { R_RANK, UNKNOWN_LEGEND, UNKNOWN_MARK, type Valuation } from '../shared/trade-value';
 import { calculateProfileValue, extractProfileSlug, fetchProfileCards, fetchProfileUser, type ProfileValueSummary } from './profile-cards';
 import { isComplete, readCollection, saveCollection, type Collection } from './profile-store';
 
@@ -116,12 +116,22 @@ export function findNicknameTarget(): NicknameTarget | null {
 
 const isR = (item: string): boolean => item.endsWith(R_RANK);
 
+const isUnknown = (item: string): boolean => item.endsWith(UNKNOWN_MARK);
+
+function rankItem(item: string): HTMLElement | string {
+  if (isR(item)) return element('span', R_HIGHLIGHT, item);
+  if (!isUnknown(item)) return item;
+  const unknown = element('span', undefined, item);
+  unknown.title = UNKNOWN_LEGEND;
+  return unknown;
+}
+
 const rFirst = (items: string[]): string[] => [...items.filter(isR), ...items.filter((item) => !isR(item))];
 
 function rankList(items: string[]): HTMLElement {
   const cell = element('span', 'senkuro-row-val');
   if (items.length === 0) cell.append(EMPTY);
-  items.forEach((item, index) => cell.append(...(index > 0 ? [' '] : []), isR(item) ? element('span', R_HIGHLIGHT, item) : item));
+  items.forEach((item, index) => cell.append(...(index > 0 ? [' '] : []), rankItem(item)));
   return cell;
 }
 
