@@ -1,20 +1,21 @@
 import { describe, expect, it } from 'vitest';
 
-import { compareR, compareSides, formatByRank, formatShardsByRank, hasR, valueSide } from '../utils/trade-value';
+import type { Database } from '../utils/database';
+import { compareR, compareSides, formatByRank, formatShardsByRank, hasR, valueSide, type CardRef, type Valuation } from '../utils/trade-value';
 
-const db = {
-  's-card': { price: 1.25, rank: 'S' },
-  'a-card': { price: 1.5, rank: 'A' },
-  'b-card': { price: 1.25, rank: 'B' },
-  'c-card': { price: 1.25, rank: 'C' },
-  'f-card': { price: 1.25, rank: 'F' },
-  'd-card': { price: 2, rank: 'D' },
-  'r-card': { price: 1.25, rank: 'R' },
+const db: Database = {
+  's-card': { price: 1.25, name: 'S', rank: 'S' },
+  'a-card': { price: 1.5, name: 'A', rank: 'A' },
+  'b-card': { price: 1.25, name: 'B', rank: 'B' },
+  'c-card': { price: 1.25, name: 'C', rank: 'C' },
+  'f-card': { price: 1.25, name: 'F', rank: 'F' },
+  'd-card': { price: 2, name: 'D', rank: 'D' },
+  'r-card': { price: 1.25, name: 'R', rank: 'R' },
 };
 
-const plain = { commission: true, valueBySplit: false, valueBasis: 'bank' };
+const plain: Valuation = { commission: true, valueBySplit: false, valueBasis: 'bank', excludeShards: false };
 
-const card = (slug, quantity = 1, shard = false) => ({ slug, quantity, shard });
+const card = (slug: string, quantity = 1, shard = false): CardRef => ({ slug, quantity, shard });
 
 describe('valueSide', () => {
   it('converts every forge rank into F at three cards per step', () => {
@@ -209,7 +210,7 @@ describe('valueSide', () => {
   });
 
   it('still flags a rank the forge and R both do not know', () => {
-    const side = valueSide({ cards: [card('x-card')], hidden: 0 }, { 'x-card': { price: 1.25, rank: 'X' } }, true);
+    const side = valueSide({ cards: [card('x-card')], hidden: 0 }, { 'x-card': { price: 1.25, name: 'X', rank: 'X' } }, plain);
     expect(side.beyondF).toBe(true);
     expect(side.complete).toBe(false);
     expect(hasR(side)).toBe(false);
@@ -217,7 +218,7 @@ describe('valueSide', () => {
 });
 
 describe('compareSides', () => {
-  const side = (f, complete = true) => ({ f, complete });
+  const side = (f: number, complete = true) => ({ f, complete });
 
   it('reports the gain relative to what is given', () => {
     expect(compareSides(side(243), side(777.6))).toEqual({ kind: 'gain', text: 'Выгода +534.6F (+220%)', certain: true });
@@ -271,7 +272,7 @@ describe('hasR', () => {
 });
 
 describe('compareR', () => {
-  const sideOf = (cards) => valueSide({ cards, hidden: 0 }, db, plain);
+  const sideOf = (cards: CardRef[]) => valueSide({ cards, hidden: 0 }, db, plain);
 
   it('says nothing when neither side has R', () => {
     expect(compareR(sideOf([card('s-card')]), sideOf([card('a-card')]))).toBeNull();
@@ -279,19 +280,19 @@ describe('compareR', () => {
 
   it('reports the gain and the loss in R', () => {
     expect(compareR(sideOf([card('r-card')]), sideOf([card('r-card', 3)]))).toEqual({ kind: 'gain', text: 'R: Выгода +2R (+200%)', certain: true });
-    expect(compareR(sideOf([card('r-card', 4)]), sideOf([card('r-card')])).text).toBe('R: Потеря -3R (-75%)');
+    expect(compareR(sideOf([card('r-card', 4)]), sideOf([card('r-card')]))?.text).toBe('R: Потеря -3R (-75%)');
   });
 
   it('drops the percentage when no R is given', () => {
-    expect(compareR(sideOf([card('s-card')]), sideOf([card('r-card', 2)])).text).toBe('R: Выгода +2R');
+    expect(compareR(sideOf([card('s-card')]), sideOf([card('r-card', 2)]))?.text).toBe('R: Выгода +2R');
   });
 
   it('calls equal R amounts even', () => {
-    expect(compareR(sideOf([card('r-card')]), sideOf([card('r-card')])).kind).toBe('even');
+    expect(compareR(sideOf([card('r-card')]), sideOf([card('r-card')]))?.kind).toBe('even');
   });
 
   it('is uncertain only when a side holds nothing but unvalued R', () => {
-    expect(compareR(sideOf([card('r-card')]), sideOf([card('r-card', 1, true)])).certain).toBe(false);
-    expect(compareR(sideOf([card('r-card'), card('missing')]), sideOf([card('r-card')])).certain).toBe(true);
+    expect(compareR(sideOf([card('r-card')]), sideOf([card('r-card', 1, true)]))?.certain).toBe(false);
+    expect(compareR(sideOf([card('r-card'), card('missing')]), sideOf([card('r-card')]))?.certain).toBe(true);
   });
 });
