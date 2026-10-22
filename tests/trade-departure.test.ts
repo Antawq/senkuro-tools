@@ -1,13 +1,24 @@
 import { describe, expect, it } from 'vitest';
 
+import type { Person, Trade } from '../utils/trade-capture';
 import { departureOf } from '../utils/trade-departure';
+import type { CardRef } from '../utils/trade-value';
 
-const card = (slug, shard = false) => ({ slug, quantity: 1, shard });
-const nafar = { id: 'n', name: 'Nafarmillion' };
-const brunya = { id: 'b', name: 'Brunya' };
-const laminat = { id: 'l', name: 'Laminat' };
-const kira = { id: 'k', name: 'Kira' };
-const trade = (id, status, createdAt, source, destination, offer, request) => ({ kind: 'trade', id, status, createdAt, source, destination, offer, request });
+const card = (slug: string, shard = false): CardRef => ({ slug, quantity: 1, shard });
+const nafar: Person = { id: 'n', name: 'Nafarmillion' };
+const brunya: Person = { id: 'b', name: 'Brunya' };
+const laminat: Person = { id: 'l', name: 'Laminat' };
+const kira: Person = { id: 'k', name: 'Kira' };
+const trade = (id: string, status: string, createdAt: string, source: Person, destination: Person, offer: CardRef[], request: CardRef[]): Trade => ({
+  kind: 'trade',
+  id,
+  status,
+  createdAt,
+  source,
+  destination,
+  offer,
+  request,
+});
 
 const rejected = trade('r', 'REJECTED', '2026-10-15T07:09:00', nafar, brunya, [card('undina'), card('siren')], [card('khvaran')]);
 
