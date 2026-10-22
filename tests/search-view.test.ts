@@ -406,3 +406,151 @@ describe('screen reader wiring', () => {
     expect(writes).toEqual([]);
   });
 });
+
+describe('clicks', () => {
+  const withControls = (slugs: string[], query = 'naruto') => {
+    open(slugs, query);
+    modal().insertAdjacentHTML(
+      'afterbegin',
+      '<div class="tabs"><button class="tabs-tab">Манга</button></div><span class="input-suffix"><svg class="icon-click"></svg></span>'
+    );
+    list().insertAdjacentHTML('beforeend', '<div class="nav-search__cnt-space"><button class="chip">naruto</button></div>');
+  };
+
+  const pointer = (target: Element, init: MouseEventInit = {}) => {
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1, ...init });
+    target.dispatchEvent(event);
+    return event;
+  };
+
+  const emulateHover = (matches: boolean) => {
+    Object.defineProperty(document.defaultView as unknown as object, 'matchMedia', {
+      value: (query: string) => ({ matches: matches && query === '(hover: hover)' }),
+      configurable: true,
+    });
+  };
+
+  let siteClicks: string[];
+
+  const siteHandler = (event: Event) => siteClicks.push((event.target as Element).className || (event.target as Element).tagName);
+
+  beforeEach(() => {
+    emulateHover(true);
+    siteClicks = [];
+    document.addEventListener('click', siteHandler);
+    document.addEventListener('click', view.click, { capture: true });
+  });
+
+  afterEach(() => {
+    document.removeEventListener('click', siteHandler);
+    document.removeEventListener('click', view.click, { capture: true });
+    Reflect.deleteProperty(document.defaultView as unknown as object, 'matchMedia');
+  });
+
+  it.each([
+    ['ctrlKey', { ctrlKey: true }],
+    ['metaKey', { metaKey: true }],
+    ['shiftKey', { shiftKey: true }],
+  ])('keeps the site from closing the search on a result clicked with %s, and leaves the browser its new tab', (_name, init) => {
+    withControls(['a', 'b']);
+    const event = pointer(document.querySelector('[data-index]') as Element, init);
+    expect(siteClicks).toEqual([]);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('leaves a plain click on a result to the site', () => {
+    withControls(['a']);
+    pointer(document.querySelector('[data-index]') as Element);
+    expect(siteClicks).toHaveLength(1);
+  });
+
+  it('leaves a modified click anywhere else to the site', () => {
+    withControls(['a']);
+    pointer(document.querySelector('.tabs-tab') as Element, { ctrlKey: true });
+    expect(siteClicks).toHaveLength(1);
+  });
+
+  it('leaves a modified click on a result alone when the search is closing or not open', () => {
+    withControls(['a']);
+    document.querySelector('.vfm')?.classList.add('vfm--prevent-none');
+    pointer(document.querySelector('[data-index]') as Element, { ctrlKey: true });
+    expect(siteClicks).toHaveLength(1);
+  });
+
+  it.each([
+    ['a tab', '.tabs-tab'],
+    ['the clear and microphone icons', '.icon-click'],
+    ['a popular query', '.nav-search__cnt-space button'],
+  ])('gives the field back after a mouse click on %s', async (_name, selector) => {
+    withControls(['a']);
+    (document.querySelector(selector) as HTMLElement).focus?.();
+    pointer(document.querySelector(selector) as Element);
+    await settle();
+    expect(document.activeElement).toBe(field());
+  });
+
+  it('leaves the focus alone after a click on a result or on empty space of the modal', async () => {
+    withControls(['a']);
+    const button = document.querySelector('.tabs-tab') as HTMLElement;
+    button.focus();
+    pointer(document.querySelector('[data-index]') as Element);
+    pointer(list());
+    await settle();
+    expect(document.activeElement).toBe(button);
+  });
+
+  it('leaves the focus alone after a click made with the keyboard, which reports no click count', async () => {
+    withControls(['a']);
+    const button = document.querySelector('.tabs-tab') as HTMLElement;
+    button.focus();
+    pointer(button, { detail: 0 });
+    await settle();
+    expect(document.activeElement).toBe(button);
+  });
+
+  it('leaves the focus alone on a device without a mouse, so the keyboard does not pop up again', async () => {
+    emulateHover(false);
+    withControls(['a']);
+    const button = document.querySelector('.tabs-tab') as HTMLElement;
+    button.focus();
+    pointer(button);
+    await settle();
+    expect(document.activeElement).toBe(button);
+  });
+
+  it('does not give the field back once the extension is gone', async () => {
+    withControls(['a']);
+    const button = document.querySelector('.tabs-tab') as HTMLElement;
+    button.focus();
+    pointer(button);
+    alive = false;
+    await settle();
+    expect(document.activeElement).toBe(button);
+  });
+
+  it('shows the stale state after a click that empties the field without any input event', async () => {
+    withControls(['a']);
+    view.touch();
+    document.querySelector('.icon-click')?.addEventListener('click', () => (field().value = ''));
+    pointer(document.querySelector('.icon-click') as Element);
+    await settle();
+    expect(modal().hasAttribute('data-stale')).toBe(true);
+  });
+
+  it('leaves a modified click on a list elsewhere on the page alone, with the search open', () => {
+    withControls(['a']);
+    document.body.insertAdjacentHTML('beforeend', '<a class="elsewhere" data-index="0" href="/x">x</a>');
+    pointer(document.querySelector('.elsewhere') as Element, { ctrlKey: true });
+    expect(siteClicks).toHaveLength(1);
+  });
+
+  it('ignores clicks outside the modal and once the extension is gone', () => {
+    withControls(['a']);
+    document.body.insertAdjacentHTML('beforeend', '<button class="outside">x</button>');
+    pointer(document.querySelector('.outside') as Element, { ctrlKey: true });
+    expect(siteClicks).toHaveLength(1);
+    alive = false;
+    pointer(document.querySelector('[data-index]') as Element, { ctrlKey: true });
+    expect(siteClicks).toHaveLength(2);
+  });
+});

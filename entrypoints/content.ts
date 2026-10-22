@@ -85,6 +85,7 @@ export default defineContentScript({
     ctx.onInvalidated(searchView.dispose);
     ctx.addEventListener(document, 'focusin', searchView.touch, { capture: true });
     ctx.addEventListener(document, 'input', searchView.touch, { capture: true });
+    ctx.addEventListener(document, 'click', searchView.click, { capture: true });
     ctx.addEventListener(document, 'keydown', searchKeys.keydown, { capture: true });
     ctx.addEventListener(document, 'input', searchKeys.input, { capture: true });
 

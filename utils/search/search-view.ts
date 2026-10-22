@@ -1,4 +1,4 @@
-import { ACTIVE, LIST, TITLE, fieldOf, isTooShort, rowsOf, topModal } from './search-dom';
+import { ACTIVE, LIST, ROW, TITLE, fieldOf, isTooShort, rowsOf, topModal } from './search-dom';
 import { MAX_PENDING_MS, type SearchSignals } from './search-signal';
 
 const STALE = 'data-stale';
@@ -8,6 +8,8 @@ const LIST_ID = 'senkutools-search-list';
 const OPTION_ID = 'senkutools-search-option-';
 const MIN_WORD_LENGTH = 2;
 const SLOW_SEARCH_MS = 300;
+const REFOCUS = '.tabs-tab, .icon-click, .nav-search__cnt-space button';
+const HOVER = '(hover: hover)';
 
 export interface SearchViewHost {
   later: (run: () => void, ms: number) => void;
@@ -17,6 +19,7 @@ export interface SearchViewHost {
 
 export interface SearchView {
   touch: () => void;
+  click: (event: MouseEvent) => void;
   dispose: () => void;
 }
 
@@ -145,15 +148,29 @@ export function createSearchView(doc: Document, { later, alive, signals }: Searc
     later(render, MAX_PENDING_MS + 50);
   });
 
-  return {
-    touch() {
-      if (!alive()) {
-        dispose();
-        return;
-      }
-      adopt();
-      render();
-    },
-    dispose,
+  const touch = (): void => {
+    if (!alive()) {
+      dispose();
+      return;
+    }
+    adopt();
+    render();
   };
+
+  const click = (event: MouseEvent): void => {
+    const modal = alive() ? topModal(doc) : null;
+    const target = event.target;
+    if (!modal || !(target instanceof Element) || !modal.contains(target)) return;
+    if ((event.ctrlKey || event.metaKey || event.shiftKey) && target.closest(ROW)) {
+      event.stopImmediatePropagation();
+      return;
+    }
+    const pointed = event.detail > 0 && target.closest(REFOCUS) !== null && doc.defaultView?.matchMedia(HOVER).matches === true;
+    later(() => {
+      touch();
+      if (pointed && alive()) fieldOf(modal)?.focus({ preventScroll: true });
+    }, 0);
+  };
+
+  return { touch, click, dispose };
 }
