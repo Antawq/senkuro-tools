@@ -108,7 +108,8 @@ const summaryOf = (el: HTMLElement) => {
   const width = Number(table.style.getPropertyValue('--senkuro-columns')) + 1;
   const cells = [...table.children];
   const rows = Array.from({ length: cells.length / width }, (_, index) => cells.slice(index * width, (index + 1) * width));
-  const [head = [], ...body] = rows;
+  const [head, ...body] = rows;
+  if (!head) throw new Error('the summary table has no rows');
   return {
     sides: head
       .slice(1)
@@ -289,7 +290,7 @@ describe('updateTradeSummaries', () => {
     lists.forEach((list) => list.replaceChildren());
     updateTradeSummaries(db, settings, store);
     expect(summary.classList.contains('senkuro-trade-summary--closed')).toBe(true);
-    lists[1]?.insertAdjacentHTML('beforeend', card('f-card'));
+    (lists[1] as Element).insertAdjacentHTML('beforeend', card('f-card'));
     updateTradeSummaries(db, settings, store);
     expect(el.querySelector('.senkuro-trade-summary')).toBe(summary);
     expect(summary.classList.contains('senkuro-trade-summary--closed')).toBe(false);
@@ -309,7 +310,7 @@ describe('updateTradeSummaries', () => {
     toggle().click();
     expect(bubbled).toBe(false);
     expect(summary.classList.contains('senkuro-trade-summary--expanded')).toBe(true);
-    el.querySelectorAll('.modal-trade__preview-cnt')[1]?.insertAdjacentHTML('beforeend', card('f-card'));
+    (el.querySelectorAll('.modal-trade__preview-cnt')[1] as Element).insertAdjacentHTML('beforeend', card('f-card'));
     updateTradeSummaries(db, settings, store);
     expect(state()).toEqual(['Подробности', 'true']);
   });
@@ -493,7 +494,9 @@ describe('R window', () => {
     const el = composing([card('r-card')], [card('s-card')]);
     updateTradeSummaries(db, settings, store);
     expect(windowOf(el)).not.toBeNull();
-    el.querySelectorAll('.modal-trade__preview-cnt')[0]?.replaceChildren(...[...document.createRange().createContextualFragment(card('a-card')).children]);
+    (el.querySelectorAll('.modal-trade__preview-cnt')[0] as Element).replaceChildren(
+      ...[...document.createRange().createContextualFragment(card('a-card')).children]
+    );
     updateTradeSummaries(db, settings, store);
     expect(windowOf(el)).toBeNull();
   });
