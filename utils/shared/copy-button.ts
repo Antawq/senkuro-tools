@@ -30,7 +30,10 @@ const copyIcon = (size: number) =>
 
 const doneIcon = (size: number) => icon(size, [['polyline', { points: '20 6 9 17 4 12' }]]);
 
-function place(button: HTMLElement, positionX: BadgePositionX, positionY: BadgePositionY, gap: FaceGap): void {
+const clearOfBadge = (badgeY: BadgePositionY): BadgePositionY => (badgeY === 'top' ? 'bottom' : 'top');
+
+function place(button: HTMLElement, positionX: BadgePositionX, badgeY: BadgePositionY, gap: FaceGap): void {
+  const positionY = positionX === 'center' ? clearOfBadge(badgeY) : badgeY;
   const right = positionX === 'right';
   const bottom = positionY === 'bottom';
 

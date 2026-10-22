@@ -92,6 +92,17 @@ describe('createPriceBadges', () => {
     expect(button.style.getPropertyValue('translate')).toBe(translate);
   });
 
+  it.each([
+    ['top', 'bottom'],
+    ['center', 'top'],
+    ['bottom', 'top'],
+  ] as const)('keeps the copy button clear of a badge centred at the %s by moving it to the %s edge', (badgeY, edge) => {
+    document.body.innerHTML = preview();
+    createPriceBadges({ onImageLoad: () => {}, touch: false }).update(db, { ...DEFAULT_SETTINGS, copyBtn: true, positionX: 'center', positionY: badgeY });
+    const button = holderOf().querySelector('.senkuro-copy-btn') as HTMLElement;
+    expect([button.style.left, button.style.top, button.style.bottom]).toEqual(['50%', edge === 'top' ? '5px' : 'auto', edge === 'bottom' ? '5px' : 'auto']);
+  });
+
   const stacked = (cls: string, layer: number) =>
     preview().replace('class="card-collect-preview"', `class="card-collect-preview ${cls}" style="z-index: ${layer}"`);
   const fan = (layers: number[]) =>
