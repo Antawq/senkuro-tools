@@ -322,3 +322,87 @@ describe('matching words', () => {
     expect(registry.has('senkutools-match')).toBe(false);
   });
 });
+
+describe('screen reader wiring', () => {
+  const optionIds = () => [...document.querySelectorAll('[data-index]')].map((row) => row.getAttribute('id'));
+
+  it('makes the field a combobox over the result list while results are shown', () => {
+    open(['a', 'b'], 'naruto');
+    view.touch();
+    expect(field().getAttribute('role')).toBe('combobox');
+    expect(field().getAttribute('aria-autocomplete')).toBe('list');
+    expect(field().getAttribute('aria-expanded')).toBe('true');
+    expect(field().getAttribute('aria-controls')).toBe(list().id);
+    expect(list().getAttribute('role')).toBe('listbox');
+  });
+
+  it('gives each result the option role and an id of its own', () => {
+    open(['a', 'b', 'c'], 'naruto');
+    view.touch();
+    expect([...document.querySelectorAll('[data-index]')].map((row) => row.getAttribute('role'))).toEqual(['option', 'option', 'option']);
+    expect(new Set(optionIds()).size).toBe(3);
+    expect(optionIds().every((id) => id && document.querySelectorAll(`[id="${id}"]`).length === 1)).toBe(true);
+  });
+
+  it('follows the highlighted result the keys set', async () => {
+    open(['a', 'b', 'c'], 'naruto');
+    view.touch();
+    const rows = [...document.querySelectorAll<HTMLElement>('[data-index]')];
+    expect(rows.map((row) => row.getAttribute('aria-selected'))).toEqual(['false', 'false', 'false']);
+    expect(field().hasAttribute('aria-activedescendant')).toBe(false);
+    rows[1]?.classList.add('card-search--active');
+    await settle();
+    expect(rows.map((row) => row.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false']);
+    expect(field().getAttribute('aria-activedescendant')).toBe(rows[1]?.id);
+    rows[1]?.classList.remove('card-search--active');
+    await settle();
+    expect(field().hasAttribute('aria-activedescendant')).toBe(false);
+  });
+
+  it('describes a field with nothing to choose from as collapsed and the list as no listbox', () => {
+    open([], 'naruto');
+    view.touch();
+    expect(field().getAttribute('role')).toBe('combobox');
+    expect(field().getAttribute('aria-expanded')).toBe('false');
+    expect(field().hasAttribute('aria-controls')).toBe(false);
+    expect(list().hasAttribute('role')).toBe(false);
+    expect(list().hasAttribute('id')).toBe(false);
+  });
+
+  it('takes the list back as soon as the results are stale', () => {
+    open(['a', 'b'], 'naruto');
+    document.querySelector('[data-index]')?.classList.add('card-search--active');
+    view.touch();
+    expect(field().hasAttribute('aria-activedescendant')).toBe(true);
+    field().value = '';
+    view.touch();
+    expect(field().getAttribute('aria-expanded')).toBe('false');
+    expect(list().hasAttribute('role')).toBe(false);
+    expect(document.querySelector('[data-index]')?.hasAttribute('role')).toBe(false);
+    expect(document.querySelector('[data-index]')?.hasAttribute('aria-selected')).toBe(false);
+    expect(field().hasAttribute('aria-activedescendant')).toBe(false);
+  });
+
+  it('wires the results the page draws afterwards', async () => {
+    open([], 'naruto');
+    view.touch();
+    list().innerHTML = rowsOf('a', 'b');
+    await settle();
+    expect(field().getAttribute('aria-expanded')).toBe('true');
+    expect(optionIds()).toHaveLength(2);
+  });
+
+  it('writes nothing when nothing has changed', async () => {
+    open(['a', 'b'], 'naruto');
+    view.touch();
+    const writes: string[] = [];
+    new MutationObserver((records) => records.forEach((record) => writes.push(record.attributeName ?? ''))).observe(modal(), {
+      attributes: true,
+      subtree: true,
+    });
+    view.touch();
+    view.touch();
+    await settle();
+    expect(writes).toEqual([]);
+  });
+});

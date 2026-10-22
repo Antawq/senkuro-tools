@@ -1,9 +1,11 @@
-import { LIST, TITLE, fieldOf, isTooShort, rowsOf, topModal } from './search-dom';
+import { ACTIVE, LIST, TITLE, fieldOf, isTooShort, rowsOf, topModal } from './search-dom';
 import { MAX_PENDING_MS, type SearchSignals } from './search-signal';
 
 const STALE = 'data-stale';
 const SEARCHING = 'data-searching';
 const MATCH = 'senkutools-match';
+const LIST_ID = 'senkutools-search-list';
+const OPTION_ID = 'senkutools-search-option-';
 const MIN_WORD_LENGTH = 2;
 const SLOW_SEARCH_MS = 300;
 
@@ -23,6 +25,12 @@ const flag = (element: HTMLElement, name: string, on: boolean): void => {
 };
 
 const signatureOf = (rows: HTMLElement[]): string => rows.map((row) => row.getAttribute('href') ?? '').join('|');
+
+const attribute = (element: HTMLElement, name: string, value: string | null): void => {
+  if (value === null) {
+    if (element.hasAttribute(name)) element.removeAttribute(name);
+  } else if (element.getAttribute(name) !== value) element.setAttribute(name, value);
+};
 
 const wordsOf = (query: string): string[] => [
   ...new Set(
@@ -67,6 +75,28 @@ export function createSearchView(doc: Document, { later, alive, signals }: Searc
     else view.CSS.highlights.delete(MATCH);
   };
 
+  const announce = (modal: HTMLElement, rows: HTMLElement[], shown: boolean): void => {
+    const active = rows.find((row) => row.classList.contains(ACTIVE));
+    const field = fieldOf(modal);
+    if (field) {
+      attribute(field, 'role', 'combobox');
+      attribute(field, 'aria-autocomplete', 'list');
+      attribute(field, 'aria-expanded', String(shown));
+      attribute(field, 'aria-controls', shown ? LIST_ID : null);
+      attribute(field, 'aria-activedescendant', shown && active ? active.id : null);
+    }
+    const list = modal.querySelector<HTMLElement>(LIST);
+    if (list) {
+      attribute(list, 'role', shown ? 'listbox' : null);
+      attribute(list, 'id', shown ? LIST_ID : null);
+    }
+    rows.forEach((row, index) => {
+      attribute(row, 'role', shown ? 'option' : null);
+      attribute(row, 'id', shown ? `${OPTION_ID}${index}` : null);
+      attribute(row, 'aria-selected', shown ? String(row === active) : null);
+    });
+  };
+
   const unpaint = (): void => {
     doc.defaultView?.CSS?.highlights?.delete(MATCH);
   };
@@ -77,7 +107,9 @@ export function createSearchView(doc: Document, { later, alive, signals }: Searc
     const query = fieldOf(modal)?.value ?? '';
     const rows = rowsOf(modal);
     const tooShort = isTooShort(query);
-    flag(modal, STALE, tooShort && rows.length > 0);
+    const stale = tooShort && rows.length > 0;
+    flag(modal, STALE, stale);
+    announce(modal, rows, rows.length > 0 && !stale);
     flag(modal, SEARCHING, !tooShort && signals.waited() >= SLOW_SEARCH_MS);
     paint(modal, query);
     const signature = signatureOf(rows);
