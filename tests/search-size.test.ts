@@ -1,0 +1,147 @@
+import { describe, expect, it } from 'vitest';
+
+import { Window } from 'happy-dom';
+
+import { SEARCH_PAGE_SIZE, installSearchSize, widenSearch, widenSearches } from '../utils/search/search-size';
+import type { QueryClient, QueryRequest } from '../utils/shared/urql-client';
+
+const argument = (name: string, value: string) => ({ kind: 'Argument', name: { value: name }, value: { kind: 'IntValue', value } });
+
+const searchDocument = (first = '10', field = 'search') => ({
+  __key: 123,
+  definitions: [
+    { kind: 'FragmentDefinition', name: { value: 'Part' } },
+    {
+      kind: 'OperationDefinition',
+      name: { value: 'search' },
+      selectionSet: {
+        selections: [
+          {
+            kind: 'Field',
+            name: { value: field },
+            arguments: [{ kind: 'Argument', name: { value: 'query' }, value: { kind: 'Variable' } }, argument('first', first)],
+            selectionSet: { selections: [{ kind: 'Field', name: { value: 'edges' }, arguments: [argument('first', '5')] }] },
+          },
+        ],
+      },
+    },
+  ],
+});
+
+const request = (name: string, document = searchDocument(), key = 7): QueryRequest => ({
+  key,
+  variables: { query: 'naruto', type: 'MANGA' },
+  query: { ...document, definitions: document.definitions.map((part) => (part.kind === 'OperationDefinition' ? { ...part, name: { value: name } } : part)) },
+});
+
+const firstOf = (asked: QueryRequest): string[] => {
+  const found: string[] = [];
+  const walk = (node: unknown): void => {
+    if (!node || typeof node !== 'object') return;
+    const item = node as { kind?: string; name?: { value?: string }; value?: { value?: string } };
+    if (item.kind === 'Argument' && item.name?.value === 'first') found.push(String(item.value?.value));
+    Object.values(item).forEach(walk);
+  };
+  walk(asked.query);
+  return found;
+};
+
+const keyOf = (asked: QueryRequest) => (asked.query as { __key?: number }).__key;
+
+describe('widenSearch', () => {
+  it('raises the page size of the search field only, on a copy that has a key of its own', () => {
+    const original = request('search');
+    const wider = widenSearch(original);
+    expect(firstOf(wider)).toEqual([String(SEARCH_PAGE_SIZE), '5']);
+    expect(firstOf(original)).toEqual(['10', '5']);
+    expect(wider.query).not.toBe(original.query);
+    expect(wider.key).not.toBe(original.key);
+    expect(wider.variables).toBe(original.variables);
+    expect(keyOf(wider)).toBeUndefined();
+    expect(keyOf(original)).toBe(123);
+  });
+
+  it('gives the same answer for the same request, and different keys for different requests', () => {
+    const one = request('search');
+    expect(widenSearch(one)).toEqual(widenSearch(one));
+    const other = request('search', searchDocument(), 8);
+    expect(widenSearch(other).key).not.toBe(widenSearch(one).key);
+  });
+
+  it('uses the size it is given', () => {
+    expect(firstOf(widenSearch(request('search'), 40))).toEqual(['40', '5']);
+  });
+
+  it('leaves every other operation exactly as it is', () => {
+    const other = request('fetchUserCards');
+    expect(widenSearch(other)).toBe(other);
+  });
+
+  it('leaves a search that already asks for as much, or whose page size it cannot find', () => {
+    const big = request('search', searchDocument('50'));
+    expect(widenSearch(big)).toBe(big);
+    const renamed = request('search', searchDocument('10', 'lookup'));
+    expect(widenSearch(renamed)).toBe(renamed);
+    const keyless = { ...request('search'), key: undefined };
+    expect(widenSearch(keyless)).toBe(keyless);
+    const empty: QueryRequest = { key: 1 };
+    expect(widenSearch(empty)).toBe(empty);
+  });
+});
+
+const clientWith = () => {
+  const asked: QueryRequest[] = [];
+  const client: QueryClient = {
+    executeQuery(received) {
+      asked.push(received);
+      return 'source';
+    },
+    executeMutation: () => null,
+    query: () => ({ toPromise: () => Promise.resolve({}) }),
+  };
+  return { client, asked };
+};
+
+describe('widenSearches', () => {
+  it('sends the wider search to the site client and keeps the answer', () => {
+    const { client, asked } = clientWith();
+    expect(widenSearches(client)).toBe(true);
+    expect(client.executeQuery(request('search'))).toBe('source');
+    expect(firstOf(asked[0] as QueryRequest)).toEqual([String(SEARCH_PAGE_SIZE), '5']);
+  });
+
+  it('passes other requests through unchanged and patches a client only once', () => {
+    const { client, asked } = clientWith();
+    widenSearches(client);
+    widenSearches(client);
+    const other = request('fetchUserCards');
+    client.executeQuery(other);
+    client.executeQuery(request('search'));
+    expect(asked[0]).toBe(other);
+    expect(asked).toHaveLength(2);
+  });
+
+  it('reports a client whose method cannot be replaced', () => {
+    const { client } = clientWith();
+    Object.freeze(client);
+    expect(widenSearches(client)).toBe(false);
+  });
+});
+
+describe('installSearchSize', () => {
+  it('widens the searches once the site client exists, and installs once per page', async () => {
+    const win = new Window({ url: 'https://senkuro.me/' });
+    win.document.body.innerHTML = '<div id="app"></div>';
+    const { client, asked } = clientWith();
+    (win.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = { _context: { provides: { $urql: { value: client } } } };
+    win.fetch = (() => Promise.resolve(new Response('{}'))) as unknown as typeof win.fetch;
+    const typed = win as unknown as Parameters<typeof installSearchSize>[0];
+    installSearchSize(typed);
+    installSearchSize(typed);
+    await win.fetch('https://api.senkuro.me/graphql');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    client.executeQuery(request('search'));
+    expect(asked).toHaveLength(1);
+    expect(firstOf(asked[0] as QueryRequest)).toEqual([String(SEARCH_PAGE_SIZE), '5']);
+  });
+});
