@@ -1,8 +1,8 @@
-import { visibleName } from './copy-button';
-import type { Database } from './database';
-import { element } from './dom';
-import { chevronIcon } from './svg';
-import { formatTradeTime, parseApiTime } from './time';
+import { visibleName } from '../badges/copy-button';
+import type { Database } from '../shared/database';
+import { element } from '../shared/dom';
+import { chevronIcon } from '../shared/svg';
+import { formatTradeTime, parseApiTime } from '../shared/time';
 import type { TradeStore } from './trade-capture';
 import type { Departure } from './trade-departure';
 import { TRADE_PLACES, readTradePlaces, type Column, type Place, type Role } from './trade-dom';

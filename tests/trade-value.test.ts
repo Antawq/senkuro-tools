@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Database } from '../utils/database';
-import { compareR, compareSides, formatByRank, formatShardsByRank, hasR, valueSide, type CardRef, type Valuation } from '../utils/trade-value';
+import type { Database } from '../utils/shared/database';
+import { compareR, compareSides, formatByRank, formatShardsByRank, hasR, valueSide, type CardRef, type Valuation } from '../utils/trades/trade-value';
 
 const db: Database = {
   's-card': { price: 1.25, name: 'S', rank: 'S' },

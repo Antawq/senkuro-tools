@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { Database } from '../utils/database';
-import { addedCards, createRenderLoop, type RenderSteps } from '../utils/render-loop';
+import type { Database } from '../utils/shared/database';
+import { addedCards, createRenderLoop, type RenderSteps } from '../utils/shared/render-loop';
 
 const db: Database = {};
 

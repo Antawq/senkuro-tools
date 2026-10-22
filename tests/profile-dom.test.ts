@@ -9,7 +9,7 @@ import {
   removeProfileBadge,
   updateProfileBadge,
   WIDGET_ID,
-} from '../utils/profile-dom';
+} from '../utils/profile/profile-dom';
 
 const db = {
   'soran-f': { price: 1, name: 'Соран', rank: 'F' },

@@ -1,4 +1,4 @@
-import { parseApiTime } from './time';
+import { parseApiTime } from '../shared/time';
 import type { Person, Trade } from './trade-capture';
 import type { CardRef } from './trade-value';
 

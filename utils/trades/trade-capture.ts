@@ -1,4 +1,4 @@
-import { debugLogger } from './debug';
+import { debugLogger } from '../shared/debug';
 import type { CardRef } from './trade-value';
 
 export const TRADES_EVENT = 'senkutools:trades';

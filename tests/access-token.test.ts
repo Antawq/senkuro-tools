@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 
-import { readAccessToken, readDocumentToken } from '../utils/access-token';
+import { readAccessToken, readDocumentToken } from '../utils/token/access-token';
 
 const cookie = (domain: string, value: string) => ({ name: 'access_token', value, domain });
 

@@ -1,7 +1,7 @@
 import { browser } from 'wxt/browser';
 
-import { SITE_ORIGIN, isSenkuroDomain } from './hosts';
-import { decodeSafely } from './uri';
+import { SITE_ORIGIN, isSenkuroDomain } from '../shared/hosts';
+import { decodeSafely } from '../shared/uri';
 
 const TOKEN_COOKIE = 'access_token';
 const IN_DOCUMENT = new RegExp(`(?:^|;\\s*)${TOKEN_COOKIE}=([^;]+)`);

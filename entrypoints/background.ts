@@ -1,9 +1,9 @@
 import { defineBackground } from '#imports';
 import { browser } from 'wxt/browser';
 
-import { readAccessToken } from '@/utils/access-token';
-import { isTokenRequest, type TokenResponse } from '@/utils/messages';
-import { forgetRetiredData } from '@/utils/retired-data';
+import { readAccessToken } from '@/utils/token/access-token';
+import { isTokenRequest, type TokenResponse } from '@/utils/token/messages';
+import { forgetRetiredData } from '@/utils/shared/retired-data';
 
 export default defineBackground(() => {
   browser.runtime.onInstalled.addListener(() => void forgetRetiredData());

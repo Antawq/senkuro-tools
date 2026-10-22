@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { SENKURO_DOMAINS, SENKURO_MATCHES, isSenkuroDomain } from '../utils/hosts';
+import { SENKURO_DOMAINS, SENKURO_MATCHES, isSenkuroDomain } from '../utils/shared/hosts';
 
 describe('hosts', () => {
   it('builds one match pattern per supported domain', () => {

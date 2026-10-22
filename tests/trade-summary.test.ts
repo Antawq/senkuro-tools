@@ -4,10 +4,10 @@ import { fileURLToPath } from 'node:url';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { Database } from '../utils/database';
-import { DEFAULT_SETTINGS } from '../utils/settings';
-import { REPLAY_EVENT, createTradeStore, type Trade, type TradeStore } from '../utils/trade-capture';
-import { isTradeMutation, updateTradeSummaries } from '../utils/trade-summary';
+import type { Database } from '../utils/shared/database';
+import { DEFAULT_SETTINGS } from '../utils/shared/settings';
+import { REPLAY_EVENT, createTradeStore, type Trade, type TradeStore } from '../utils/trades/trade-capture';
+import { isTradeMutation, updateTradeSummaries } from '../utils/trades/trade-summary';
 
 const db: Database = {
   's-card': { price: 1.25, name: '', rank: 'S' },

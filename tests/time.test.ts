@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatTradeTime, parseApiTime } from '../utils/time';
+import { formatTradeTime, parseApiTime } from '../utils/shared/time';
 
 describe('parseApiTime', () => {
   it('reads the naive UTC time of the API down to the millisecond', () => {

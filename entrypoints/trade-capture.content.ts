@@ -1,6 +1,6 @@
 import { defineContentScript } from '#imports';
-import { SENKURO_MATCHES } from '@/utils/hosts';
-import { installCapture } from '@/utils/trade-capture';
+import { SENKURO_MATCHES } from '@/utils/shared/hosts';
+import { installCapture } from '@/utils/trades/trade-capture';
 
 export default defineContentScript({
   matches: SENKURO_MATCHES,

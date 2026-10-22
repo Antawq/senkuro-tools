@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { DEBUG_KEY, debugLogger } from '../utils/debug';
+import { DEBUG_KEY, debugLogger } from '../utils/shared/debug';
 
 afterEach(() => {
   localStorage.clear();

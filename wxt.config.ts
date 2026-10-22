@@ -2,8 +2,8 @@ import { copyFile, readFile } from 'node:fs/promises';
 
 import { defineConfig } from 'wxt';
 
-import { DATABASE_FILE as DATABASE } from './utils/assets';
-import { SENKURO_MATCHES } from './utils/hosts';
+import { DATABASE_FILE as DATABASE } from './utils/shared/assets';
+import { SENKURO_MATCHES } from './utils/shared/hosts';
 
 export default defineConfig({
   imports: false,

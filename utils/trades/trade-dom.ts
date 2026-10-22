@@ -1,5 +1,5 @@
-import { slugFromHref } from './cards';
-import { debugLogger } from './debug';
+import { slugFromHref } from '../shared/cards';
+import { debugLogger } from '../shared/debug';
 import { REPLAY_EVENT, type Trade, type TradeStore } from './trade-capture';
 import { departureOf, type Departure } from './trade-departure';
 import { matchOffer, matchTrade, matchTradeByCounts, shows } from './trade-match';

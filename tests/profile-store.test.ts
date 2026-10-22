@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 
-import { isComplete, readCollection, saveCollection, type Collection } from '../utils/profile-store';
-import { MS_PER_MINUTE } from '../utils/time';
+import { isComplete, readCollection, saveCollection, type Collection } from '../utils/profile/profile-store';
+import { MS_PER_MINUTE } from '../utils/shared/time';
 
 const collection = (over: Partial<Collection> = {}): Collection => ({
   at: Date.now(),

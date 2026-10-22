@@ -1,6 +1,6 @@
 import { storage } from 'wxt/utils/storage';
 
-import { MS_PER_MINUTE } from './time';
+import { MS_PER_MINUTE } from '../shared/time';
 import { packCards, unpackCards, type PageState } from './user-cards';
 
 const LIFETIME_MINUTES = 10;

@@ -3,7 +3,7 @@ import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { createIntegratedUi, type IntegratedContentScriptUi } from 'wxt/utils/content-script-ui/integrated';
 
 import { readDocumentToken } from './access-token';
-import { element } from './dom';
+import { element } from '../shared/dom';
 import { TOKEN_REQUEST, type TokenRequest, type TokenResponse } from './messages';
 
 const BAR = 'senkuro-token-bar';

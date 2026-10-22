@@ -2,10 +2,10 @@ import '@/assets/tokens.css';
 import './style.css';
 import { browser } from 'wxt/browser';
 
-import { COMMISSION_SHARE_KEPT, PERCENT } from '@/utils/cards';
-import { DEFAULT_SETTINGS, loadSettings, resetSettings, saveSetting, type Settings } from '@/utils/settings';
-import { tierRange, type TierName } from '@/utils/tiers';
-import { CRAFT_PER_RANK, SPLIT_PER_RANK } from '@/utils/trade-value';
+import { COMMISSION_SHARE_KEPT, PERCENT } from '@/utils/shared/cards';
+import { DEFAULT_SETTINGS, loadSettings, resetSettings, saveSetting, type Settings } from '@/utils/shared/settings';
+import { tierRange, type TierName } from '@/utils/badges/tiers';
+import { CRAFT_PER_RANK, SPLIT_PER_RANK } from '@/utils/trades/trade-value';
 
 const SAVE_DELAY_MS = 150;
 const TOKEN_WARNING =

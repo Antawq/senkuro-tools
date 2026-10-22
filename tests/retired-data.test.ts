@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 
-import { forgetRetiredData } from '../utils/retired-data';
-import { loadSettings, saveSetting } from '../utils/settings';
+import { forgetRetiredData } from '../utils/shared/retired-data';
+import { loadSettings, saveSetting } from '../utils/shared/settings';
 
 beforeEach(() => {
   fakeBrowser.reset();

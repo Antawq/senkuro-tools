@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type { UserCard } from '../utils/user-cards';
-import { calculateProfileValue, extractProfileSlug, fetchProfileCards, fetchProfileUser } from '../utils/profile-cards';
+import type { UserCard } from '../utils/profile/user-cards';
+import { calculateProfileValue, extractProfileSlug, fetchProfileCards, fetchProfileUser } from '../utils/profile/profile-cards';
 
 const plain = { commission: false, valueBySplit: false, valueBasis: 'bank' as const, excludeShards: false };
 

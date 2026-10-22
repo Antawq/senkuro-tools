@@ -1,8 +1,8 @@
 import { BADGE_INSET, CENTER, CENTER_SHIFT_X, centerShiftY, faceGap, gapKey, insetAbove, insetBelow, NO_GAP, type FaceGap } from './badge-layout';
-import { CARD_LINK, PERCENT, PRICE_DECIMALS, effectivePrice, slugFromHref } from './cards';
+import { CARD_LINK, PERCENT, PRICE_DECIMALS, effectivePrice, slugFromHref } from '../shared/cards';
 import { removeCopyButton, syncCopyButton } from './copy-button';
-import type { CardEntry, Database } from './database';
-import type { BadgePositionX, BadgePositionY, Settings } from './settings';
+import type { CardEntry, Database } from '../shared/database';
+import type { BadgePositionX, BadgePositionY, Settings } from '../shared/settings';
 import { tierOf } from './tiers';
 
 const BADGE_ATTRIBUTES = ['data-senkuro-price', 'data-senkuro-style', 'data-senkuro-eff', 'data-senkuro-tier'];

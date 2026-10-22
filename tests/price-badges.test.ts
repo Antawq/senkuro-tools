@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { visibleName } from '../utils/copy-button';
-import { createPriceBadges } from '../utils/price-badges';
-import { DEFAULT_SETTINGS } from '../utils/settings';
+import { visibleName } from '../utils/badges/copy-button';
+import { createPriceBadges } from '../utils/badges/price-badges';
+import { DEFAULT_SETTINGS } from '../utils/shared/settings';
 
 const db = { soran: { price: 1.25, name: 'Соран', rank: 'F' } };
 const image = 'https://shiro.senkuro.net/cards/soran.webp';

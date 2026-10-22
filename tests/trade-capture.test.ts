@@ -12,7 +12,7 @@ import {
   listenForTrades,
   type Capture,
   type Trade,
-} from '../utils/trade-capture';
+} from '../utils/trades/trade-capture';
 
 const preview = (slug: string, quantity = 1, shard = false) => ({
   __typename: 'CardPreview',

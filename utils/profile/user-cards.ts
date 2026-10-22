@@ -1,4 +1,4 @@
-import { ApiError, execute, type Transport } from './graphql';
+import { ApiError, execute, type Transport } from '../shared/graphql';
 
 export interface UserCard {
   slug: string;

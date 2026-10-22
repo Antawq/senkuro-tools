@@ -6,15 +6,15 @@ import '@/assets/token-bar.css';
 import '@/assets/trade-summary.css';
 import { defineContentScript } from '#imports';
 
-import { loadDatabase } from '@/utils/database';
-import { SENKURO_MATCHES } from '@/utils/hosts';
-import { createPriceBadges } from '@/utils/price-badges';
-import { profileBadgeMissing, removeProfileBadge, updateProfileBadge } from '@/utils/profile-dom';
-import { addedCards, createRenderLoop } from '@/utils/render-loop';
-import { loadSettings, watchSettings } from '@/utils/settings';
-import { createTokenBar } from '@/utils/token-bar';
-import { createTradeStore, listenForTrades } from '@/utils/trade-capture';
-import { isTradeMutation, updateTradeSummaries } from '@/utils/trade-summary';
+import { loadDatabase } from '@/utils/shared/database';
+import { SENKURO_MATCHES } from '@/utils/shared/hosts';
+import { createPriceBadges } from '@/utils/badges/price-badges';
+import { profileBadgeMissing, removeProfileBadge, updateProfileBadge } from '@/utils/profile/profile-dom';
+import { addedCards, createRenderLoop } from '@/utils/shared/render-loop';
+import { loadSettings, watchSettings } from '@/utils/shared/settings';
+import { createTokenBar } from '@/utils/token/token-bar';
+import { createTradeStore, listenForTrades } from '@/utils/trades/trade-capture';
+import { isTradeMutation, updateTradeSummaries } from '@/utils/trades/trade-summary';
 
 const LATE_RENDER_DELAYS_MS = [400, 1500];
 const WATCHED_ATTRIBUTES = ['src', 'srcset', 'data-srcset'];

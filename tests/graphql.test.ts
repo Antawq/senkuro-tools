@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { ApiError } from '../utils/graphql';
-import { API_ENDPOINT, execute, type Transport } from '../utils/graphql';
+import type { ApiError } from '../utils/shared/graphql';
+import { API_ENDPOINT, execute, type Transport } from '../utils/shared/graphql';
 
 const TOKEN = 'v4.local.secret-token-value';
 
