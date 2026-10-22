@@ -2,16 +2,26 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { Window } from 'happy-dom';
 
-import { REPLAY_EVENT, TRADES_EVENT, captureServerPayload, captureTrades, createTradeStore, installCapture, listenForTrades } from '../utils/trade-capture';
+import {
+  REPLAY_EVENT,
+  TRADES_EVENT,
+  captureServerPayload,
+  captureTrades,
+  createTradeStore,
+  installCapture,
+  listenForTrades,
+  type Capture,
+  type Trade,
+} from '../utils/trade-capture';
 
-const preview = (slug, quantity = 1, shard = false) => ({
+const preview = (slug: string, quantity = 1, shard = false) => ({
   __typename: 'CardPreview',
   modifier: 0,
   quantity,
   shard,
   card: { __typename: 'Card', id: slug, slug, rank: 'F' },
 });
-const user = (id, name) => ({ __typename: 'User', id, slug: id, name });
+const user = (id: string, name: string) => ({ __typename: 'User', id, slug: id, name });
 
 const trade = {
   __typename: 'CardTrade',
@@ -46,13 +56,13 @@ describe('captureTrades', () => {
 
   it('leaves the time of a trade empty when the answer has none', () => {
     const found = captureTrades({ data: { cardTrades: { edges: [{ node: { ...trade, createdAt: undefined } }] } } });
-    expect(found.items[0].createdAt).toBeNull();
+    expect((found.items[0] as Trade).createdAt).toBeNull();
   });
 
   it('takes the status a notification names under its own alias', () => {
     const notifiable = { ...trade, status: undefined, tradeStatus: 'REJECTED' };
     const found = captureTrades({ data: { notificationFeeds: { edges: [{ node: { notifiable } }] } } });
-    expect(found.items[0].status).toBe('REJECTED');
+    expect((found.items[0] as Trade).status).toBe('REJECTED');
   });
 
   it('finds a trade nested in a notification and the viewer', () => {
@@ -69,14 +79,14 @@ describe('captureTrades', () => {
   });
 
   describe('in an answer that carries no typenames', () => {
-    const bare = (value) =>
+    const bare = (value: unknown): unknown =>
       Array.isArray(value)
         ? value.map(bare)
         : value && typeof value === 'object'
           ? Object.fromEntries(
               Object.entries(value)
                 .filter(([key]) => key !== '__typename')
-                .map(([key, inner]) => [key, bare(inner)])
+                .map(([key, inner]): [string, unknown] => [key, bare(inner)])
             )
           : value;
     const offer = { __typename: 'CardOffer', id: 'o1', user: user('u3', 'Smile'), viewerDidAuthor: true, offer: [preview('a')], request: [preview('b', 2)] };
@@ -84,7 +94,7 @@ describe('captureTrades', () => {
     it('still tells a trade by its two sides', () => {
       const found = captureTrades(bare({ data: { cardTrades: { edges: [{ node: trade }] } } }));
       expect(found.items.map(({ kind, id }) => [kind, id])).toEqual([['trade', 't1']]);
-      expect(found.items[0].source.name).toBe('Phaivroh | WL');
+      expect((found.items[0] as Trade).source.name).toBe('Phaivroh | WL');
     });
 
     it('still tells an offer by its author and the viewer flag', () => {
@@ -154,53 +164,67 @@ describe('trade store bridge', () => {
     store.add(captureTrades(trade));
     store.add(captureTrades({ ...trade, offer: [preview('z')] }));
     expect(store.trades()).toHaveLength(1);
-    expect(store.trades()[0].offer[0].slug).toBe('z');
+    expect(store.trades()[0]?.offer[0]?.slug).toBe('z');
   });
 });
 
 describe('installCapture', () => {
+  type Reply = Awaited<ReturnType<Window['fetch']>>;
+  type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
+  type Reader = (response: Reply) => Promise<unknown>;
+  type Init = NonNullable<Parameters<Window['fetch']>[1]>;
+
   const settle = () => new Promise((resolve) => setTimeout(resolve, 10));
 
-  const page = (fetchImpl) => {
+  const capturing = (win: Window) => installCapture(win as unknown as Parameters<typeof installCapture>[0]);
+
+  const ids = (found: Capture | undefined) => found?.items.map((item) => item.id);
+
+  const page = (fetchImpl: Fetch) => {
     const win = new Window({ url: 'https://senkuro.me/notifications/all' });
-    win.fetch = fetchImpl;
-    const seen = [];
-    win.document.addEventListener(TRADES_EVENT, (event) => seen.push(JSON.parse(event.detail)));
-    installCapture(win);
+    win.fetch = fetchImpl as unknown as typeof win.fetch;
+    const seen: Capture[] = [];
+    win.document.addEventListener(TRADES_EVENT, (event) => seen.push(JSON.parse((event as unknown as CustomEvent<string>).detail) as Capture));
+    capturing(win);
     return { win, seen };
   };
 
   it('reads a GraphQL answer even when it comes without url or json type, as a service worker may give it', async () => {
-    const { win, seen } = page(async () => new Response(JSON.stringify({ data: { notificationFeeds: { edges: [{ node: { notifiable: trade } }] } } })));
+    const { win, seen } = page(() =>
+      Promise.resolve(new Response(JSON.stringify({ data: { notificationFeeds: { edges: [{ node: { notifiable: trade } }] } } })))
+    );
     const answer = await win.fetch('https://api.senkuro.me/graphql', { method: 'POST' });
-    expect((await answer.json()).data.notificationFeeds.edges).toHaveLength(1);
+    expect(((await answer.json()) as unknown as { data: { notificationFeeds: { edges: unknown[] } } }).data.notificationFeeds.edges).toHaveLength(1);
     await settle();
-    expect(seen.at(-1).items.map((item) => item.id)).toEqual(['t1']);
+    expect(ids(seen.at(-1))).toEqual(['t1']);
     await win.happyDOM.close();
   });
 
   it('takes the body when the site reads it as text, so a later abort of the request cannot cut it off', async () => {
-    const { win, seen } = page(
-      async () => new Response(JSON.stringify({ data: { cardTrade: trade } }), { headers: { 'content-type': 'application/graphql-response+json' } })
+    const { win, seen } = page(() =>
+      Promise.resolve(new Response(JSON.stringify({ data: { cardTrade: trade } }), { headers: { 'content-type': 'application/graphql-response+json' } }))
     );
     const answer = await win.fetch('https://api.senkuro.me/graphql', { method: 'POST' });
     const text = await answer.text();
     await settle();
-    expect(JSON.parse(text).data.cardTrade.id).toBe('t1');
-    expect(seen.at(-1).items.map((item) => item.id)).toEqual(['t1']);
+    expect((JSON.parse(text) as { data: { cardTrade: { id: string } } }).data.cardTrade.id).toBe('t1');
+    expect(ids(seen.at(-1))).toEqual(['t1']);
     await win.happyDOM.close();
   });
 
   const answer = () => new Response(JSON.stringify({ data: { cardTrade: trade } }), { headers: { 'content-type': 'application/json' } });
 
-  const abortableCopy = (response, signal) => {
+  const abortableCopy = (response: Response, signal: AbortSignal) => {
     const clone = response.clone.bind(response);
     response.clone = () => {
       const copy = clone();
       const read = copy.text.bind(copy);
       copy.text = () =>
-        new Promise((resolve, reject) =>
-          setTimeout(() => (signal.aborted ? reject(new DOMException('The operation was aborted.', 'AbortError')) : read().then(resolve, reject)))
+        new Promise<string>((resolve, reject) =>
+          setTimeout(() => {
+            if (signal.aborted) reject(new DOMException('The operation was aborted.', 'AbortError'));
+            else read().then(resolve, reject);
+          })
         );
       return copy;
     };
@@ -208,45 +232,47 @@ describe('installCapture', () => {
   };
 
   it('keeps the answer when the site aborts the request right after reading it, as urql does', async () => {
-    const { win, seen } = page(async (_input, init) => abortableCopy(answer(), init.signal));
+    const { win, seen } = page((_input, init) => Promise.resolve(abortableCopy(answer(), init?.signal as AbortSignal)));
     const controller = new AbortController();
-    const given = await win.fetch('https://api.senkuro.me/graphql', { method: 'POST', signal: controller.signal });
-    expect(JSON.parse(await given.text()).data.cardTrade.id).toBe('t1');
+    const given = await win.fetch('https://api.senkuro.me/graphql', { method: 'POST', signal: controller.signal as unknown as Init['signal'] });
+    expect((JSON.parse(await given.text()) as { data: { cardTrade: { id: string } } }).data.cardTrade.id).toBe('t1');
     controller.abort();
     await settle();
-    expect(seen.at(-1)?.items.map((item) => item.id)).toEqual(['t1']);
+    expect(ids(seen.at(-1))).toEqual(['t1']);
     await win.happyDOM.close();
   });
 
-  it.each([
+  const readers: [string, Reader][] = [
     ['as bytes', (response) => response.arrayBuffer()],
     ['through a clone', (response) => response.clone().json()],
     [
       'through the body stream',
       async (response) => {
-        const reader = response.body.getReader();
+        const reader = (response.body as ReadableStream<Uint8Array>).getReader();
         while (!(await reader.read()).done);
       },
     ],
-    ['never', async () => undefined],
-  ])('takes the answer whichever way the site reads it: %s', async (_name, read) => {
-    const { win, seen } = page(async () => answer());
+    ['never', () => Promise.resolve(undefined)],
+  ];
+
+  it.each(readers)('takes the answer whichever way the site reads it: %s', async (_name, read) => {
+    const { win, seen } = page(() => Promise.resolve(answer()));
     await read(await win.fetch('https://api.senkuro.me/graphql', { method: 'POST' }));
     await settle();
-    expect(seen.at(-1).items.map((item) => item.id)).toEqual(['t1']);
+    expect(ids(seen.at(-1))).toEqual(['t1']);
     await win.happyDOM.close();
   });
 
   it('does not touch the answer the site is given', async () => {
-    const { win } = page(async () => answer());
+    const { win } = page(() => Promise.resolve(answer()));
     const given = await win.fetch('https://api.senkuro.me/graphql', { method: 'POST' });
-    expect((await given.json()).data.cardTrade.id).toBe('t1');
+    expect(((await given.json()) as unknown as { data: { cardTrade: { id: string } } }).data.cardTrade.id).toBe('t1');
     await win.happyDOM.close();
   });
 
   it('stays silent unless the debug switch is set, then tells what it sees', async () => {
     const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
-    const quiet = page(async () => answer());
+    const quiet = page(() => Promise.resolve(answer()));
     await quiet.win.fetch('https://api.senkuro.me/graphql', { method: 'POST' });
     await settle();
     expect(log).not.toHaveBeenCalled();
@@ -254,8 +280,8 @@ describe('installCapture', () => {
 
     const loud = new Window({ url: 'https://senkuro.me/notifications/all' });
     loud.localStorage.setItem('senkutoolsDebug', '1');
-    loud.fetch = async () => answer();
-    installCapture(loud);
+    loud.fetch = (() => Promise.resolve(answer())) as unknown as typeof loud.fetch;
+    capturing(loud);
     await loud.fetch('https://api.senkuro.me/graphql', { method: 'POST' });
     await settle();
     const lines = log.mock.calls.map(([, ...rest]) => JSON.stringify(rest));
@@ -267,7 +293,7 @@ describe('installCapture', () => {
   });
 
   it('leaves other requests alone', async () => {
-    const { win, seen } = page(async () => new Response(JSON.stringify({ cardTrade: trade })));
+    const { win, seen } = page(() => Promise.resolve(new Response(JSON.stringify({ cardTrade: trade }))));
     await (await win.fetch('https://senkuro.me/assets/data.json')).json();
     await settle();
     expect(seen).toEqual([]);
@@ -275,9 +301,9 @@ describe('installCapture', () => {
   });
 
   it('reads the server payload again on a later replay', async () => {
-    const { win, seen } = page(async () => new Response('{}'));
+    const { win, seen } = page(() => Promise.resolve(new Response('{}')));
     win.document.dispatchEvent(new win.CustomEvent(REPLAY_EVENT));
-    win.__SENKURO__ = { graphql: { 1: { data: JSON.stringify({ cardTrade: trade }) } } };
+    (win as unknown as { __SENKURO__: unknown }).__SENKURO__ = { graphql: { 1: { data: JSON.stringify({ cardTrade: trade }) } } };
     win.document.dispatchEvent(new win.CustomEvent(REPLAY_EVENT));
     expect(seen.map((found) => found.items.length)).toEqual([0, 1]);
     await win.happyDOM.close();
