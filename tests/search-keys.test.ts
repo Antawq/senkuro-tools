@@ -251,7 +251,6 @@ describe('Enter', () => {
     ['metaKey', { metaKey: true }],
     ['altKey', { altKey: true }],
     ['shiftKey', { shiftKey: true }],
-    ['composing', { isComposing: true }],
   ])('is left alone with %s', (_name, init) => {
     open(['a']);
     const event = press('Enter', init);
@@ -470,5 +469,107 @@ describe('with signals from the page', () => {
     press('Enter');
     await settle(2000);
     expect(clicked).toEqual(['/manga/a']);
+  });
+});
+
+describe('while an input method is composing', () => {
+  const composing = (key: string, init: KeyboardEventInit & { keyCode?: number } = {}, target: EventTarget = input()) => {
+    const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });
+    if (init.keyCode !== undefined) Object.defineProperty(event, 'keyCode', { value: init.keyCode });
+    target.dispatchEvent(event);
+    return event;
+  };
+
+  it.each([
+    ['isComposing', 'Enter', { code: 'Enter', isComposing: true }],
+    ['a keyCode of 229 only', 'Enter', { code: 'Enter', keyCode: 229 }],
+    ['the Process key', 'Process', { code: 'Enter', isComposing: true, keyCode: 229 }],
+    ['the keypad Enter', 'Enter', { code: 'NumpadEnter', isComposing: true }],
+  ])('keeps Enter from the site and opens nothing, as seen by %s', async (_name, key, init) => {
+    await ready(['a', 'b']);
+    const event = composing(key, init);
+    expect(clicked).toEqual([]);
+    expect(event.defaultPrevented).toBe(false);
+    expect(siteSaw).not.toContain(`site:${key}`);
+  });
+
+  it('keeps the arrows from the site but leaves them to the input method', async () => {
+    await ready(['a', 'b']);
+    const event = composing('ArrowDown', { code: 'ArrowDown', isComposing: true });
+    expect(event.defaultPrevented).toBe(false);
+    expect(siteSaw).not.toContain('site:ArrowDown');
+    expect(activeIndexes()).toEqual([]);
+  });
+
+  it('does not touch the other keys of a composition', async () => {
+    await ready(['a']);
+    composing('Process', { code: 'KeyA', isComposing: true, keyCode: 229 });
+    expect(siteSaw).toContain('site:Process');
+  });
+
+  it('leaves a composition outside the modal to the page', () => {
+    open(['a']);
+    document.body.insertAdjacentHTML('beforeend', '<div class="editor" contenteditable="true"></div>');
+    composing('Enter', { code: 'Enter', isComposing: true }, document.querySelector('.editor') as HTMLElement);
+    expect(siteSaw).toContain('site:Enter');
+  });
+
+  it('leaves it alone when no search is open', () => {
+    document.body.innerHTML = '<input class="input-el" value="naruto">';
+    composing('Enter', { code: 'Enter', isComposing: true }, document.querySelector('input') as HTMLElement);
+    expect(siteSaw).toContain('site:Enter');
+  });
+});
+
+describe('Ctrl+K', () => {
+  const hotkey = (init: KeyboardEventInit = {}, target: EventTarget = input()) => press('k', { code: 'KeyK', ctrlKey: true, ...init }, target);
+
+  it('takes the field back instead of opening a second search over the open one', () => {
+    open(['a']);
+    (document.querySelector('.close') as HTMLElement).focus();
+    input().value = 'naruto';
+    const event = hotkey({}, document.querySelector('.close') as HTMLElement);
+    expect(event.defaultPrevented).toBe(true);
+    expect(siteSaw).not.toContain('site:k');
+    expect(document.activeElement).toBe(input());
+    expect([input().selectionStart, input().selectionEnd]).toEqual([0, 6]);
+  });
+
+  it('works on a layout where the key reads as another letter, as the site does', () => {
+    open(['a']);
+    const event = press('л', { code: 'KeyK', ctrlKey: true });
+    expect(event.defaultPrevented).toBe(true);
+    expect(siteSaw).not.toContain('site:л');
+  });
+
+  it('is left to the site when no search is open, so it can open one', () => {
+    document.body.innerHTML = '<div></div>';
+    const event = hotkey({}, document.body);
+    expect(event.defaultPrevented).toBe(false);
+    expect(siteSaw).toContain('site:k');
+  });
+
+  it('is left to the site while the open search is closing', () => {
+    open(['a']);
+    document.querySelector('.vfm')?.classList.add('vfm--prevent-none');
+    const event = hotkey();
+    expect(event.defaultPrevented).toBe(false);
+    expect(siteSaw).toContain('site:k');
+  });
+
+  it('is not claimed without Ctrl, nor for another key', () => {
+    open(['a']);
+    expect(press('k', { code: 'KeyK', metaKey: true }).defaultPrevented).toBe(false);
+    expect(press('k', { code: 'KeyK' }).defaultPrevented).toBe(false);
+    expect(press('j', { code: 'KeyJ', ctrlKey: true }).defaultPrevented).toBe(false);
+    expect(siteSaw).toEqual(['site:k', 'site:k', 'site:j']);
+  });
+
+  it('does nothing once the extension has been unloaded', () => {
+    open(['a']);
+    alive = false;
+    const event = hotkey();
+    expect(event.defaultPrevented).toBe(false);
+    expect(siteSaw).toContain('site:k');
   });
 });

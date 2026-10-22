@@ -7,6 +7,8 @@ const PAINT_MS = 60;
 const SETTLE_MS = 900;
 const GIVE_UP_MS = 3000;
 const HANDLED_KEYS = new Set(['Enter', 'ArrowDown', 'ArrowUp']);
+const HANDLED_CODES = new Set(['Enter', 'NumpadEnter', 'ArrowDown', 'ArrowUp']);
+const IME_KEY_CODE = 229;
 
 export interface SearchKeysHost {
   later: (run: () => void, ms: number) => void;
@@ -25,7 +27,11 @@ const signatureOf = (rows: HTMLElement[]): string => rows.map((row) => row.getAt
 const sameElements = (left: HTMLElement[], right: HTMLElement[]): boolean =>
   left.length === right.length && left.every((row, position) => row === right[position]);
 
-const isModified = (event: KeyboardEvent): boolean => event.isComposing || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey;
+const isModified = (event: KeyboardEvent): boolean => event.ctrlKey || event.metaKey || event.altKey || event.shiftKey;
+
+const isComposing = (event: KeyboardEvent): boolean => event.isComposing || event.keyCode === IME_KEY_CODE;
+
+const isSearchHotkey = (event: KeyboardEvent): boolean => event.ctrlKey && event.code === 'KeyK';
 
 const take = (event: Event): void => {
   event.preventDefault();
@@ -159,6 +165,21 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
     keydown(event) {
       if (!alive()) {
         dispose();
+        return;
+      }
+      if (isSearchHotkey(event)) {
+        const open = adopt();
+        if (!open) return;
+        take(event);
+        const field = fieldIn(open);
+        field?.focus();
+        field?.select();
+        return;
+      }
+      if (isComposing(event)) {
+        if (!HANDLED_KEYS.has(event.key) && !HANDLED_CODES.has(event.code)) return;
+        const composing = adopt();
+        if (composing && owns(event.target, composing)) event.stopImmediatePropagation();
         return;
       }
       if (isModified(event) || !HANDLED_KEYS.has(event.key)) return;
