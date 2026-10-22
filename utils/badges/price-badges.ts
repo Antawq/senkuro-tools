@@ -1,4 +1,4 @@
-import { BADGE_INSET, CENTER, CENTER_SHIFT_X, centerShiftY, faceGap, gapKey, insetAbove, insetBelow, NO_GAP, type FaceGap } from '../shared/badge-layout';
+import { BADGE_INSET, CENTER, CENTERED, centerGapShift, faceGap, gapKey, insetAbove, insetBelow, NO_GAP, type FaceGap } from '../shared/badge-layout';
 import { CARD_LINK, PERCENT, PRICE_DECIMALS, effectivePrice, slugFromHref } from '../shared/cards';
 import { removeCopyButton, syncCopyButton } from '../shared/copy-button';
 import type { CardEntry, Database } from '../shared/database';
@@ -20,7 +20,7 @@ const BACK_FACE = '.card-collect-preview__back';
 const STACK_ITEM = '.offer-card__cnt-el, .modal-trade__swap-cards > .modal-trade__card';
 const VISIBLE_EDGE: BadgePositionX = 'left';
 
-const POSITION_PROPS = ['--s-top', '--s-bottom', '--s-left', '--s-right', '--s-mt', '--s-ml', '--s-align'];
+const POSITION_PROPS = ['--s-top', '--s-bottom', '--s-left', '--s-right', '--s-mt', '--s-tx', '--s-ty', '--s-align'];
 
 export interface PriceBadges {
   update(db: Database, settings: Settings, cards?: Iterable<HTMLAnchorElement>): void;
@@ -49,7 +49,8 @@ function applyPosition(target: HTMLElement, positionX: BadgePositionX, positionY
   else if (positionY === 'bottom') target.style.setProperty('--s-bottom', insetBelow(gap));
   else if (positionY === 'center') {
     target.style.setProperty('--s-top', CENTER);
-    target.style.setProperty('--s-mt', centerShiftY(gap));
+    target.style.setProperty('--s-ty', CENTERED);
+    target.style.setProperty('--s-mt', centerGapShift(gap));
   }
 
   if (positionX === 'left') {
@@ -60,7 +61,7 @@ function applyPosition(target: HTMLElement, positionX: BadgePositionX, positionY
     target.style.setProperty('--s-align', 'right');
   } else if (positionX === 'center') {
     target.style.setProperty('--s-left', CENTER);
-    target.style.setProperty('--s-ml', CENTER_SHIFT_X);
+    target.style.setProperty('--s-tx', CENTERED);
     target.style.setProperty('--s-align', 'center');
   }
 }

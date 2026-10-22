@@ -1,4 +1,4 @@
-import { BADGE_INSET, CENTER, centerShiftY, gapKey, insetAbove, insetBelow, NO_GAP, type FaceGap } from './badge-layout';
+import { BADGE_INSET, CENTER, CENTERED, centerGapShift, gapKey, insetAbove, insetBelow, NO_GAP, type FaceGap } from './badge-layout';
 import type { BadgePositionX, BadgePositionY } from './settings';
 import { svgIcon, type Shape } from './svg';
 
@@ -34,12 +34,13 @@ function place(button: HTMLElement, positionX: BadgePositionX, positionY: BadgeP
   const right = positionX === 'right';
   const bottom = positionY === 'bottom';
 
+  button.style.transform = 'none';
+  button.style.setProperty('translate', `${positionX === 'center' ? CENTERED : '0'} ${positionY === 'center' ? CENTERED : '0'}`);
+
   if (positionX === 'center') {
     button.style.left = CENTER;
     button.style.right = 'auto';
-    button.style.transform = `translateX(-${CENTER})`;
   } else {
-    button.style.transform = 'none';
     button.style.left = right ? OFFSET : 'auto';
     button.style.right = right ? 'auto' : OFFSET;
   }
@@ -47,7 +48,7 @@ function place(button: HTMLElement, positionX: BadgePositionX, positionY: BadgeP
   if (positionY === 'center') {
     button.style.top = CENTER;
     button.style.bottom = 'auto';
-    button.style.marginTop = centerShiftY(gap);
+    button.style.marginTop = centerGapShift(gap);
   } else {
     button.style.marginTop = '0';
     button.style.bottom = bottom ? insetBelow(gap) : 'auto';

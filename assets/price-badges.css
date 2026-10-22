@@ -22,7 +22,7 @@ a.card-collect[data-senkuro-price]::after {
   left: var(--s-left, auto);
   right: var(--s-right, auto);
   margin-top: var(--s-mt, 0);
-  margin-left: var(--s-ml, 0);
+  translate: var(--s-tx, 0) var(--s-ty, 0);
   text-align: var(--s-align, left);
   max-width: 70px;
   overflow: hidden;

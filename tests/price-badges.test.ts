@@ -25,15 +25,15 @@ beforeEach(() => document.body.replaceChildren());
 
 const AXIS_X = {
   left: { '--s-left': '5px', '--s-align': 'left' },
-  center: { '--s-left': '50%', '--s-ml': '-15px', '--s-align': 'center' },
+  center: { '--s-left': '50%', '--s-tx': '-50%', '--s-align': 'center' },
   right: { '--s-right': '5px', '--s-align': 'right' },
 };
 const AXIS_Y = {
   top: { '--s-top': '5px' },
-  center: { '--s-top': '50%', '--s-mt': '-12px' },
+  center: { '--s-top': '50%', '--s-ty': '-50%', '--s-mt': '0px' },
   bottom: { '--s-bottom': '5px' },
 };
-const POSITION_PROPS = ['--s-top', '--s-bottom', '--s-left', '--s-right', '--s-mt', '--s-ml', '--s-align'];
+const POSITION_PROPS = ['--s-top', '--s-bottom', '--s-left', '--s-right', '--s-mt', '--s-tx', '--s-ty', '--s-align'];
 
 const positionVars = (el: HTMLElement): Record<string, string> =>
   Object.fromEntries(POSITION_PROPS.map((prop): [string, string] => [prop, el.style.getPropertyValue(prop)]).filter(([, value]) => value));
@@ -72,6 +72,24 @@ describe('createPriceBadges', () => {
     badges.update(db, { ...DEFAULT_SETTINGS, positionX: 'left', positionY: 'top' });
     expect(holderOf().dataset.badgePos).toBe('left-top');
     expect(positionVars(holderOf())).toEqual({ ...AXIS_X.left, ...AXIS_Y.top });
+  });
+
+  it.each([9, 16, 24])('centres the badge by its own size, not by a fixed offset, at font size %s', (fontSize) => {
+    document.body.innerHTML = preview();
+    createPriceBadges({ onImageLoad: () => {}, touch: false }).update(db, { ...DEFAULT_SETTINGS, positionX: 'center', positionY: 'center', fontSize });
+    expect(positionVars(holderOf())).toEqual({ ...AXIS_X.center, ...AXIS_Y.center });
+    expect(holderOf().style.getPropertyValue('--s-ml')).toBe('');
+  });
+
+  it.each([
+    ['center', 'bottom', '-50% 0'],
+    ['right', 'center', '0 -50%'],
+    ['left', 'top', '0 0'],
+  ] as const)('centres the copy button by its own size next to a %s %s badge', (positionX, positionY, translate) => {
+    document.body.innerHTML = preview();
+    createPriceBadges({ onImageLoad: () => {}, touch: false }).update(db, { ...DEFAULT_SETTINGS, copyBtn: true, positionX, positionY });
+    const button = holderOf().querySelector('.senkuro-copy-btn') as HTMLElement;
+    expect(button.style.getPropertyValue('translate')).toBe(translate);
   });
 
   const stacked = (cls: string, layer: number) =>
@@ -113,7 +131,7 @@ describe('createPriceBadges', () => {
 
   it.each([
     ['bottom', '--s-bottom', 'calc(5px + 20px)'],
-    ['center', '--s-mt', 'calc(-12px + -10px)'],
+    ['center', '--s-mt', '-10px'],
     ['top', '--s-top', '5px'],
   ] as const)('measures the %s position from the card art, not from a taller card box', (positionY, prop, value) => {
     document.body.innerHTML = fan([2]);
