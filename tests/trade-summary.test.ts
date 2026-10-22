@@ -4,47 +4,50 @@ import { fileURLToPath } from 'node:url';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { Database } from '../utils/database';
 import { DEFAULT_SETTINGS } from '../utils/settings';
-import { REPLAY_EVENT, createTradeStore } from '../utils/trade-capture';
+import { REPLAY_EVENT, createTradeStore, type Trade, type TradeStore } from '../utils/trade-capture';
 import { isTradeMutation, updateTradeSummaries } from '../utils/trade-summary';
 
-const db = {
-  's-card': { price: 1.25, rank: 'S' },
-  'a-card': { price: 1.5, rank: 'A' },
-  'f-card': { price: 1.25, rank: 'F' },
-  'r-card': { price: 1.25, rank: 'R' },
-  'r-rare': { price: 2, rank: 'R' },
+const db: Database = {
+  's-card': { price: 1.25, name: '', rank: 'S' },
+  'a-card': { price: 1.5, name: '', rank: 'A' },
+  'f-card': { price: 1.25, name: '', rank: 'F' },
+  'r-card': { price: 1.25, name: '', rank: 'R' },
+  'r-rare': { price: 2, name: '', rank: 'R' },
   atiss: { price: 1.25, rank: 'D', name: 'Атисс' },
-  mikhail: { price: 1.25, rank: 'F' },
-  soran: { price: 1.25, rank: 'F' },
-  gu: { price: 1.25, rank: 'D' },
-  kan: { price: 2, rank: 'B' },
-  gran: { price: 1.25, rank: 'C' },
-  mar: { price: 1.5, rank: 'C' },
-  yn: { price: 1.25, rank: 'F' },
-  anis: { price: 3, rank: 'C' },
+  mikhail: { price: 1.25, name: '', rank: 'F' },
+  soran: { price: 1.25, name: '', rank: 'F' },
+  gu: { price: 1.25, name: '', rank: 'D' },
+  kan: { price: 2, name: '', rank: 'B' },
+  gran: { price: 1.25, name: '', rank: 'C' },
+  mar: { price: 1.5, name: '', rank: 'C' },
+  yn: { price: 1.25, name: '', rank: 'F' },
+  anis: { price: 3, name: '', rank: 'C' },
 };
 
-const phaivroh = [
+const phaivroh: [string, number][] = [
   ['atiss', 2],
   ['mikhail', 1],
   ['soran', 3],
   ['gu', 3],
 ];
-const sky = [
+const sky: [string, number][] = [
   ['kan', 1],
   ['gran', 1],
   ['mar', 1],
   ['yn', 2],
   ['anis', 1],
 ];
-const previews = (list) => list.map(([slug, quantity]) => ({ slug, quantity, shard: false }));
-const cardsOf = (list) => list.map(([slug, quantity]) => card(slug, quantity));
-const skyTrade = {
+const previews = (list: [string, number][]) => list.map(([slug, quantity]) => ({ slug, quantity, shard: false }));
+const cardsOf = (list: [string, number][]) => list.map(([slug, quantity]) => card(slug, quantity));
+const skyTrade: Trade = {
   kind: 'trade',
   id: 't1',
   source: { id: 'u1', name: 'Phaivroh | WL' },
   destination: { id: 'u2', name: 'Молюсь на Sky | WS' },
+  createdAt: null,
+  status: null,
   offer: previews(phaivroh),
   request: previews(sky),
 };
@@ -52,9 +55,9 @@ const skySides = ['Получаешь 19F Банк 5D 4F Карты 5D 4F', 'О�
 
 const settings = { ...DEFAULT_SETTINGS };
 
-let store;
+let store: TradeStore;
 
-const card = (slug, quantity = 1, shard = false) => `
+const card = (slug: string, quantity = 1, shard = false) => `
   <div class="card-collect-preview${shard ? ' card-collect-preview--shard' : ''} modal-trade__card">
     <div class="card-collect-preview__status">${quantity > 1 ? `<span> ${quantity}</span>` : ''}</div>
     <div class="card-collect-preview__flip-container">
@@ -62,7 +65,7 @@ const card = (slug, quantity = 1, shard = false) => `
     </div>
   </div>`;
 
-const constructorFooter = (requests, offers) => `
+const constructorFooter = (requests: string[], offers: string[]) => `
   <div class="modal-trade__footer">
     <div class="modal-trade__preview">
       <div class="modal-trade__preview-el"><div class="modal-trade__preview-list"><div class="modal-trade__preview-cnt">${requests.join('')}</div></div></div>
@@ -72,7 +75,7 @@ const constructorFooter = (requests, offers) => `
     <div class="modal-trade__actions"><button>Назад</button><button>К итогу</button></div>
   </div>`;
 
-const panel = (name, total, cards) => `
+const panel = (name: string, total: number, cards: string[]) => `
   <div class="modal-trade__swap-el">
     <div class="card-list"><div class="card-body"><div class="card-name"><span>${name}</span></div><div class="card-info">${total} карт</div></div></div>
     <div class="modal-trade__swap-cards">${cards.slice(0, 3).join('')}<div class="modal-trade__swap-tag">Обменяет</div></div>
@@ -85,12 +88,12 @@ const reviewFooter = `
     <div class="modal-trade__actions"></div>
   </div>`;
 
-const reviewBody = (left, right) => `
+const reviewBody = (left: string, right: string) => `
   <div class="modal-trade__body scrollbar">
     <div class="modal-trade__swap modal-trade__swap--col">${left}<div class="modal-trade__swap-icon"></div>${right}</div>
   </div>`;
 
-const modal = (subtitle, inner) => {
+const modal = (subtitle: string, inner: string) => {
   const el = document.createElement('div');
   el.className = 'modal-content modal-content--trade scrollbar';
   el.innerHTML = `<header><div>Заголовок</div><div>${subtitle}</div></header>${inner}`;
@@ -98,25 +101,25 @@ const modal = (subtitle, inner) => {
   return el;
 };
 
-const summaryOf = (el) => {
-  const summary = el.querySelector('.senkuro-trade-summary');
-  const table = summary?.querySelector('.senkuro-trade-summary__table');
+const summaryOf = (el: HTMLElement) => {
+  const summary = el.querySelector<HTMLElement>('.senkuro-trade-summary');
+  const table = summary?.querySelector<HTMLElement>('.senkuro-trade-summary__table');
   if (!table) return null;
   const width = Number(table.style.getPropertyValue('--senkuro-columns')) + 1;
   const cells = [...table.children];
   const rows = Array.from({ length: cells.length / width }, (_, index) => cells.slice(index * width, (index + 1) * width));
-  const [head, ...body] = rows;
+  const [head = [], ...body] = rows;
   return {
     sides: head
       .slice(1)
       .map((title, index) =>
         [
           title.textContent,
-          ...body.map(([label, ...values]) => `${label.textContent === 'Ценность' ? '' : `${label.textContent} `}${values[index].textContent}`),
+          ...body.map(([label, ...values]) => `${label?.textContent === 'Ценность' ? '' : `${label?.textContent} `}${values[index]?.textContent}`),
         ].join(' ')
       ),
-    verdict: summary.querySelector('.senkuro-trade-summary__verdict')?.textContent ?? null,
-    grayVerdict: Boolean(summary.querySelector('.senkuro-trade-summary__verdict.senkuro-trade-summary__unknown')),
+    verdict: summary?.querySelector('.senkuro-trade-summary__verdict')?.textContent ?? null,
+    grayVerdict: Boolean(summary?.querySelector('.senkuro-trade-summary__verdict.senkuro-trade-summary__unknown')),
   };
 };
 
@@ -149,32 +152,32 @@ describe('updateTradeSummaries', () => {
   it('draws the total again when the basis is switched', () => {
     const el = modal('Выбери до 50 карт', constructorFooter([card('a-card', 2)], [card('s-card')]));
     updateTradeSummaries(db, settings, store);
-    expect(summaryOf(el).verdict).toBe('Потеря -48.6F (-20%)');
+    expect(summaryOf(el)?.verdict).toBe('Потеря -48.6F (-20%)');
     updateTradeSummaries(db, { ...settings, valueBasis: 'cards' }, store);
-    expect(summaryOf(el).verdict).toBe('Потеря -81F (-33%)');
+    expect(summaryOf(el)?.verdict).toBe('Потеря -81F (-33%)');
     updateTradeSummaries(db, { ...settings, valueBasis: 'bank' }, store);
-    expect(summaryOf(el).verdict).toBe('Потеря -48.6F (-20%)');
+    expect(summaryOf(el)?.verdict).toBe('Потеря -48.6F (-20%)');
   });
 
   it('keeps the exact selection on the own review step where only three cards per side are drawn', () => {
     const offers = [card('s-card'), card('s-card'), card('s-card'), card('f-card'), card('f-card')];
     const el = modal('Выбери до 50 карт', constructorFooter([card('a-card')], offers));
     updateTradeSummaries(db, settings, store);
-    el.querySelector('.modal-trade__footer').remove();
+    (el.querySelector('.modal-trade__footer') as HTMLElement).remove();
     el.insertAdjacentHTML('beforeend', reviewBody(panel('Я', 5, offers), panel('Он', 1, [card('a-card')])) + reviewFooter);
     updateTradeSummaries(db, settings, store);
-    expect(summaryOf(el).sides).toEqual(['Отдаёшь 731F Банк 3S 2F Карты 3S 2F', 'Получаешь 97.2F Банк 1.2A Карты 1A']);
+    expect(summaryOf(el)?.sides).toEqual(['Отдаёшь 731F Банк 3S 2F Карты 3S 2F', 'Получаешь 97.2F Банк 1.2A Карты 1A']);
   });
 
   it('drops a remembered selection that no longer matches the drawn cards', () => {
     const offers = [card('s-card'), card('s-card'), card('s-card'), card('f-card'), card('f-card')];
     const el = modal('Выбери до 50 карт', constructorFooter([card('a-card')], offers));
     updateTradeSummaries(db, settings, store);
-    el.querySelector('.modal-trade__footer').remove();
+    (el.querySelector('.modal-trade__footer') as HTMLElement).remove();
     const drawn = [card('s-card', 2), card('s-card'), card('s-card')];
     el.insertAdjacentHTML('beforeend', reviewBody(panel('Я', 5, drawn), panel('Он', 1, [card('a-card')])) + reviewFooter);
     updateTradeSummaries(db, settings, store);
-    expect(summaryOf(el).sides[0]).toBe('Отдаёшь 972F Банк 4S 2X Карты 4S 2X');
+    expect(summaryOf(el)?.sides[0]).toBe('Отдаёшь 972F Банк 4S 2X Карты 4S 2X');
   });
 
   it('asks the page for the trades again once when an incoming trade has no data', () => {
@@ -185,7 +188,7 @@ describe('updateTradeSummaries', () => {
     updateTradeSummaries(db, settings, store);
     document.removeEventListener(REPLAY_EVENT, asked);
     expect(asked).toHaveBeenCalledOnce();
-    expect(summaryOf(el).sides[0]).toContain('5X');
+    expect(summaryOf(el)?.sides[0]).toContain('5X');
   });
 
   it('takes a whole side from the card list the site opens on click', () => {
@@ -198,7 +201,7 @@ describe('updateTradeSummaries', () => {
     list.innerHTML = `<div class="modal-trade__review"><div class="modal-trade__review-header"><div class="modal-trade__review-text">Которые ты просишь у Phaivroh | WL</div></div><div class="modal-trade__review-slider">${cardsOf(phaivroh).join('')}</div></div>`;
     document.body.append(list);
     updateTradeSummaries(db, settings, store);
-    expect(summaryOf(el).sides).toEqual([skySides[0], 'Отдаёшь 63F Банк 1.6B 2.2C 2X Карты 1B 2C 2X']);
+    expect(summaryOf(el)?.sides).toEqual([skySides[0], 'Отдаёшь 63F Банк 1.6B 2.2C 2X Карты 1B 2C 2X']);
   });
 
   it('marks the cards an incoming trade does not draw as gray X and explains the mark', () => {
@@ -210,16 +213,16 @@ describe('updateTradeSummaries', () => {
       verdict: 'Выгода +244F (+100%)',
       grayVerdict: false,
     });
-    expect(el.querySelector('.senkuro-trade-summary__cell strong.senkuro-trade-summary__unknown').textContent).toBe('487F');
-    expect(el.querySelector('.senkuro-trade-summary__verdict').classList.contains('senkuro-trade-summary__verdict--gain')).toBe(true);
-    expect(el.querySelector('.senkuro-trade-summary__panel > .senkuro-trade-summary__unknown').textContent).toBe('X - нет цены в базе');
+    expect((el.querySelector('.senkuro-trade-summary__cell strong.senkuro-trade-summary__unknown') as HTMLElement).textContent).toBe('487F');
+    expect((el.querySelector('.senkuro-trade-summary__verdict') as HTMLElement).classList.contains('senkuro-trade-summary__verdict--gain')).toBe(true);
+    expect((el.querySelector('.senkuro-trade-summary__panel > .senkuro-trade-summary__unknown') as HTMLElement).textContent).toBe('X - нет цены в базе');
   });
 
   it('colours a loss red when cards without a price sit next to priced ones', () => {
     const el = modal('Прими решение обмена', reviewBody(panel('Отправитель', 3, [card('f-card')]), panel('Я', 1, [card('s-card')])) + reviewFooter);
     updateTradeSummaries(db, settings, store);
     expect(summaryOf(el)).toMatchObject({ verdict: 'Потеря -242F (-100%)', grayVerdict: false });
-    expect(el.querySelector('.senkuro-trade-summary__verdict').classList.contains('senkuro-trade-summary__verdict--loss')).toBe(true);
+    expect((el.querySelector('.senkuro-trade-summary__verdict') as HTMLElement).classList.contains('senkuro-trade-summary__verdict--loss')).toBe(true);
   });
 
   it('keeps the verdict gray when a whole side has no price to compare', () => {
@@ -265,8 +268,8 @@ describe('updateTradeSummaries', () => {
   it('marks shards of a card missing from the database as gray oX', () => {
     const el = modal('', constructorFooter([card('missing', 3, true), card('missing')], [card('f-card')]));
     updateTradeSummaries(db, settings, store);
-    expect(summaryOf(el).sides[0]).toContain('Карты 1X 3oX');
-    expect(summaryOf(el).grayVerdict).toBe(true);
+    expect(summaryOf(el)?.sides[0]).toContain('Карты 1X 3oX');
+    expect(summaryOf(el)?.grayVerdict).toBe(true);
   });
 
   it('stays away from the forge, which has no trade partner', () => {
@@ -281,23 +284,23 @@ describe('updateTradeSummaries', () => {
   it('folds the summary when every card is unselected and unfolds the same block again', () => {
     const el = modal('', constructorFooter([card('a-card')], [card('s-card')]));
     updateTradeSummaries(db, settings, store);
-    const summary = el.querySelector('.senkuro-trade-summary');
+    const summary = el.querySelector('.senkuro-trade-summary') as HTMLElement;
     const lists = el.querySelectorAll('.modal-trade__preview-cnt');
     lists.forEach((list) => list.replaceChildren());
     updateTradeSummaries(db, settings, store);
     expect(summary.classList.contains('senkuro-trade-summary--closed')).toBe(true);
-    lists[1].insertAdjacentHTML('beforeend', card('f-card'));
+    lists[1]?.insertAdjacentHTML('beforeend', card('f-card'));
     updateTradeSummaries(db, settings, store);
     expect(el.querySelector('.senkuro-trade-summary')).toBe(summary);
     expect(summary.classList.contains('senkuro-trade-summary--closed')).toBe(false);
-    expect(summaryOf(el).sides[1]).toBe('Отдаёшь 1F Банк 1F Карты 1F');
+    expect(summaryOf(el)?.sides[1]).toBe('Отдаёшь 1F Банк 1F Карты 1F');
   });
 
   it('hides the table behind a toggle that keeps its state across redraws', () => {
     const el = modal('', constructorFooter([card('a-card')], [card('s-card')]));
     updateTradeSummaries(db, settings, store);
-    const summary = el.querySelector('.senkuro-trade-summary');
-    const toggle = () => summary.querySelector('.senkuro-trade-summary__toggle');
+    const summary = el.querySelector('.senkuro-trade-summary') as HTMLElement;
+    const toggle = () => summary.querySelector('.senkuro-trade-summary__toggle') as HTMLButtonElement;
     const state = () => [toggle().getAttribute('aria-label'), toggle().getAttribute('aria-expanded')];
     expect(summary.classList.contains('senkuro-trade-summary--collapsible')).toBe(true);
     expect(state()).toEqual(['Подробности', 'false']);
@@ -306,7 +309,7 @@ describe('updateTradeSummaries', () => {
     toggle().click();
     expect(bubbled).toBe(false);
     expect(summary.classList.contains('senkuro-trade-summary--expanded')).toBe(true);
-    el.querySelectorAll('.modal-trade__preview-cnt')[1].insertAdjacentHTML('beforeend', card('f-card'));
+    el.querySelectorAll('.modal-trade__preview-cnt')[1]?.insertAdjacentHTML('beforeend', card('f-card'));
     updateTradeSummaries(db, settings, store);
     expect(state()).toEqual(['Подробности', 'true']);
   });
@@ -314,19 +317,20 @@ describe('updateTradeSummaries', () => {
   it('places the details after the verdict that holds the toggle, so reading on from the button reaches the table', () => {
     const el = modal('', constructorFooter([card('r-card', 2)], [card('s-card')]));
     updateTradeSummaries(db, settings, store);
-    const parts = [...el.querySelector('.senkuro-trade-summary__content').children];
-    const main = parts.find((part) => part.matches('.senkuro-trade-summary__verdict:not(.senkuro-trade-summary__verdict--r)'));
-    const details = parts.find((part) => part.matches('.senkuro-trade-summary__details'));
-    const rVerdict = parts.find((part) => part.matches('.senkuro-trade-summary__verdict--r'));
-    expect(parts.indexOf(main)).toBeLessThan(parts.indexOf(details));
-    expect(parts.indexOf(details)).toBeLessThan(parts.indexOf(rVerdict));
+    const parts = [...(el.querySelector('.senkuro-trade-summary__content') as HTMLElement).children];
+    const at = (selector: string) => parts.findIndex((part) => part.matches(selector));
+    const main = at('.senkuro-trade-summary__verdict:not(.senkuro-trade-summary__verdict--r)');
+    const details = at('.senkuro-trade-summary__details');
+    const rVerdict = at('.senkuro-trade-summary__verdict--r');
+    expect(main).toBeLessThan(details);
+    expect(details).toBeLessThan(rVerdict);
   });
 
   it('puts the toggle in the main verdict, so the verdict keeps its own text and the R verdict stays plain', () => {
     const el = modal('', constructorFooter([card('r-card', 2)], [card('s-card')]));
     updateTradeSummaries(db, settings, store);
-    const main = el.querySelector('.senkuro-trade-summary__verdict:not(.senkuro-trade-summary__verdict--r)');
-    const toggle = main.querySelector('.senkuro-trade-summary__toggle');
+    const main = el.querySelector('.senkuro-trade-summary__verdict:not(.senkuro-trade-summary__verdict--r)') as HTMLElement;
+    const toggle = main.querySelector('.senkuro-trade-summary__toggle') as HTMLElement;
     expect(toggle).not.toBeNull();
     expect(toggle.textContent).toBe('');
     expect(toggle.querySelector('svg')).not.toBeNull();
@@ -345,13 +349,14 @@ describe('updateTradeSummaries', () => {
     updateTradeSummaries(db, { ...settings, commission: false }, store);
     expect(el.querySelector('.senkuro-trade-summary__table')).not.toBe(first);
     updateTradeSummaries(db, { ...settings, commission: false, valueBySplit: true }, store);
-    expect(summaryOf(el).sides).toEqual(['Получаешь 24F Банк 1.5A Карты 1A', 'Отдаёшь 40F Банк 1.25S Карты 1S']);
+    expect(summaryOf(el)?.sides).toEqual(['Получаешь 24F Банк 1.5A Карты 1A', 'Отдаёшь 40F Банк 1.25S Карты 1S']);
     expect(el.querySelector('.senkuro-trade-summary__content')).toBe(content);
   });
 });
 
 describe('summary settings', () => {
-  const labelsOf = (el) => [...el.querySelectorAll('.senkuro-trade-summary__table > .senkuro-trade-summary__label')].map((label) => label.textContent);
+  const labelsOf = (el: HTMLElement) =>
+    [...el.querySelectorAll('.senkuro-trade-summary__table > .senkuro-trade-summary__label')].map((label) => label.textContent);
   const composing = () => modal('', constructorFooter([card('a-card')], [card('s-card')]));
 
   it('shows the value, bank and cards rows by default', () => {
@@ -386,32 +391,32 @@ describe('summary settings', () => {
   it('leaves out the verdict together with the toggle that unfolds the table', () => {
     const el = composing();
     updateTradeSummaries(db, { ...settings, showSummaryVerdict: false }, store);
-    const summary = el.querySelector('.senkuro-trade-summary');
-    expect(summaryOf(el).verdict).toBeNull();
+    const summary = el.querySelector('.senkuro-trade-summary') as HTMLElement;
+    expect(summaryOf(el)?.verdict).toBeNull();
     expect(summary.querySelector('.senkuro-trade-summary__toggle')).toBeNull();
     expect(summary.classList.contains('senkuro-trade-summary--collapsible')).toBe(false);
-    expect(summaryOf(el).sides).toHaveLength(2);
+    expect(summaryOf(el)?.sides).toHaveLength(2);
   });
 
   it('brings the verdict back when it is switched on again', () => {
     const el = composing();
     updateTradeSummaries(db, { ...settings, showSummaryVerdict: false }, store);
     updateTradeSummaries(db, settings, store);
-    expect(summaryOf(el).verdict).toBe('Потеря -145.8F (-60%)');
+    expect(summaryOf(el)?.verdict).toBe('Потеря -145.8F (-60%)');
     expect(el.querySelector('.senkuro-trade-summary__toggle')).not.toBeNull();
   });
 });
 
 describe('R window', () => {
-  const composing = (requests, offers) => modal('', constructorFooter(requests, offers));
-  const windowOf = (el) => {
+  const composing = (requests: string[], offers: string[]) => modal('', constructorFooter(requests, offers));
+  const windowOf = (el: HTMLElement) => {
     const window = el.querySelector('.senkuro-trade-summary__window');
     if (!window) return null;
-    const table = window.querySelector('.senkuro-trade-summary__table');
+    const table = window.querySelector('.senkuro-trade-summary__table') as HTMLElement;
     const width = Number(table.style.getPropertyValue('--senkuro-columns')) + 1;
     const cells = [...table.children].map((cell) => cell.textContent);
     return {
-      title: window.querySelector('.senkuro-trade-summary__window-title').textContent,
+      title: (window.querySelector('.senkuro-trade-summary__window-title') as HTMLElement).textContent,
       rows: Array.from({ length: cells.length / width }, (_, index) => cells.slice(index * width, (index + 1) * width)),
       verdict: el.querySelector('.senkuro-trade-summary__verdict--r')?.textContent ?? null,
     };
@@ -441,8 +446,8 @@ describe('R window', () => {
     const el = composing([card('r-card', 2)], [card('s-card')]);
     updateTradeSummaries(db, settings, store);
     expect(summaryOf(el)).toMatchObject({ verdict: 'Потеря -243F (-100%)', grayVerdict: false });
-    expect(summaryOf(el).sides[0]).toBe('Получаешь 0F Банк 2R Карты 2R');
-    expect(el.querySelector('.senkuro-trade-summary__verdict--r').classList.contains('senkuro-trade-summary__verdict--gain')).toBe(true);
+    expect(summaryOf(el)?.sides[0]).toBe('Получаешь 0F Банк 2R Карты 2R');
+    expect((el.querySelector('.senkuro-trade-summary__verdict--r') as HTMLElement).classList.contains('senkuro-trade-summary__verdict--gain')).toBe(true);
   });
 
   it('compares the R of both sides', () => {
@@ -456,18 +461,18 @@ describe('R window', () => {
       ],
       verdict: 'R: Потеря -0.4R (-20%)',
     });
-    expect(summaryOf(el).verdict).toBe('Равноценно');
+    expect(summaryOf(el)?.verdict).toBe('Равноценно');
   });
 
   it('lists R shards and marks the R value as not settled', () => {
     const el = composing([card('r-card', 3, true)], [card('s-card')]);
     updateTradeSummaries(db, settings, store);
-    expect(windowOf(el).rows).toEqual([
+    expect(windowOf(el)?.rows).toEqual([
       ['Ценность', '0R', '-'],
       ['Карты', '3oR', '-'],
     ]);
-    expect(el.querySelector('.senkuro-trade-summary__window strong').classList.contains('senkuro-trade-summary__unknown')).toBe(true);
-    expect(el.querySelector('.senkuro-trade-summary__verdict--r').classList.contains('senkuro-trade-summary__unknown')).toBe(true);
+    expect((el.querySelector('.senkuro-trade-summary__window strong') as HTMLElement).classList.contains('senkuro-trade-summary__unknown')).toBe(true);
+    expect((el.querySelector('.senkuro-trade-summary__verdict--r') as HTMLElement).classList.contains('senkuro-trade-summary__unknown')).toBe(true);
   });
 
   it('folds together with the table', () => {
@@ -480,22 +485,22 @@ describe('R window', () => {
   it('keeps the window but drops the R verdict when the verdict is switched off', () => {
     const el = composing([card('r-card')], [card('s-card')]);
     updateTradeSummaries(db, { ...settings, showSummaryVerdict: false }, store);
-    expect(windowOf(el).verdict).toBeNull();
-    expect(windowOf(el).rows[0]).toEqual(['Ценность', '1R', '-']);
+    expect(windowOf(el)?.verdict).toBeNull();
+    expect(windowOf(el)?.rows[0]).toEqual(['Ценность', '1R', '-']);
   });
 
   it('closes the window when the R card is taken out of the trade', () => {
     const el = composing([card('r-card')], [card('s-card')]);
     updateTradeSummaries(db, settings, store);
     expect(windowOf(el)).not.toBeNull();
-    el.querySelectorAll('.modal-trade__preview-cnt')[0].replaceChildren(...[...document.createRange().createContextualFragment(card('a-card')).children]);
+    el.querySelectorAll('.modal-trade__preview-cnt')[0]?.replaceChildren(...[...document.createRange().createContextualFragment(card('a-card')).children]);
     updateTradeSummaries(db, settings, store);
     expect(windowOf(el)).toBeNull();
   });
 });
 
 describe('summary variants', () => {
-  const offerCard = (markup) => {
+  const offerCard = (markup: string) => {
     store.add({
       items: [
         {
@@ -521,9 +526,9 @@ describe('summary variants', () => {
   it('puts the summary of a fast trade at the end of the surface of the card', () => {
     const el = offerCard(`${top}<div class="offer-card__cnt">${list}<button>Предложить карты</button></div>`);
     updateTradeSummaries(db, settings, store);
-    const summary = el.querySelector('.offer-card__cnt > .senkuro-trade-summary');
+    const summary = el.querySelector('.offer-card__cnt > .senkuro-trade-summary') as HTMLElement;
     expect(summary).not.toBeNull();
-    expect(summary.parentElement.lastElementChild).toBe(summary);
+    expect(summary.parentElement?.lastElementChild).toBe(summary);
     expect(summary.classList.contains('senkuro-trade-summary--offer')).toBe(true);
     expect(summary.classList.contains('senkuro-trade-summary--end')).toBe(true);
     expect(el.querySelector(':scope > .senkuro-trade-summary')).toBeNull();
@@ -554,8 +559,8 @@ describe('summary variants', () => {
     store.add({ viewerId: 'u2', items: [skyTrade] });
     const entry = historyItem(true);
     updateTradeSummaries(db, settings, store);
-    expect(el.querySelector('.senkuro-trade-summary').classList.contains('senkuro-trade-summary--offer')).toBe(false);
-    expect(entry.querySelector('.senkuro-trade-summary').classList.contains('senkuro-trade-summary--offer')).toBe(false);
+    expect((el.querySelector('.senkuro-trade-summary') as HTMLElement).classList.contains('senkuro-trade-summary--offer')).toBe(false);
+    expect((entry.querySelector('.senkuro-trade-summary') as HTMLElement).classList.contains('senkuro-trade-summary--offer')).toBe(false);
   });
 
   it('has a style for the variant it marks', () => {
@@ -564,14 +569,14 @@ describe('summary variants', () => {
   });
 });
 
-const userList = (name, list, collapse) => `
+const userList = (name: string, list: [string, number][], collapse: boolean) => `
   <div class="card-preview-list">
     <div class="card-list"><div class="card-body"><div class="card-name"><span>${name}</span></div><div class="card-info">Отдаёт после обмена</div></div></div>
     <div class="card-preview-list__slider"><div class="card-preview-list__slider-wrap">${cardsOf(collapse ? list.slice(0, 2) : list).join('')}</div></div>
     ${collapse && list.length > 2 ? `<button class="card-preview-list-show-more">Показать ещё ${list.length - 2} карты</button>` : ''}
   </div>`;
 
-const historyItem = (collapse) => {
+const historyItem = (collapse: boolean) => {
   const el = document.createElement('div');
   el.className = 'card-trade';
   el.innerHTML = `${userList('Phaivroh | WL', phaivroh, collapse)}<div class="card-trade__status card-trade__status--pending">Ожидает</div>${userList('Молюсь на Sky | WS', sky, collapse)}`;
@@ -604,7 +609,7 @@ describe('trade lists outside the modal', () => {
     store.add({ viewerId: 'u2', items: [skyTrade] });
     const items = [1, 2, 3, 4, 5, 6, 7, 8].map(() => historyItem(true));
     updateTradeSummaries(db, settings, store);
-    const orders = items.map((item) => item.querySelector('.senkuro-trade-summary').style.getPropertyValue('--senkuro-order'));
+    const orders = items.map((item) => (item.querySelector('.senkuro-trade-summary') as HTMLElement).style.getPropertyValue('--senkuro-order'));
     expect(orders).toEqual(['0', '1', '2', '3', '4', '5', '6', '6']);
   });
 
@@ -637,7 +642,7 @@ describe('trade lists outside the modal', () => {
       <div class="offer-card__cnt"><div class="offer-card__cnt-list">${card('f-card')}</div></div>`;
     document.body.append(el);
     updateTradeSummaries(db, settings, store);
-    expect(el.querySelector('.senkuro-trade-summary__content > .senkuro-trade-summary__label').textContent).toBe('Если примешь');
+    expect((el.querySelector('.senkuro-trade-summary__content > .senkuro-trade-summary__label') as HTMLElement).textContent).toBe('Если примешь');
     expect(summaryOf(el)).toEqual({
       sides: ['Отдаёшь 340.2F Банк 1S 1.2A Карты 1S 1A', 'Получаешь 1F Банк 1F Карты 1F'],
       verdict: 'Потеря -339.2F (-100%)',
@@ -705,7 +710,7 @@ describe('trade time', () => {
   const sentAt = `${sent.toISOString().slice(0, -1)}657`;
   const sentText = 'Отправлен 17.10.26, 23:31';
   const timed = { ...skyTrade, createdAt: sentAt };
-  const timeOf = (el) => el.querySelector('.senkuro-trade-summary__time');
+  const timeOf = (el: HTMLElement) => el.querySelector('.senkuro-trade-summary__time');
   const notification = () => {
     const el = document.createElement('div');
     el.className = 'card-notif';
@@ -723,16 +728,16 @@ describe('trade time', () => {
       reviewBody(panel('Phaivroh | WL', 4, cardsOf(phaivroh)), panel('Молюсь на Sky | WS', 5, cardsOf(sky))) + reviewFooter
     );
     updateTradeSummaries(db, settings, store);
-    expect(timeOf(el).textContent).toBe(sentText);
-    expect(timeOf(el).getAttribute('datetime')).toBe(sent.toISOString());
+    expect(timeOf(el)?.textContent).toBe(sentText);
+    expect(timeOf(el)?.getAttribute('datetime')).toBe(sent.toISOString());
   });
 
   it('tells when a history entry was sent and keeps the time out of the folding table', () => {
     store.add({ viewerId: 'u2', items: [timed] });
     const el = historyItem(true);
     updateTradeSummaries(db, settings, store);
-    expect(timeOf(el).textContent).toBe(sentText);
-    expect(timeOf(el).closest('.senkuro-trade-summary__details')).toBeNull();
+    expect(timeOf(el)?.textContent).toBe(sentText);
+    expect(timeOf(el)?.closest('.senkuro-trade-summary__details')).toBeNull();
   });
 
   it('leaves the time out when identical trades were sent at different times', () => {
@@ -758,14 +763,14 @@ describe('trade time', () => {
     expect(timeOf(el)).toBeNull();
     store.add({ items: [timed] });
     updateTradeSummaries(db, settings, store);
-    expect(timeOf(el).textContent).toBe(sentText);
+    expect(timeOf(el)?.textContent).toBe(sentText);
   });
 });
 
 describe('card that left in another trade', () => {
-  const local = (date) => date.toISOString().slice(0, -1);
+  const local = (date: Date) => date.toISOString().slice(0, -1);
   const rejected = { ...skyTrade, status: 'REJECTED', createdAt: local(new Date(2026, 9, 15, 12, 9)) };
-  const accepted = {
+  const accepted: Trade = {
     kind: 'trade',
     id: 't9',
     status: 'ACCEPTED',
@@ -775,14 +780,14 @@ describe('card that left in another trade', () => {
     offer: previews([['atiss', 1]]),
     request: previews([['kan', 1]]),
   };
-  const departureOf = (el) => el.querySelector('.senkuro-trade-summary__departure')?.textContent ?? null;
+  const departureOf = (el: HTMLElement) => el.querySelector('.senkuro-trade-summary__departure')?.textContent ?? null;
 
   it('names the card, who gave it to whom and when under a rejected history entry', () => {
     store.add({ viewerId: 'u2', items: [rejected, accepted] });
     const el = historyItem(true);
     updateTradeSummaries(db, settings, store);
     expect(departureOf(el)).toBe('Карта «Атисс» ушла от Phaivroh | WL к Laminat в обмене от 15.10.26, 13:31');
-    expect(el.querySelector('.senkuro-trade-summary__departure').closest('.senkuro-trade-summary__details')).toBeNull();
+    expect((el.querySelector('.senkuro-trade-summary__departure') as HTMLElement).closest('.senkuro-trade-summary__details')).toBeNull();
   });
 
   it('says nothing when no accepted trade took a card of the rejected one', () => {
@@ -812,7 +817,7 @@ describe('card that left in another trade', () => {
 });
 
 describe('isTradeMutation', () => {
-  const recordsOf = (act) => {
+  const recordsOf = (act: () => void) => {
     const observer = new MutationObserver(() => undefined);
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     act();
@@ -845,7 +850,7 @@ describe('isTradeMutation', () => {
     el.className = 'card-notif';
     el.innerHTML = '<div class="card-notif__info"><div class="card-notif__info-hint">Получишь 4 • Отдашь 5</div></div>';
     document.body.append(el);
-    const hint = el.querySelector('.card-notif__info-hint').firstChild;
+    const hint = (el.querySelector('.card-notif__info-hint') as HTMLElement).firstChild as Text;
     expect(recordsOf(() => (hint.data = 'Получишь 2 • Отдашь 1')).some(isTradeMutation)).toBe(true);
   });
 
