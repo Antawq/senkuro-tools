@@ -1,13 +1,7 @@
+import { ACTIVE, FIELD, MIN_QUERY_LENGTH, MODAL, fieldOf as fieldIn, rowsOf as rowsIn, topModal } from './search-dom';
 import type { SearchSignals } from './search-signal';
 
-const MODAL = '.modal-content--search';
-const HOST = '.vfm';
-const CLOSING = 'vfm--prevent-none';
-const FIELD = 'input.input-el';
-const ROW = '[data-index]';
-const ACTIVE = 'card-search--active';
 const CONTROL = 'button, a, input, select, textarea, [contenteditable], [role="button"], [role="radio"]';
-const MIN_QUERY_LENGTH = 2;
 const DEBOUNCE_MS = 250;
 const PAINT_MS = 60;
 const SETTLE_MS = 900;
@@ -51,13 +45,10 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
   let waiting = false;
   let waitStartedAt = 0;
 
-  const openModal = (): HTMLElement | null => {
-    const open = [...doc.querySelectorAll<HTMLElement>(MODAL)].filter((modal) => !spent.has(modal) && !modal.closest(HOST)?.classList.contains(CLOSING));
-    return open.at(-1) ?? null;
-  };
+  const openModal = (): HTMLElement | null => topModal(doc, (modal) => spent.has(modal));
 
-  const fieldOf = (): HTMLInputElement | null => session?.querySelector<HTMLInputElement>(FIELD) ?? null;
-  const rowsOf = (): HTMLElement[] => [...(session?.querySelectorAll<HTMLElement>(ROW) ?? [])];
+  const fieldOf = (): HTMLInputElement | null => (session ? fieldIn(session) : null);
+  const rowsOf = (): HTMLElement[] => (session ? rowsIn(session) : []);
   const mark = (rows: HTMLElement[]): void => rows.forEach((row, position) => row.classList.toggle(ACTIVE, position === index));
 
   const refresh = (): HTMLElement[] => {
