@@ -1,6 +1,6 @@
 export const SEARCH_EVENT = 'senkutools:search';
 
-const MAX_PENDING_MS = 5000;
+export const MAX_PENDING_MS = 5000;
 
 export interface SearchSignal {
   phase: 'start' | 'done';
