@@ -8,13 +8,24 @@ const row = (index: number, slug: string) => `<a class="card-search" data-index=
 
 const rowsOf = (...slugs: string[]) => slugs.map((slug, index) => row(index, slug)).join('');
 
-const open = (slugs: string[], query = 'naruto') => {
-  document.body.innerHTML = `
-    <div class="modal-content modal-content--search">
+const modalHtml = (slugs: string[], query: string) => `
+  <div class="modal-container vfm">
+    <div class="vfm__content modal-content modal-content--search">
       <input class="input-el" value="${query}">
       <button class="close">x</button>
       <div class="nav-search__cnt">${rowsOf(...slugs)}</div>
-    </div>`;
+    </div>
+  </div>`;
+
+const open = (slugs: string[], query = 'naruto') => {
+  document.body.innerHTML = modalHtml(slugs, query);
+  watchClicks();
+};
+
+const ready = async (slugs: string[], query = 'naruto') => {
+  open(slugs, '');
+  typed(query);
+  await settle(1000);
 };
 
 const input = () => document.querySelector<HTMLInputElement>('input.input-el') as HTMLInputElement;
@@ -26,6 +37,7 @@ const clicked: string[] = [];
 let siteSaw: string[];
 let keys: SearchKeys;
 let detach: (() => void)[];
+let alive: boolean;
 
 const press = (key: string, init: KeyboardEventInit = {}, target: EventTarget = input()) => {
   const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });
@@ -38,10 +50,7 @@ const typed = (value: string) => {
   input().dispatchEvent(new Event('input', { bubbles: true }));
 };
 
-const arrive = (...slugs: string[]) => {
-  list().innerHTML = rowsOf(...slugs);
-  watchClicks();
-};
+const settle = (ms = 0) => vi.advanceTimersByTimeAsync(ms);
 
 function watchClicks() {
   for (const el of rows()) {
@@ -51,6 +60,12 @@ function watchClicks() {
     });
   }
 }
+
+const arrive = async (...slugs: string[]) => {
+  list().innerHTML = rowsOf(...slugs);
+  watchClicks();
+  await settle();
+};
 
 const listen = (type: string, handler: (event: never) => void, options?: AddEventListenerOptions) => {
   document.addEventListener(type, handler as EventListener, options);
@@ -62,111 +77,170 @@ beforeEach(() => {
   clicked.length = 0;
   siteSaw = [];
   detach = [];
-  keys = createSearchKeys(document, (run, ms) => void setTimeout(run, ms));
+  alive = true;
+  keys = createSearchKeys(document, { later: (run, ms) => void setTimeout(run, ms), alive: () => alive });
   listen('keydown', keys.keydown, { capture: true });
   listen('input', keys.input, { capture: true });
   listen('keydown', (event: KeyboardEvent) => siteSaw.push(`site:${event.key}`));
 });
 
 afterEach(() => {
+  keys.dispose();
   detach.forEach((remove) => remove());
   vi.useRealTimers();
 });
 
 describe('Enter', () => {
-  it('opens the first result when nothing is highlighted, and the site never sees the key', () => {
-    open(['a', 'b', 'c']);
-    watchClicks();
+  it('opens the first result when nothing is highlighted, and the site never sees the key', async () => {
+    await ready(['a', 'b', 'c']);
     const event = press('Enter');
     expect(clicked).toEqual(['/manga/a']);
     expect(event.defaultPrevented).toBe(true);
     expect(siteSaw).not.toContain('site:Enter');
   });
 
-  it('opens the first result from the numeric keypad key too, which the site ignores', () => {
-    open(['a', 'b']);
-    watchClicks();
-    press('Enter', { code: 'NumpadEnter' });
-    expect(clicked).toEqual(['/manga/a']);
-  });
-
-  it('opens the highlighted result', () => {
-    open(['a', 'b', 'c']);
-    watchClicks();
+  it('opens the highlighted result', async () => {
+    await ready(['a', 'b', 'c']);
     press('ArrowDown');
     press('ArrowDown');
     press('Enter');
     expect(clicked).toEqual(['/manga/b']);
   });
 
-  it('opens a result of any type, not only manga', () => {
+  it('opens a result of any type, not only manga', async () => {
     document.body.innerHTML = `
-      <div class="modal-content modal-content--search">
-        <input class="input-el" value="chu">
+      <div class="vfm"><div class="modal-content--search">
+        <input class="input-el" value="">
         <div class="nav-search__cnt"><a class="card-search" data-index="0" href="/users/@1">chu</a></div>
-      </div>`;
+      </div></div>`;
     watchClicks();
+    typed('chu');
+    await settle(1000);
     press('Enter');
     expect(clicked).toEqual(['/users/@1']);
   });
 
-  it('waits for fresh results when it is pressed right after typing', () => {
-    open(['old-a', 'old-b']);
-    watchClicks();
-    typed('naruto');
-    press('Enter');
-    expect(clicked).toEqual([]);
-    vi.advanceTimersByTime(300);
-    arrive('new-a', 'new-b');
-    vi.advanceTimersByTime(100);
-    expect(clicked).toEqual(['/manga/new-a']);
-  });
-
-  it('opens the shown results once they have had time to settle, even if they did not change', () => {
-    open(['a', 'b']);
-    watchClicks();
-    typed('naruto');
-    press('Enter');
-    vi.advanceTimersByTime(2000);
+  it('opens the first result from the numeric keypad key too, which the site ignores', async () => {
+    await ready(['a', 'b']);
+    press('Enter', { code: 'NumpadEnter' });
     expect(clicked).toEqual(['/manga/a']);
   });
 
-  it('waits for results when none are shown yet, and gives up quietly when none come', () => {
+  it('waits for results that arrive after the debounce when it is pressed right after typing', async () => {
+    open(['old-a', 'old-b']);
+    typed('naruto');
+    press('Enter');
+    expect(clicked).toEqual([]);
+    await settle(300);
+    await arrive('new-a', 'new-b');
+    expect(clicked).toEqual(['/manga/new-a']);
+  });
+
+  it('does not trust a response that lands before the debounce has fired, such as one for a partial query', async () => {
+    open(['old-a']);
+    typed('naruto');
+    press('Enter');
+    await settle(100);
+    await arrive('partial-a');
+    expect(clicked).toEqual([]);
+    await settle(300);
+    await arrive('final-a');
+    expect(clicked).toEqual(['/manga/final-a']);
+  });
+
+  it('opens the shown results once they have had time to settle, even if they did not change', async () => {
+    open(['a', 'b']);
+    typed('naruto');
+    press('Enter');
+    await settle(2000);
+    expect(clicked).toEqual(['/manga/a']);
+  });
+
+  it('waits for results when none are shown yet, and gives up quietly when none come', async () => {
     open([]);
     typed('naruto');
     press('Enter');
-    vi.advanceTimersByTime(5000);
+    await settle(5000);
     expect(clicked).toEqual([]);
-    arrive('late');
-    vi.advanceTimersByTime(1000);
+    await arrive('late');
+    await settle(1000);
     expect(clicked).toEqual([]);
   });
 
-  it('opens results that arrive within the wait', () => {
+  it('works again after a wait that gave up', async () => {
     open([]);
     typed('naruto');
     press('Enter');
-    vi.advanceTimersByTime(500);
-    arrive('late');
-    vi.advanceTimersByTime(500);
+    await settle(5000);
+    await arrive('late');
+    press('Enter');
     expect(clicked).toEqual(['/manga/late']);
   });
 
-  it('runs once when it is pressed again during the wait', () => {
+  it('runs once when it is pressed again during the wait', async () => {
     open([]);
     typed('naruto');
     press('Enter');
     press('Enter');
-    arrive('late');
-    vi.advanceTimersByTime(1500);
+    await settle(300);
+    await arrive('late');
+    await settle(1500);
     expect(clicked).toEqual(['/manga/late']);
   });
 
-  it('is left to the site with no results and a query too short to search', () => {
-    open([], 'n');
+  it('does not click again while the modal fades out after a click', async () => {
+    await ready(['a', 'b']);
+    press('Enter');
+    const second = press('Enter');
+    expect(clicked).toEqual(['/manga/a']);
+    expect(second.defaultPrevented).toBe(false);
+  });
+
+  it('stops waiting when the modal starts closing, so a late result is not opened', async () => {
+    open([]);
+    typed('naruto');
+    press('Enter');
+    document.querySelector('.vfm')?.classList.add('vfm--prevent-none');
+    await settle(300);
+    await arrive('late');
+    await settle(3000);
+    expect(clicked).toEqual([]);
+  });
+
+  it('treats a query changed without an input event, as by voice or a chip, as typing', async () => {
+    open(['old-a']);
+    input().value = 'bleach';
+    press('Enter');
+    expect(clicked).toEqual([]);
+    await settle(300);
+    await arrive('new-a');
+    expect(clicked).toEqual(['/manga/new-a']);
+  });
+
+  it('opens nothing and keeps the key from the site when the field is empty, though old results are still shown', () => {
+    open(['a', 'b'], '');
     const event = press('Enter');
-    expect(event.defaultPrevented).toBe(false);
-    expect(siteSaw).toContain('site:Enter');
+    expect(clicked).toEqual([]);
+    expect(event.defaultPrevented).toBe(true);
+    expect(siteSaw).not.toContain('site:Enter');
+  });
+
+  it('opens nothing for a one-letter query', async () => {
+    open(['a'], 'n');
+    press('Enter');
+    await settle(5000);
+    expect(clicked).toEqual([]);
+  });
+
+  it('works in the top modal when a second search was opened over the first', async () => {
+    document.body.innerHTML = modalHtml(['under-a'], '') + modalHtml(['top-a'], '');
+    watchClicks();
+    const top = document.querySelectorAll<HTMLInputElement>('input.input-el')[1] as HTMLInputElement;
+    top.value = 'bleach';
+    top.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle(1000);
+    press('Enter', {}, top);
+    expect(clicked).toEqual(['/manga/top-a']);
   });
 
   it.each([
@@ -177,10 +251,10 @@ describe('Enter', () => {
     ['composing', { isComposing: true }],
   ])('is left alone with %s', (_name, init) => {
     open(['a']);
-    watchClicks();
     const event = press('Enter', init);
     expect(clicked).toEqual([]);
     expect(event.defaultPrevented).toBe(false);
+    expect(siteSaw).toContain('site:Enter');
   });
 
   it('is left alone when the search is not open', () => {
@@ -190,11 +264,37 @@ describe('Enter', () => {
     expect(siteSaw).toContain('site:Enter');
   });
 
-  it('does not take the key from a button that has the focus', () => {
+  it('is left alone while the modal is closing', () => {
     open(['a']);
-    watchClicks();
+    document.querySelector('.vfm')?.classList.add('vfm--prevent-none');
+    const event = press('Enter');
+    expect(clicked).toEqual([]);
+    expect(event.defaultPrevented).toBe(false);
+    expect(siteSaw).toContain('site:Enter');
+  });
+
+  it('keeps the key from the site but lets a focused button act on it', () => {
+    open(['a']);
     const close = document.querySelector('.close') as HTMLElement;
     const event = press('Enter', {}, close);
+    expect(clicked).toEqual([]);
+    expect(event.defaultPrevented).toBe(false);
+    expect(siteSaw).not.toContain('site:Enter');
+  });
+
+  it('is left alone on a control outside the modal', () => {
+    open(['a']);
+    document.body.insertAdjacentHTML('beforeend', '<div class="editor" contenteditable="true"></div>');
+    const event = press('Enter', {}, document.querySelector('.editor') as HTMLElement);
+    expect(clicked).toEqual([]);
+    expect(event.defaultPrevented).toBe(false);
+    expect(siteSaw).toContain('site:Enter');
+  });
+
+  it('does nothing once the extension has been unloaded', () => {
+    open(['a']);
+    alive = false;
+    const event = press('Enter');
     expect(clicked).toEqual([]);
     expect(event.defaultPrevented).toBe(false);
   });
@@ -215,52 +315,68 @@ describe('arrows', () => {
     expect(activeIndexes()).toEqual([0]);
   });
 
-  it('takes the arrow from the site and from the caret', () => {
+  it('takes the arrow from the site and from the caret, also with no results yet', () => {
     open(['a', 'b']);
     const event = press('ArrowDown');
     expect(event.defaultPrevented).toBe(true);
     expect(siteSaw).not.toContain('site:ArrowDown');
+    open([]);
+    const empty = press('ArrowDown');
+    expect(empty.defaultPrevented).toBe(true);
+    expect(siteSaw).not.toContain('site:ArrowDown');
   });
 
-  it('forgets the highlight when the results change, so the next arrow starts at the top', () => {
+  it('forgets the highlight when the results change, so the next arrow starts at the top', async () => {
     open(['a', 'b', 'c', 'd', 'e', 'f']);
     for (let i = 0; i < 6; i += 1) press('ArrowDown');
     expect(activeIndexes()).toEqual([5]);
     typed('bleach');
-    arrive('x', 'y', 'z', 'w');
+    await arrive('x', 'y', 'z', 'w');
     press('ArrowDown');
     expect(activeIndexes()).toEqual([0]);
   });
 
-  it('forgets the highlight when the results change without typing, as on a tab switch', () => {
+  it('forgets the highlight when the results change without typing, as on a tab switch', async () => {
     open(['a', 'b', 'c', 'd', 'e', 'f']);
     for (let i = 0; i < 6; i += 1) press('ArrowDown');
-    arrive('x', 'y');
+    await arrive('x', 'y');
     press('ArrowDown');
     expect(activeIndexes()).toEqual([0]);
   });
 
-  it('opens the first new result after the results changed under a highlight', () => {
+  it('forgets the highlight when the same results are mounted again, as on switching tabs back', async () => {
+    open(['a', 'b', 'c', 'd']);
+    for (let i = 0; i < 3; i += 1) press('ArrowDown');
+    await arrive('a', 'b', 'c', 'd');
+    press('ArrowDown');
+    expect(activeIndexes()).toEqual([0]);
+  });
+
+  it('starts over in a search that was opened again', async () => {
+    await ready(['a', 'b', 'c']);
+    press('ArrowDown');
+    press('ArrowDown');
+    await ready(['a', 'b', 'c']);
+    press('Enter');
+    expect(clicked).toEqual(['/manga/a']);
+  });
+
+  it('opens the first new result after the results changed under a highlight', async () => {
     open(['a', 'b', 'c', 'd', 'e', 'f']);
     for (let i = 0; i < 6; i += 1) press('ArrowDown');
     typed('bleach');
-    arrive('x', 'y');
+    await arrive('x', 'y');
     press('Enter');
-    vi.advanceTimersByTime(1000);
+    await settle(1000);
     expect(clicked).toEqual(['/manga/x']);
   });
 
-  it('is left to the site with no results', () => {
-    open([]);
-    const event = press('ArrowDown');
-    expect(event.defaultPrevented).toBe(false);
-  });
-
-  it('is left alone on a focused button, so tabs keep moving with the arrows', () => {
+  it('keeps the arrow from the site but lets a focused button act on it, so tabs keep moving', () => {
     open(['a']);
     const close = document.querySelector('.close') as HTMLElement;
     const event = press('ArrowDown', {}, close);
     expect(event.defaultPrevented).toBe(false);
+    expect(siteSaw).not.toContain('site:ArrowDown');
     expect(activeIndexes()).toEqual([]);
   });
 });

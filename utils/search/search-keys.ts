@@ -1,72 +1,134 @@
 const MODAL = '.modal-content--search';
+const HOST = '.vfm';
+const CLOSING = 'vfm--prevent-none';
 const FIELD = 'input.input-el';
 const ROW = '[data-index]';
 const ACTIVE = 'card-search--active';
-const CONTROL = 'button, a, input, select, textarea, [role="button"], [role="radio"]';
+const CONTROL = 'button, a, input, select, textarea, [contenteditable], [role="button"], [role="radio"]';
 const MIN_QUERY_LENGTH = 2;
+const DEBOUNCE_MS = 250;
 const SETTLE_MS = 900;
 const GIVE_UP_MS = 3000;
-const RETRY_MS = 100;
+const HANDLED_KEYS = new Set(['Enter', 'ArrowDown', 'ArrowUp']);
+
+export interface SearchKeysHost {
+  later: (run: () => void, ms: number) => void;
+  alive: () => boolean;
+}
 
 export interface SearchKeys {
   keydown: (event: KeyboardEvent) => void;
   input: (event: Event) => void;
+  dispose: () => void;
 }
-
-type Later = (run: () => void, ms: number) => void;
 
 const signatureOf = (rows: HTMLElement[]): string => rows.map((row) => row.getAttribute('href') ?? '').join('|');
 
-const isModified = (event: KeyboardEvent): boolean => event.isComposing || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey;
+const sameElements = (left: HTMLElement[], right: HTMLElement[]): boolean =>
+  left.length === right.length && left.every((row, position) => row === right[position]);
 
-const isSearchField = (target: EventTarget | null): boolean => target instanceof HTMLElement && (target.matches(FIELD) || target.closest(CONTROL) === null);
+const isModified = (event: KeyboardEvent): boolean => event.isComposing || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey;
 
 const take = (event: Event): void => {
   event.preventDefault();
   event.stopImmediatePropagation();
 };
 
-export function createSearchKeys(doc: Document, later: Later): SearchKeys {
+export function createSearchKeys(doc: Document, { later, alive }: SearchKeysHost): SearchKeys {
+  const spent = new WeakSet<HTMLElement>();
+  let session: HTMLElement | null = null;
+  let observer: MutationObserver | null = null;
   let index: number | null = null;
-  let seen = '';
+  let shownRows: HTMLElement[] = [];
+  let shownSignature = '';
+  let changedAt = 0;
   let typedAt = 0;
-  let typedWith = '';
+  let knownValue = '';
   let waiting = false;
+  let waitStartedAt = 0;
 
-  const modal = (): HTMLElement | null => doc.querySelector<HTMLElement>(MODAL);
-  const rowsOf = (): HTMLElement[] => [...(modal()?.querySelectorAll<HTMLElement>(ROW) ?? [])];
-  const queryOf = (): string => modal()?.querySelector<HTMLInputElement>(FIELD)?.value.trim() ?? '';
+  const openModal = (): HTMLElement | null => {
+    const open = [...doc.querySelectorAll<HTMLElement>(MODAL)].filter((modal) => !spent.has(modal) && !modal.closest(HOST)?.classList.contains(CLOSING));
+    return open.at(-1) ?? null;
+  };
+
+  const fieldOf = (): HTMLInputElement | null => session?.querySelector<HTMLInputElement>(FIELD) ?? null;
+  const rowsOf = (): HTMLElement[] => [...(session?.querySelectorAll<HTMLElement>(ROW) ?? [])];
   const mark = (rows: HTMLElement[]): void => rows.forEach((row, position) => row.classList.toggle(ACTIVE, position === index));
 
-  const current = (): HTMLElement[] => {
+  const refresh = (): HTMLElement[] => {
     const rows = rowsOf();
     const signature = signatureOf(rows);
-    if (signature !== seen) {
-      seen = signature;
+    if (signature !== shownSignature) {
+      shownSignature = signature;
+      changedAt = Date.now();
+    }
+    if (!sameElements(rows, shownRows)) {
+      shownRows = rows;
       index = null;
       mark(rows);
     }
     return rows;
   };
 
-  const isFresh = (rows: HTMLElement[]): boolean => signatureOf(rows) !== typedWith || Date.now() - typedAt >= SETTLE_MS;
+  const isFresh = (): boolean => changedAt >= typedAt + DEBOUNCE_MS || Date.now() - typedAt >= SETTLE_MS;
 
-  const awaitResults = (startedAt: number): void => {
-    if (!modal()) {
+  const noticeTyping = (): void => {
+    const value = fieldOf()?.value ?? '';
+    if (value === knownValue) return;
+    knownValue = value;
+    typedAt = Date.now();
+    index = null;
+    mark(rowsOf());
+  };
+
+  const check = (startedAt: number, owner: HTMLElement): void => {
+    if (!waiting || startedAt !== waitStartedAt) return;
+    if (session !== owner || openModal() !== owner) {
       waiting = false;
       return;
     }
-    const rows = current();
-    if (rows.length > 0 && isFresh(rows)) {
+    const rows = refresh();
+    if (rows.length > 0 && isFresh()) {
       waiting = false;
+      spent.add(owner);
       rows[index ?? 0]?.click();
       return;
     }
-    if (Date.now() - startedAt >= GIVE_UP_MS) {
-      waiting = false;
-      return;
+    if (Date.now() - startedAt >= GIVE_UP_MS) waiting = false;
+  };
+
+  const adopt = (): HTMLElement | null => {
+    const found = openModal();
+    if (found === session) return found;
+    observer?.disconnect();
+    observer = null;
+    session = found;
+    waiting = false;
+    index = null;
+    shownRows = [];
+    shownSignature = '';
+    changedAt = Date.now();
+    typedAt = 0;
+    knownValue = '';
+    if (found) {
+      observer = new MutationObserver(() => {
+        refresh();
+        check(waitStartedAt, found);
+      });
+      observer.observe(found, { childList: true, subtree: true });
     }
-    later(() => awaitResults(startedAt), RETRY_MS);
+    return found;
+  };
+
+  const wait = (owner: HTMLElement): void => {
+    waiting = true;
+    waitStartedAt = Date.now();
+    const started = waitStartedAt;
+    check(started, owner);
+    if (!waiting) return;
+    later(() => check(started, owner), Math.max(0, typedAt + SETTLE_MS - started));
+    later(() => check(started, owner), GIVE_UP_MS);
   };
 
   const step = (rows: HTMLElement[], delta: number): void => {
@@ -75,27 +137,44 @@ export function createSearchKeys(doc: Document, later: Later): SearchKeys {
     rows[index]?.scrollIntoView({ block: 'nearest' });
   };
 
+  const owns = (target: EventTarget | null, modal: HTMLElement): boolean =>
+    target === doc.body || target === doc.documentElement || (target instanceof Node && modal.contains(target));
+
+  const dispose = (): void => {
+    observer?.disconnect();
+    observer = null;
+    session = null;
+    waiting = false;
+  };
+
   return {
     keydown(event) {
-      if (isModified(event) || !modal() || !isSearchField(event.target)) return;
-      const rows = current();
-      if (event.key === 'Enter') {
-        if (rows.length === 0 && queryOf().length < MIN_QUERY_LENGTH) return;
-        take(event);
-        if (waiting) return;
-        waiting = true;
-        awaitResults(Date.now());
-      } else if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && rows.length > 0) {
-        take(event);
-        step(rows, event.key === 'ArrowDown' ? 1 : -1);
+      if (!alive()) {
+        dispose();
+        return;
       }
+      if (isModified(event) || !HANDLED_KEYS.has(event.key)) return;
+      const modal = adopt();
+      if (!modal || !owns(event.target, modal)) return;
+      const onControl = event.target instanceof HTMLElement && !event.target.matches(FIELD) && event.target.closest(CONTROL) !== null;
+      if (onControl) {
+        event.stopImmediatePropagation();
+        return;
+      }
+      take(event);
+      noticeTyping();
+      const rows = refresh();
+      if (event.key !== 'Enter') {
+        if (rows.length > 0) step(rows, event.key === 'ArrowDown' ? 1 : -1);
+        return;
+      }
+      if (waiting || (fieldOf()?.value.trim().length ?? 0) < MIN_QUERY_LENGTH) return;
+      wait(modal);
     },
     input(event) {
-      if (!(event.target instanceof HTMLElement) || !event.target.matches(`${MODAL} ${FIELD}`)) return;
-      typedAt = Date.now();
-      typedWith = signatureOf(rowsOf());
-      index = null;
-      mark(rowsOf());
+      if (!alive() || !(event.target instanceof HTMLElement) || !event.target.matches(`${MODAL} ${FIELD}`)) return;
+      if (adopt()) noticeTyping();
     },
+    dispose,
   };
 }

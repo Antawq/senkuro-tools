@@ -73,7 +73,8 @@ export default defineContentScript({
       })
     );
 
-    const searchKeys = createSearchKeys(document, (run, ms) => void ctx.setTimeout(run, ms));
+    const searchKeys = createSearchKeys(document, { later: (run, ms) => void ctx.setTimeout(run, ms), alive: () => !ctx.isInvalid });
+    ctx.onInvalidated(searchKeys.dispose);
     ctx.addEventListener(document, 'keydown', searchKeys.keydown, { capture: true });
     ctx.addEventListener(document, 'input', searchKeys.input, { capture: true });
 
