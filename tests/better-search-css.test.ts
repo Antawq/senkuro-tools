@@ -53,6 +53,13 @@ describe('better-search stylesheet values', () => {
     expect(stylesheet).not.toContain('!important');
   });
 
+  it('trades the site top margin for list height on a phone held sideways', () => {
+    const sideways = stylesheet.slice(stylesheet.indexOf('@media (max-height: 480px)'));
+    expect(sideways).toContain('.modal-content.modal-content--search');
+    expect(sideways).toContain('margin-top: 8px');
+    expect(sideways).toContain('--better-search-chrome: 190px');
+  });
+
   it('keeps the tab arrows tinted like the form they sit in', () => {
     expect(stylesheet).toContain('linear-gradient(var(--bg-quaternary), var(--bg-quaternary)), var(--bg-primary)');
   });
