@@ -181,6 +181,21 @@ describe('profile-dom', () => {
       expect(popover?.querySelector('.senkuro-popover-meta')?.textContent).toBe('Всего: 3 карт · 2 осколков');
     });
 
+    it('lists cards and shards the database does not know under X, so the cards row adds up to the totals', async () => {
+      window.history.pushState({}, '', '/users/phaivroh');
+      document.body.innerHTML = header;
+      await store([
+        ['luffy-s', 1, 0],
+        ['brand-new-s', 2, 0],
+        ['brand-new-s', 2, 1],
+      ]);
+      await draw();
+      const popover = widget()?.querySelector('.senkuro-profile-f-popover');
+      const [, cards] = [...(popover?.querySelectorAll('.senkuro-row-val') ?? [])].map((cell) => cell.textContent);
+      expect(cards).toBe('1S 2X 2oX');
+      expect(popover?.querySelector('.senkuro-popover-meta')?.textContent).toBe('Всего: 3 карт · 2 осколков');
+    });
+
     it('works on /users/phaivroh/cards subpage as well', async () => {
       window.history.pushState({}, '', '/users/phaivroh/cards');
       document.body.innerHTML = header;

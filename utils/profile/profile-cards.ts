@@ -1,6 +1,6 @@
 import type { Database } from '../shared/database';
 import { execute, type Transport } from '../shared/graphql';
-import { F_UNIT, R_RANK, formatAmount, formatByRank, formatShardsByRank, hasR, valueSide, type Valuation } from '../shared/trade-value';
+import { F_UNIT, R_RANK, UNKNOWN_MARK, formatAmount, formatByRank, formatShardsByRank, valueSide, type Valuation } from '../shared/trade-value';
 import { decodeSafely } from '../shared/uri';
 import { fetchUserCards, type FetchOptions, type UserCard } from './user-cards';
 
@@ -13,8 +13,6 @@ export interface ProfileValueSummary {
   shardBank: string[];
   totalCards: number;
   totalShards: number;
-  rValue: string | null;
-  rCards: number;
 }
 
 const USER_BY_SLUG = 'query User($slug: String!) { user(slug: $slug) { id name } }';
@@ -36,29 +34,32 @@ export async function fetchProfileUser(slug: string, transport?: Transport, sign
 export const fetchProfileCards = (userId: string, options?: FetchOptions, transport?: Transport): Promise<UserCard[]> =>
   fetchUserCards(null, userId, options, transport);
 
-const rankOf = (slug: string, db: Database): string | null => db[slug]?.rank || (slug.endsWith(R_SLUG_SUFFIX) ? R_RANK : null);
+const rankOf = (slug: string, db: Database): string => db[slug]?.rank || (slug.endsWith(R_SLUG_SUFFIX) ? R_RANK : UNKNOWN_MARK);
 
 const sumQuantity = (cards: UserCard[]): number => cards.reduce((total, card) => total + card.quantity, 0);
+
+const countByRank = (cards: UserCard[], db: Database): Map<string, number> => {
+  const counts = new Map<string, number>();
+  for (const card of cards) {
+    const rank = rankOf(card.slug, db);
+    counts.set(rank, (counts.get(rank) ?? 0) + card.quantity);
+  }
+  return counts;
+};
 
 export function calculateProfileValue(cards: UserCard[], db: Database, valuation: Valuation): ProfileValueSummary {
   const value = valueSide({ cards, hidden: 0 }, db, valuation);
   const whole = cards.filter((card) => !card.shard);
-  const counts = new Map<string, number>();
-  for (const card of whole) {
-    const rank = rankOf(card.slug, db);
-    if (rank) counts.set(rank, (counts.get(rank) ?? 0) + card.quantity);
-  }
+  const shards = cards.filter((card) => card.shard);
   return {
     totalF: value.f,
     formattedF: `${formatAmount(value.f)}${F_UNIT}`,
     bank: formatByRank(value.bank),
-    cards: formatByRank(counts),
-    shards: formatShardsByRank(value.shards),
+    cards: formatByRank(countByRank(whole, db)),
+    shards: formatShardsByRank(countByRank(shards, db)),
     shardBank: formatShardsByRank(value.shardBank),
     totalCards: sumQuantity(whole),
-    totalShards: sumQuantity(cards.filter((card) => card.shard)),
-    rValue: hasR(value) ? `${formatAmount(value.r.value)}${R_RANK}` : null,
-    rCards: value.r.count,
+    totalShards: sumQuantity(shards),
   };
 }
 
