@@ -1,6 +1,6 @@
-import { BADGE_INSET, CENTER, CENTER_SHIFT_X, centerShiftY, faceGap, gapKey, insetAbove, insetBelow, NO_GAP, type FaceGap } from './badge-layout';
+import { BADGE_INSET, CENTER, CENTER_SHIFT_X, centerShiftY, faceGap, gapKey, insetAbove, insetBelow, NO_GAP, type FaceGap } from '../shared/badge-layout';
 import { CARD_LINK, PERCENT, PRICE_DECIMALS, effectivePrice, slugFromHref } from '../shared/cards';
-import { removeCopyButton, syncCopyButton } from './copy-button';
+import { removeCopyButton, syncCopyButton } from '../shared/copy-button';
 import type { CardEntry, Database } from '../shared/database';
 import type { BadgePositionX, BadgePositionY, Settings } from '../shared/settings';
 import { tierOf } from './tiers';

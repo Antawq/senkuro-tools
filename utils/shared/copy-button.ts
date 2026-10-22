@@ -1,6 +1,6 @@
 import { BADGE_INSET, CENTER, centerShiftY, gapKey, insetAbove, insetBelow, NO_GAP, type FaceGap } from './badge-layout';
-import type { BadgePositionX, BadgePositionY } from '../shared/settings';
-import { svgIcon, type Shape } from '../shared/svg';
+import type { BadgePositionX, BadgePositionY } from './settings';
+import { svgIcon, type Shape } from './svg';
 
 const BUTTON = 'senkuro-copy-btn';
 const COPIED = `${BUTTON}--done`;

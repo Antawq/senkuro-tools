@@ -1,4 +1,4 @@
-import { visibleName } from '../badges/copy-button';
+import { visibleName } from '../shared/copy-button';
 import type { Database } from '../shared/database';
 import { element } from '../shared/dom';
 import { chevronIcon } from '../shared/svg';

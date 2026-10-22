@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { visibleName } from '../utils/badges/copy-button';
+import { visibleName } from '../utils/shared/copy-button';
 import { createPriceBadges } from '../utils/badges/price-badges';
 import { DEFAULT_SETTINGS } from '../utils/shared/settings';
 
