@@ -5,7 +5,7 @@ import { clearOrder, inspectGrid, markState, orderCards, type GridView } from '.
 import { DIRECTION_ASCENDING, FILTERS, ITEM, MENU, MODE_ATTRIBUTE, OWN_ITEM, PRICE_MODE, WATCHED, type GridState } from './sort-dom';
 import { decorateMenu, isPriceMode, reflectLabel, sortTrigger } from './sort-menu';
 
-export const STALL_MS = 15000;
+const STALL_MS = 15000;
 
 export interface SortHost {
   request: () => void;

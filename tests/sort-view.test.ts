@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Database } from '../utils/shared/database';
 import { LIST_LOADED_EVENT, encodeLoaded, type LoadOutcome } from '../utils/shared/list-signal';
-import { STALL_MS, createPriceSort, touchesSort, type PriceSort, type SortHost } from '../utils/sort/sort-view';
+import { createPriceSort, touchesSort, type PriceSort, type SortHost } from '../utils/sort/sort-view';
 
 const db: Database = {
   cheap: { price: 1.5, name: 'Cheap', rank: 'F' },
@@ -509,7 +509,6 @@ describe('a list that is not all there', () => {
     sort.sync(db, settings);
     expect(grid()?.getAttribute('data-senkutools-sort-state')).toBe('partial');
     expect(requests.count).toBe(1);
-    expect(STALL_MS).toBeGreaterThan(0);
   });
 
   it('does not mind a late timer once the answer has come', () => {

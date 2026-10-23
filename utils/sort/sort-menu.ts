@@ -13,7 +13,7 @@ import {
   isOwnLabel,
 } from './sort-dom';
 
-export type LabelState = 'off' | 'price' | 'partial';
+type LabelState = 'off' | 'price' | 'partial';
 
 const SORT_LABEL = /^По /;
 
