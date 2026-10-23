@@ -37,7 +37,6 @@ function place(button: HTMLElement, positionX: BadgePositionX, badgeY: BadgePosi
   const right = positionX === 'right';
   const bottom = positionY === 'bottom';
 
-  button.style.transform = 'none';
   button.style.setProperty('translate', `${positionX === 'center' ? CENTERED : '0'} ${positionY === 'center' ? CENTERED : '0'}`);
 
   if (positionX === 'center') {

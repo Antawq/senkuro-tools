@@ -150,7 +150,6 @@ a.card-collect[data-senkuro-style='outline']::after {
   cursor: pointer;
   z-index: 100;
   pointer-events: auto;
-  transform: translateZ(1px);
   backface-visibility: hidden;
   transition:
     opacity var(--senkuro-hover),
