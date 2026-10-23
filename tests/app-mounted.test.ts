@@ -4,14 +4,14 @@ import { Window } from 'happy-dom';
 
 import { APP_MOUNTED_EVENT, POLL_MS, announceMounted, isAppMounted } from '../utils/shared/app-mounted';
 
-type Host = Parameters<typeof announceMounted>[0];
+type PageWindow = Parameters<typeof announceMounted>[0];
 
-const onFakeClock = (win: Window): Host => {
+const onFakeClock = (win: Window): PageWindow => {
   win.setTimeout = (run: () => void, ms?: number) => globalThis.setTimeout(run, ms);
-  return win as unknown as Host;
+  return win as unknown as PageWindow;
 };
 
-const page = (): { win: Host; mount: () => void } => {
+const page = (): { win: PageWindow; mount: () => void } => {
   const win = onFakeClock(new Window({ url: 'https://senkuro.me/users/x/cards' }));
   win.document.body.innerHTML = '<div id="app"></div>';
   const mount = () => {

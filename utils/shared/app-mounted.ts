@@ -4,13 +4,13 @@ export const POLL_MS = 100;
 
 const APP_ROOT = '#app';
 
-type Host = Window & typeof globalThis;
+type PageWindow = Window & typeof globalThis;
 
 type AppRoot = Element & { __vue_app__?: unknown };
 
 export const isAppMounted = (doc: Document): boolean => doc.documentElement.hasAttribute(APP_MOUNTED_ATTRIBUTE);
 
-export function announceMounted(win: Host): void {
+export function announceMounted(win: PageWindow): void {
   const look = (): void => {
     if (isAppMounted(win.document)) return;
     if (win.document.querySelector<AppRoot>(APP_ROOT)?.__vue_app__ !== undefined) {
