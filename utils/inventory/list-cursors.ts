@@ -9,7 +9,7 @@ export interface CursorLedger {
   isForeign(variables: Variables): boolean;
 }
 
-const guarded = new WeakSet<QueryClient>();
+const guardedClients = new WeakSet<QueryClient>();
 
 const cursorOf = (variables: Variables): string | null => {
   const cursor = variables[CURSOR_KEY];
@@ -17,21 +17,21 @@ const cursorOf = (variables: Variables): string | null => {
 };
 
 export function createCursorLedger(limit = MAX_CURSORS): CursorLedger {
-  const issuedBy = new Map<string, Set<string>>();
+  const listIdsByCursor = new Map<string, Set<string>>();
   return {
     learn(variables, cursor) {
       if (typeof cursor !== 'string' || cursor === '') return;
-      const lists = issuedBy.get(cursor) ?? new Set<string>();
-      lists.add(familyIdOf(variables));
-      issuedBy.delete(cursor);
-      issuedBy.set(cursor, lists);
-      const oldest = issuedBy.keys().next();
-      if (issuedBy.size > limit && !oldest.done) issuedBy.delete(oldest.value);
+      const listIds = listIdsByCursor.get(cursor) ?? new Set<string>();
+      listIds.add(familyIdOf(variables));
+      listIdsByCursor.delete(cursor);
+      listIdsByCursor.set(cursor, listIds);
+      const oldestCursor = listIdsByCursor.keys().next();
+      if (listIdsByCursor.size > limit && !oldestCursor.done) listIdsByCursor.delete(oldestCursor.value);
     },
     isForeign(variables) {
       const cursor = cursorOf(variables);
-      const lists = cursor === null ? undefined : issuedBy.get(cursor);
-      return lists !== undefined && !lists.has(familyIdOf(variables));
+      const listIds = cursor === null ? undefined : listIdsByCursor.get(cursor);
+      return listIds !== undefined && !listIds.has(familyIdOf(variables));
     },
   };
 }
@@ -42,7 +42,7 @@ export function repairRequest(request: QueryRequest, ledger: CursorLedger): Quer
   return { ...request, variables: { ...variables, [CURSOR_KEY]: null } };
 }
 
-const report = (onDrop: (variables: Variables) => void, variables: Variables): void => {
+const reportDroppedCursor = (onDrop: (variables: Variables) => void, variables: Variables): void => {
   try {
     onDrop(variables);
   } catch {
@@ -51,17 +51,17 @@ const report = (onDrop: (variables: Variables) => void, variables: Variables): v
 };
 
 export function guardCursors(client: QueryClient, onDrop: (variables: Variables) => void = () => undefined, ledger = createCursorLedger()): boolean {
-  if (guarded.has(client)) return true;
+  if (guardedClients.has(client)) return true;
   const original = client.executeQuery.bind(client);
   try {
     client.executeQuery = (request, options) => {
-      const fixed = repairRequest(request, ledger);
-      if (fixed !== request && request.variables) report(onDrop, request.variables);
-      return original(fixed, options);
+      const repairedRequest = repairRequest(request, ledger);
+      if (repairedRequest !== request && request.variables) reportDroppedCursor(onDrop, request.variables);
+      return original(repairedRequest, options);
     };
   } catch {
     return false;
   }
-  guarded.add(client);
+  guardedClients.add(client);
   return true;
 }
