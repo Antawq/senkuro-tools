@@ -2,8 +2,8 @@ import type { Database } from '../shared/database';
 import { readLoaded } from '../shared/list-signal';
 import type { Settings } from '../shared/settings';
 import { clearOrder, inspectGrid, markState, orderCards, type GridView } from './sort-grid';
-import { DIRECTION_ASCENDING, FILTERS, ITEM, MENU, MODE_ATTRIBUTE, OWN_ITEM, PRICE_MODE, WATCHED, type GridState } from './sort-dom';
-import { decorateMenu, isPriceMode, reflectLabel, sortTrigger } from './sort-menu';
+import { DIRECTION_ASCENDING, FILTERS, MENU_ITEM, MENU, MODE_ATTRIBUTE, OWN_ITEM, PRICE_MODE, WATCHED_AREAS, type GridState } from './sort-dom';
+import { decorateMenu, isPriceMode, reflectLabel, findSortTrigger } from './sort-menu';
 
 const STALL_MS = 15000;
 
@@ -22,8 +22,8 @@ export interface PriceSort {
 export function hasSortMutation(mutations: Iterable<MutationRecord>): boolean {
   for (const { target, addedNodes } of mutations) {
     const targetElement = target instanceof Element ? target : target.parentElement;
-    if (targetElement?.closest(WATCHED)) return true;
-    for (const node of addedNodes) if (node instanceof Element && (node.matches(WATCHED) || node.querySelector(WATCHED))) return true;
+    if (targetElement?.closest(WATCHED_AREAS)) return true;
+    for (const node of addedNodes) if (node instanceof Element && (node.matches(WATCHED_AREAS) || node.querySelector(WATCHED_AREAS))) return true;
   }
   return false;
 }
@@ -76,7 +76,7 @@ export function createPriceSort(pageDocument: Document, host: SortHost): PriceSo
   function choosePriceMode(filters: Element): void {
     filters.setAttribute(MODE_ATTRIBUTE, PRICE_MODE);
     triedGridKey = null;
-    sortTrigger(pageDocument)?.click();
+    findSortTrigger(pageDocument)?.click();
     host.schedule();
   }
 
@@ -93,7 +93,7 @@ export function createPriceSort(pageDocument: Document, host: SortHost): PriceSo
     },
     handleClick(event) {
       const filters = pageDocument.querySelector(FILTERS);
-      const menuItem = event.target instanceof Element ? event.target.closest(`${MENU} ${ITEM}`) : null;
+      const menuItem = event.target instanceof Element ? event.target.closest(`${MENU} ${MENU_ITEM}`) : null;
       if (!filters || !menuItem) return;
       if (menuItem.matches(OWN_ITEM)) {
         if (event.target instanceof HTMLInputElement) choosePriceMode(filters);
