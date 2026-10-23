@@ -24,9 +24,9 @@ const APPEARANCE_SECTION_HTML = `
 const COIN_URL = 'https://senkuro.me/assets/money-3d-D_1Eg9LH.png';
 const COMPONENT = { name: 'BaseConfirmModal' };
 
-const upload = () => document.getElementById('upload') as HTMLElement;
+const uploadButton = () => document.getElementById('upload') as HTMLElement;
 const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
-const costs = () => [...document.querySelectorAll('.modal-alert__desc span')];
+const costMarks = () => [...document.querySelectorAll('.modal-alert__desc span')];
 
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
@@ -53,7 +53,7 @@ let modals: SiteModals | null;
 let assets: SiteAssets;
 let dispose: () => void;
 
-const siteHandler = (event: Event) => siteClicks.push((event.target as Element).closest('button')?.id ?? '');
+const handleSiteClick = (event: Event) => siteClicks.push((event.target as Element).closest('button')?.id ?? '');
 
 const mountModal = (mark: string) => {
   document.body.insertAdjacentHTML(
@@ -83,7 +83,7 @@ beforeEach(() => {
     },
   };
   assets = { loadConfirmComponent: () => Promise.resolve(COMPONENT), findCoinUrl: () => Promise.resolve(COIN_URL) };
-  document.addEventListener('click', siteHandler);
+  document.addEventListener('click', handleSiteClick);
   dispose = installAvatarConfirm({
     pageDocument: document,
     findSiteModals: () => modals,
@@ -95,13 +95,13 @@ afterEach(async () => {
   answer.resolve(false);
   await flush();
   dispose();
-  document.removeEventListener('click', siteHandler);
+  document.removeEventListener('click', handleSiteClick);
   document.body.innerHTML = '';
 });
 
 describe('the warning before an avatar upload', () => {
   it('holds the click and shows the confirm window of the site instead', async () => {
-    upload().click();
+    uploadButton().click();
     await flush();
     expect(siteClicks).toEqual([]);
     expect(shown).toHaveLength(1);
@@ -109,13 +109,13 @@ describe('the warning before an avatar upload', () => {
   });
 
   it('waits for the confirmation and for the window being closed', async () => {
-    upload().click();
+    uploadButton().click();
     await flush();
     expect(waitedFor).toEqual(['confirm', 'close']);
   });
 
   it('shows the money sticker and says the price, with the amount marked as the site marks its own', async () => {
-    upload().click();
+    uploadButton().click();
     await flush();
     expect(MONEY_STICKER_ID).toBe(25);
     expect(AVATAR_COST_SENKOINS).toBe(5000);
@@ -130,7 +130,7 @@ describe('the warning before an avatar upload', () => {
   });
 
   it('lets the upload go on once it is confirmed', async () => {
-    upload().click();
+    uploadButton().click();
     await flush();
     answer.resolve(true);
     await flush();
@@ -138,7 +138,7 @@ describe('the warning before an avatar upload', () => {
   });
 
   it('stops the upload when the window is cancelled or closed', async () => {
-    upload().click();
+    uploadButton().click();
     await flush();
     answer.resolve(false);
     await flush();
@@ -146,20 +146,20 @@ describe('the warning before an avatar upload', () => {
   });
 
   it('stops the upload at once when the window says it is closing, before its fade has finished', async () => {
-    upload().click();
+    uploadButton().click();
     await flush();
     closed.resolve(true);
     await flush();
     expect(siteClicks).toEqual([]);
     answer = deferred<boolean>();
     closed = deferred<boolean>();
-    upload().click();
+    uploadButton().click();
     await flush();
     expect(shown).toHaveLength(2);
   });
 
   it('goes on when the window reports the confirmation first and its closing right after', async () => {
-    upload().click();
+    uploadButton().click();
     await flush();
     answer.resolve(true);
     closed.resolve(true);
@@ -168,12 +168,12 @@ describe('the warning before an avatar upload', () => {
   });
 
   it('asks again on the next click', async () => {
-    upload().click();
+    uploadButton().click();
     await flush();
     answer.resolve(false);
     await flush();
     answer = deferred<boolean>();
-    upload().click();
+    uploadButton().click();
     await flush();
     expect(shown).toHaveLength(2);
     answer.resolve(true);
@@ -182,9 +182,9 @@ describe('the warning before an avatar upload', () => {
   });
 
   it('shows one window however often the button is pressed meanwhile, and goes on once', async () => {
-    upload().click();
-    upload().click();
-    upload().click();
+    uploadButton().click();
+    uploadButton().click();
+    uploadButton().click();
     await flush();
     expect(shown).toHaveLength(1);
     answer.resolve(true);
@@ -193,7 +193,7 @@ describe('the warning before an avatar upload', () => {
   });
 
   it('holds a click on what is inside the button too', async () => {
-    (upload().querySelector('span') as HTMLElement).click();
+    (uploadButton().querySelector('span') as HTMLElement).click();
     await flush();
     expect(siteClicks).toEqual([]);
     expect(shown).toHaveLength(1);
@@ -209,7 +209,7 @@ describe('the warning before an avatar upload', () => {
 
   it('stops asking once it is switched off', async () => {
     dispose();
-    upload().click();
+    uploadButton().click();
     await flush();
     expect(siteClicks).toEqual(['upload']);
     expect(shown).toHaveLength(0);
@@ -218,28 +218,28 @@ describe('the warning before an avatar upload', () => {
 
 describe('the 3D coin in place of the word', () => {
   it('puts the coin of the site after the amount, with the word as its alternative text', async () => {
-    upload().click();
+    uploadButton().click();
     await flush();
-    const coin = costs()[0]?.querySelector('img');
-    expect(costs()[0]?.textContent).toBe(String(AVATAR_COST_SENKOINS));
+    const coin = costMarks()[0]?.querySelector('img');
+    expect(costMarks()[0]?.textContent).toBe(String(AVATAR_COST_SENKOINS));
     expect(coin?.getAttribute('src')).toBe(COIN_URL);
     expect(coin?.getAttribute('alt')).toBe(COIN_ALT);
   });
 
   it('leaves the size of the coin to the stylesheet of the extension', async () => {
-    upload().click();
+    uploadButton().click();
     await flush();
-    const coin = costs()[0]?.querySelector('img');
+    const coin = costMarks()[0]?.querySelector('img');
     expect(coin?.className).toBe(COIN_CLASS);
     expect(coin?.getAttribute('style')).toBeNull();
   });
 
   it('puts one coin however often the window changes', async () => {
-    upload().click();
+    uploadButton().click();
     await flush();
     document.querySelector('.modal-alert')?.insertAdjacentHTML('beforeend', '<i></i>');
     await flush();
-    expect(costs()[0]?.querySelectorAll('img')).toHaveLength(1);
+    expect(costMarks()[0]?.querySelectorAll('img')).toHaveLength(1);
   });
 
   it('leaves other windows alone, such as the confirmation of age', async () => {
@@ -248,18 +248,18 @@ describe('the 3D coin in place of the word', () => {
       '<div class="modal-alert"><div class="modal-alert__desc">для <span>взрослых</span> и <span>5000</span> и <span>15000 штук</span></div></div>'
     );
     document.body.insertAdjacentHTML('beforeend', '<div class="elsewhere"><span>5000</span></div>');
-    upload().click();
+    uploadButton().click();
     await flush();
     const spans = [...document.querySelectorAll('span')].filter((span) => span.querySelector('img'));
     expect(spans).toHaveLength(2);
     expect(document.querySelector('.elsewhere span')?.querySelector('img')).toBeNull();
     expect(
-      costs()
+      costMarks()
         .find((span) => span.textContent === 'взрослых')
         ?.querySelector('img')
     ).toBeNull();
     expect(
-      costs()
+      costMarks()
         .find((span) => span.textContent === '15000 штук')
         ?.querySelector('img')
     ).toBeNull();
@@ -267,22 +267,22 @@ describe('the 3D coin in place of the word', () => {
 
   it('says the word instead when the coin cannot be found, and puts no picture', async () => {
     assets = { loadConfirmComponent: () => Promise.resolve(COMPONENT), findCoinUrl: () => Promise.resolve(null) };
-    upload().click();
+    uploadButton().click();
     await flush();
     expect(shown[0]?.props).toEqual(createConfirmProps(false));
     expect(createConfirmProps(false).description[1]?.text).toBe(`${AVATAR_COST_SENKOINS} ${COIN_ALT}`);
-    expect(costs()[0]?.textContent).toBe(`${AVATAR_COST_SENKOINS} ${COIN_ALT}`);
+    expect(costMarks()[0]?.textContent).toBe(`${AVATAR_COST_SENKOINS} ${COIN_ALT}`);
     expect(document.querySelector('img')).toBeNull();
   });
 
   it('stops looking for the window once the question is answered', async () => {
-    upload().click();
+    uploadButton().click();
     await flush();
     answer.resolve(false);
     await flush();
     mountModal(String(AVATAR_COST_SENKOINS));
     await flush();
-    expect(costs().at(-1)?.querySelector('img')).toBeNull();
+    expect(costMarks().at(-1)?.querySelector('img')).toBeNull();
   });
 
   it('puts the coin in the window it asked for even when that window is slow to appear', async () => {
@@ -293,22 +293,22 @@ describe('the 3D coin in place of the word', () => {
         return { emitted: (event) => (event === 'confirm' ? answer.promise : closed.promise) };
       },
     };
-    upload().click();
+    uploadButton().click();
     await new Promise((resolve) => setTimeout(resolve, 60));
-    expect(costs()[0]?.querySelector('img')).not.toBeNull();
+    expect(costMarks()[0]?.querySelector('img')).not.toBeNull();
   });
 });
 
 describe('when the window of the site cannot be reached, the upload is not blocked', () => {
   it('does not even hold the click when the site has no modal controller', () => {
     modals = null;
-    upload().click();
+    uploadButton().click();
     expect(siteClicks).toEqual(['upload']);
   });
 
   it('goes on when the window cannot be loaded', async () => {
     assets = { loadConfirmComponent: () => Promise.reject(new Error('offline')), findCoinUrl: () => Promise.resolve(COIN_URL) };
-    upload().click();
+    uploadButton().click();
     await flush();
     expect(siteClicks).toEqual(['upload']);
   });
@@ -319,17 +319,17 @@ describe('when the window of the site cannot be reached, the upload is not block
         throw new Error('no container');
       },
     };
-    upload().click();
+    uploadButton().click();
     await flush();
     expect(siteClicks).toEqual(['upload']);
   });
 
   it('can ask again after a failure', async () => {
     assets = { loadConfirmComponent: () => Promise.reject(new Error('offline')), findCoinUrl: () => Promise.resolve(COIN_URL) };
-    upload().click();
+    uploadButton().click();
     await flush();
     assets = { loadConfirmComponent: () => Promise.resolve(COMPONENT), findCoinUrl: () => Promise.resolve(COIN_URL) };
-    upload().click();
+    uploadButton().click();
     await flush();
     expect(shown).toHaveLength(1);
   });
