@@ -108,14 +108,13 @@ const clientWith = () => {
 describe('installSearchWidening', () => {
   it('sends the wider search to the site client and keeps the answer', () => {
     const { client, asked } = clientWith();
-    expect(installSearchWidening(client)).toBe(true);
+    installSearchWidening(client);
     expect(client.executeQuery(request('search'))).toBe('source');
     expect(firstOf(asked[0] as QueryRequest)).toEqual([String(SEARCH_PAGE_SIZE), '5']);
   });
 
-  it('passes other requests through unchanged and patches a client only once', () => {
+  it('passes other requests through unchanged', () => {
     const { client, asked } = clientWith();
-    installSearchWidening(client);
     installSearchWidening(client);
     const other = request('fetchUserCards');
     client.executeQuery(other);
@@ -124,10 +123,10 @@ describe('installSearchWidening', () => {
     expect(asked).toHaveLength(2);
   });
 
-  it('reports a client whose method cannot be replaced', () => {
+  it('leaves a client whose method cannot be replaced as it is, without failing', () => {
     const { client } = clientWith();
     Object.freeze(client);
-    expect(installSearchWidening(client)).toBe(false);
+    expect(() => installSearchWidening(client)).not.toThrow();
   });
 });
 

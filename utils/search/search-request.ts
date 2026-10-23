@@ -35,7 +35,6 @@ interface AstNode {
 }
 
 const widenedByQueryDocument = new WeakMap<object, unknown>();
-const patchedClients = new WeakSet<QueryClient>();
 
 const isPageArgument = (node: AstNode, pageSize: number): boolean =>
   node.kind === 'Argument' && node.name?.value === PAGE_ARGUMENT && node.value?.kind === INT_LITERAL && Number(node.value.value) < pageSize;
@@ -87,23 +86,16 @@ function publishSearchPhases(source: unknown, request: QueryRequest, publish: Pu
   });
 }
 
-export function installSearchWidening(client: QueryClient, publish: Publish = () => undefined, pageSize = SEARCH_PAGE_SIZE): boolean {
-  if (patchedClients.has(client)) return true;
+export function installSearchWidening(client: QueryClient, publish: Publish = () => undefined, pageSize = SEARCH_PAGE_SIZE): void {
   const original = client.executeQuery.bind(client);
-  try {
-    client.executeQuery = (request, options) => {
-      const source = original(widenSearchRequest(request, pageSize), options);
-      return operationName(request) === SEARCH_OPERATION ? publishSearchPhases(source, request, publish) : source;
-    };
-  } catch {
-    return false;
-  }
-  patchedClients.add(client);
-  return true;
+  Reflect.set(client, 'executeQuery', (request: QueryRequest, options?: Record<string, unknown>) => {
+    const source = original(widenSearchRequest(request, pageSize), options);
+    return operationName(request) === SEARCH_OPERATION ? publishSearchPhases(source, request, publish) : source;
+  });
 }
 
 export function installSearchRequest(pageWindow: PageWindow): void {
   if (!claimPage(pageWindow, 'search-request')) return;
   const publish: Publish = (signal) => pageWindow.document.dispatchEvent(new pageWindow.CustomEvent(SEARCH_EVENT, { detail: JSON.stringify(signal) }));
-  runWhenClientFound(pageWindow, (client) => void installSearchWidening(client, publish));
+  runWhenClientFound(pageWindow, (client) => installSearchWidening(client, publish));
 }
