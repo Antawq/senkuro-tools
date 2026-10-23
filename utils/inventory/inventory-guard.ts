@@ -46,8 +46,8 @@ export function installInventoryGuard(win: PageWindow): void {
   const silent = new WeakSet<object>();
   let queue: Promise<unknown> = Promise.resolve();
   let latestPage: PageRequest | null = null;
-  let attached: QueryClient | null = null;
-  let loading = false;
+  let attachedClient: QueryClient | null = null;
+  let isLoading = false;
 
   const environment = (client: QueryClient): RefreshEnv => ({ client, fetch: (input, init) => win.fetch(input, init), silent, record });
 
@@ -67,14 +67,14 @@ export function installInventoryGuard(win: PageWindow): void {
   const sleep = (ms: number) => (ms > 0 ? new Promise<void>((resolve) => win.setTimeout(resolve, ms)) : Promise.resolve());
 
   win.document.addEventListener(LIST_LOAD_EVENT, () => {
-    if (loading) return;
-    if (!attached) {
+    if (isLoading) return;
+    if (!attachedClient) {
       publishListLoaded('partial');
       return;
     }
-    loading = true;
-    void loadRest({ client: attached, latestPage: () => latestPage, sleep }).then((outcome) => {
-      loading = false;
+    isLoading = true;
+    void loadRest({ client: attachedClient, latestPage: () => latestPage, sleep }).then((outcome) => {
+      isLoading = false;
       publishListLoaded(outcome);
     });
   });
@@ -82,8 +82,8 @@ export function installInventoryGuard(win: PageWindow): void {
   learnFromFetch(win, ledger);
 
   whenClient(win, (client) => {
-    attached = client;
-    const recording = recordLists(
+    attachedClient = client;
+    const isRecording = recordLists(
       client,
       (page) => {
         latestPage = page;
@@ -91,8 +91,8 @@ export function installInventoryGuard(win: PageWindow): void {
       },
       silent
     );
-    const tapping = tapMutations(client, onMutation(client));
-    const guarding = guardCursors(client, (variables) => debug('stale cursor dropped', { list: familyIdOf(variables), after: variables.after }), ledger);
-    debug('urql client', recording && tapping && guarding ? 'attached' : 'not replaceable');
+    const isTapping = tapMutations(client, onMutation(client));
+    const isGuarding = guardCursors(client, (variables) => debug('stale cursor dropped', { list: familyIdOf(variables), after: variables.after }), ledger);
+    debug('urql client', isRecording && isTapping && isGuarding ? 'attached' : 'not replaceable');
   });
 }
