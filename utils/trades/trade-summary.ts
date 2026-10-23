@@ -269,10 +269,10 @@ function render(place: Place, view: View, nextOrder: () => number): void {
     const body = panel(view.sides, view.settings);
     const parts = partsOf(view, summary, body);
     summary.classList.toggle(COLLAPSIBLE, Boolean(view.verdict && body));
-    summary.dataset.empty = String(parts.length === 0);
+    summary.dataset.senkutoolsEmpty = String(parts.length === 0);
     summary.querySelector(`.${SUMMARY}__content`)?.replaceChildren(...parts);
   }
-  if (summary.dataset.empty === 'true') summary.classList.add(CLOSED);
+  if (summary.dataset.senkutoolsEmpty === 'true') summary.classList.add(CLOSED);
 }
 
 export function updateTradeSummaries(db: Database, settings: SummarySettings, store: TradeStore): void {
