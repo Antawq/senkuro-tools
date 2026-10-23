@@ -96,11 +96,11 @@ export function createSearchView(pageDocument: Document, { runAfter, isContextVa
       writeAttribute(field, 'aria-activedescendant', isShown && active ? active.id : null);
     }
     searchModal.querySelectorAll<HTMLElement>(TAB).forEach((tab, index) => writeAttribute(tab, 'id', isManaged ? `${TAB_ID}${index}` : null));
-    const list = searchModal.querySelector<HTMLElement>(RESULTS);
-    if (list) {
-      writeAttribute(list, 'role', isShown ? 'listbox' : null);
-      writeAttribute(list, 'id', isShown ? RESULTS_ID : null);
-      writeAttribute(list, 'aria-labelledby', isShown ? (searchModal.querySelector<HTMLElement>(ACTIVE_TAB)?.id ?? null) : null);
+    const results = searchModal.querySelector<HTMLElement>(RESULTS);
+    if (results) {
+      writeAttribute(results, 'role', isShown ? 'listbox' : null);
+      writeAttribute(results, 'id', isShown ? RESULTS_ID : null);
+      writeAttribute(results, 'aria-labelledby', isShown ? (searchModal.querySelector<HTMLElement>(ACTIVE_TAB)?.id ?? null) : null);
     }
     rows.forEach((row, index) => {
       writeAttribute(row, 'role', isShown ? 'option' : null);
