@@ -130,7 +130,6 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
       }
       return;
     }
-    if (Date.now() - startedAt >= GIVE_UP_MS) waiting = false;
   };
 
   const adopt = (): HTMLElement | null => {
@@ -166,7 +165,10 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
     if (!waiting) return;
     later(() => check(started, owner), Math.max(0, typedAt + DEBOUNCE_MS - started) + PAINT_MS);
     later(() => check(started, owner), Math.max(0, typedAt + SETTLE_MS - started));
-    later(() => check(started, owner), GIVE_UP_MS);
+    later(() => {
+      check(started, owner);
+      if (started === waitStartedAt) waiting = false;
+    }, GIVE_UP_MS);
   };
 
   signals.subscribe(() => {

@@ -173,6 +173,17 @@ describe('Enter', () => {
     expect(clicked).toEqual([]);
   });
 
+  it('gives up all the same when the clock reads a millisecond short at the give-up timer', async () => {
+    open([]);
+    typed('naruto');
+    press('Enter');
+    vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 2999);
+    await settle(5000);
+    await arrive('late');
+    await settle(1000);
+    expect(clicked).toEqual([]);
+  });
+
   it('works again after a wait that gave up', async () => {
     open([]);
     typed('naruto');
