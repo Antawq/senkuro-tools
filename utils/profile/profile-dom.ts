@@ -1,9 +1,9 @@
 import type { Database } from '../shared/database';
 import { element } from '../shared/dom';
-import { chevronIcon, svgIcon } from '../shared/svg';
+import { chevronIcon, refreshIcon } from '../shared/svg';
 import { R_RANK, type Valuation } from '../shared/trade-value';
 import { calculateProfileValue, extractProfileSlug, fetchProfileCards, fetchProfileUser, type ProfileValueSummary } from './profile-cards';
-import { isComplete, readCollection, saveCollection, type Collection } from './profile-store';
+import { isComplete, readCollection, saveCollection, warnStore, type Collection } from './profile-store';
 
 export const WIDGET_ID = 'senkuro-profile-card-value';
 
@@ -16,6 +16,7 @@ const R_HIGHLIGHT = 'senkuro-rank-r';
 const GUTTER_PROPERTY = '--senkuro-gutter';
 const SHIFT_PROPERTY = '--senkuro-popover-shift';
 const EMPTY = '-';
+const POPOVER_ICON_SIZE = 13;
 
 const TEXT = {
   idle: 'Посчитать ценность',
@@ -34,11 +35,6 @@ const TEXT = {
 } as const;
 
 const progressText = (loaded: number): string => `Карт: ${loaded}...`;
-
-const refreshIcon = (): SVGSVGElement =>
-  svgIcon({ viewBox: '0 0 16 16', width: '13', height: '13', stroke: 'currentColor', 'stroke-width': '1.7' }, [
-    ['path', { d: 'M2.5 8a5.5 5.5 0 0 1 9.4-3.9L13.5 6M13.5 2.5V6h-3.5M13.5 8a5.5 5.5 0 0 1-9.4 3.9L2.5 10M2.5 13.5V10H6' }],
-  ]);
 
 const NICKNAME_HEADING = '.client-header header h1, .client-header h1, .client-panel__info h1, h1.caption-size-lg, h1.caption';
 
@@ -81,11 +77,6 @@ export function abortProfileLoading(slug?: string): void {
 
 const valuationKey = ({ commission, valueBySplit, valueBasis, excludeShards }: Valuation): string =>
   JSON.stringify([commission, valueBySplit, valueBasis, excludeShards]);
-
-const warnStore = (error: unknown): null => {
-  console.warn('SenkuTools: profile store', error);
-  return null;
-};
 
 function remember(slug: string, collection: Collection): void {
   known.set(slug, collection);
@@ -215,7 +206,7 @@ function renderSummary(widget: HTMLElement, slug: string, summary: ProfileValueS
   const refresh = element('button', 'senkuro-popover-refresh');
   refresh.type = 'button';
   refresh.title = TEXT.refresh;
-  refresh.append(refreshIcon());
+  refresh.append(refreshIcon(POPOVER_ICON_SIZE));
   refresh.addEventListener('click', (event) => {
     event.stopPropagation();
     widget.classList.remove(ACTIVE);
