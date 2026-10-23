@@ -6,14 +6,18 @@ import { FAST_PAGES, THROTTLED_DELAY_MS } from '../utils/shared/paging';
 import type { QueryClient } from '../utils/shared/urql-client';
 
 const GRID = { userId: 'USER:1', modifier: { include: [0] }, orderField: 'CREATED_AT', orderDirection: 'DESC' };
-const document = { definitions: [{ kind: 'OperationDefinition', name: { value: LIST_OPERATION } }] };
+const queryDocument = { definitions: [{ kind: 'OperationDefinition', name: { value: LIST_OPERATION } }] };
 
-const recorded = (variables: Variables = GRID, options: Record<string, unknown> = { suspense: true }): PageRequest => ({ document, variables, options });
+const recorded = (variables: Variables = GRID, options: Record<string, unknown> = { suspense: true }): PageRequest => ({
+  document: queryDocument,
+  variables,
+  options,
+});
 
 const pageInfoAnswer = (hasNextPage: boolean, endCursor: string | null) => ({ data: { userCards: { pageInfo: { hasNextPage, endCursor } } } });
 
 interface Asked {
-  document: unknown;
+  queryDocument: unknown;
   after: unknown;
   options: Record<string, unknown> | undefined;
 }
@@ -30,7 +34,7 @@ const rig = ({ answers, latestPage = () => recorded() }: Rig) => {
     executeQuery: () => null,
     executeMutation: () => null,
     query(queried, variables, options) {
-      const entry = { document: queried, after: variables.after, options };
+      const entry = { queryDocument: queried, after: variables.after, options };
       asked.push(entry);
       return { toPromise: () => Promise.resolve(answers(entry, asked.length - 1)) };
     },
@@ -50,7 +54,7 @@ describe('loadRest', () => {
     expect(await loadRest(host)).toBe('complete');
     expect(asked.map((entry) => entry.after)).toEqual([undefined, 'c1', 'c2', 'c3']);
     expect(asked.map((entry) => entry.options?.requestPolicy)).toEqual(['cache-first', 'network-only', 'network-only', 'network-only']);
-    expect(asked.every((entry) => entry.document === document && entry.options?.suspense === true)).toBe(true);
+    expect(asked.every((entry) => entry.queryDocument === queryDocument && entry.options?.suspense === true)).toBe(true);
   });
 
   it('keeps the cursor the list was asked with when it reads what is loaded', async () => {

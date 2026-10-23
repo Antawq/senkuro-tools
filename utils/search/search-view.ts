@@ -142,7 +142,7 @@ export function createSearchView(pageDocument: Document, { runAfter, isContextVa
     searchModal = null;
   };
 
-  const adopt = (): void => {
+  const adoptTopModal = (): void => {
     const topSearchModal = findTopSearchModal(pageDocument);
     if (topSearchModal === searchModal) return;
     observer?.disconnect();
@@ -167,7 +167,7 @@ export function createSearchView(pageDocument: Document, { runAfter, isContextVa
       dispose();
       return;
     }
-    adopt();
+    adoptTopModal();
     render();
   };
 

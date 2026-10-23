@@ -17,7 +17,7 @@ export interface QueryRequest {
 export interface QueryClient {
   executeQuery(request: QueryRequest, options?: Record<string, unknown>): unknown;
   executeMutation(request: QueryRequest, options?: Record<string, unknown>): unknown;
-  query(document: unknown, variables: Variables, options?: Record<string, unknown>): { toPromise(): Promise<unknown> };
+  query(queryDocument: unknown, variables: Variables, options?: Record<string, unknown>): { toPromise(): Promise<unknown> };
 }
 
 interface VueApp {
