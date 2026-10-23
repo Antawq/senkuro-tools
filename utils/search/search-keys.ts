@@ -6,6 +6,7 @@ import {
   OPEN_BUTTON,
   SEARCH_FIELD,
   SEARCH_MODAL,
+  canSiteOpenCatalog,
   fieldOf,
   findTopSearchModal,
   isTooShort,
@@ -228,6 +229,8 @@ export function createSearchKeys(pageDocument: Document, { runAfter, isContextVa
         event.stopImmediatePropagation();
         return;
       }
+      const isPlainEnter = event.key === 'Enter' && !isNewTab && index === null;
+      if (isPlainEnter && !isTooShort(fieldOf(topSearchModal)?.value ?? '') && canSiteOpenCatalog(topSearchModal, pageDocument)) return;
       consumeEvent(event);
       noticeTyping();
       const rows = syncRows();

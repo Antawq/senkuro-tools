@@ -27,6 +27,19 @@ export const rowsOf = (searchModal: HTMLElement): HTMLElement[] => [...searchMod
 
 export const isTooShort = (query: string): boolean => query.trim().length < MIN_QUERY_CHARACTERS;
 
+const CATALOG_TYPE_BY_TAB: ReadonlyMap<string, string> = new Map([
+  ['Манга', 'manga'],
+  ['Аниме', 'anime'],
+]);
+const CATALOG_SEARCHABLE_QUERY = /^[ -~]+$/;
+
+export function canSiteOpenCatalog(searchModal: HTMLElement, pageDocument: Document): boolean {
+  const catalogType = CATALOG_TYPE_BY_TAB.get(searchModal.querySelector(ACTIVE_TAB)?.textContent.trim() ?? '');
+  const query = fieldOf(searchModal)?.value.trim() ?? '';
+  if (catalogType === undefined || !CATALOG_SEARCHABLE_QUERY.test(query)) return false;
+  return pageDocument.querySelector(`header a[href^="/browse/${catalogType}"]`) !== null;
+}
+
 export const signatureOf = (rows: HTMLElement[]): string => rows.map((row) => row.getAttribute('href') ?? '').join('|');
 
 export interface SearchHost {

@@ -918,3 +918,122 @@ describe('Ctrl+K', () => {
     expect(siteSaw).toContain('site:k');
   });
 });
+
+describe('plain Enter where the site opens the catalog for the tab', () => {
+  const openCatalogPage = ({
+    tab = 'Манга',
+    headerLink = '/browse/manga',
+    slugs = ['a', 'b'],
+  }: { tab?: string; headerLink?: string | null; slugs?: string[] } = {}) => {
+    const header = headerLink === null ? '' : `<header><a href="${headerLink}">Каталог</a></header>`;
+    const tabs = `<div class="tabs"><button class="tabs-tab tabs-tab--active">${tab}</button></div>`;
+    document.body.innerHTML = header + modalHtml(slugs, '').replace('<input', `${tabs}<input`);
+    watchClicks();
+  };
+
+  const typeAndEnter = async (query: string, init: KeyboardEventInit = {}) => {
+    typed(query);
+    await settle(1000);
+    const event = press('Enter', init);
+    await settle(1000);
+    return event;
+  };
+
+  it('leaves Enter to the site, which opens the catalog, when nothing is highlighted', async () => {
+    openCatalogPage();
+    const event = await typeAndEnter('naruto');
+    expect(event.defaultPrevented).toBe(false);
+    expect(siteSaw).toContain('site:Enter');
+    expect(clicked).toEqual([]);
+  });
+
+  it('does the same for the anime tab where the site has an anime catalog', async () => {
+    openCatalogPage({ tab: 'Аниме', headerLink: '/browse/anime' });
+    const event = await typeAndEnter('naruto');
+    expect(event.defaultPrevented).toBe(false);
+    expect(siteSaw).toContain('site:Enter');
+  });
+
+  it('still opens the first result when the site has no catalog of that kind in its header', async () => {
+    for (const [tab, headerLink] of [
+      ['Аниме', '/browse/manga'],
+      ['Манга', '/browse/anime'],
+      ['Манга', null],
+    ] as const) {
+      openCatalogPage({ tab, headerLink });
+      clicked.length = 0;
+      siteSaw.length = 0;
+      const event = await typeAndEnter('naruto');
+      expect(event.defaultPrevented).toBe(true);
+      expect(siteSaw).not.toContain('site:Enter');
+      expect(clicked).toEqual(['/manga/a']);
+    }
+  });
+
+  it('only counts a catalog link that is in the header', async () => {
+    openCatalogPage({ headerLink: null });
+    document.body.insertAdjacentHTML('afterbegin', '<footer><a href="/browse/manga">Каталог</a></footer>');
+    const event = await typeAndEnter('naruto');
+    expect(event.defaultPrevented).toBe(true);
+    expect(clicked).toEqual(['/manga/a']);
+  });
+
+  it('still opens the first result for the tabs that have no catalog', async () => {
+    for (const tab of ['Пользователи', 'Гильдии', 'Персонажи', 'Персонал', 'Команды']) {
+      openCatalogPage({ tab });
+      clicked.length = 0;
+      const event = await typeAndEnter('naruto');
+      expect(event.defaultPrevented).toBe(true);
+      expect(clicked).toEqual(['/manga/a']);
+    }
+  });
+
+  it('still opens the first result for a query the catalog search cannot match, such as Cyrillic', async () => {
+    for (const query of ['наруто', 'Наруто', 'ナルト', 'naruto наруто']) {
+      openCatalogPage();
+      clicked.length = 0;
+      const event = await typeAndEnter(query);
+      expect(event.defaultPrevented).toBe(true);
+      expect(clicked).toEqual(['/manga/a']);
+    }
+  });
+
+  it('keeps a phrase of Latin words and punctuation for the catalog', async () => {
+    for (const query of ['one piece', 'Dr. Stone', 'k-on!']) {
+      openCatalogPage();
+      siteSaw.length = 0;
+      const event = await typeAndEnter(query);
+      expect(event.defaultPrevented).toBe(false);
+      expect(siteSaw).toContain('site:Enter');
+    }
+  });
+
+  it('opens the highlighted result itself, and the site never sees the key', async () => {
+    openCatalogPage();
+    typed('naruto');
+    await settle(1000);
+    press('ArrowDown');
+    press('ArrowDown');
+    const event = press('Enter');
+    expect(event.defaultPrevented).toBe(true);
+    expect(siteSaw).not.toContain('site:Enter');
+    expect(clicked).toEqual(['/manga/b']);
+  });
+
+  it('keeps Ctrl+Enter for the first result in a new tab', async () => {
+    openCatalogPage();
+    const event = await typeAndEnter('naruto', { ctrlKey: true });
+    expect(event.defaultPrevented).toBe(true);
+    expect(siteSaw).not.toContain('site:Enter');
+    expect(clicked).toEqual(['/manga/a']);
+    expect(clickKeys).toEqual(['ctrl']);
+  });
+
+  it('keeps a query that is too short from going anywhere', async () => {
+    openCatalogPage();
+    const event = await typeAndEnter('n');
+    expect(event.defaultPrevented).toBe(true);
+    expect(siteSaw).not.toContain('site:Enter');
+    expect(clicked).toEqual([]);
+  });
+});
