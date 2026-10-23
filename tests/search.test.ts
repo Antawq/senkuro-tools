@@ -4,10 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
-const stylesheet = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../assets/better-search.css'), 'utf8').replaceAll(
-  String.fromCharCode(13),
-  ''
-);
+const stylesheet = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../assets/search.css'), 'utf8').replaceAll(String.fromCharCode(13), '');
 
 const SITE_TOKENS = new Set([
   '--accent-pressed',
@@ -36,7 +33,7 @@ beforeEach(() => {
   document.head.innerHTML = `<style>${stylesheet}</style>`;
 });
 
-describe('better-search stylesheet values', () => {
+describe('search stylesheet values', () => {
   it('takes every colour from the site tokens and invents none', () => {
     expect(stylesheet).not.toMatch(/#[0-9a-f]{3,8}\b/i);
     expect(stylesheet).not.toMatch(/\brgba?\(|\bhsla?\(|\boklch\(/i);
@@ -95,7 +92,7 @@ describe('better-search stylesheet values', () => {
   });
 });
 
-describe('better-search page states', () => {
+describe('search page states', () => {
   it('dims the covers while a search is in flight but never the text, which would drop under 4.5:1', () => {
     document.body.innerHTML = modal('data-senkutools-searching');
     expect(styleOf('.cover-wrapper').opacity).toBe('0.6');

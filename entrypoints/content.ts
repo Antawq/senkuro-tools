@@ -1,7 +1,7 @@
 import '@/assets/tokens.css';
-import '@/assets/better-search.css';
+import '@/assets/search.css';
 import '@/assets/price-badges.css';
-import '@/assets/price-sort.css';
+import '@/assets/sort.css';
 import '@/assets/profile-badge.css';
 import '@/assets/site-fixes.css';
 import '@/assets/token-bar.css';
