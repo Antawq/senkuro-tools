@@ -14,7 +14,7 @@ const SITE_BUTTON = 'button button--secondary button--icon button-size--md';
 const ICON_SIZE = 20;
 const LABEL = 'Обновить инвентарь';
 
-export interface RefreshDeps {
+export interface RefreshHost {
   forget: (slug: string) => Promise<void>;
   reload: () => void;
 }
@@ -23,7 +23,7 @@ const cardsSlug = (): string | null => (CARDS_PATH.test(window.location.pathname
 
 const cardsTitle = (): Element | null => document.querySelector(FILTERS)?.closest(HEADER)?.querySelector(TITLE) ?? null;
 
-function build(slug: string, deps: RefreshDeps): HTMLButtonElement {
+function build(slug: string, host: RefreshHost): HTMLButtonElement {
   const button = element('button', SITE_BUTTON);
   button.type = 'button';
   button.id = REFRESH_BUTTON_ID;
@@ -35,15 +35,15 @@ function build(slug: string, deps: RefreshDeps): HTMLButtonElement {
   button.append(icon);
   button.addEventListener('click', () => {
     button.disabled = true;
-    void deps
+    void host
       .forget(slug)
       .catch(warnStore)
-      .then(() => deps.reload());
+      .then(() => host.reload());
   });
   return button;
 }
 
-export function syncRefreshButton(deps: RefreshDeps): void {
+export function syncRefreshButton(host: RefreshHost): void {
   const slug = cardsSlug();
   const title = cardsTitle();
   const existing = document.getElementById(REFRESH_BUTTON_ID);
@@ -51,7 +51,7 @@ export function syncRefreshButton(deps: RefreshDeps): void {
   if (place && existing?.dataset.slug === slug) return;
   existing?.remove();
   if (!place || !isAppMounted(document)) return;
-  title.after(build(slug, deps));
+  title.after(build(slug, host));
 }
 
 export const refreshButtonMissing = (): boolean =>

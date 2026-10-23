@@ -10,7 +10,7 @@ import { APP_MOUNTED_EVENT } from '@/utils/shared/app-mounted';
 import { loadDatabase } from '@/utils/shared/database';
 import { SENKURO_MATCHES } from '@/utils/shared/hosts';
 import { createPriceBadges } from '@/utils/badges/price-badges';
-import { refreshButtonMissing, syncRefreshButton, type RefreshDeps } from '@/utils/profile/inventory-refresh';
+import { refreshButtonMissing, syncRefreshButton, type RefreshHost } from '@/utils/profile/inventory-refresh';
 import { profileBadgeMissing, removeProfileBadge, updateProfileBadge } from '@/utils/profile/profile-dom';
 import { forgetCollection } from '@/utils/profile/profile-store';
 import { addedCards, createRenderLoop } from '@/utils/shared/render-loop';
@@ -21,7 +21,7 @@ import { isTradeMutation, updateTradeSummaries } from '@/utils/trades/trade-summ
 
 const LATE_RENDER_DELAYS_MS = [400, 1500];
 const WATCHED_ATTRIBUTES = ['src', 'srcset', 'data-srcset'];
-const INVENTORY_REFRESH: RefreshDeps = { forget: forgetCollection, reload: () => window.location.reload() };
+const INVENTORY_REFRESH: RefreshHost = { forget: forgetCollection, reload: () => window.location.reload() };
 
 const applySummaryFontSize = (size: number) => document.documentElement.style.setProperty('--senkuro-summary-font-size', `${size}px`);
 
