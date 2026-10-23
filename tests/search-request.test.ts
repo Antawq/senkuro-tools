@@ -51,23 +51,21 @@ const firstOf = (asked: QueryRequest): string[] => {
 const keyOf = (asked: QueryRequest) => (asked.query as { __key?: number }).__key;
 
 describe('widenSearchRequest', () => {
-  it('raises the page size of the search field only, on a copy that has a key of its own', () => {
+  it('raises the page size of the search field only, on a copy of the document that leaves the original and the key as they are', () => {
     const original = request('search');
     const wider = widenSearchRequest(original);
     expect(firstOf(wider)).toEqual([String(SEARCH_PAGE_SIZE), '5']);
     expect(firstOf(original)).toEqual(['10', '5']);
     expect(wider.query).not.toBe(original.query);
-    expect(wider.key).not.toBe(original.key);
+    expect(wider.key).toBe(original.key);
     expect(wider.variables).toBe(original.variables);
     expect(keyOf(wider)).toBeUndefined();
     expect(keyOf(original)).toBe(123);
   });
 
-  it('gives the same answer for the same request, and different keys for different requests', () => {
+  it('gives the same answer for the same request', () => {
     const one = request('search');
     expect(widenSearchRequest(one)).toEqual(widenSearchRequest(one));
-    const other = request('search', searchDocument(), 8);
-    expect(widenSearchRequest(other).key).not.toBe(widenSearchRequest(one).key);
   });
 
   it('widens a document once and reuses the copy, so the client does not print and hash a new one per search', () => {
@@ -89,8 +87,6 @@ describe('widenSearchRequest', () => {
     expect(widenSearchRequest(big)).toBe(big);
     const renamed = request('search', searchDocument('10', 'lookup'));
     expect(widenSearchRequest(renamed)).toBe(renamed);
-    const keyless = { ...request('search'), key: undefined };
-    expect(widenSearchRequest(keyless)).toBe(keyless);
     const empty: QueryRequest = { key: 1 };
     expect(widenSearchRequest(empty)).toBe(empty);
   });

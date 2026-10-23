@@ -12,8 +12,6 @@ export const SEARCH_PAGE_SIZE = 30;
 const PAGE_ARGUMENT = 'first';
 const INT_LITERAL = 'IntValue';
 const DOCUMENT_KEY = '__key';
-const KEY_HASH_MIX = 0x5bd1e995;
-const KEY_HASH_STRIDE = 31;
 
 type Publish = (signal: SearchSignal) => void;
 
@@ -64,12 +62,10 @@ function widenQueryDocument(queryDocument: object, pageSize: number): unknown {
   return widenedQuery;
 }
 
-const keyFor = (key: number, pageSize: number): number => (Math.imul(key ^ KEY_HASH_MIX, KEY_HASH_STRIDE) + pageSize) | 0;
-
 export function widenSearchRequest(request: QueryRequest, pageSize = SEARCH_PAGE_SIZE): QueryRequest {
-  if (operationName(request) !== SEARCH_OPERATION || typeof request.key !== 'number' || !request.query) return request;
+  if (operationName(request) !== SEARCH_OPERATION || !request.query) return request;
   const query = widenQueryDocument(request.query, pageSize);
-  return query ? { ...request, key: keyFor(request.key, pageSize), query: query } : request;
+  return query ? { ...request, query } : request;
 }
 
 function publishSearchPhases(source: unknown, request: QueryRequest, publish: Publish): unknown {
