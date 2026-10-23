@@ -4,7 +4,7 @@ import { refreshIcon } from '../shared/svg';
 import { extractProfileSlug } from './profile-cards';
 import { warnStoreFailure } from './profile-store';
 
-export const REFRESH_BUTTON_ID = 'senkuro-inventory-refresh';
+export const REFRESH_BUTTON_ID = 'senkutools-inventory-refresh';
 
 const CARDS_PATH = /^\/users\/[^/?#]+\/cards\/?$/;
 const FILTERS = '.user-card__filters';
