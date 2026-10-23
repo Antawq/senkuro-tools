@@ -1,0 +1,12 @@
+import { defineContentScript } from '#imports';
+import { SENKURO_MATCHES } from '@/utils/shared/hosts';
+import { installCatalogSearch } from '@/utils/catalog/catalog-search';
+
+export default defineContentScript({
+  matches: SENKURO_MATCHES,
+  runAt: 'document_start',
+  world: 'MAIN',
+  main() {
+    installCatalogSearch(window);
+  },
+});
