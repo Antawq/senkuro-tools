@@ -3,6 +3,7 @@ import '@/assets/search.css';
 import '@/assets/price-badges.css';
 import '@/assets/sort.css';
 import '@/assets/profile-badge.css';
+import '@/assets/shard-switch.css';
 import '@/assets/site-fixes.css';
 import '@/assets/token-bar.css';
 import '@/assets/trade-summary.css';
@@ -20,6 +21,7 @@ import { LIST_LOAD_EVENT, LIST_LOADED_EVENT } from '@/utils/shared/list-signal';
 import { loadSettings, watchSettings } from '@/utils/shared/settings';
 import { createPriceSort, hasSortMutation } from '@/utils/sort/sort-view';
 import { createTokenBar } from '@/utils/token/token-bar';
+import { createShardSwitchWatcher } from '@/utils/trades/shard-switch';
 import { createTradeStore, listenForTrades } from '@/utils/trades/trade-capture';
 import { isTradeMutation, updateTradeSummaries } from '@/utils/trades/trade-summary';
 
@@ -58,10 +60,12 @@ export default defineContentScript({
       runAfter: (run, delayMs) => void ctx.setTimeout(run, delayMs),
       schedule: loop.schedule,
     });
+    const shardSwitches = createShardSwitchWatcher({ nextFrame });
 
     const observer = new MutationObserver((mutations) => {
       const cards = addedCards(mutations);
       const tradesChanged = mutations.some(isTradeMutation);
+      shardSwitches.watch(mutations);
       loop.addCards(cards);
       if (tradesChanged) loop.markTrades();
       if (cards.length > 0 || tradesChanged || profileBadgeMissing() || hasSortMutation(mutations)) loop.schedule();

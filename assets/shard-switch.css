@@ -1,0 +1,18 @@
+.senkutools-shard-switch {
+  --tabs-bottom: 0;
+  margin-top: 12px;
+}
+
+.senkutools-shard-switch__empty {
+  margin-top: 20px;
+  color: var(--text-tertiary);
+}
+
+[data-senkutools-shard-view='cards'] .modal-trade__body-result .card-collect-preview--shard,
+[data-senkutools-shard-view='shards'] .modal-trade__body-result .card-collect-preview:not(.card-collect-preview--shard) {
+  display: none;
+}
+
+[data-senkutools-paging-parked] {
+  transform: translateY(200000px);
+}
