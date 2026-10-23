@@ -483,17 +483,10 @@ describe('clicks', () => {
     results().insertAdjacentHTML('beforeend', '<div class="nav-search__cnt-space"><button class="chip">naruto</button></div>');
   };
 
-  const pointer = (target: Element, init: MouseEventInit = {}) => {
-    const event = new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1, ...init });
+  const pointer = (target: Element, init: PointerEventInit = {}) => {
+    const event = new PointerEvent('click', { bubbles: true, cancelable: true, detail: 1, pointerType: 'mouse', ...init });
     target.dispatchEvent(event);
     return event;
-  };
-
-  const emulateHover = (matches: boolean) => {
-    Object.defineProperty(document.defaultView as unknown as object, 'matchMedia', {
-      value: (query: string) => ({ matches: matches && query === '(hover: hover)' }),
-      configurable: true,
-    });
   };
 
   let siteClicks: string[];
@@ -501,7 +494,6 @@ describe('clicks', () => {
   const siteHandler = (event: Event) => siteClicks.push((event.target as Element).className || (event.target as Element).tagName);
 
   beforeEach(() => {
-    emulateHover(true);
     siteClicks = [];
     document.addEventListener('click', siteHandler);
     document.addEventListener('click', view.handleClick, { capture: true });
@@ -510,7 +502,6 @@ describe('clicks', () => {
   afterEach(() => {
     document.removeEventListener('click', siteHandler);
     document.removeEventListener('click', view.handleClick, { capture: true });
-    Reflect.deleteProperty(document.defaultView as unknown as object, 'matchMedia');
   });
 
   it.each([
@@ -569,19 +560,20 @@ describe('clicks', () => {
     withControls(['a']);
     const button = document.querySelector('.tabs-tab') as HTMLElement;
     button.focus();
-    pointer(button, { detail: 0 });
+    pointer(button, { detail: 0, pointerType: '' });
     await settle();
     expect(document.activeElement).toBe(button);
   });
 
-  it('leaves the focus alone on a device without a mouse, so the keyboard does not pop up again', async () => {
-    emulateHover(false);
-    withControls(['a']);
-    const button = document.querySelector('.tabs-tab') as HTMLElement;
-    button.focus();
-    pointer(button);
-    await settle();
-    expect(document.activeElement).toBe(button);
+  it('leaves the focus alone after a tap of a finger or a pen, which also report a click count, so the keyboard does not pop up again', async () => {
+    for (const pointerType of ['touch', 'pen']) {
+      withControls(['a']);
+      const button = document.querySelector('.tabs-tab') as HTMLElement;
+      button.focus();
+      pointer(button, { pointerType });
+      await settle();
+      expect(document.activeElement).toBe(button);
+    }
   });
 
   it('does not give the field back once the extension is gone', async () => {

@@ -24,7 +24,6 @@ const MIN_WORD_CHARACTERS = 2;
 const SLOW_SEARCH_MS = 300;
 const TIMER_SLACK_MS = 50;
 const REFOCUS_TRIGGER = '.tabs-tab, .icon-click, .nav-search__cnt-space button';
-const HOVER_MEDIA_QUERY = '(hover: hover)';
 
 export interface SearchView {
   syncView: () => void;
@@ -179,11 +178,10 @@ export function createSearchView(pageDocument: Document, { runAfter, isContextVa
       event.stopImmediatePropagation();
       return;
     }
-    const isPointedClick =
-      event.detail > 0 && target.closest(REFOCUS_TRIGGER) !== null && pageDocument.defaultView?.matchMedia(HOVER_MEDIA_QUERY).matches === true;
+    const isMouseClick = event instanceof PointerEvent && event.pointerType === 'mouse' && target.closest(REFOCUS_TRIGGER) !== null;
     runAfter(() => {
       syncView();
-      if (isPointedClick && isContextValid()) fieldOf(openSearchModal)?.focus({ preventScroll: true });
+      if (isMouseClick && isContextValid()) fieldOf(openSearchModal)?.focus({ preventScroll: true });
     }, 0);
   };
 
