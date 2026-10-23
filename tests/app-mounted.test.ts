@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Window } from 'happy-dom';
 
-import { APP_MOUNTED_EVENT, POLL_MS, publishAppMounted, isAppMounted } from '../utils/shared/app-mounted';
+import { APP_MOUNTED_EVENT, APP_MOUNT_POLL_MS, publishAppMounted, isAppMounted } from '../utils/shared/app-mounted';
 
 type PageWindow = Parameters<typeof publishAppMounted>[0];
 
@@ -35,13 +35,13 @@ describe('publishAppMounted', () => {
     pageWindow.document.addEventListener(APP_MOUNTED_EVENT, heard);
     publishAppMounted(pageWindow);
     expect(isAppMounted(pageWindow.document)).toBe(false);
-    vi.advanceTimersByTime(POLL_MS * 5);
+    vi.advanceTimersByTime(APP_MOUNT_POLL_MS * 5);
     expect(heard).not.toHaveBeenCalled();
     mount();
-    vi.advanceTimersByTime(POLL_MS);
+    vi.advanceTimersByTime(APP_MOUNT_POLL_MS);
     expect(isAppMounted(pageWindow.document)).toBe(true);
     expect(heard).toHaveBeenCalledOnce();
-    vi.advanceTimersByTime(POLL_MS * 30);
+    vi.advanceTimersByTime(APP_MOUNT_POLL_MS * 30);
     expect(heard).toHaveBeenCalledOnce();
   });
 
@@ -55,21 +55,21 @@ describe('publishAppMounted', () => {
   it('waits for the page to draw its root, which may not be there at the start', () => {
     const pageWindow = onFakeClock(new Window({ url: 'https://senkuro.me/' }));
     publishAppMounted(pageWindow);
-    vi.advanceTimersByTime(POLL_MS * 3);
+    vi.advanceTimersByTime(APP_MOUNT_POLL_MS * 3);
     expect(isAppMounted(pageWindow.document)).toBe(false);
     pageWindow.document.body.innerHTML = '<div id="app"></div>';
     (pageWindow.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = {};
-    vi.advanceTimersByTime(POLL_MS);
+    vi.advanceTimersByTime(APP_MOUNT_POLL_MS);
     expect(isAppMounted(pageWindow.document)).toBe(true);
   });
 
   it('never gives up, however late the app mounts', () => {
     const { pageWindow, mount } = page();
     publishAppMounted(pageWindow);
-    vi.advanceTimersByTime(POLL_MS * 1000);
+    vi.advanceTimersByTime(APP_MOUNT_POLL_MS * 1000);
     expect(isAppMounted(pageWindow.document)).toBe(false);
     mount();
-    vi.advanceTimersByTime(POLL_MS);
+    vi.advanceTimersByTime(APP_MOUNT_POLL_MS);
     expect(isAppMounted(pageWindow.document)).toBe(true);
   });
 
@@ -80,7 +80,7 @@ describe('publishAppMounted', () => {
     publishAppMounted(pageWindow);
     publishAppMounted(pageWindow);
     mount();
-    vi.advanceTimersByTime(POLL_MS);
+    vi.advanceTimersByTime(APP_MOUNT_POLL_MS);
     expect(heard).toHaveBeenCalledOnce();
   });
 });
