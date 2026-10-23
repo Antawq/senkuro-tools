@@ -133,17 +133,17 @@ function rBlock(sides: SideView[], settings: SummarySettings): HTMLElement | nul
   const grid = element('div', `${SUMMARY}__table`);
   grid.style.setProperty('--senkuro-columns', String(sides.length));
   for (const key of rows) grid.append(element('span', `${SUMMARY}__label`, ROW_LABELS[key]), ...sides.map((side) => rCell(side, key)));
-  const block = element('div', `${SUMMARY}__window`);
-  block.append(element('div', `${SUMMARY}__window-title`, R_RANK), grid);
-  return block;
+  const window = element('div', `${SUMMARY}__window`);
+  window.append(element('div', `${SUMMARY}__window-title`, R_RANK), grid);
+  return window;
 }
 
 function panel(sides: SideView[], settings: SummarySettings): HTMLElement | null {
-  const shouldShowUnknown = settings.showSummaryBank || settings.showSummaryCards;
+  const showsUnknown = settings.showSummaryBank || settings.showSummaryCards;
   const parts = [
     table(sides, settings),
     rBlock(sides, settings),
-    shouldShowUnknown && sides.some((side) => side.unknown) ? element('div', UNKNOWN, UNKNOWN_LEGEND) : null,
+    showsUnknown && sides.some((side) => side.unknown) ? element('div', UNKNOWN, UNKNOWN_LEGEND) : null,
   ].filter((part): part is HTMLElement => part !== null);
   if (parts.length === 0) return null;
   const wrapper = element('div', `${SUMMARY}__panel`);
