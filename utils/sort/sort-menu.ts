@@ -23,11 +23,11 @@ function createMenuItem(menu: Element): HTMLElement | null {
   const menuItems = menu.querySelectorAll<HTMLElement>(MENU_ITEM);
   const clone = menuItems.item(menuItems.length - 1)?.cloneNode(true) as HTMLElement | undefined;
   const input = clone?.querySelector('input');
-  const text = clone?.querySelector('span');
-  if (!clone || !input || !text) return null;
+  const labelElement = clone?.querySelector('span');
+  if (!clone || !input || !labelElement) return null;
   clone.setAttribute(OWN_ITEM_ATTRIBUTE, '');
   input.value = PRICE_MODE;
-  text.textContent = SORT_TEXT.menuItem;
+  labelElement.textContent = SORT_TEXT.menuItem;
   return clone;
 }
 
@@ -48,26 +48,26 @@ export function decorateMenu(pageDocument: Document, isPriceSelected: boolean): 
 export const findSortTrigger = (pageDocument: Document): HTMLElement | undefined =>
   [...pageDocument.querySelectorAll<HTMLElement>(TRIGGER)].find((button) => SORT_LABEL.test(button.textContent?.trim() ?? ''));
 
-function restoreLabel(filters: Element, text: Element): void {
+function restoreLabel(filters: Element, labelElement: Element): void {
   const saved = filters.getAttribute(SAVED_LABEL_ATTRIBUTE);
   filters.removeAttribute(SAVED_LABEL_ATTRIBUTE);
-  if (saved && isOwnLabel(text.textContent)) text.textContent = saved;
+  if (saved && isOwnLabel(labelElement.textContent)) labelElement.textContent = saved;
 }
 
 export function reflectLabel(pageDocument: Document, state: LabelState): void {
   const filters = pageDocument.querySelector(FILTERS);
   const trigger = findSortTrigger(pageDocument);
-  const text = trigger?.querySelector('span');
-  if (!filters || !trigger || !text) return;
+  const labelElement = trigger?.querySelector('span');
+  if (!filters || !trigger || !labelElement) return;
   if (state === 'off') {
-    restoreLabel(filters, text);
+    restoreLabel(filters, labelElement);
     trigger.removeAttribute('title');
     return;
   }
-  const current = text.textContent ?? '';
+  const current = labelElement.textContent ?? '';
   if (current && !isOwnLabel(current)) filters.setAttribute(SAVED_LABEL_ATTRIBUTE, current);
   const wanted = state === 'price' ? SORT_TEXT.label : SORT_TEXT.partialLabel;
-  if (current !== wanted) text.textContent = wanted;
+  if (current !== wanted) labelElement.textContent = wanted;
   if (state === 'partial') trigger.setAttribute('title', SORT_TEXT.partialHint);
   else trigger.removeAttribute('title');
 }
