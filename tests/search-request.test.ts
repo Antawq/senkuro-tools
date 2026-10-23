@@ -50,7 +50,7 @@ const firstOf = (asked: QueryRequest): string[] => {
 
 const keyOf = (asked: QueryRequest) => (asked.query as { __key?: number }).__key;
 
-describe('widenSearch', () => {
+describe('widenSearchRequest', () => {
   it('raises the page size of the search field only, on a copy that has a key of its own', () => {
     const original = request('search');
     const wider = widenSearchRequest(original);
@@ -109,7 +109,7 @@ const clientWith = () => {
   return { client, asked };
 };
 
-describe('widenSearches', () => {
+describe('installSearchWidening', () => {
   it('sends the wider search to the site client and keeps the answer', () => {
     const { client, asked } = clientWith();
     expect(installSearchWidening(client)).toBe(true);
@@ -172,7 +172,7 @@ describe('search signals', () => {
     return { client, signals };
   };
 
-  it('announces a search when it starts and when its answer is in, with what was asked', async () => {
+  it('publishes a search when it starts and when its answer is in, with what was asked', async () => {
     const { client, signals } = streaming([{ stale: true }, {}]);
     const source = client.executeQuery(request('search'));
     expect(signals).toEqual([]);
@@ -183,7 +183,7 @@ describe('search signals', () => {
     ]);
   });
 
-  it('announces the end of a search the page gave up on', () => {
+  it('publishes the end of a search the page gave up on', () => {
     const { client, signals } = streaming([{ stale: true }], false);
     const subscription = (client.executeQuery(request('search')) as { subscribe(callback: () => void): { unsubscribe(): void } }).subscribe(() => undefined);
     expect(signals.map((signal) => signal.phase)).toEqual(['start']);

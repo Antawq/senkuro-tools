@@ -2,7 +2,7 @@ import type { Sink } from 'wonka';
 
 import { claimPage } from '../shared/page-claim';
 import type { PageWindow } from '../shared/page-window';
-import { operationName, whenClient, type QueryClient, type QueryRequest } from '../shared/urql-client';
+import { operationName, runWhenClientFound, type QueryClient, type QueryRequest } from '../shared/urql-client';
 import { tapSource, type SourceResult } from '../shared/urql-source';
 import { SEARCH_EVENT, type SearchSignal } from './search-signal';
 
@@ -100,5 +100,5 @@ export function installSearchWidening(client: QueryClient, publish: Publish = ()
 export function installSearchRequest(pageWindow: PageWindow): void {
   if (!claimPage(pageWindow, 'search-request')) return;
   const publish: Publish = (signal) => pageWindow.document.dispatchEvent(new pageWindow.CustomEvent(SEARCH_EVENT, { detail: JSON.stringify(signal) }));
-  whenClient(pageWindow, (client) => void installSearchWidening(client, publish));
+  runWhenClientFound(pageWindow, (client) => void installSearchWidening(client, publish));
 }

@@ -63,7 +63,7 @@ function watchFetch(pageWindow: PageWindow, waiting: Waiting): void {
   };
 }
 
-export function whenClient(pageWindow: PageWindow, run: (client: QueryClient) => void): void {
+export function runWhenClientFound(pageWindow: PageWindow, run: (client: QueryClient) => void): void {
   const windowSlots = pageWindow as unknown as Record<symbol, Waiting | undefined>;
   let waiting = windowSlots[WAITING];
   if (!waiting) {

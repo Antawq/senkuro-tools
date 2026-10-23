@@ -547,7 +547,7 @@ describe('the answer of the page', () => {
   });
 });
 
-describe('touchesSort', () => {
+describe('hasSortMutation', () => {
   const record = (target: Node, added: Node[] = []): MutationRecord => ({ target, addedNodes: added as unknown as NodeList }) as MutationRecord;
 
   it('notices changes in the grid, the bar, and the sort menu, and a menu that is added', () => {

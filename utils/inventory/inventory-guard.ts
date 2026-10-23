@@ -2,7 +2,7 @@ import { debugLogger } from '../shared/debug';
 import { LIST_LOAD_EVENT, LIST_LOADED_EVENT, encodeLoaded, type LoadOutcome } from '../shared/list-signal';
 import { claimPage } from '../shared/page-claim';
 import type { PageWindow } from '../shared/page-window';
-import { operationName, whenClient, type QueryClient } from '../shared/urql-client';
+import { operationName, runWhenClientFound, type QueryClient } from '../shared/urql-client';
 import { recordLists, tapMutations, type MutationResult } from './client-hooks';
 import { createCursorLedger, guardCursors } from './list-cursors';
 import { createListRecord, familyIdOf, needsRefresh, type Family, type ListRecord, type PageRequest, type ReceivedCard } from './list-families';
@@ -81,7 +81,7 @@ export function installInventoryGuard(win: PageWindow): void {
 
   learnFromFetch(win, ledger);
 
-  whenClient(win, (client) => {
+  runWhenClientFound(win, (client) => {
     attachedClient = client;
     const isRecording = recordLists(
       client,
