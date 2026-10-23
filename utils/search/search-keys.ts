@@ -60,7 +60,7 @@ export function createSearchKeys(pageDocument: Document, { runAfter, isContextVa
   let shownSignature = '';
   let changedAt = 0;
   let typedAt = 0;
-  let knownValue = '';
+  let knownFieldValue = '';
   let isWaiting = false;
   let waitStartedAt = 0;
   let waitAsked = '';
@@ -98,9 +98,9 @@ export function createSearchKeys(pageDocument: Document, { runAfter, isContextVa
   };
 
   const noticeTyping = (): void => {
-    const value = currentField()?.value ?? '';
-    if (value === knownValue) return;
-    knownValue = value;
+    const fieldValue = currentField()?.value ?? '';
+    if (fieldValue === knownFieldValue) return;
+    knownFieldValue = fieldValue;
     typedAt = Date.now();
     index = null;
     markActiveRow(currentRows());
@@ -137,7 +137,7 @@ export function createSearchKeys(pageDocument: Document, { runAfter, isContextVa
     shownSignature = '';
     changedAt = Date.now();
     typedAt = 0;
-    knownValue = '';
+    knownFieldValue = '';
     if (topSearchModal) {
       observer = new MutationObserver(() => {
         syncRows();
