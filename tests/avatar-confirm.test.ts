@@ -2,12 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   AVATAR_COST,
-  CONFIRM_PROPS,
+  COIN_ALT,
   MONEY_STICKER,
-  createConfirmLoader,
+  confirmProps,
+  createSiteAssets,
   findModals,
   installAvatarConfirm,
   type ModalEntry,
+  type SiteAssets,
   type SiteModals,
 } from '../utils/avatar/avatar-confirm';
 
@@ -18,9 +20,13 @@ const section = `
     <div class="edit-media__actions"><button id="upload"><span>Заменить</span></button><button id="remove">Снять</button></div>
   </div>`;
 
+const COIN_URL = 'https://senkuro.me/assets/money-3d-D_1Eg9LH.png';
+const COMPONENT = { name: 'BaseConfirmModal' };
+
 const visit = (path: string) => window.history.pushState({}, '', path);
 const upload = () => document.getElementById('upload') as HTMLElement;
 const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+const costs = () => [...document.querySelectorAll('.modal-alert__desc span')];
 
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
@@ -32,17 +38,29 @@ const deferred = <T>() => {
   return { promise, resolve, reject };
 };
 
+interface Shown {
+  loaded: unknown;
+  props: { description: { type: string; text: string }[] };
+  options: object;
+}
+
 let siteClicks: string[];
 let answer: ReturnType<typeof deferred<boolean>>;
 let closed: ReturnType<typeof deferred<boolean>>;
-let shown: { loaded: unknown; props: object; options: object }[];
+let shown: Shown[];
 let waitedFor: string[];
 let modals: SiteModals | null;
-let component: () => Promise<unknown>;
+let assets: SiteAssets;
 let dispose: () => void;
-const COMPONENT = { name: 'BaseConfirmModal' };
 
 const siteHandler = (event: Event) => siteClicks.push((event.target as Element).closest('button')?.id ?? '');
+
+const mountWindow = (mark: string) => {
+  document.body.insertAdjacentHTML(
+    'beforeend',
+    `<div class="modal-alert"><div class="modal-alert__desc">С вашего баланса спишется <span>${mark}</span>. Продолжить?</div></div>`
+  );
+};
 
 beforeEach(() => {
   visit('/settings/appearance');
@@ -54,7 +72,8 @@ beforeEach(() => {
   closed = deferred<boolean>();
   modals = {
     showModal: (loader, props, options) => {
-      void loader().then((loaded) => shown.push({ loaded, props, options }));
+      void loader().then((loaded) => shown.push({ loaded, props: props as Shown['props'], options }));
+      queueMicrotask(() => mountWindow((props as Shown['props']).description[1]?.text ?? ''));
       const entry: ModalEntry = {
         emitted: (event) => {
           waitedFor.push(event);
@@ -64,12 +83,14 @@ beforeEach(() => {
       return entry;
     },
   };
-  component = () => Promise.resolve(COMPONENT);
+  assets = { component: () => Promise.resolve(COMPONENT), coin: () => Promise.resolve(COIN_URL) };
   document.addEventListener('click', siteHandler);
-  dispose = installAvatarConfirm({ doc: document, modals: () => modals, component: () => component() });
+  dispose = installAvatarConfirm({ doc: document, modals: () => modals, assets: { component: () => assets.component(), coin: () => assets.coin() } });
 });
 
-afterEach(() => {
+afterEach(async () => {
+  answer.resolve(false);
+  await flush();
   dispose();
   document.removeEventListener('click', siteHandler);
   document.body.innerHTML = '';
@@ -96,12 +117,12 @@ describe('the warning before an avatar upload', () => {
     await flush();
     expect(MONEY_STICKER).toBe(25);
     expect(AVATAR_COST).toBe(5000);
-    expect(shown[0]?.props).toEqual(CONFIRM_PROPS);
-    expect(CONFIRM_PROPS.sticker).toBe(MONEY_STICKER);
-    expect(CONFIRM_PROPS.title).toBe('Платная загрузка аватарки');
-    expect(CONFIRM_PROPS.description).toEqual([
+    expect(shown[0]?.props).toEqual(confirmProps(true));
+    expect(confirmProps(true).sticker).toBe(MONEY_STICKER);
+    expect(confirmProps(true).title).toBe('Платная загрузка аватарки');
+    expect(confirmProps(true).description).toEqual([
       { type: 'text', text: 'С вашего баланса спишется ' },
-      { type: 'mark', text: `${AVATAR_COST} сенкоинов` },
+      { type: 'mark', text: String(AVATAR_COST) },
       { type: 'text', text: '. Продолжить?' },
     ]);
   });
@@ -211,6 +232,92 @@ describe('the warning before an avatar upload', () => {
   });
 });
 
+describe('the 3D coin in place of the word', () => {
+  it('puts the coin of the site after the amount, with the word as its alternative text', async () => {
+    upload().click();
+    await flush();
+    const coin = costs()[0]?.querySelector('img');
+    expect(costs()[0]?.textContent).toBe(String(AVATAR_COST));
+    expect(coin?.getAttribute('src')).toBe(COIN_URL);
+    expect(coin?.getAttribute('alt')).toBe(COIN_ALT);
+  });
+
+  it('sizes the coin with the text it stands in', async () => {
+    upload().click();
+    await flush();
+    const style = (costs()[0]?.querySelector('img') as HTMLImageElement).style;
+    expect(style.height).toBe('1.4em');
+    expect(style.width).toBe('auto');
+    expect(style.verticalAlign).toBe('-0.3em');
+    expect(style.marginLeft).toBe('0.25em');
+    expect(style.marginRight).toBe('-0.15em');
+  });
+
+  it('puts one coin however often the window changes', async () => {
+    upload().click();
+    await flush();
+    document.querySelector('.modal-alert')?.insertAdjacentHTML('beforeend', '<i></i>');
+    await flush();
+    expect(costs()[0]?.querySelectorAll('img')).toHaveLength(1);
+  });
+
+  it('leaves other windows alone, such as the confirmation of age', async () => {
+    document.body.insertAdjacentHTML(
+      'beforeend',
+      '<div class="modal-alert"><div class="modal-alert__desc">для <span>взрослых</span> и <span>5000</span> и <span>15000 штук</span></div></div>'
+    );
+    document.body.insertAdjacentHTML('beforeend', '<div class="elsewhere"><span>5000</span></div>');
+    upload().click();
+    await flush();
+    const spans = [...document.querySelectorAll('span')].filter((span) => span.querySelector('img'));
+    expect(spans).toHaveLength(2);
+    expect(document.querySelector('.elsewhere span')?.querySelector('img')).toBeNull();
+    expect(
+      costs()
+        .find((span) => span.textContent === 'взрослых')
+        ?.querySelector('img')
+    ).toBeNull();
+    expect(
+      costs()
+        .find((span) => span.textContent === '15000 штук')
+        ?.querySelector('img')
+    ).toBeNull();
+  });
+
+  it('says the word instead when the coin cannot be found, and puts no picture', async () => {
+    assets = { component: () => Promise.resolve(COMPONENT), coin: () => Promise.resolve(null) };
+    upload().click();
+    await flush();
+    expect(shown[0]?.props).toEqual(confirmProps(false));
+    expect(confirmProps(false).description[1]?.text).toBe(`${AVATAR_COST} ${COIN_ALT}`);
+    expect(costs()[0]?.textContent).toBe(`${AVATAR_COST} ${COIN_ALT}`);
+    expect(document.querySelector('img')).toBeNull();
+  });
+
+  it('stops looking for the window once the question is answered', async () => {
+    upload().click();
+    await flush();
+    answer.resolve(false);
+    await flush();
+    mountWindow(String(AVATAR_COST));
+    await flush();
+    expect(costs().at(-1)?.querySelector('img')).toBeNull();
+  });
+
+  it('puts the coin in the window it asked for even when that window is slow to appear', async () => {
+    modals = {
+      showModal: (loader, props) => {
+        void loader();
+        setTimeout(() => mountWindow((props as Shown['props']).description[1]?.text ?? ''), 20);
+        return { emitted: (event) => (event === 'confirm' ? answer.promise : closed.promise) };
+      },
+    };
+    upload().click();
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(costs()[0]?.querySelector('img')).not.toBeNull();
+  });
+});
+
 describe('when the window of the site cannot be reached, the upload is not blocked', () => {
   it('does not even hold the click when the site has no modal controller', () => {
     modals = null;
@@ -219,7 +326,7 @@ describe('when the window of the site cannot be reached, the upload is not block
   });
 
   it('goes on when the window cannot be loaded', async () => {
-    component = () => Promise.reject(new Error('offline'));
+    assets = { component: () => Promise.reject(new Error('offline')), coin: () => Promise.resolve(COIN_URL) };
     upload().click();
     await flush();
     expect(siteClicks).toEqual(['upload']);
@@ -237,10 +344,10 @@ describe('when the window of the site cannot be reached, the upload is not block
   });
 
   it('can ask again after a failure', async () => {
-    component = () => Promise.reject(new Error('offline'));
+    assets = { component: () => Promise.reject(new Error('offline')), coin: () => Promise.resolve(COIN_URL) };
     upload().click();
     await flush();
-    component = () => Promise.resolve(COMPONENT);
+    assets = { component: () => Promise.resolve(COMPONENT), coin: () => Promise.resolve(COIN_URL) };
     upload().click();
     await flush();
     expect(shown).toHaveLength(1);
@@ -271,8 +378,9 @@ describe('finding the modal controller of the site', () => {
   });
 });
 
-describe('loading the confirm window of the site', () => {
-  const sw = 'precache([{url:"assets/BaseButton-Ab12.js"},{url:"assets/BaseConfirmModal-Dw121HiH.js"},{url:"assets/other.js"}])';
+describe('loading the confirm window and the coin of the site', () => {
+  const sw =
+    'precache([{url:"assets/BaseButton-Ab12.js"},{url:"assets/BaseConfirmModal-Dw121HiH.js"},{url:"assets/money-3d-D_1Eg9LH.png"},{url:"assets/other.js"}])';
   const win = (text: string) => ({
     fetch: vi.fn(() => Promise.resolve({ text: () => Promise.resolve(text) } as Response)),
     location: { origin: 'https://senkuro.me' } as Location,
@@ -281,40 +389,63 @@ describe('loading the confirm window of the site', () => {
   it('reads the chunk of the window from the service worker list and imports it from the site', async () => {
     const importer = vi.fn(() => Promise.resolve({ default: COMPONENT }));
     const host = win(sw);
-    expect(await createConfirmLoader(host, importer)()).toBe(COMPONENT);
+    expect(await createSiteAssets(host, importer).component()).toBe(COMPONENT);
     expect(host.fetch).toHaveBeenCalledWith('/sw.js');
     expect(importer).toHaveBeenCalledWith('https://senkuro.me/assets/BaseConfirmModal-Dw121HiH.js');
   });
 
-  it('does it once however often it is asked', async () => {
+  it('reads the picture of the coin from the same list', async () => {
+    expect(await createSiteAssets(win(sw)).coin()).toBe(COIN_URL);
+  });
+
+  it('reads the list once for both, however often they are asked', async () => {
     const importer = vi.fn(() => Promise.resolve({ default: COMPONENT }));
     const host = win(sw);
-    const load = createConfirmLoader(host, importer);
-    await Promise.all([load(), load()]);
-    await load();
+    const loader = createSiteAssets(host, importer);
+    await Promise.all([loader.component(), loader.component(), loader.coin()]);
+    await loader.component();
+    await loader.coin();
     expect(host.fetch).toHaveBeenCalledTimes(1);
     expect(importer).toHaveBeenCalledTimes(1);
+  });
+
+  it('finds no coin when the list names none, or cannot be read, and never fails for it', async () => {
+    expect(await createSiteAssets(win('precache([])')).coin()).toBeNull();
+    const broken = { fetch: vi.fn(() => Promise.reject(new Error('offline'))), location: { origin: 'https://senkuro.me' } as Location };
+    expect(await createSiteAssets(broken).coin()).toBeNull();
   });
 
   it('fails when the list names no such chunk, and tries again next time', async () => {
     const importer = vi.fn(() => Promise.resolve({ default: COMPONENT }));
     const host = win('precache([])');
-    const load = createConfirmLoader(host, importer);
-    await expect(load()).rejects.toThrow();
-    await expect(load()).rejects.toThrow();
-    expect(host.fetch).toHaveBeenCalledTimes(2);
+    const loader = createSiteAssets(host, importer);
+    await expect(loader.component()).rejects.toThrow();
+    await expect(loader.component()).rejects.toThrow();
     expect(importer).not.toHaveBeenCalled();
   });
 
+  it('reads the list again after it could not be read', async () => {
+    const host = {
+      fetch: vi
+        .fn()
+        .mockRejectedValueOnce(new Error('offline'))
+        .mockResolvedValue({ text: () => Promise.resolve(sw) }),
+      location: { origin: 'https://senkuro.me' } as Location,
+    };
+    const loader = createSiteAssets(host, () => Promise.resolve({ default: COMPONENT }));
+    expect(await loader.coin()).toBeNull();
+    expect(await loader.coin()).toBe(COIN_URL);
+  });
+
   it('fails when the chunk has no component', async () => {
-    const load = createConfirmLoader(win(sw), () => Promise.resolve({}));
-    await expect(load()).rejects.toThrow();
+    const loader = createSiteAssets(win(sw), () => Promise.resolve({}));
+    await expect(loader.component()).rejects.toThrow();
   });
 
   it('fails when the chunk cannot be imported, and tries again next time', async () => {
     const importer = vi.fn().mockRejectedValueOnce(new Error('404')).mockResolvedValue({ default: COMPONENT });
-    const load = createConfirmLoader(win(sw), importer);
-    await expect(load()).rejects.toThrow('404');
-    expect(await load()).toBe(COMPONENT);
+    const loader = createSiteAssets(win(sw), importer);
+    await expect(loader.component()).rejects.toThrow('404');
+    expect(await loader.component()).toBe(COMPONENT);
   });
 });
