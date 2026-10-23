@@ -23,7 +23,7 @@ const findCardsSlug = (): string | null => (CARDS_PATH.test(window.location.path
 
 const findCardsTitle = (): Element | null => document.querySelector(FILTERS)?.closest(HEADER)?.querySelector(TITLE) ?? null;
 
-function build(slug: string, host: RefreshHost): HTMLButtonElement {
+function createRefreshButton(slug: string, host: RefreshHost): HTMLButtonElement {
   const button = element('button', SITE_BUTTON);
   button.type = 'button';
   button.id = REFRESH_BUTTON_ID;
@@ -51,7 +51,7 @@ export function syncRefreshButton(host: RefreshHost): void {
   if (canPlaceButton && existingButton?.dataset.slug === slug) return;
   existingButton?.remove();
   if (!canPlaceButton || !isAppMounted(document)) return;
-  cardsTitle.after(build(slug, host));
+  cardsTitle.after(createRefreshButton(slug, host));
 }
 
 export const isRefreshButtonMissing = (): boolean =>
