@@ -7,6 +7,6 @@ export default defineContentScript({
   runAt: 'document_start',
   world: 'MAIN',
   main() {
-    installAvatarConfirm({ doc: document, modals: () => findModals(document), assets: createSiteAssets(window) });
+    installAvatarConfirm({ pageDocument: document, modals: () => findModals(document), assets: createSiteAssets(window) });
   },
 });

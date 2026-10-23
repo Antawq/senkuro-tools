@@ -34,7 +34,7 @@ export interface SiteAssets {
 }
 
 interface AvatarConfirmHost {
-  doc: Document;
+  pageDocument: Document;
   modals: () => SiteModals | null;
   assets: SiteAssets;
 }
@@ -45,8 +45,8 @@ interface VueHost {
 
 const isSiteModals = (value: unknown): value is SiteModals => typeof (value as SiteModals | null)?.showModal === 'function';
 
-export function findModals(doc: Document): SiteModals | null {
-  const provides = (doc.querySelector('#app') as VueHost | null)?.__vue_app__?._context?.provides;
+export function findModals(pageDocument: Document): SiteModals | null {
+  const provides = (pageDocument.querySelector('#app') as VueHost | null)?.__vue_app__?._context?.provides;
   if (!provides) return null;
   const key = Object.getOwnPropertySymbols(provides).find((symbol) => symbol.description === MODALS_KEY);
   const modals = key ? provides[key] : null;
@@ -54,14 +54,14 @@ export function findModals(doc: Document): SiteModals | null {
 }
 
 export function createSiteAssets(
-  win: Pick<Window, 'fetch' | 'location'>,
+  pageWindow: Pick<Window, 'fetch' | 'location'>,
   importModule: (url: string) => Promise<{ default?: unknown }> = (url) => import(url) as Promise<{ default?: unknown }>
 ): SiteAssets {
   let listing: Promise<string> | null = null;
   let component: Promise<unknown> | null = null;
 
   const read = (): Promise<string> => {
-    listing ??= win
+    listing ??= pageWindow
       .fetch(SERVICE_WORKER)
       .then((response) => {
         if (!response.ok) throw new Error(`${SERVICE_WORKER}: HTTP ${response.status}`);
@@ -76,7 +76,7 @@ export function createSiteAssets(
 
   const urlOf = async (pattern: RegExp): Promise<string | null> => {
     const path = pattern.exec(await read())?.[0];
-    return path ? new URL(path, win.location.origin).href : null;
+    return path ? new URL(path, pageWindow.location.origin).href : null;
   };
 
   const load = async (): Promise<unknown> => {
@@ -99,27 +99,27 @@ export function createSiteAssets(
   };
 }
 
-const createCoin = (doc: Document, url: string): HTMLImageElement => {
-  const coin = doc.createElement('img');
+const createCoin = (pageDocument: Document, url: string): HTMLImageElement => {
+  const coin = pageDocument.createElement('img');
   coin.src = url;
   coin.alt = COIN_ALT;
   coin.className = COIN_CLASS;
   return coin;
 };
 
-const putCoinInCost = (doc: Document, url: string | null): (() => void) => {
+const putCoinInCost = (pageDocument: Document, url: string | null): (() => void) => {
   if (!url) return () => undefined;
   const put = (): void => {
-    for (const mark of doc.querySelectorAll(COST_MARK)) {
-      if (mark.textContent === String(AVATAR_COST_SENKOINS) && !mark.querySelector('img')) mark.append(createCoin(doc, url));
+    for (const mark of pageDocument.querySelectorAll(COST_MARK)) {
+      if (mark.textContent === String(AVATAR_COST_SENKOINS) && !mark.querySelector('img')) mark.append(createCoin(pageDocument, url));
     }
   };
   const observer = new MutationObserver(put);
-  observer.observe(doc.body, { childList: true, subtree: true });
+  observer.observe(pageDocument.body, { childList: true, subtree: true });
   return () => observer.disconnect();
 };
 
-export function installAvatarConfirm({ doc, modals, assets }: AvatarConfirmHost): () => void {
+export function installAvatarConfirm({ pageDocument, modals, assets }: AvatarConfirmHost): () => void {
   let passing = false;
   let asking = false;
 
@@ -134,7 +134,7 @@ export function installAvatarConfirm({ doc, modals, assets }: AvatarConfirmHost)
 
   const ask = async (site: SiteModals): Promise<boolean> => {
     const [loaded, coin] = await Promise.all([assets.component(), assets.coin()]);
-    const stop = putCoinInCost(doc, coin);
+    const stop = putCoinInCost(pageDocument, coin);
     try {
       const entry = site.showModal(() => Promise.resolve(loaded), confirmProps(coin !== null), {});
       return await Promise.race([entry.emitted('confirm'), entry.emitted('close').then(() => false)]);
@@ -164,6 +164,6 @@ export function installAvatarConfirm({ doc, modals, assets }: AvatarConfirmHost)
       });
   };
 
-  doc.addEventListener('click', onClick, true);
-  return () => doc.removeEventListener('click', onClick, true);
+  pageDocument.addEventListener('click', onClick, true);
+  return () => pageDocument.removeEventListener('click', onClick, true);
 }

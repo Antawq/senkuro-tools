@@ -84,7 +84,7 @@ beforeEach(() => {
   };
   assets = { component: () => Promise.resolve(COMPONENT), coin: () => Promise.resolve(COIN_URL) };
   document.addEventListener('click', siteHandler);
-  dispose = installAvatarConfirm({ doc: document, modals: () => modals, assets: { component: () => assets.component(), coin: () => assets.coin() } });
+  dispose = installAvatarConfirm({ pageDocument: document, modals: () => modals, assets: { component: () => assets.component(), coin: () => assets.coin() } });
 });
 
 afterEach(async () => {
@@ -358,84 +358,84 @@ describe('finding the modal controller of the site', () => {
 describe('loading the confirm window and the coin of the site', () => {
   const sw =
     'precache([{url:"assets/BaseButton-Ab12.js"},{url:"assets/BaseConfirmModal-Dw121HiH.js"},{url:"assets/money-3d-D_1Eg9LH.png"},{url:"assets/other.js"}])';
-  const win = (text: string) => ({
+  const createPageWindow = (text: string) => ({
     fetch: vi.fn(() => Promise.resolve({ ok: true, text: () => Promise.resolve(text) } as Response)),
     location: { origin: 'https://senkuro.me' } as Location,
   });
 
   it('reads the chunk of the window from the service worker list and imports it from the site', async () => {
     const importer = vi.fn(() => Promise.resolve({ default: COMPONENT }));
-    const host = win(sw);
-    expect(await createSiteAssets(host, importer).component()).toBe(COMPONENT);
-    expect(host.fetch).toHaveBeenCalledWith('/sw.js');
+    const pageWindow = createPageWindow(sw);
+    expect(await createSiteAssets(pageWindow, importer).component()).toBe(COMPONENT);
+    expect(pageWindow.fetch).toHaveBeenCalledWith('/sw.js');
     expect(importer).toHaveBeenCalledWith('https://senkuro.me/assets/BaseConfirmModal-Dw121HiH.js');
   });
 
   it('reads the picture of the coin from the same list', async () => {
-    expect(await createSiteAssets(win(sw)).coin()).toBe(COIN_URL);
+    expect(await createSiteAssets(createPageWindow(sw)).coin()).toBe(COIN_URL);
   });
 
   it('reads the list once for both, however often they are asked', async () => {
     const importer = vi.fn(() => Promise.resolve({ default: COMPONENT }));
-    const host = win(sw);
-    const loader = createSiteAssets(host, importer);
+    const pageWindow = createPageWindow(sw);
+    const loader = createSiteAssets(pageWindow, importer);
     await Promise.all([loader.component(), loader.component(), loader.coin()]);
     await loader.component();
     await loader.coin();
-    expect(host.fetch).toHaveBeenCalledTimes(1);
+    expect(pageWindow.fetch).toHaveBeenCalledTimes(1);
     expect(importer).toHaveBeenCalledTimes(1);
   });
 
   it('finds no coin when the list names none, or cannot be read, and never fails for it', async () => {
-    expect(await createSiteAssets(win('precache([])')).coin()).toBeNull();
+    expect(await createSiteAssets(createPageWindow('precache([])')).coin()).toBeNull();
     const broken = { fetch: vi.fn(() => Promise.reject(new Error('offline'))), location: { origin: 'https://senkuro.me' } as Location };
     expect(await createSiteAssets(broken).coin()).toBeNull();
   });
 
   it('fails when the list names no such chunk, and tries again next time', async () => {
     const importer = vi.fn(() => Promise.resolve({ default: COMPONENT }));
-    const host = win('precache([])');
-    const loader = createSiteAssets(host, importer);
+    const pageWindow = createPageWindow('precache([])');
+    const loader = createSiteAssets(pageWindow, importer);
     await expect(loader.component()).rejects.toThrow();
     await expect(loader.component()).rejects.toThrow();
     expect(importer).not.toHaveBeenCalled();
   });
 
   it('reads the list again after it could not be read', async () => {
-    const host = {
+    const pageWindow = {
       fetch: vi
         .fn()
         .mockRejectedValueOnce(new Error('offline'))
         .mockResolvedValue({ ok: true, text: () => Promise.resolve(sw) }),
       location: { origin: 'https://senkuro.me' } as Location,
     };
-    const loader = createSiteAssets(host, () => Promise.resolve({ default: COMPONENT }));
+    const loader = createSiteAssets(pageWindow, () => Promise.resolve({ default: COMPONENT }));
     expect(await loader.coin()).toBeNull();
     expect(await loader.coin()).toBe(COIN_URL);
   });
 
   it('reads the list again after the site answered with an error status', async () => {
-    const host = {
+    const pageWindow = {
       fetch: vi
         .fn()
         .mockResolvedValueOnce({ ok: false, status: 503, text: () => Promise.resolve('precache([])') })
         .mockResolvedValue({ ok: true, text: () => Promise.resolve(sw) }),
       location: { origin: 'https://senkuro.me' } as Location,
     };
-    const loader = createSiteAssets(host, () => Promise.resolve({ default: COMPONENT }));
+    const loader = createSiteAssets(pageWindow, () => Promise.resolve({ default: COMPONENT }));
     expect(await loader.coin()).toBeNull();
     expect(await loader.coin()).toBe(COIN_URL);
-    expect(host.fetch).toHaveBeenCalledTimes(2);
+    expect(pageWindow.fetch).toHaveBeenCalledTimes(2);
   });
 
   it('fails when the chunk has no component', async () => {
-    const loader = createSiteAssets(win(sw), () => Promise.resolve({}));
+    const loader = createSiteAssets(createPageWindow(sw), () => Promise.resolve({}));
     await expect(loader.component()).rejects.toThrow();
   });
 
   it('fails when the chunk cannot be imported, and tries again next time', async () => {
     const importer = vi.fn().mockRejectedValueOnce(new Error('404')).mockResolvedValue({ default: COMPONENT });
-    const loader = createSiteAssets(win(sw), importer);
+    const loader = createSiteAssets(createPageWindow(sw), importer);
     await expect(loader.component()).rejects.toThrow('404');
     expect(await loader.component()).toBe(COMPONENT);
   });
