@@ -32,7 +32,7 @@ export interface SiteAssets {
   coin: () => Promise<string | null>;
 }
 
-export interface AvatarConfirmHost {
+interface AvatarConfirmHost {
   doc: Document;
   modals: () => SiteModals | null;
   assets: SiteAssets;
