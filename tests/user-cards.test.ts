@@ -1,17 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  FAST_DELAY_MS,
-  FAST_PAGES,
-  MAX_PAGES,
-  PAGE_SIZE,
-  THROTTLED_DELAY_MS,
-  delayForPage,
-  fetchUserCards,
-  packCards,
-  unpackCards,
-} from '../utils/profile/user-cards';
+import { MAX_PAGES, PAGE_SIZE, fetchUserCards, packCards, unpackCards } from '../utils/profile/user-cards';
 import type { Transport } from '../utils/shared/graphql';
+import { FAST_DELAY_MS, FAST_PAGES, THROTTLED_DELAY_MS, delayForPage } from '../utils/shared/paging';
 
 interface Sent {
   operationName: string;

@@ -1,0 +1,135 @@
+import { describe, expect, it } from 'vitest';
+
+import { MAX_LOAD_PAGES, loadRest, type LoadEnv } from '../utils/inventory/list-loader';
+import { LIST_OPERATION, type PageRequest, type Variables } from '../utils/inventory/list-families';
+import { FAST_PAGES, THROTTLED_DELAY_MS } from '../utils/shared/paging';
+import type { QueryClient } from '../utils/shared/urql-client';
+
+const GRID = { userId: 'USER:1', modifier: { include: [0] }, orderField: 'CREATED_AT', orderDirection: 'DESC' };
+const document = { definitions: [{ kind: 'OperationDefinition', name: { value: LIST_OPERATION } }] };
+
+const recorded = (variables: Variables = GRID, options: Record<string, unknown> = { suspense: true }): PageRequest => ({ document, variables, options });
+
+const info = (hasNextPage: boolean, endCursor: string | null) => ({ data: { userCards: { pageInfo: { hasNextPage, endCursor } } } });
+
+interface Asked {
+  document: unknown;
+  after: unknown;
+  options: Record<string, unknown> | undefined;
+}
+
+interface Rig {
+  answers: (asked: Asked, index: number) => unknown;
+  latest?: () => PageRequest | null;
+}
+
+const rig = ({ answers, latest = () => recorded() }: Rig) => {
+  const asked: Asked[] = [];
+  const sleeps: number[] = [];
+  const client: QueryClient = {
+    executeQuery: () => null,
+    executeMutation: () => null,
+    query(queried, variables, options) {
+      const entry = { document: queried, after: variables.after, options };
+      asked.push(entry);
+      return { toPromise: () => Promise.resolve(answers(entry, asked.length - 1)) };
+    },
+  };
+  const env: LoadEnv = { client, latest, sleep: (ms) => Promise.resolve(void sleeps.push(ms)) };
+  return { env, asked, sleeps };
+};
+
+const chain =
+  (total: number) =>
+  (_asked: Asked, index: number): unknown =>
+    index === 0 ? info(total > 0, total > 0 ? 'c1' : null) : info(index < total, index < total ? `c${index + 1}` : null);
+
+describe('loadRest', () => {
+  it('reads what is loaded, then asks the network for every page after it, one after another, ending at the last', async () => {
+    const { env, asked } = rig({ answers: chain(3) });
+    expect(await loadRest(env)).toBe(true);
+    expect(asked.map((entry) => entry.after)).toEqual([undefined, 'c1', 'c2', 'c3']);
+    expect(asked.map((entry) => entry.options?.requestPolicy)).toEqual(['cache-first', 'network-only', 'network-only', 'network-only']);
+    expect(asked.every((entry) => entry.document === document && entry.options?.suspense === true)).toBe(true);
+  });
+
+  it('keeps the cursor the list was asked with when it reads what is loaded', async () => {
+    const { env, asked } = rig({ answers: chain(1), latest: () => recorded({ ...GRID, after: 'c0' }) });
+    await loadRest(env);
+    expect(asked.map((entry) => entry.after)).toEqual(['c0', 'c1']);
+  });
+
+  it('asks nothing of the network when the whole list is already there', async () => {
+    const { env, asked } = rig({ answers: chain(0) });
+    expect(await loadRest(env)).toBe(true);
+    expect(asked).toHaveLength(1);
+  });
+
+  it('gives up when no list was ever asked for', async () => {
+    const { env, asked } = rig({ answers: chain(2), latest: () => null });
+    expect(await loadRest(env)).toBe(false);
+    expect(asked).toHaveLength(0);
+  });
+
+  it('gives up at a failed page and asks for nothing more, even when the failure came with some data', async () => {
+    for (const failure of [{ error: new Error('429') }, { ...info(true, 'c3'), error: new Error('429') }]) {
+      const { env, asked } = rig({ answers: (_asked, index) => (index === 2 ? failure : info(true, `c${index + 1}`)) });
+      expect(await loadRest(env)).toBe(false);
+      expect(asked).toHaveLength(3);
+    }
+  });
+
+  it('does not go on without a cursor to go on', async () => {
+    const { env, asked } = rig({ answers: () => info(true, null) });
+    expect(await loadRest(env)).toBe(false);
+    expect(asked).toHaveLength(1);
+  });
+
+  it('gives up on an answer without a list and on a query that throws', async () => {
+    for (const answers of [() => ({ data: null }), () => ({ data: { userCards: { pageInfo: null } } })]) {
+      expect(await loadRest(rig({ answers }).env)).toBe(false);
+    }
+    const throwing = rig({ answers: chain(1) });
+    throwing.env.client.query = () => ({ toPromise: () => Promise.reject(new Error('network')) });
+    expect(await loadRest(throwing.env)).toBe(false);
+  });
+
+  it('stops when the site has moved on to another list, which now needs its own load', async () => {
+    let current: PageRequest = recorded();
+    const { env, asked } = rig({
+      answers: (_asked, index) => {
+        if (index === 2) current = recorded({ ...GRID, modifier: { include: [1] } });
+        return info(true, `c${index + 1}`);
+      },
+      latest: () => current,
+    });
+    expect(await loadRest(env)).toBe(false);
+    expect(asked).toHaveLength(3);
+  });
+
+  it('keeps going when only the cursor of the same list moved on', async () => {
+    let current: PageRequest = recorded();
+    const { env } = rig({
+      answers: (...args) => {
+        current = recorded({ ...GRID, after: `c${args[1]}` });
+        return chain(3)(...args);
+      },
+      latest: () => current,
+    });
+    expect(await loadRest(env)).toBe(true);
+  });
+
+  it('waits between pages, fast at first and slower once the list is long', async () => {
+    const { env, sleeps } = rig({ answers: chain(FAST_PAGES + 2) });
+    expect(await loadRest(env)).toBe(true);
+    expect(sleeps).toHaveLength(FAST_PAGES + 1);
+    expect(sleeps.slice(0, FAST_PAGES)).toEqual(Array.from({ length: FAST_PAGES }, () => 0));
+    expect(sleeps.at(-1)).toBe(THROTTLED_DELAY_MS);
+  });
+
+  it('stops at the page cap instead of running forever', async () => {
+    const { env, asked } = rig({ answers: (_asked, index) => info(true, `c${index + 1}`) });
+    expect(await loadRest(env)).toBe(false);
+    expect(asked).toHaveLength(MAX_LOAD_PAGES + 1);
+  });
+});

@@ -7,6 +7,7 @@ import type { MutationResult } from '../utils/inventory/client-hooks';
 import { LIST_OPERATION, createListRecord, type Variables } from '../utils/inventory/list-families';
 import { installInventoryGuard, planRefresh } from '../utils/inventory/inventory-guard';
 import { REFRESH_POLICY } from '../utils/inventory/list-refresh';
+import { LIST_LOAD_EVENT, LIST_LOADED_EVENT, readLoaded } from '../utils/shared/list-signal';
 import type { QueryClient, QueryRequest } from '../utils/shared/urql-client';
 
 const GRAPHQL = 'https://api.senkuro.me/graphql';
@@ -42,12 +43,13 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 30));
 type Init = NonNullable<Parameters<Window['fetch']>[1]>;
 
 interface Rig {
+  answer?: unknown;
   mounted?: boolean;
   results?: MutationResult[];
   slow?: boolean;
 }
 
-const rig = ({ mounted = true, results = [], slow = false }: Rig = {}) => {
+const rig = ({ answer = {}, mounted = true, results = [], slow = false }: Rig = {}) => {
   const win = new Window({ url: 'https://senkuro.me/forge/split' });
   win.document.body.innerHTML = '<div id="app"></div>';
   const queries: { variables: Variables; options: Record<string, unknown> }[] = [];
@@ -69,6 +71,7 @@ const rig = ({ mounted = true, results = [], slow = false }: Rig = {}) => {
     query: (_document, variables, options = {}) => ({
       toPromise: async () => {
         queries.push({ variables, options });
+        const index = queries.length - 1;
         log.push(`start ${String(variables.userId)}`);
         if (slow) await new Promise((resolve) => setTimeout(resolve, 15));
         if (typeof options.fetch === 'function') {
@@ -78,7 +81,7 @@ const rig = ({ mounted = true, results = [], slow = false }: Rig = {}) => {
           });
         }
         log.push(`end ${String(variables.userId)}`);
-        return {};
+        return typeof answer === 'function' ? (answer as (at: number) => unknown)(index) : answer;
       },
     }),
   };
@@ -91,7 +94,10 @@ const rig = ({ mounted = true, results = [], slow = false }: Rig = {}) => {
   const respond = () => win.fetch(GRAPHQL, { method: 'POST', body: JSON.stringify({ operationName: 'fetchViewer' }) });
   const browse = (variables: Variables) => client.executeQuery(request(LIST_OPERATION, variables));
   const mutate = (name: string) => (client.executeMutation(request(name)) as { toPromise(): Promise<MutationResult> }).toPromise();
-  return { win, queries, reached, log, mount, respond, browse, mutate };
+  const loaded: (boolean | null)[] = [];
+  win.document.addEventListener(LIST_LOADED_EVENT, (event) => loaded.push(readLoaded(event as unknown as Event)));
+  const ask = () => win.document.dispatchEvent(new win.CustomEvent(LIST_LOAD_EVENT));
+  return { win, queries, reached, log, loaded, ask, mount, respond, browse, mutate };
 };
 
 describe('planRefresh', () => {
@@ -211,6 +217,83 @@ describe('installInventoryGuard', () => {
     browse({ ...cards, after: 'c1' });
     expect(reached.map((variables) => variables.after)).toEqual([null, 'c1']);
     await win.happyDOM.close();
+  });
+
+  describe('loading the rest of a list on request', () => {
+    const page = (hasNextPage: boolean, endCursor: string | null) => ({ data: { userCards: { pageInfo: { hasNextPage, endCursor } } } });
+    const everything = page(false, null);
+
+    it('reads the list the site asked for last and says it is complete', async () => {
+      const { win, respond, browse, ask, loaded, queries } = rig({ answer: everything });
+      await respond();
+      browse(profileGrid('USER:1'));
+      ask();
+      await settle();
+      expect(loaded).toEqual([true]);
+      expect(queries.map((query) => query.variables)).toEqual([profileGrid('USER:1')]);
+      await win.happyDOM.close();
+    });
+
+    it('pages on from the end cursor until the last page, then says it is complete', async () => {
+      const answers = [page(true, 'c1'), page(true, 'c2'), everything];
+      const { win, respond, browse, ask, loaded, queries } = rig({ answer: (index: number) => answers[index] });
+      await respond();
+      browse(profileGrid('USER:1'));
+      ask();
+      await settle();
+      expect(loaded).toEqual([true]);
+      expect(queries.map((query) => query.variables.after)).toEqual([undefined, 'c1', 'c2']);
+      expect(queries.map((query) => query.options.requestPolicy)).toEqual(['cache-first', 'network-only', 'network-only']);
+      await win.happyDOM.close();
+    });
+
+    it('answers no at once when the app is not up yet', async () => {
+      const { win, ask, loaded } = rig({ mounted: false });
+      ask();
+      expect(loaded).toEqual([false]);
+      await win.happyDOM.close();
+    });
+
+    it('answers no when no list was asked for yet', async () => {
+      const { win, respond, ask, loaded } = rig({ answer: everything });
+      await respond();
+      ask();
+      await settle();
+      expect(loaded).toEqual([false]);
+      await win.happyDOM.close();
+    });
+
+    it('takes a new request the moment it has answered', async () => {
+      const { win, respond, browse, ask, loaded } = rig({ answer: everything });
+      await respond();
+      browse(profileGrid('USER:1'));
+      let again = true;
+      win.document.addEventListener(LIST_LOADED_EVENT, () => {
+        if (again) ask();
+        again = false;
+      });
+      ask();
+      await settle();
+      expect(loaded).toEqual([true, true]);
+      await win.happyDOM.close();
+    });
+
+    it('does not start a second load while one is running, and takes the next one once it has answered', async () => {
+      const { win, respond, browse, ask, loaded, queries } = rig({ answer: everything, slow: true });
+      await respond();
+      browse(profileGrid('USER:1'));
+      ask();
+      ask();
+      await settle();
+      await settle();
+      expect(loaded).toEqual([true]);
+      expect(queries).toHaveLength(1);
+      ask();
+      await settle();
+      await settle();
+      expect(loaded).toEqual([true, true]);
+      await win.happyDOM.close();
+    });
   });
 
   it('keeps working when the site client cannot be found', async () => {

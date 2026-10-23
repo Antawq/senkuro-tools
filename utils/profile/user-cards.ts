@@ -1,4 +1,5 @@
 import { ApiError, execute, type Transport } from '../shared/graphql';
+import { delayForPage } from '../shared/paging';
 
 export interface UserCard {
   slug: string;
@@ -8,11 +9,6 @@ export interface UserCard {
 
 export const PAGE_SIZE = 100;
 export const MAX_PAGES = 300;
-export const FAST_PAGES = 10;
-export const FAST_DELAY_MS = 0;
-export const THROTTLED_DELAY_MS = 180;
-
-export const delayForPage = (page: number): number => (page < FAST_PAGES ? FAST_DELAY_MS : THROTTLED_DELAY_MS);
 
 const USER_CARDS =
   'query UserCards($userId: ID!, $first: Int = 20, $after: String, $orderBy: UserCardOrder!) { userCards(userId: $userId, first: $first, after: $after, orderBy: $orderBy) { pageInfo { hasNextPage endCursor } edges { node { quantity shard card { slug } } } } }';

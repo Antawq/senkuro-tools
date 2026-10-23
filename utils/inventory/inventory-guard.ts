@@ -1,9 +1,11 @@
 import { debugLogger } from '../shared/debug';
+import { LIST_LOAD_EVENT, LIST_LOADED_EVENT, encodeLoaded } from '../shared/list-signal';
 import { claimPage } from '../shared/page-claim';
 import { operationName, whenClient, type QueryClient } from '../shared/urql-client';
 import { recordLists, tapMutations, type MutationResult } from './client-hooks';
 import { createCursorLedger, guardCursors } from './list-cursors';
-import { createListRecord, familyIdOf, needsRefresh, type Family, type ListRecord, type ReceivedCard } from './list-families';
+import { createListRecord, familyIdOf, needsRefresh, type Family, type ListRecord, type PageRequest, type ReceivedCard } from './list-families';
+import { loadRest } from './list-loader';
 import { learnFromFetch } from './list-seen';
 import { refreshFamilies, type RefreshEnv } from './list-refresh';
 
@@ -44,6 +46,9 @@ export function installInventoryGuard(win: GuardWindow): void {
   const ledger = createCursorLedger();
   const silent = new WeakSet<object>();
   let queue: Promise<unknown> = Promise.resolve();
+  let latest: PageRequest | null = null;
+  let attached: QueryClient | null = null;
+  let loading = false;
 
   const environment = (client: QueryClient): RefreshEnv => ({ client, fetch: (input, init) => win.fetch(input, init), silent, record });
 
@@ -59,10 +64,34 @@ export function installInventoryGuard(win: GuardWindow): void {
       );
   };
 
+  const answer = (complete: boolean) => win.document.dispatchEvent(new win.CustomEvent(LIST_LOADED_EVENT, { detail: encodeLoaded(complete) }));
+  const sleep = (ms: number) => (ms > 0 ? new Promise<void>((resolve) => win.setTimeout(resolve, ms)) : Promise.resolve());
+
+  win.document.addEventListener(LIST_LOAD_EVENT, () => {
+    if (loading) return;
+    if (!attached) {
+      answer(false);
+      return;
+    }
+    loading = true;
+    void loadRest({ client: attached, latest: () => latest, sleep }).then((complete) => {
+      loading = false;
+      answer(complete);
+    });
+  });
+
   learnFromFetch(win, ledger);
 
   whenClient(win, (client) => {
-    const recording = recordLists(client, (page) => record.record(page), silent);
+    attached = client;
+    const recording = recordLists(
+      client,
+      (page) => {
+        latest = page;
+        record.record(page);
+      },
+      silent
+    );
     const tapping = tapMutations(client, onMutation(client));
     const guarding = guardCursors(client, (variables) => debug('stale cursor dropped', { list: familyIdOf(variables), after: variables.after }), ledger);
     debug('urql client', recording && tapping && guarding ? 'attached' : 'not replaceable');
