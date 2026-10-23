@@ -1,5 +1,5 @@
 import type { PageWindow } from './page-window';
-import { findVueApp } from './vue-app';
+import { findVueApp, VUE_APP_KEY } from './vue-app';
 
 const CLIENT_KEY = '$urql';
 const OPERATION_KIND = 'OperationDefinition';
@@ -38,22 +38,38 @@ export function findClient(pageDocument: Document): QueryClient | null {
   return isClient(inner) ? inner : null;
 }
 
-function watchFetch(pageWindow: PageWindow, waiting: Waiting): void {
+function claimClient(pageWindow: PageWindow, waiting: Waiting): void {
+  if (waiting.client) return;
+  const client = findClient(pageWindow.document);
+  if (!client) return;
+  waiting.client = client;
+  for (const run of waiting.listeners.splice(0)) {
+    try {
+      run(client);
+    } catch (error) {
+      reportError(error);
+    }
+  }
+}
+
+function watchApp(pageWindow: PageWindow, claim: () => void): void {
+  const prototype = pageWindow.Element.prototype;
+  const previous = Object.getOwnPropertyDescriptor(prototype, VUE_APP_KEY);
+  Object.defineProperty(prototype, VUE_APP_KEY, {
+    configurable: true,
+    set(this: Element, app: unknown) {
+      previous?.set?.call(this, app);
+      Object.defineProperty(this, VUE_APP_KEY, { value: app, writable: true, configurable: true, enumerable: true });
+      claim();
+    },
+  });
+}
+
+function watchFetch(pageWindow: PageWindow, waiting: Waiting, claim: () => void): void {
   const nativeFetch = pageWindow.fetch.bind(pageWindow);
   pageWindow.fetch = (...fetchArguments: Parameters<typeof fetch>) => {
     const pendingResponse = nativeFetch(...fetchArguments);
-    if (!waiting.client) {
-      void pendingResponse.then(
-        () => {
-          if (waiting.client) return;
-          const client = findClient(pageWindow.document);
-          if (!client) return;
-          waiting.client = client;
-          waiting.listeners.splice(0).forEach((run) => run(client));
-        },
-        () => undefined
-      );
-    }
+    if (!waiting.client) void pendingResponse.then(claim, () => undefined);
     return pendingResponse;
   };
 }
@@ -62,9 +78,12 @@ export function runWhenClientFound(pageWindow: PageWindow, run: (client: QueryCl
   const windowSlots = pageWindow as unknown as Record<symbol, Waiting | undefined>;
   let waiting = windowSlots[WAITING];
   if (!waiting) {
-    waiting = { client: null, listeners: [] };
-    windowSlots[WAITING] = waiting;
-    watchFetch(pageWindow, waiting);
+    const created: Waiting = { client: null, listeners: [] };
+    waiting = created;
+    windowSlots[WAITING] = created;
+    const claim = () => claimClient(pageWindow, created);
+    watchApp(pageWindow, claim);
+    watchFetch(pageWindow, created, claim);
   }
   if (waiting.client) run(waiting.client);
   else waiting.listeners.push(run);

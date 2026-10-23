@@ -82,7 +82,7 @@ describe('runWhenClientFound', () => {
     return { pageWindow, typed, client, answer, mount, respond };
   };
 
-  it('waits for a response after the app has mounted before it calls back, and only once', async () => {
+  it('calls back once the app is there, whether it mounted first or later, and only once', async () => {
     const { typed, client, mount, respond } = rig(false);
     const seen: QueryClient[] = [];
     runWhenClientFound(typed, (found) => seen.push(found));
@@ -92,6 +92,54 @@ describe('runWhenClientFound', () => {
     await respond();
     await respond();
     expect(seen).toEqual([client]);
+  });
+
+  it('calls back the moment the site mounts its app, before any request is made', () => {
+    const { typed, client, mount } = rig(false);
+    const seen: QueryClient[] = [];
+    runWhenClientFound(typed, (found) => seen.push(found));
+    expect(seen).toEqual([]);
+    mount();
+    expect(seen).toEqual([client]);
+  });
+
+  it('keeps the site mounting when a caller throws, and reports the error', () => {
+    const { typed, mount } = rig(false);
+    const reported: unknown[] = [];
+    const nativeReport = globalThis.reportError;
+    globalThis.reportError = (error: unknown) => void reported.push(error);
+    try {
+      runWhenClientFound(typed, () => {
+        throw new Error('broken installer');
+      });
+      expect(mount).not.toThrow();
+      expect(reported).toHaveLength(1);
+    } finally {
+      globalThis.reportError = nativeReport;
+    }
+  });
+
+  it('lets a setter that was there before it still see the app', () => {
+    const { pageWindow, typed, mount } = rig(false);
+    const seen: unknown[] = [];
+    Object.defineProperty(pageWindow.Element.prototype, '__vue_app__', {
+      configurable: true,
+      set(this: object, app: unknown) {
+        seen.push(app);
+      },
+    });
+    runWhenClientFound(typed, () => undefined);
+    mount();
+    expect(seen).toHaveLength(1);
+  });
+
+  it('still reads the app the site mounted, as a plain property', () => {
+    const { pageWindow, typed, mount } = rig(false);
+    runWhenClientFound(typed, () => undefined);
+    mount();
+    const container = pageWindow.document.querySelector('#app') as unknown as { __vue_app__?: unknown };
+    expect(container.__vue_app__).toBeDefined();
+    expect(Object.getOwnPropertyDescriptor(container, '__vue_app__')?.writable).toBe(true);
   });
 
   it('calls back at once for a caller that comes after the client was found', async () => {
