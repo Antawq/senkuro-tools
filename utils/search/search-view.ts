@@ -32,14 +32,14 @@ export interface SearchView {
   dispose: () => void;
 }
 
-const flag = (element: HTMLElement, name: string, on: boolean): void => {
-  if (element.hasAttribute(name) !== on) element.toggleAttribute(name, on);
+const setFlagAttribute = (element: HTMLElement, name: string, isOn: boolean): void => {
+  if (element.hasAttribute(name) !== isOn) element.toggleAttribute(name, isOn);
 };
 
-const attribute = (element: HTMLElement, name: string, value: string | null): void => {
-  if (value === null) {
+const writeAttribute = (element: HTMLElement, name: string, attributeValue: string | null): void => {
+  if (attributeValue === null) {
     if (element.hasAttribute(name)) element.removeAttribute(name);
-  } else if (element.getAttribute(name) !== value) element.setAttribute(name, value);
+  } else if (element.getAttribute(name) !== attributeValue) element.setAttribute(name, attributeValue);
 };
 
 const wordsOf = (query: string): string[] => [
@@ -59,16 +59,16 @@ export function createSearchView(pageDocument: Document, { runAfter, isContextVa
   const matchesIn = (titles: HTMLElement[], words: string[]): Range[] => {
     const ranges: Range[] = [];
     for (const title of titles) {
-      const texts = pageDocument.createTreeWalker(title, NodeFilter.SHOW_TEXT);
-      for (let node = texts.nextNode(); node; node = texts.nextNode()) {
+      const textWalker = pageDocument.createTreeWalker(title, NodeFilter.SHOW_TEXT);
+      for (let node = textWalker.nextNode(); node; node = textWalker.nextNode()) {
         const text = node.nodeValue ?? '';
         const lower = text.toLowerCase();
         if (lower.length !== text.length) continue;
         for (const word of words) {
-          for (let at = lower.indexOf(word); at >= 0; at = lower.indexOf(word, at + word.length)) {
+          for (let matchStart = lower.indexOf(word); matchStart >= 0; matchStart = lower.indexOf(word, matchStart + word.length)) {
             const range = pageDocument.createRange();
-            range.setStart(node, at);
-            range.setEnd(node, at + word.length);
+            range.setStart(node, matchStart);
+            range.setEnd(node, matchStart + word.length);
             ranges.push(range);
           }
         }
@@ -85,27 +85,27 @@ export function createSearchView(pageDocument: Document, { runAfter, isContextVa
     else view.CSS.highlights.delete(MATCH_HIGHLIGHT);
   };
 
-  const writeAria = (searchModal: HTMLElement, rows: HTMLElement[], shown: boolean, managed = true): void => {
+  const writeAria = (searchModal: HTMLElement, rows: HTMLElement[], isShown: boolean, isManaged = true): void => {
     const active = rows.find((row) => row.classList.contains(ACTIVE_ROW_CLASS));
     const field = fieldOf(searchModal);
     if (field) {
-      attribute(field, 'role', managed ? 'combobox' : null);
-      attribute(field, 'aria-autocomplete', managed ? 'list' : null);
-      attribute(field, 'aria-expanded', managed ? String(shown) : null);
-      attribute(field, 'aria-controls', shown ? RESULTS_ID : null);
-      attribute(field, 'aria-activedescendant', shown && active ? active.id : null);
+      writeAttribute(field, 'role', isManaged ? 'combobox' : null);
+      writeAttribute(field, 'aria-autocomplete', isManaged ? 'list' : null);
+      writeAttribute(field, 'aria-expanded', isManaged ? String(isShown) : null);
+      writeAttribute(field, 'aria-controls', isShown ? RESULTS_ID : null);
+      writeAttribute(field, 'aria-activedescendant', isShown && active ? active.id : null);
     }
-    searchModal.querySelectorAll<HTMLElement>(TAB).forEach((tab, index) => attribute(tab, 'id', managed ? `${TAB_ID}${index}` : null));
+    searchModal.querySelectorAll<HTMLElement>(TAB).forEach((tab, index) => writeAttribute(tab, 'id', isManaged ? `${TAB_ID}${index}` : null));
     const list = searchModal.querySelector<HTMLElement>(RESULTS);
     if (list) {
-      attribute(list, 'role', shown ? 'listbox' : null);
-      attribute(list, 'id', shown ? RESULTS_ID : null);
-      attribute(list, 'aria-labelledby', shown ? (searchModal.querySelector<HTMLElement>(ACTIVE_TAB)?.id ?? null) : null);
+      writeAttribute(list, 'role', isShown ? 'listbox' : null);
+      writeAttribute(list, 'id', isShown ? RESULTS_ID : null);
+      writeAttribute(list, 'aria-labelledby', isShown ? (searchModal.querySelector<HTMLElement>(ACTIVE_TAB)?.id ?? null) : null);
     }
     rows.forEach((row, index) => {
-      attribute(row, 'role', shown ? 'option' : null);
-      attribute(row, 'id', shown ? `${OPTION_ID}${index}` : null);
-      attribute(row, 'aria-selected', shown ? String(row === active) : null);
+      writeAttribute(row, 'role', isShown ? 'option' : null);
+      writeAttribute(row, 'id', isShown ? `${OPTION_ID}${index}` : null);
+      writeAttribute(row, 'aria-selected', isShown ? String(row === active) : null);
     });
   };
 
@@ -118,11 +118,11 @@ export function createSearchView(pageDocument: Document, { runAfter, isContextVa
     if (!openSearchModal || !isContextValid()) return;
     const query = fieldOf(openSearchModal)?.value ?? '';
     const rows = rowsOf(openSearchModal);
-    const tooShort = isTooShort(query);
-    const stale = tooShort && rows.length > 0;
-    flag(openSearchModal, STALE_ATTRIBUTE, stale);
-    writeAria(openSearchModal, rows, rows.length > 0 && !stale);
-    flag(openSearchModal, SEARCHING_ATTRIBUTE, !tooShort && signals.waited() >= SLOW_SEARCH_MS);
+    const isQueryTooShort = isTooShort(query);
+    const isStale = isQueryTooShort && rows.length > 0;
+    setFlagAttribute(openSearchModal, STALE_ATTRIBUTE, isStale);
+    writeAria(openSearchModal, rows, rows.length > 0 && !isStale);
+    setFlagAttribute(openSearchModal, SEARCHING_ATTRIBUTE, !isQueryTooShort && signals.waited() >= SLOW_SEARCH_MS);
     paint(openSearchModal, query);
     const signature = signatureOf(rows);
     if (signature === shownSignature) return;
@@ -132,8 +132,8 @@ export function createSearchView(pageDocument: Document, { runAfter, isContextVa
 
   const dispose = (): void => {
     if (searchModal) {
-      flag(searchModal, STALE_ATTRIBUTE, false);
-      flag(searchModal, SEARCHING_ATTRIBUTE, false);
+      setFlagAttribute(searchModal, STALE_ATTRIBUTE, false);
+      setFlagAttribute(searchModal, SEARCHING_ATTRIBUTE, false);
       writeAria(searchModal, rowsOf(searchModal), false, false);
     }
     unpaint();
@@ -179,10 +179,11 @@ export function createSearchView(pageDocument: Document, { runAfter, isContextVa
       event.stopImmediatePropagation();
       return;
     }
-    const pointed = event.detail > 0 && target.closest(REFOCUS_TRIGGER) !== null && pageDocument.defaultView?.matchMedia(HOVER_MEDIA_QUERY).matches === true;
+    const isPointedClick =
+      event.detail > 0 && target.closest(REFOCUS_TRIGGER) !== null && pageDocument.defaultView?.matchMedia(HOVER_MEDIA_QUERY).matches === true;
     runAfter(() => {
       syncView();
-      if (pointed && isContextValid()) fieldOf(openSearchModal)?.focus({ preventScroll: true });
+      if (isPointedClick && isContextValid()) fieldOf(openSearchModal)?.focus({ preventScroll: true });
     }, 0);
   };
 
