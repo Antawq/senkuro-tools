@@ -26,8 +26,6 @@ a.card-collect[data-senkuro-price]::after {
   text-align: var(--s-align, left);
   max-width: 70px;
   overflow: hidden;
-  will-change: transform, opacity;
-  transform: translateZ(0);
   backface-visibility: hidden;
 }
 
