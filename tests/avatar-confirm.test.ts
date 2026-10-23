@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
-  AVATAR_COST,
+  AVATAR_COST_SENKOINS,
   COIN_ALT,
   COIN_CLASS,
-  MONEY_STICKER,
+  MONEY_STICKER_ID,
   confirmProps,
   createSiteAssets,
   findModals,
@@ -113,14 +113,14 @@ describe('the warning before an avatar upload', () => {
   it('shows the money sticker and says the price, with the amount marked as the site marks its own', async () => {
     upload().click();
     await flush();
-    expect(MONEY_STICKER).toBe(25);
-    expect(AVATAR_COST).toBe(5000);
+    expect(MONEY_STICKER_ID).toBe(25);
+    expect(AVATAR_COST_SENKOINS).toBe(5000);
     expect(shown[0]?.props).toEqual(confirmProps(true));
-    expect(confirmProps(true).sticker).toBe(MONEY_STICKER);
+    expect(confirmProps(true).sticker).toBe(MONEY_STICKER_ID);
     expect(confirmProps(true).title).toBe('Платная загрузка аватарки');
     expect(confirmProps(true).description).toEqual([
       { type: 'text', text: 'С вашего баланса спишется ' },
-      { type: 'mark', text: String(AVATAR_COST) },
+      { type: 'mark', text: String(AVATAR_COST_SENKOINS) },
       { type: 'text', text: '. Продолжить?' },
     ]);
   });
@@ -217,7 +217,7 @@ describe('the 3D coin in place of the word', () => {
     upload().click();
     await flush();
     const coin = costs()[0]?.querySelector('img');
-    expect(costs()[0]?.textContent).toBe(String(AVATAR_COST));
+    expect(costs()[0]?.textContent).toBe(String(AVATAR_COST_SENKOINS));
     expect(coin?.getAttribute('src')).toBe(COIN_URL);
     expect(coin?.getAttribute('alt')).toBe(COIN_ALT);
   });
@@ -266,8 +266,8 @@ describe('the 3D coin in place of the word', () => {
     upload().click();
     await flush();
     expect(shown[0]?.props).toEqual(confirmProps(false));
-    expect(confirmProps(false).description[1]?.text).toBe(`${AVATAR_COST} ${COIN_ALT}`);
-    expect(costs()[0]?.textContent).toBe(`${AVATAR_COST} ${COIN_ALT}`);
+    expect(confirmProps(false).description[1]?.text).toBe(`${AVATAR_COST_SENKOINS} ${COIN_ALT}`);
+    expect(costs()[0]?.textContent).toBe(`${AVATAR_COST_SENKOINS} ${COIN_ALT}`);
     expect(document.querySelector('img')).toBeNull();
   });
 
@@ -276,7 +276,7 @@ describe('the 3D coin in place of the word', () => {
     await flush();
     answer.resolve(false);
     await flush();
-    mountWindow(String(AVATAR_COST));
+    mountWindow(String(AVATAR_COST_SENKOINS));
     await flush();
     expect(costs().at(-1)?.querySelector('img')).toBeNull();
   });

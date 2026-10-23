@@ -1,5 +1,5 @@
-export const AVATAR_COST = 5000;
-export const MONEY_STICKER = 25;
+export const AVATAR_COST_SENKOINS = 5000;
+export const MONEY_STICKER_ID = 25;
 export const COIN_ALT = 'сенкоинов';
 export const COIN_CLASS = 'senkuro-avatar-coin';
 
@@ -14,10 +14,10 @@ export const confirmProps = (withCoin: boolean) => ({
   title: 'Платная загрузка аватарки',
   description: [
     { type: 'text', text: 'С вашего баланса спишется ' },
-    { type: 'mark', text: withCoin ? String(AVATAR_COST) : `${AVATAR_COST} ${COIN_ALT}` },
+    { type: 'mark', text: withCoin ? String(AVATAR_COST_SENKOINS) : `${AVATAR_COST_SENKOINS} ${COIN_ALT}` },
     { type: 'text', text: '. Продолжить?' },
   ],
-  sticker: MONEY_STICKER,
+  sticker: MONEY_STICKER_ID,
 });
 
 export interface ModalEntry {
@@ -111,7 +111,7 @@ const putCoinInCost = (doc: Document, url: string | null): (() => void) => {
   if (!url) return () => undefined;
   const put = (): void => {
     for (const mark of doc.querySelectorAll(COST_MARK)) {
-      if (mark.textContent === String(AVATAR_COST) && !mark.querySelector('img')) mark.append(createCoin(doc, url));
+      if (mark.textContent === String(AVATAR_COST_SENKOINS) && !mark.querySelector('img')) mark.append(createCoin(doc, url));
     }
   };
   const observer = new MutationObserver(put);
