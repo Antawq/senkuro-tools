@@ -204,13 +204,12 @@ describe('refreshButtonMissing', () => {
 });
 
 describe('pressing it', () => {
-  it('makes the button busy at once, forgets what the extension stored for that profile, and only then reloads', async () => {
+  it('disables the button at once, forgets what the extension stored for that profile, and only then reloads', async () => {
     open('/users/phaivroh/cards');
     const { deps, order, finishForgetting } = rig();
     syncRefreshButton(deps);
     button()?.click();
     expect(button()?.disabled).toBe(true);
-    expect(button()?.getAttribute('aria-busy')).toBe('true');
     expect(order).toEqual(['forget phaivroh']);
     await settle();
     expect(deps.reload).not.toHaveBeenCalled();

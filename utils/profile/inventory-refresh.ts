@@ -38,7 +38,6 @@ function build(slug: string, deps: RefreshDeps): HTMLButtonElement {
   button.append(icon);
   button.addEventListener('click', () => {
     button.disabled = true;
-    button.setAttribute('aria-busy', 'true');
     void deps
       .forget(slug)
       .catch(warnStore)
