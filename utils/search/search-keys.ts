@@ -29,7 +29,7 @@ export interface SearchKeys {
   dispose: () => void;
 }
 
-const sameElements = (left: HTMLElement[], right: HTMLElement[]): boolean =>
+const hasSameElements = (left: HTMLElement[], right: HTMLElement[]): boolean =>
   left.length === right.length && left.every((row, position) => row === right[position]);
 
 const isModified = (event: KeyboardEvent): boolean => event.ctrlKey || event.metaKey || event.altKey || event.shiftKey;
@@ -46,7 +46,7 @@ const isNewTabEnter = (event: KeyboardEvent): boolean =>
 
 const askedOf = (searchModal: HTMLElement): string => JSON.stringify([fieldOf(searchModal)?.value, searchModal.querySelector(ACTIVE_TAB)?.textContent]);
 
-const take = (event: Event): void => {
+const consumeEvent = (event: Event): void => {
   event.preventDefault();
   event.stopImmediatePropagation();
 };
@@ -61,32 +61,32 @@ export function createSearchKeys(pageDocument: Document, { runAfter, isContextVa
   let changedAt = 0;
   let typedAt = 0;
   let knownValue = '';
-  let waiting = false;
+  let isWaiting = false;
   let waitStartedAt = 0;
   let waitAsked = '';
-  let waitNewTab: { ctrlKey: boolean; metaKey: boolean } | null = null;
-  let steppedBeforeAnswer = false;
+  let waitNewTabKeys: { ctrlKey: boolean; metaKey: boolean } | null = null;
+  let didMoveBeforeAnswer = false;
 
   const findUnspentSearchModal = (): HTMLElement | null => findTopSearchModal(pageDocument, (searchModal) => spentSearchModals.has(searchModal));
 
   const currentField = (): HTMLInputElement | null => (searchModal ? fieldOf(searchModal) : null);
   const currentRows = (): HTMLElement[] => (searchModal ? rowsOf(searchModal) : []);
-  const mark = (rows: HTMLElement[]): void => rows.forEach((row, position) => row.classList.toggle(ACTIVE_ROW_CLASS, position === index));
+  const markActiveRow = (rows: HTMLElement[]): void => rows.forEach((row, position) => row.classList.toggle(ACTIVE_ROW_CLASS, position === index));
 
-  const refresh = (): HTMLElement[] => {
+  const syncRows = (): HTMLElement[] => {
     const rows = currentRows();
     const signature = signatureOf(rows);
     if (signature !== shownSignature) {
       shownSignature = signature;
       changedAt = Date.now();
     }
-    if (!sameElements(rows, shownRows)) {
+    if (!hasSameElements(rows, shownRows)) {
       shownRows = rows;
-      if (rows.length > 0 || !steppedBeforeAnswer) {
-        index = steppedBeforeAnswer && index !== null ? Math.min(index, rows.length - 1) : null;
-        steppedBeforeAnswer = false;
+      if (rows.length > 0 || !didMoveBeforeAnswer) {
+        index = didMoveBeforeAnswer && index !== null ? Math.min(index, rows.length - 1) : null;
+        didMoveBeforeAnswer = false;
       }
-      mark(rows);
+      markActiveRow(rows);
     }
     return rows;
   };
@@ -103,20 +103,20 @@ export function createSearchKeys(pageDocument: Document, { runAfter, isContextVa
     knownValue = value;
     typedAt = Date.now();
     index = null;
-    mark(currentRows());
+    markActiveRow(currentRows());
   };
 
   const openResultIfReady = (startedAt: number, waitModal: HTMLElement): void => {
-    if (!waiting || startedAt !== waitStartedAt) return;
+    if (!isWaiting || startedAt !== waitStartedAt) return;
     if (searchModal !== waitModal || findUnspentSearchModal() !== waitModal || askedOf(waitModal) !== waitAsked) {
-      waiting = false;
+      isWaiting = false;
       return;
     }
-    const rows = refresh();
+    const rows = syncRows();
     if (rows.length > 0 && isFresh()) {
-      waiting = false;
+      isWaiting = false;
       const row = rows[index ?? 0];
-      if (waitNewTab) row?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: pageDocument.defaultView, ...waitNewTab }));
+      if (waitNewTabKeys) row?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: pageDocument.defaultView, ...waitNewTabKeys }));
       else {
         spentSearchModals.add(waitModal);
         row?.click();
@@ -131,7 +131,7 @@ export function createSearchKeys(pageDocument: Document, { runAfter, isContextVa
     observer?.disconnect();
     observer = null;
     searchModal = topSearchModal;
-    waiting = false;
+    isWaiting = false;
     index = null;
     shownRows = [];
     shownSignature = '';
@@ -140,7 +140,7 @@ export function createSearchKeys(pageDocument: Document, { runAfter, isContextVa
     knownValue = '';
     if (topSearchModal) {
       observer = new MutationObserver(() => {
-        refresh();
+        syncRows();
         openResultIfReady(waitStartedAt, topSearchModal);
       });
       observer.observe(topSearchModal, { childList: true, subtree: true });
@@ -148,34 +148,34 @@ export function createSearchKeys(pageDocument: Document, { runAfter, isContextVa
     return topSearchModal;
   };
 
-  const startWait = (waitModal: HTMLElement, newTab: { ctrlKey: boolean; metaKey: boolean } | null): void => {
-    waiting = true;
-    waitNewTab = newTab;
+  const startWait = (waitModal: HTMLElement, newTabKeys: { ctrlKey: boolean; metaKey: boolean } | null): void => {
+    isWaiting = true;
+    waitNewTabKeys = newTabKeys;
     waitAsked = askedOf(waitModal);
     waitStartedAt = Date.now();
-    const started = waitStartedAt;
-    openResultIfReady(started, waitModal);
-    if (!waiting) return;
-    runAfter(() => openResultIfReady(started, waitModal), Math.max(0, typedAt + DEBOUNCE_MS - started) + PAINT_MS);
-    runAfter(() => openResultIfReady(started, waitModal), Math.max(0, typedAt + SETTLE_MS - started));
+    const startedAt = waitStartedAt;
+    openResultIfReady(startedAt, waitModal);
+    if (!isWaiting) return;
+    runAfter(() => openResultIfReady(startedAt, waitModal), Math.max(0, typedAt + DEBOUNCE_MS - startedAt) + PAINT_MS);
+    runAfter(() => openResultIfReady(startedAt, waitModal), Math.max(0, typedAt + SETTLE_MS - startedAt));
     runAfter(() => {
-      openResultIfReady(started, waitModal);
-      if (started === waitStartedAt) waiting = false;
+      openResultIfReady(startedAt, waitModal);
+      if (startedAt === waitStartedAt) isWaiting = false;
     }, GIVE_UP_MS);
   };
 
   signals.subscribe(() => {
     const waitModal = searchModal;
-    if (!waiting || !waitModal) return;
-    const started = waitStartedAt;
-    openResultIfReady(started, waitModal);
-    if (waiting) runAfter(() => openResultIfReady(started, waitModal), PAINT_MS);
+    if (!isWaiting || !waitModal) return;
+    const startedAt = waitStartedAt;
+    openResultIfReady(startedAt, waitModal);
+    if (isWaiting) runAfter(() => openResultIfReady(startedAt, waitModal), PAINT_MS);
   });
 
-  const step = (rows: HTMLElement[], delta: number): void => {
-    steppedBeforeAnswer = !isFresh();
+  const moveActiveRow = (rows: HTMLElement[], delta: number): void => {
+    didMoveBeforeAnswer = !isFresh();
     index = index === null ? 0 : Math.min(Math.max(index + delta, 0), rows.length - 1);
-    mark(rows);
+    markActiveRow(rows);
     rows[index]?.scrollIntoView({ block: 'nearest' });
   };
 
@@ -184,11 +184,11 @@ export function createSearchKeys(pageDocument: Document, { runAfter, isContextVa
 
   const dispose = (): void => {
     index = null;
-    mark(currentRows());
+    markActiveRow(currentRows());
     observer?.disconnect();
     observer = null;
     searchModal = null;
-    waiting = false;
+    isWaiting = false;
   };
 
   return {
@@ -201,42 +201,42 @@ export function createSearchKeys(pageDocument: Document, { runAfter, isContextVa
         const opener = pageDocument.querySelector<HTMLElement>(OPEN_BUTTON);
         if (event.target instanceof Element && event.target.closest(EDITABLE)) return;
         if (!opener || pageDocument.querySelector(MODAL_CONTENT_SELECTOR)) return;
-        take(event);
+        consumeEvent(event);
         opener.click();
         return;
       }
       if (isSearchHotkey(event)) {
         const openSearchModal = adoptTopModal();
         if (!openSearchModal) return;
-        take(event);
+        consumeEvent(event);
         const field = fieldOf(openSearchModal);
         field?.focus();
         field?.select();
         return;
       }
-      const newTab = isNewTabEnter(event);
-      const aside = !newTab && (isComposing(event) || isModified(event));
-      if (!HANDLED_KEYS.has(event.key) && !(aside && HANDLED_CODES.has(event.code))) return;
+      const isNewTab = isNewTabEnter(event);
+      const shouldOnlyStop = !isNewTab && (isComposing(event) || isModified(event));
+      if (!HANDLED_KEYS.has(event.key) && !(shouldOnlyStop && HANDLED_CODES.has(event.code))) return;
       const topSearchModal = adoptTopModal();
-      if (aside) {
+      if (shouldOnlyStop) {
         if (topSearchModal && isModalTarget(event.target, topSearchModal)) event.stopImmediatePropagation();
         return;
       }
       if (!topSearchModal || !isModalTarget(event.target, topSearchModal)) return;
-      const onControl = event.target instanceof HTMLElement && !event.target.matches(SEARCH_FIELD) && event.target.closest(CONTROL) !== null;
-      if (onControl) {
+      const isControlTarget = event.target instanceof HTMLElement && !event.target.matches(SEARCH_FIELD) && event.target.closest(CONTROL) !== null;
+      if (isControlTarget) {
         event.stopImmediatePropagation();
         return;
       }
-      take(event);
+      consumeEvent(event);
       noticeTyping();
-      const rows = refresh();
+      const rows = syncRows();
       if (event.key !== 'Enter') {
-        if (rows.length > 0) step(rows, event.key === 'ArrowDown' ? 1 : -1);
+        if (rows.length > 0) moveActiveRow(rows, event.key === 'ArrowDown' ? 1 : -1);
         return;
       }
-      if (waiting || isTooShort(currentField()?.value ?? '')) return;
-      startWait(topSearchModal, newTab ? { ctrlKey: event.ctrlKey, metaKey: event.metaKey } : null);
+      if (isWaiting || isTooShort(currentField()?.value ?? '')) return;
+      startWait(topSearchModal, isNewTab ? { ctrlKey: event.ctrlKey, metaKey: event.metaKey } : null);
     },
     handleInput(event) {
       if (!isContextValid() || !(event.target instanceof HTMLElement) || !event.target.matches(`${SEARCH_MODAL} ${SEARCH_FIELD}`)) return;
