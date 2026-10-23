@@ -14,8 +14,8 @@ import {
 } from './search-dom';
 import { MAX_PENDING_MS } from './search-signal';
 
-const STALE = 'data-stale';
-const SEARCHING = 'data-searching';
+const STALE_ATTRIBUTE = 'data-senkutools-stale';
+const SEARCHING_ATTRIBUTE = 'data-senkutools-searching';
 const MATCH_HIGHLIGHT = 'senkutools-match';
 const RESULTS_ID = 'senkutools-search-results';
 const OPTION_ID = 'senkutools-search-option-';
@@ -120,9 +120,9 @@ export function createSearchView(doc: Document, { runAfter, isContextValid, sign
     const rows = rowsOf(openSearchModal);
     const tooShort = isTooShort(query);
     const stale = tooShort && rows.length > 0;
-    flag(openSearchModal, STALE, stale);
+    flag(openSearchModal, STALE_ATTRIBUTE, stale);
     writeAria(openSearchModal, rows, rows.length > 0 && !stale);
-    flag(openSearchModal, SEARCHING, !tooShort && signals.waited() >= SLOW_SEARCH_MS);
+    flag(openSearchModal, SEARCHING_ATTRIBUTE, !tooShort && signals.waited() >= SLOW_SEARCH_MS);
     paint(openSearchModal, query);
     const signature = signatureOf(rows);
     if (signature === shownSignature) return;
@@ -132,8 +132,8 @@ export function createSearchView(doc: Document, { runAfter, isContextValid, sign
 
   const dispose = (): void => {
     if (searchModal) {
-      flag(searchModal, STALE, false);
-      flag(searchModal, SEARCHING, false);
+      flag(searchModal, STALE_ATTRIBUTE, false);
+      flag(searchModal, SEARCHING_ATTRIBUTE, false);
       writeAria(searchModal, rowsOf(searchModal), false, false);
     }
     unpaint();

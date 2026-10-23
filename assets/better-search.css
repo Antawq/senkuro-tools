@@ -33,7 +33,7 @@
   transition: opacity var(--transition);
 }
 
-.modal-content--search[data-searching] .card-search > :first-child {
+.modal-content--search[data-senkutools-searching] .card-search > :first-child {
   opacity: 0.6;
 }
 
@@ -55,11 +55,11 @@
   background-color: var(--accent-secondary);
 }
 
-.modal-content--search[data-stale] .nav-search__cnt > .card-search {
+.modal-content--search[data-senkutools-stale] .nav-search__cnt > .card-search {
   display: none;
 }
 
-.modal-content--search[data-stale] .nav-search__cnt::before {
+.modal-content--search[data-senkutools-stale] .nav-search__cnt::before {
   content: 'Введите хотя бы два символа';
   color: var(--text-secondary);
   font-size: 1.4rem;

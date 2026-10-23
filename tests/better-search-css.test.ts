@@ -97,7 +97,7 @@ describe('better-search stylesheet values', () => {
 
 describe('better-search page states', () => {
   it('dims the covers while a search is in flight but never the text, which would drop under 4.5:1', () => {
-    document.body.innerHTML = modal('data-searching');
+    document.body.innerHTML = modal('data-senkutools-searching');
     expect(styleOf('.cover-wrapper').opacity).toBe('0.6');
     expect(styleOf('.card-body').opacity).not.toBe('0.6');
     expect(styleOf('.nav-search__cnt').opacity).not.toBe('0.6');
@@ -109,7 +109,7 @@ describe('better-search page states', () => {
   });
 
   it('hides the rows of a query that is too short to search', () => {
-    document.body.innerHTML = modal('data-stale');
+    document.body.innerHTML = modal('data-senkutools-stale');
     expect(styleOf('.card-search').display).toBe('none');
   });
 

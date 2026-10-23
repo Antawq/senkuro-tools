@@ -77,28 +77,28 @@ describe('stale results', () => {
   it('marks the results of an earlier query once the field is cleared', () => {
     open(['a', 'b'], 'naruto');
     view.syncView();
-    expect(modal().hasAttribute('data-stale')).toBe(false);
+    expect(modal().hasAttribute('data-senkutools-stale')).toBe(false);
     field().value = '';
     view.syncView();
-    expect(modal().hasAttribute('data-stale')).toBe(true);
+    expect(modal().hasAttribute('data-senkutools-stale')).toBe(true);
     field().value = 'n';
     view.syncView();
-    expect(modal().hasAttribute('data-stale')).toBe(true);
+    expect(modal().hasAttribute('data-senkutools-stale')).toBe(true);
     field().value = 'na';
     view.syncView();
-    expect(modal().hasAttribute('data-stale')).toBe(false);
+    expect(modal().hasAttribute('data-senkutools-stale')).toBe(false);
   });
 
   it('counts only the typed letters, not the spaces around them', () => {
     open(['a'], ' n ');
     view.syncView();
-    expect(modal().hasAttribute('data-stale')).toBe(true);
+    expect(modal().hasAttribute('data-senkutools-stale')).toBe(true);
   });
 
   it('marks nothing while there are no results to hide', () => {
     open([], '');
     view.syncView();
-    expect(modal().hasAttribute('data-stale')).toBe(false);
+    expect(modal().hasAttribute('data-senkutools-stale')).toBe(false);
   });
 
   it('follows the results the page draws afterwards', async () => {
@@ -106,10 +106,10 @@ describe('stale results', () => {
     view.syncView();
     list().innerHTML = rowsOf('a');
     await settle();
-    expect(modal().hasAttribute('data-stale')).toBe(true);
+    expect(modal().hasAttribute('data-senkutools-stale')).toBe(true);
     list().innerHTML = '';
     await settle();
-    expect(modal().hasAttribute('data-stale')).toBe(false);
+    expect(modal().hasAttribute('data-senkutools-stale')).toBe(false);
   });
 });
 
@@ -119,11 +119,11 @@ describe('searching', () => {
     view.syncView();
     say('start');
     await settle(299);
-    expect(modal().hasAttribute('data-searching')).toBe(false);
+    expect(modal().hasAttribute('data-senkutools-searching')).toBe(false);
     await settle(1);
-    expect(modal().hasAttribute('data-searching')).toBe(true);
+    expect(modal().hasAttribute('data-senkutools-searching')).toBe(true);
     say('done');
-    expect(modal().hasAttribute('data-searching')).toBe(false);
+    expect(modal().hasAttribute('data-senkutools-searching')).toBe(false);
   });
 
   it('never shows for a search that answers quickly', async () => {
@@ -133,13 +133,13 @@ describe('searching', () => {
     await settle(250);
     say('done');
     await settle(500);
-    expect(modal().hasAttribute('data-searching')).toBe(false);
+    expect(modal().hasAttribute('data-senkutools-searching')).toBe(false);
   });
 
   it('stays off while the page-world script has not spoken', () => {
     open(['a'], 'naruto');
     view.syncView();
-    expect(modal().hasAttribute('data-searching')).toBe(false);
+    expect(modal().hasAttribute('data-senkutools-searching')).toBe(false);
   });
 
   it('stays off for a query too short to be searched', async () => {
@@ -147,7 +147,7 @@ describe('searching', () => {
     view.syncView();
     say('start', 'n');
     await settle(400);
-    expect(modal().hasAttribute('data-searching')).toBe(false);
+    expect(modal().hasAttribute('data-senkutools-searching')).toBe(false);
   });
 
   it('gives up on a search that never reports back', async () => {
@@ -155,9 +155,9 @@ describe('searching', () => {
     view.syncView();
     say('start');
     await settle(400);
-    expect(modal().hasAttribute('data-searching')).toBe(true);
+    expect(modal().hasAttribute('data-senkutools-searching')).toBe(true);
     await settle(4700);
-    expect(modal().hasAttribute('data-searching')).toBe(false);
+    expect(modal().hasAttribute('data-senkutools-searching')).toBe(false);
   });
 });
 
@@ -194,15 +194,15 @@ describe('which modal it looks at', () => {
   it('ignores a modal that is closing', () => {
     open(['a'], '', 'vfm vfm--prevent-none');
     view.syncView();
-    expect(modal().hasAttribute('data-stale')).toBe(false);
-    expect(modal().hasAttribute('data-searching')).toBe(false);
+    expect(modal().hasAttribute('data-senkutools-stale')).toBe(false);
+    expect(modal().hasAttribute('data-senkutools-searching')).toBe(false);
   });
 
   it('does nothing once the extension context is gone', () => {
     open(['a'], '');
     isContextAlive = false;
     view.syncView();
-    expect(modal().hasAttribute('data-stale')).toBe(false);
+    expect(modal().hasAttribute('data-senkutools-stale')).toBe(false);
   });
 
   it('stops flagging once the extension context is gone while the page keeps changing', async () => {
@@ -211,7 +211,7 @@ describe('which modal it looks at', () => {
     isContextAlive = false;
     list().innerHTML = rowsOf('a');
     await settle();
-    expect(modal().hasAttribute('data-stale')).toBe(false);
+    expect(modal().hasAttribute('data-senkutools-stale')).toBe(false);
   });
 
   it('takes back everything it put on the page when it is disposed', async () => {
@@ -238,9 +238,9 @@ describe('which modal it looks at', () => {
     view.syncView();
     say('start');
     await settle(400);
-    expect(modal().hasAttribute('data-searching')).toBe(true);
+    expect(modal().hasAttribute('data-senkutools-searching')).toBe(true);
     view.dispose();
-    expect(modal().hasAttribute('data-searching')).toBe(false);
+    expect(modal().hasAttribute('data-senkutools-searching')).toBe(false);
   });
 
   it('stops watching the page after dispose', async () => {
@@ -249,7 +249,7 @@ describe('which modal it looks at', () => {
     view.dispose();
     list().innerHTML = rowsOf('a');
     await settle();
-    expect(modal().hasAttribute('data-stale')).toBe(false);
+    expect(modal().hasAttribute('data-senkutools-stale')).toBe(false);
   });
 });
 
@@ -587,7 +587,7 @@ describe('clicks', () => {
     document.querySelector('.icon-click')?.addEventListener('click', () => (field().value = ''));
     pointer(document.querySelector('.icon-click') as Element);
     await settle();
-    expect(modal().hasAttribute('data-stale')).toBe(true);
+    expect(modal().hasAttribute('data-senkutools-stale')).toBe(true);
   });
 
   it('leaves a modified click on a list elsewhere on the page alone, with the search open', () => {
