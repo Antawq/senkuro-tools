@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Database } from '../utils/shared/database';
 import { LIST_LOADED_EVENT, encodeLoaded, type LoadOutcome } from '../utils/shared/list-signal';
-import { createPriceSort, touchesSort, type PriceSort, type SortHost } from '../utils/sort/sort-view';
+import { createPriceSort, hasSortMutation, type PriceSort, type SortHost } from '../utils/sort/sort-view';
 
 const database: Database = {
   cheap: { price: 1.5, name: 'Cheap', rank: 'F' },
@@ -552,23 +552,23 @@ describe('touchesSort', () => {
 
   it('notices changes in the grid, the bar, and the sort menu, and a menu that is added', () => {
     render({ menu: true });
-    expect(touchesSort([record(document.querySelector('.user-cards-grid')!)])).toBe(true);
-    expect(touchesSort([record(document.querySelector('.user-card__filters button')!)])).toBe(true);
-    expect(touchesSort([record(document.querySelector('#cards-browse-order .dropdown-menu')!)])).toBe(true);
-    expect(touchesSort([record(document.querySelector('.user-card span, .radio__label span')!.firstChild ?? document.body)])).toBe(true);
+    expect(hasSortMutation([record(document.querySelector('.user-cards-grid')!)])).toBe(true);
+    expect(hasSortMutation([record(document.querySelector('.user-card__filters button')!)])).toBe(true);
+    expect(hasSortMutation([record(document.querySelector('#cards-browse-order .dropdown-menu')!)])).toBe(true);
+    expect(hasSortMutation([record(document.querySelector('.user-card span, .radio__label span')!.firstChild ?? document.body)])).toBe(true);
     const popper = document.querySelector('#cards-browse-order')!;
-    expect(touchesSort([record(document.body, [popper])])).toBe(true);
+    expect(hasSortMutation([record(document.body, [popper])])).toBe(true);
     const wrapper = document.createElement('div');
     wrapper.append(popper.cloneNode(true));
-    expect(touchesSort([record(document.body, [wrapper])])).toBe(true);
+    expect(hasSortMutation([record(document.body, [wrapper])])).toBe(true);
   });
 
   it('does not notice the rest of the page', () => {
     render({ menu: true });
     const other = document.createElement('p');
     document.body.append(other);
-    expect(touchesSort([record(other, [document.createElement('span'), document.createTextNode('x')])])).toBe(false);
-    expect(touchesSort([record(document.createTextNode('x'))])).toBe(false);
-    expect(touchesSort([])).toBe(false);
+    expect(hasSortMutation([record(other, [document.createElement('span'), document.createTextNode('x')])])).toBe(false);
+    expect(hasSortMutation([record(document.createTextNode('x'))])).toBe(false);
+    expect(hasSortMutation([])).toBe(false);
   });
 });

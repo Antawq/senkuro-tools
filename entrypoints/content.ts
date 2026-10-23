@@ -18,7 +18,7 @@ import { createSearchView } from '@/utils/search/search-view';
 import { addedCards, createRenderLoop } from '@/utils/shared/render-loop';
 import { LIST_LOAD_EVENT, LIST_LOADED_EVENT } from '@/utils/shared/list-signal';
 import { loadSettings, watchSettings } from '@/utils/shared/settings';
-import { createPriceSort, touchesSort } from '@/utils/sort/sort-view';
+import { createPriceSort, hasSortMutation } from '@/utils/sort/sort-view';
 import { createTokenBar } from '@/utils/token/token-bar';
 import { createTradeStore, listenForTrades } from '@/utils/trades/trade-capture';
 import { isTradeMutation, updateTradeSummaries } from '@/utils/trades/trade-summary';
@@ -64,7 +64,7 @@ export default defineContentScript({
       const tradesChanged = mutations.some(isTradeMutation);
       loop.addCards(cards);
       if (tradesChanged) loop.markTrades();
-      if (cards.length > 0 || tradesChanged || profileBadgeMissing() || touchesSort(mutations)) loop.schedule();
+      if (cards.length > 0 || tradesChanged || profileBadgeMissing() || hasSortMutation(mutations)) loop.schedule();
     });
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     ctx.onInvalidated(() => observer.disconnect());

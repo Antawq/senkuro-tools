@@ -6,7 +6,7 @@ import { CARD, GRID, STATE_ATTRIBUTE, type GridState } from './sort-dom';
 export interface GridView {
   grid: HTMLElement;
   cards: HTMLElement[];
-  pending: boolean;
+  hasMoreCards: boolean;
   gridKey: string;
 }
 
@@ -18,7 +18,7 @@ export function inspectGrid(pageDocument: Document): GridView | null {
   const grid = pageDocument.querySelector<HTMLElement>(GRID);
   if (!grid) return null;
   const cards = [...grid.children].filter((child): child is HTMLElement => child instanceof HTMLElement && child.matches(CARD));
-  return { grid, cards, pending: grid.children.length > cards.length, gridKey: keyOf(cards) };
+  return { grid, cards, hasMoreCards: grid.children.length > cards.length, gridKey: keyOf(cards) };
 }
 
 const priceFor =
@@ -28,8 +28,8 @@ const priceFor =
     return entry && Number.isFinite(entry.price) ? Number(effectivePrice(entry.price, commission).toFixed(PRICE_DECIMALS)) : null;
   };
 
-export function orderCards(cards: HTMLElement[], database: Database, commission: boolean, descending: boolean): void {
-  const order = priceOrder(cards.map(slugOf), priceFor(database, commission), descending);
+export function orderCards(cards: HTMLElement[], database: Database, commission: boolean, isDescending: boolean): void {
+  const order = priceOrder(cards.map(slugOf), priceFor(database, commission), isDescending);
   cards.forEach((card, index) => {
     const place = String(order[index]);
     if (card.style.order !== place) card.style.order = place;

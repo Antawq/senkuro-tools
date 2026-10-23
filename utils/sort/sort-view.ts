@@ -19,10 +19,10 @@ export interface PriceSort {
   handleLoaded: (event: Event) => void;
 }
 
-export function touchesSort(mutations: Iterable<MutationRecord>): boolean {
+export function hasSortMutation(mutations: Iterable<MutationRecord>): boolean {
   for (const { target, addedNodes } of mutations) {
-    const owner = target instanceof Element ? target : target.parentElement;
-    if (owner?.closest(WATCHED)) return true;
+    const targetElement = target instanceof Element ? target : target.parentElement;
+    if (targetElement?.closest(WATCHED)) return true;
     for (const node of addedNodes) if (node instanceof Element && (node.matches(WATCHED) || node.querySelector(WATCHED))) return true;
   }
   return false;
@@ -52,7 +52,7 @@ export function createPriceSort(pageDocument: Document, host: SortHost): PriceSo
   }
 
   function resolveGridState(view: GridView): GridState {
-    if (!view.pending) return 'ready';
+    if (!view.hasMoreCards) return 'ready';
     if (isLoading) return 'loading';
     if (triedGridKey === view.gridKey) return 'partial';
     startLoad(view.gridKey);
@@ -84,18 +84,18 @@ export function createPriceSort(pageDocument: Document, host: SortHost): PriceSo
     sync(database, { commission }) {
       const filters = pageDocument.querySelector(FILTERS);
       if (!filters) return;
-      const on = isPriceMode(filters);
-      decorateMenu(pageDocument, on);
+      const isPriceSelected = isPriceMode(filters);
+      decorateMenu(pageDocument, isPriceSelected);
       const view = inspectGrid(pageDocument);
-      if (!on) return releaseGrid(view);
+      if (!isPriceSelected) return releaseGrid(view);
       if (view) showGrid(view, resolveGridState(view), database, commission);
       else reflectLabel(pageDocument, 'price');
     },
     handleClick(event) {
       const filters = pageDocument.querySelector(FILTERS);
-      const item = event.target instanceof Element ? event.target.closest(`${MENU} ${ITEM}`) : null;
-      if (!filters || !item) return;
-      if (item.matches(OWN_ITEM)) {
+      const menuItem = event.target instanceof Element ? event.target.closest(`${MENU} ${ITEM}`) : null;
+      if (!filters || !menuItem) return;
+      if (menuItem.matches(OWN_ITEM)) {
         if (event.target instanceof HTMLInputElement) choosePriceMode(filters);
       } else if (isPriceMode(filters)) {
         filters.removeAttribute(MODE_ATTRIBUTE);

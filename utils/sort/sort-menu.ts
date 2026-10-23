@@ -19,7 +19,7 @@ function buildItem(menu: Element): HTMLElement | null {
   return clone;
 }
 
-export function decorateMenu(pageDocument: Document, on: boolean): void {
+export function decorateMenu(pageDocument: Document, isPriceSelected: boolean): void {
   const menu = pageDocument.querySelector(MENU);
   if (!menu || pageDocument.querySelector(MODAL_CONTENT_SELECTOR)) return;
   if (!menu.querySelector(OWN_ITEM)) {
@@ -28,8 +28,8 @@ export function decorateMenu(pageDocument: Document, on: boolean): void {
     menu.append(built);
   }
   for (const input of menu.querySelectorAll<HTMLInputElement>(`${ITEM} input`)) {
-    if (input.closest(OWN_ITEM)) input.checked = on;
-    else if (on) input.checked = false;
+    if (input.closest(OWN_ITEM)) input.checked = isPriceSelected;
+    else if (isPriceSelected) input.checked = false;
   }
 }
 
