@@ -1,6 +1,7 @@
 import '@/assets/tokens.css';
 import '@/assets/price-badges.css';
 import '@/assets/profile-badge.css';
+import '@/assets/shard-switch.css';
 import '@/assets/site-fixes.css';
 import '@/assets/token-bar.css';
 import '@/assets/trade-summary.css';
@@ -13,6 +14,7 @@ import { profileBadgeMissing, removeProfileBadge, updateProfileBadge } from '@/u
 import { addedCards, createRenderLoop } from '@/utils/shared/render-loop';
 import { loadSettings, watchSettings } from '@/utils/shared/settings';
 import { createTokenBar } from '@/utils/token/token-bar';
+import { createShardSwitchWatcher } from '@/utils/trades/shard-switch';
 import { createTradeStore, listenForTrades } from '@/utils/trades/trade-capture';
 import { isTradeMutation, updateTradeSummaries } from '@/utils/trades/trade-summary';
 
@@ -46,10 +48,12 @@ export default defineContentScript({
       nextFrame
     );
     const badges = createPriceBadges({ onImageLoad: loop.schedule, touch });
+    const shardSwitches = createShardSwitchWatcher({ nextFrame });
 
     const observer = new MutationObserver((mutations) => {
       const cards = addedCards(mutations);
       const tradesChanged = mutations.some(isTradeMutation);
+      shardSwitches.watch(mutations);
       loop.addCards(cards);
       if (tradesChanged) loop.markTrades();
       if (cards.length > 0 || tradesChanged || profileBadgeMissing()) loop.schedule();
