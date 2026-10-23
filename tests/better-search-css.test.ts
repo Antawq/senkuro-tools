@@ -54,18 +54,18 @@ describe('better-search stylesheet values', () => {
   });
 
   it('ends the list above the phone dock and cuts it through a row, not at a sliver of one', () => {
-    expect(stylesheet).toMatch(/^\.modal-content--search \{\s+--better-search-chrome: 246px;/m);
-    expect(stylesheet).toMatch(/\(width >= 576px\) \{\s+\.modal-content--search \{\s+--better-search-chrome: 260px;/);
+    expect(stylesheet).toMatch(/^\.modal-content--search \{\s+--senkutools-search-chrome: 246px;/m);
+    expect(stylesheet).toMatch(/\(width >= 576px\) \{\s+\.modal-content--search \{\s+--senkutools-search-chrome: 260px;/);
   });
 
   it('cuts the list through the middle of a row, and only where round() exists, so other browsers keep the plain height', () => {
     expect(stylesheet).toContain('@supports (max-height: round(down, 10px, 1px)) {');
-    expect(stylesheet).toContain('--better-search-row: 88px;');
-    expect(stylesheet).toContain('calc(16px + 7.5 * var(--better-search-row))');
-    expect(stylesheet).toContain('calc(100dvh - var(--better-search-chrome))');
+    expect(stylesheet).toContain('--senkutools-search-row: 88px;');
+    expect(stylesheet).toContain('calc(16px + 7.5 * var(--senkutools-search-row))');
+    expect(stylesheet).toContain('calc(100dvh - var(--senkutools-search-chrome))');
     const [plain, snapped] = stylesheet.match(/max-height: [^;]+;/g) ?? [];
-    expect(plain).toBe('max-height: var(--better-search-room);');
-    expect(snapped).toContain('round(down, var(--better-search-room) - var(--better-search-tail), var(--better-search-row))');
+    expect(plain).toBe('max-height: var(--senkutools-search-room);');
+    expect(snapped).toContain('round(down, var(--senkutools-search-room) - var(--senkutools-search-tail), var(--senkutools-search-row))');
   });
 
   it('overrides the smooth scrolling the site sets on its scrollbar class, so the list never glides', () => {
@@ -74,14 +74,14 @@ describe('better-search stylesheet values', () => {
 
   it('keeps the whole height of the list on a phone held sideways, where a snapped height would cost a row', () => {
     const sideways = stylesheet.slice(stylesheet.indexOf('@media (max-height: 480px)'));
-    expect(sideways).toContain('max-height: var(--better-search-room);');
+    expect(sideways).toContain('max-height: var(--senkutools-search-room);');
   });
 
   it('trades the site top margin for list height on a phone held sideways', () => {
     const sideways = stylesheet.slice(stylesheet.indexOf('@media (max-height: 480px)'));
     expect(sideways).toContain('.modal-content.modal-content--search');
     expect(sideways).toContain('margin-top: 8px');
-    expect(sideways).toContain('--better-search-chrome: 190px');
+    expect(sideways).toContain('--senkutools-search-chrome: 190px');
   });
 
   it('sizes the popular query chips through the button size variable, not by overriding the height', () => {
