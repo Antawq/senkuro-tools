@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { createSearchSignals, type SearchSignal } from '../utils/search/search-signal';
+import { createSearchSignals } from '../utils/search/search-signal';
+import type { SearchSignal } from '../utils/shared/search-event';
 
 const event = (signal: Partial<SearchSignal>) => new CustomEvent('senkutools:search', { detail: JSON.stringify(signal) });
 const start = (query = 'naruto') => event({ phase: 'start', query, type: 'MANGA' });

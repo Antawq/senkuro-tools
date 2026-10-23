@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createSearchSignals, SEARCH_EVENT, type SearchSignals } from '../utils/search/search-signal';
+import { SEARCH_EVENT } from '../utils/shared/search-event';
+import { createSearchSignals, type SearchSignals } from '../utils/search/search-signal';
 import { createSearchView, type SearchView } from '../utils/search/search-view';
 
 const rowsOf = (...slugs: string[]) => slugs.map((slug, index) => `<a class="card-search" data-index="${index}" href="/manga/${slug}">${slug}</a>`).join('');

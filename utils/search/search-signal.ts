@@ -1,14 +1,6 @@
-export const SEARCH_EVENT = 'senkutools:search';
+import { parseSearchSignal } from '../shared/search-event';
 
 export const MAX_PENDING_MS = 5000;
-
-export interface SearchSignal {
-  phase: 'start' | 'done';
-  query: string;
-  type: string;
-  settled?: boolean;
-  firstSlug?: string | null;
-}
 
 export interface SettledSearch {
   query: string;
@@ -24,17 +16,6 @@ export interface SearchSignals {
   lastSettled: () => SettledSearch | null;
 }
 
-const parseSignal = (event: Event): SearchSignal | null => {
-  const detail = (event as CustomEvent<unknown>).detail;
-  if (typeof detail !== 'string') return null;
-  try {
-    const signal = JSON.parse(detail) as Partial<SearchSignal>;
-    return (signal.phase === 'start' || signal.phase === 'done') && typeof signal.query === 'string' ? (signal as SearchSignal) : null;
-  } catch {
-    return null;
-  }
-};
-
 export function createSearchSignals(readClock: () => number = Date.now): SearchSignals {
   const listeners: (() => void)[] = [];
   const startTimes: number[] = [];
@@ -43,7 +24,7 @@ export function createSearchSignals(readClock: () => number = Date.now): SearchS
 
   return {
     handleEvent(event) {
-      const signal = parseSignal(event);
+      const signal = parseSearchSignal(event);
       if (!signal) return;
       hasReceivedSignal = true;
       if (signal.phase === 'start') startTimes.push(readClock());
