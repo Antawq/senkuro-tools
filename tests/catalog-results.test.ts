@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { asksOnlyForSearch, CATALOG_SEARCH_PAGE_SIZE, catalogKindOf, isEmptyCatalogAnswer, toCatalogData } from '../utils/catalog/catalog-results';
+import { asksOnlyForSearch, catalogKindOf, isEmptyCatalogAnswer, toCatalogData } from '../utils/catalog/catalog-results';
 
 const NO_FILTERS = {
   after: null,
@@ -25,6 +25,25 @@ describe('catalogKindOf', () => {
     expect(catalogKindOf('fetchAnimes')?.searchType).toBe('ANIME');
   });
 
+  it('names the sort values the catalog offers and the field of the API each one is read from', () => {
+    expect(catalogKindOf('fetchMangas')?.sortKeys).toEqual({
+      SCORE: 'score',
+      VIEWS: 'views',
+      CHAPTERS: 'chapters',
+      CREATED_AT: 'createdAt',
+      LAST_CHAPTER_AT: 'lastChapterAt',
+    });
+    expect(catalogKindOf('fetchAnimes')?.sortKeys).toEqual({
+      SCORE: 'score',
+      VIEWS: 'views',
+      EPISODES: 'episodes',
+      CREATED_AT: 'createdAt',
+      LAST_EPISODE_AT: 'lastEpisodeAt',
+    });
+    expect(catalogKindOf('fetchMangas')?.lookupRoot).toBe('manga');
+    expect(catalogKindOf('fetchAnimes')?.lookupRoot).toBe('anime');
+  });
+
   it('knows no other operation', () => {
     for (const name of ['search', 'fetchUserCards', 'fetchRanobes', '', undefined]) expect(catalogKindOf(name)).toBeUndefined();
   });
@@ -34,7 +53,8 @@ describe('catalogKindOf', () => {
     const anime = catalogKindOf('fetchAnimes')?.searchDocument ?? '';
     expect(manga).toContain('... on SearchManga');
     expect(manga).toContain('preview: resize(');
-    expect(manga).toContain(`first: ${CATALOG_SEARCH_PAGE_SIZE})`);
+    expect(manga).toContain('search(query: $query, type: $type, first: $first, after: $after)');
+    expect(manga).toContain('totalCount pageInfo { hasNextPage endCursor }');
     for (const field of ['mangaType: type', 'mangaStatus: status', 'mangaRating: rating']) expect(manga).toContain(field);
     expect(anime).toContain('... on SearchAnime');
     for (const field of ['animeType: type', 'animeStatus: status', 'animeRating: rating']) expect(anime).toContain(field);
@@ -44,7 +64,7 @@ describe('catalogKindOf', () => {
 describe('asksOnlyForSearch', () => {
   it('gives the text when the search is the only thing asked for, whatever the order', () => {
     expect(asksOnlyForSearch({ ...NO_FILTERS, search: 'НАРУТО' })).toBe('НАРУТО');
-    expect(asksOnlyForSearch({ ...NO_FILTERS, orderField: 'RATING', orderDirection: 'ASC', search: ' one piece ' })).toBe('one piece');
+    expect(asksOnlyForSearch({ ...NO_FILTERS, orderField: 'SCORE', orderDirection: 'ASC', search: ' one piece ' })).toBe('one piece');
   });
 
   it('gives nothing without a text to search', () => {
@@ -93,7 +113,7 @@ describe('toCatalogData', () => {
   };
 
   it('gives the rows of the search to the page the way the catalog gives its own', () => {
-    const data = toCatalogData({ search: { edges: [{ node: searchNode, __typename: 'SearchMangaEdge' }] } }, catalogKindOf('fetchMangas')!);
+    const data = toCatalogData([searchNode], catalogKindOf('fetchMangas')!);
     expect(data).toEqual({
       mangas: {
         edges: [
@@ -135,22 +155,21 @@ describe('toCatalogData', () => {
       cover: null,
       __typename: 'SearchAnime',
     };
-    const data = toCatalogData({ search: { edges: [{ node: animeNode }] } }, catalogKindOf('fetchAnimes')!) as {
+    const data = toCatalogData([animeNode], catalogKindOf('fetchAnimes')!) as {
       animes: { edges: { node: Record<string, unknown> }[]; __typename: string };
     };
     expect(data.animes.__typename).toBe('AnimeConnection');
     expect(data.animes.edges[0]?.node).toMatchObject({ status: 'FINISHED', type: 'TV', rating: 'PG13', __typename: 'Anime' });
   });
 
-  it('gives nothing when the search has no rows to give, or is not a search answer', () => {
-    const kind = catalogKindOf('fetchMangas')!;
-    for (const data of [{ search: { edges: [] } }, { search: null }, {}, null, undefined]) expect(toCatalogData(data, kind)).toBeNull();
+  it('gives nothing when there are no rows to give', () => {
+    expect(toCatalogData([], catalogKindOf('fetchMangas')!)).toBeNull();
   });
 
-  it('skips a row it cannot read instead of failing on it', () => {
-    const data = toCatalogData({ search: { edges: [{ node: null }, { node: searchNode }, {}] } }, catalogKindOf('fetchMangas')!) as {
-      mangas: { edges: unknown[] };
+  it('keeps the rows in the order it is given them, so a sort made before it shows', () => {
+    const data = toCatalogData([searchNode, { ...searchNode, id: 'ID2', slug: 'boruto' }], catalogKindOf('fetchMangas')!) as {
+      mangas: { edges: { node: { slug: string } }[] };
     };
-    expect(data.mangas.edges).toHaveLength(1);
+    expect(data.mangas.edges.map((edge) => edge.node.slug)).toEqual(['naruto', 'boruto']);
   });
 });
