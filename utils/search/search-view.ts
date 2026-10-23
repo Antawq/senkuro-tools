@@ -1,17 +1,30 @@
-import { ACTIVE, LIST, ROW, TAB, TAB_ACTIVE, TITLE, fieldOf, isTooShort, rowsOf, signatureOf, topModal, type SearchHost } from './search-dom';
+import {
+  ACTIVE_ROW_CLASS,
+  RESULTS,
+  RESULT_ROW,
+  TAB,
+  ACTIVE_TAB,
+  RESULT_TITLE,
+  fieldOf,
+  isTooShort,
+  rowsOf,
+  signatureOf,
+  topModal,
+  type SearchHost,
+} from './search-dom';
 import { MAX_PENDING_MS } from './search-signal';
 
 const STALE = 'data-stale';
 const SEARCHING = 'data-searching';
-const MATCH = 'senkutools-match';
-const LIST_ID = 'senkutools-search-list';
+const MATCH_HIGHLIGHT = 'senkutools-match';
+const RESULTS_ID = 'senkutools-search-results';
 const OPTION_ID = 'senkutools-search-option-';
 const TAB_ID = 'senkutools-search-tab-';
-const MIN_WORD_LENGTH = 2;
+const MIN_WORD_CHARACTERS = 2;
 const SLOW_SEARCH_MS = 300;
 const EXPIRY_MARGIN_MS = 50;
-const REFOCUS = '.tabs-tab, .icon-click, .nav-search__cnt-space button';
-const HOVER = '(hover: hover)';
+const REFOCUS_TRIGGER = '.tabs-tab, .icon-click, .nav-search__cnt-space button';
+const HOVER_MEDIA_QUERY = '(hover: hover)';
 
 export interface SearchView {
   touch: () => void;
@@ -34,7 +47,7 @@ const wordsOf = (query: string): string[] => [
     query
       .toLowerCase()
       .split(/\s+/)
-      .filter((word) => word.length >= MIN_WORD_LENGTH)
+      .filter((word) => word.length >= MIN_WORD_CHARACTERS)
   ),
 ];
 
@@ -67,27 +80,27 @@ export function createSearchView(doc: Document, { later, alive, signals }: Searc
   const paint = (modal: HTMLElement, query: string): void => {
     const view = doc.defaultView;
     if (!view?.CSS?.highlights || typeof view.Highlight !== 'function') return;
-    const ranges = matchesIn([...modal.querySelectorAll<HTMLElement>(TITLE)], wordsOf(query));
-    if (ranges.length > 0) view.CSS.highlights.set(MATCH, new view.Highlight(...ranges));
-    else view.CSS.highlights.delete(MATCH);
+    const ranges = matchesIn([...modal.querySelectorAll<HTMLElement>(RESULT_TITLE)], wordsOf(query));
+    if (ranges.length > 0) view.CSS.highlights.set(MATCH_HIGHLIGHT, new view.Highlight(...ranges));
+    else view.CSS.highlights.delete(MATCH_HIGHLIGHT);
   };
 
   const announce = (modal: HTMLElement, rows: HTMLElement[], shown: boolean, managed = true): void => {
-    const active = rows.find((row) => row.classList.contains(ACTIVE));
+    const active = rows.find((row) => row.classList.contains(ACTIVE_ROW_CLASS));
     const field = fieldOf(modal);
     if (field) {
       attribute(field, 'role', managed ? 'combobox' : null);
       attribute(field, 'aria-autocomplete', managed ? 'list' : null);
       attribute(field, 'aria-expanded', managed ? String(shown) : null);
-      attribute(field, 'aria-controls', shown ? LIST_ID : null);
+      attribute(field, 'aria-controls', shown ? RESULTS_ID : null);
       attribute(field, 'aria-activedescendant', shown && active ? active.id : null);
     }
     modal.querySelectorAll<HTMLElement>(TAB).forEach((tab, index) => attribute(tab, 'id', managed ? `${TAB_ID}${index}` : null));
-    const list = modal.querySelector<HTMLElement>(LIST);
+    const list = modal.querySelector<HTMLElement>(RESULTS);
     if (list) {
       attribute(list, 'role', shown ? 'listbox' : null);
-      attribute(list, 'id', shown ? LIST_ID : null);
-      attribute(list, 'aria-labelledby', shown ? (modal.querySelector<HTMLElement>(TAB_ACTIVE)?.id ?? null) : null);
+      attribute(list, 'id', shown ? RESULTS_ID : null);
+      attribute(list, 'aria-labelledby', shown ? (modal.querySelector<HTMLElement>(ACTIVE_TAB)?.id ?? null) : null);
     }
     rows.forEach((row, index) => {
       attribute(row, 'role', shown ? 'option' : null);
@@ -97,7 +110,7 @@ export function createSearchView(doc: Document, { later, alive, signals }: Searc
   };
 
   const unpaint = (): void => {
-    doc.defaultView?.CSS?.highlights?.delete(MATCH);
+    doc.defaultView?.CSS?.highlights?.delete(MATCH_HIGHLIGHT);
   };
 
   const render = (): void => {
@@ -114,7 +127,7 @@ export function createSearchView(doc: Document, { later, alive, signals }: Searc
     const signature = signatureOf(rows);
     if (signature === shownSignature) return;
     shownSignature = signature;
-    modal.querySelector<HTMLElement>(LIST)?.scrollTo({ top: 0 });
+    modal.querySelector<HTMLElement>(RESULTS)?.scrollTo({ top: 0 });
   };
 
   const dispose = (): void => {
@@ -162,11 +175,11 @@ export function createSearchView(doc: Document, { later, alive, signals }: Searc
     const modal = alive() ? topModal(doc) : null;
     const target = event.target;
     if (!modal || !(target instanceof Element) || !modal.contains(target)) return;
-    if ((event.ctrlKey || event.metaKey || event.shiftKey) && target.closest(ROW)) {
+    if ((event.ctrlKey || event.metaKey || event.shiftKey) && target.closest(RESULT_ROW)) {
       event.stopImmediatePropagation();
       return;
     }
-    const pointed = event.detail > 0 && target.closest(REFOCUS) !== null && doc.defaultView?.matchMedia(HOVER).matches === true;
+    const pointed = event.detail > 0 && target.closest(REFOCUS_TRIGGER) !== null && doc.defaultView?.matchMedia(HOVER_MEDIA_QUERY).matches === true;
     later(() => {
       touch();
       if (pointed && alive()) fieldOf(modal)?.focus({ preventScroll: true });

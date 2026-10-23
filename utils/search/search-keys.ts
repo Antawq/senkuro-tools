@@ -1,11 +1,11 @@
 import { MODAL_CONTENT_SELECTOR } from '../shared/modal-selectors';
 import {
-  ACTIVE,
+  ACTIVE_ROW_CLASS,
   EDITABLE,
-  FIELD,
-  MODAL,
+  SEARCH_FIELD,
+  SEARCH_MODAL,
   OPEN_BUTTON,
-  TAB_ACTIVE,
+  ACTIVE_TAB,
   fieldOf as fieldIn,
   isTooShort,
   rowsOf as rowsIn,
@@ -44,7 +44,7 @@ const isOpenKey = (event: KeyboardEvent): boolean =>
 const isNewTabEnter = (event: KeyboardEvent): boolean =>
   (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key === 'Enter' && !isComposing(event);
 
-const askedOf = (modal: HTMLElement): string => JSON.stringify([fieldIn(modal)?.value, modal.querySelector(TAB_ACTIVE)?.textContent]);
+const askedOf = (modal: HTMLElement): string => JSON.stringify([fieldIn(modal)?.value, modal.querySelector(ACTIVE_TAB)?.textContent]);
 
 const take = (event: Event): void => {
   event.preventDefault();
@@ -71,7 +71,7 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
 
   const fieldOf = (): HTMLInputElement | null => (session ? fieldIn(session) : null);
   const rowsOf = (): HTMLElement[] => (session ? rowsIn(session) : []);
-  const mark = (rows: HTMLElement[]): void => rows.forEach((row, position) => row.classList.toggle(ACTIVE, position === index));
+  const mark = (rows: HTMLElement[]): void => rows.forEach((row, position) => row.classList.toggle(ACTIVE_ROW_CLASS, position === index));
 
   const refresh = (): HTMLElement[] => {
     const rows = rowsOf();
@@ -223,7 +223,7 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
         return;
       }
       if (!modal || !owns(event.target, modal)) return;
-      const onControl = event.target instanceof HTMLElement && !event.target.matches(FIELD) && event.target.closest(CONTROL) !== null;
+      const onControl = event.target instanceof HTMLElement && !event.target.matches(SEARCH_FIELD) && event.target.closest(CONTROL) !== null;
       if (onControl) {
         event.stopImmediatePropagation();
         return;
@@ -239,7 +239,7 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
       wait(modal, newTab ? { ctrlKey: event.ctrlKey, metaKey: event.metaKey } : null);
     },
     input(event) {
-      if (!alive() || !(event.target instanceof HTMLElement) || !event.target.matches(`${MODAL} ${FIELD}`)) return;
+      if (!alive() || !(event.target instanceof HTMLElement) || !event.target.matches(`${SEARCH_MODAL} ${SEARCH_FIELD}`)) return;
       if (adopt()) noticeTyping();
     },
     dispose,
