@@ -4,7 +4,7 @@ import { claimPage } from '../shared/page-claim';
 import type { PageWindow } from '../shared/page-window';
 import { operationName, runWhenClientFound, type QueryClient, type QueryRequest } from '../shared/urql-client';
 import { tapSource, type SourceResult } from '../shared/urql-source';
-import { SEARCH_EVENT, type SearchSignal } from './search-signal';
+import { SEARCH_EVENT, type SearchSignal } from '../shared/search-event';
 
 const SEARCH_OPERATION = 'search';
 export const SEARCH_PAGE_SIZE = 30;

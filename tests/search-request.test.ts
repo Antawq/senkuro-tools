@@ -4,7 +4,7 @@ import { Window } from 'happy-dom';
 import { make } from 'wonka';
 
 import { SEARCH_PAGE_SIZE, installSearchRequest, installSearchWidening, widenSearchRequest } from '../utils/search/search-request';
-import { SEARCH_EVENT, type SearchSignal } from '../utils/search/search-signal';
+import { SEARCH_EVENT, type SearchSignal } from '../utils/shared/search-event';
 import type { QueryClient, QueryRequest } from '../utils/shared/urql-client';
 
 const argument = (name: string, argumentValue: string) => ({ kind: 'Argument', name: { value: name }, value: { kind: 'IntValue', value: argumentValue } });
