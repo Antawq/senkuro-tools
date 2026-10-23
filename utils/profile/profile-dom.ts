@@ -16,7 +16,7 @@ const R_HIGHLIGHT = 'senkuro-rank-r';
 const GUTTER_PROPERTY = '--senkuro-gutter';
 const SHIFT_PROPERTY = '--senkuro-popover-shift';
 const EMPTY = '-';
-const POPOVER_ICON_SIZE = 13;
+const POPOVER_ICON_SIZE_PX = 13;
 
 const TEXT = {
   idle: 'Посчитать ценность',
@@ -206,7 +206,7 @@ function renderSummary(widget: HTMLElement, slug: string, summary: ProfileValueS
   const refresh = element('button', 'senkuro-popover-refresh');
   refresh.type = 'button';
   refresh.title = TEXT.refresh;
-  refresh.append(refreshIcon(POPOVER_ICON_SIZE));
+  refresh.append(refreshIcon(POPOVER_ICON_SIZE_PX));
   refresh.addEventListener('click', (event) => {
     event.stopPropagation();
     widget.classList.remove(ACTIVE);
