@@ -10,11 +10,11 @@ const CONFIRM_CHUNK = /assets\/BaseConfirmModal-[\w-]+\.js/;
 const COIN_IMAGE = /assets\/money-3d-[\w-]+\.png/;
 const COST_MARK = '.modal-alert__desc span';
 
-export const confirmProps = (withCoin: boolean) => ({
+export const confirmProps = (hasCoin: boolean) => ({
   title: 'Платная загрузка аватарки',
   description: [
     { type: 'text', text: 'С вашего баланса спишется ' },
-    { type: 'mark', text: withCoin ? String(AVATAR_COST_SENKOINS) : `${AVATAR_COST_SENKOINS} ${COIN_ALT}` },
+    { type: 'mark', text: hasCoin ? String(AVATAR_COST_SENKOINS) : `${AVATAR_COST_SENKOINS} ${COIN_ALT}` },
     { type: 'text', text: '. Продолжить?' },
   ],
   sticker: MONEY_STICKER_ID,
@@ -120,15 +120,15 @@ const putCoinInCost = (pageDocument: Document, url: string | null): (() => void)
 };
 
 export function installAvatarConfirm({ pageDocument, modals, assets }: AvatarConfirmHost): () => void {
-  let passing = false;
-  let asking = false;
+  let isReplayingClick = false;
+  let isAsking = false;
 
   const proceed = (button: Element): void => {
-    passing = true;
+    isReplayingClick = true;
     try {
       (button as HTMLElement).click();
     } finally {
-      passing = false;
+      isReplayingClick = false;
     }
   };
 
@@ -144,23 +144,23 @@ export function installAvatarConfirm({ pageDocument, modals, assets }: AvatarCon
   };
 
   const onClick = (event: MouseEvent): void => {
-    if (passing) return;
+    if (isReplayingClick) return;
     const button = event.target instanceof Element ? event.target.closest(BUTTON) : null;
     if (!button) return;
     const site = modals();
     if (!site) return;
     event.stopImmediatePropagation();
-    if (asking) return;
-    asking = true;
+    if (isAsking) return;
+    isAsking = true;
     ask(site)
       .then(
-        (confirmed) => {
-          if (confirmed) proceed(button);
+        (isConfirmed) => {
+          if (isConfirmed) proceed(button);
         },
         () => proceed(button)
       )
       .finally(() => {
-        asking = false;
+        isAsking = false;
       });
   };
 
