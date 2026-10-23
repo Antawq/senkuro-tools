@@ -1,8 +1,6 @@
 export const APP_MOUNTED_EVENT = 'senkutools:app-mounted';
 export const APP_MOUNTED_ATTRIBUTE = 'data-senkutools-mounted';
 export const POLL_MS = 100;
-export const SLOW_POLL_MS = 1000;
-export const FAST_PHASE_MS = 10_000;
 
 const APP_ROOT = '#app';
 
@@ -13,7 +11,6 @@ type AppRoot = Element & { __vue_app__?: unknown };
 export const isAppMounted = (doc: Document): boolean => doc.documentElement.hasAttribute(APP_MOUNTED_ATTRIBUTE);
 
 export function announceMounted(win: Host): void {
-  const started = Date.now();
   const look = (): void => {
     if (isAppMounted(win.document)) return;
     if (win.document.querySelector<AppRoot>(APP_ROOT)?.__vue_app__ !== undefined) {
@@ -21,7 +18,7 @@ export function announceMounted(win: Host): void {
       win.document.dispatchEvent(new win.CustomEvent(APP_MOUNTED_EVENT));
       return;
     }
-    win.setTimeout(look, Date.now() - started < FAST_PHASE_MS ? POLL_MS : SLOW_POLL_MS);
+    win.setTimeout(look, POLL_MS);
   };
   look();
 }

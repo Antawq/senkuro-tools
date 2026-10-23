@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Window } from 'happy-dom';
 
-import { APP_MOUNTED_EVENT, FAST_PHASE_MS, POLL_MS, SLOW_POLL_MS, announceMounted, isAppMounted } from '../utils/shared/app-mounted';
+import { APP_MOUNTED_EVENT, POLL_MS, announceMounted, isAppMounted } from '../utils/shared/app-mounted';
 
 type Host = Parameters<typeof announceMounted>[0];
 
@@ -41,7 +41,7 @@ describe('announceMounted', () => {
     vi.advanceTimersByTime(POLL_MS);
     expect(isAppMounted(win.document)).toBe(true);
     expect(heard).toHaveBeenCalledOnce();
-    vi.advanceTimersByTime(FAST_PHASE_MS * 3);
+    vi.advanceTimersByTime(POLL_MS * 30);
     expect(heard).toHaveBeenCalledOnce();
   });
 
@@ -63,19 +63,13 @@ describe('announceMounted', () => {
     expect(isAppMounted(win.document)).toBe(true);
   });
 
-  it('looks often at first and then once a second, and never gives up, however late the app mounts', () => {
+  it('never gives up, however late the app mounts', () => {
     const { win, mount } = page();
-    const looks = vi.spyOn(win.document, 'querySelector');
     announceMounted(win);
-    vi.advanceTimersByTime(FAST_PHASE_MS);
-    const fast = looks.mock.calls.length;
-    expect(fast).toBeGreaterThanOrEqual(FAST_PHASE_MS / POLL_MS);
-    vi.advanceTimersByTime(FAST_PHASE_MS);
-    expect(looks.mock.calls.length - fast).toBeLessThanOrEqual(FAST_PHASE_MS / SLOW_POLL_MS + 1);
-    vi.advanceTimersByTime(FAST_PHASE_MS * 20);
+    vi.advanceTimersByTime(POLL_MS * 1000);
     expect(isAppMounted(win.document)).toBe(false);
     mount();
-    vi.advanceTimersByTime(SLOW_POLL_MS);
+    vi.advanceTimersByTime(POLL_MS);
     expect(isAppMounted(win.document)).toBe(true);
   });
 
