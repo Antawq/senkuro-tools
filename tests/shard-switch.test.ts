@@ -10,8 +10,19 @@ const stylesheet = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)),
 
 const row = (kind: 'card' | 'shard') => `<div class="card-collect-preview${kind === 'shard' ? ' card-collect-preview--shard' : ''}" data-kind="${kind}"></div>`;
 
-const tradeModal = (rows: string, hasMorePages = true) => `
+const HINTS = {
+  merge: ' Выбери 3 одинаковые карты для объединения в 1 анимированную',
+  upgrade: ' Выбери 3 одинаковые карты для переплавки в 1 карту рангом выше',
+  split: ' Выбери 1 карту для раскола на 2 карты рангом ниже',
+  trade: ' Выбери до 50 карт, которые готов отдать взамен',
+};
+
+const header = (title: string, hint: string) =>
+  `<header class="modal-trade__header"><div class="modal-trade__header-headline"><div class="caption">${title}</div><div class="modal-trade__header-hint">${hint}</div></div></header>`;
+
+const tradeModal = (rows: string, hasMorePages = true, heading = '') => `
   <div class="modal-content modal-content--trade">
+    ${heading}
     <div class="modal-trade__body scrollbar">
       <div class="modal-trade__header-form"><button>sort</button></div>
       <div class="modal-trade__body-result">${rows}${hasMorePages ? '<div class="sentinel"></div>' : ''}</div>
@@ -230,6 +241,49 @@ describe('updateShardSwitches', () => {
       updateShardSwitches();
       expect(() => press('Осколки')).not.toThrow();
       expect(frames).toHaveLength(0);
+    });
+  });
+
+  describe('the windows the switch belongs to, decided by the window and not by the rows loaded so far', () => {
+    it('is there from the start in the windows that list cards and shards together, with no shard row loaded yet', () => {
+      for (const hint of [HINTS.merge, HINTS.trade]) {
+        document.body.innerHTML = tradeModal(row('card') + row('card'), true, header('Твои карточки', hint));
+        updateShardSwitches();
+        expect(switchOf(), hint).not.toBeNull();
+        expect(pressed()).toBe('Все');
+      }
+    });
+
+    it('is not there in the windows whose list never holds shards', () => {
+      for (const heading of [
+        header('Твои карточки', HINTS.upgrade),
+        header('Твои карточки', HINTS.split),
+        header('Выбор карт из общего каталога', HINTS.trade),
+      ]) {
+        document.body.innerHTML = tradeModal(row('card') + row('card'), true, heading);
+        updateShardSwitches();
+        expect(switchOf()).toBeNull();
+      }
+    });
+
+    it('shows a shard row it finds even in a window it does not know', () => {
+      document.body.innerHTML = tradeModal(row('card') + row('shard'), true, header('Твои карточки', ' Новая подсказка'));
+      updateShardSwitches();
+      expect(switchOf()).not.toBeNull();
+    });
+
+    it('lets the choice be made before shards are loaded, and says so when the list is complete and has none', () => {
+      document.body.innerHTML = tradeModal(row('card'), false, header('Твои карточки', HINTS.merge));
+      updateShardSwitches();
+      press('Осколки');
+      expect(noteOf()?.textContent).toBe('Нет осколков');
+      expect(picker().getAttribute('data-senkutools-shard-view')).toBe('shards');
+    });
+
+    it('is not added while the window has no header text yet', () => {
+      document.body.innerHTML = tradeModal(row('card'), true, '<header class="modal-trade__header"></header>');
+      updateShardSwitches();
+      expect(switchOf()).toBeNull();
     });
   });
 

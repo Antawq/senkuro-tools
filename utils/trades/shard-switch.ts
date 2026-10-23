@@ -4,6 +4,8 @@ const MODAL = '.modal-content--trade';
 const PICKER = '.modal-trade__body';
 const RESULTS_CLASS = 'modal-trade__body-result';
 const SHARD_ROW = '.card-collect-preview--shard';
+const HEADER = '.modal-trade__header';
+const WINDOWS_WITHOUT_SHARDS = ['для переплавки', 'для раскола', 'из общего каталога'];
 
 const SWITCH = 'senkutools-shard-switch';
 const SWITCH_BUTTON = `${SWITCH}__button`;
@@ -94,6 +96,11 @@ const retriggerPaging = (results: Element, picker: Element, view: ShardView) => 
   waitFrames(PARKED_FRAMES, () => sentinel.removeAttribute(PARKED_ATTRIBUTE));
 };
 
+const canListShards = (modal: Element): boolean => {
+  const header = modal.querySelector(HEADER)?.textContent ?? '';
+  return header.trim() !== '' && !WINDOWS_WITHOUT_SHARDS.some((phrase) => header.includes(phrase));
+};
+
 const syncEmptyNote = (picker: HTMLElement, shardSwitch: Element, text: string | null) => {
   const note = childWithClass(picker, EMPTY_NOTE);
   if (text === null) note?.remove();
@@ -104,7 +111,7 @@ const syncEmptyNote = (picker: HTMLElement, shardSwitch: Element, text: string |
 const syncPicker = (modal: Element, picker: HTMLElement) => {
   const results = childWithClass(picker, RESULTS_CLASS);
   const existing = childWithClass(picker, SWITCH);
-  if (!results || results.querySelector(SHARD_ROW) === null) {
+  if (!results || (results.querySelector(SHARD_ROW) === null && !canListShards(modal))) {
     existing?.remove();
     childWithClass(picker, EMPTY_NOTE)?.remove();
     picker.removeAttribute(VIEW_ATTRIBUTE);
