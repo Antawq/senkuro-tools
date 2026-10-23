@@ -6,6 +6,13 @@ export interface SearchSignal {
   phase: 'start' | 'done';
   query: string;
   type: string;
+  settled?: boolean;
+  firstSlug?: string | null;
+}
+
+export interface SettledSearch {
+  query: string;
+  firstSlug: string | null;
 }
 
 export interface SearchSignals {
@@ -14,7 +21,7 @@ export interface SearchSignals {
   hasSeenSignal: () => boolean;
   isSearchPending: () => boolean;
   waited: () => number;
-  doneAt: () => number;
+  lastSettled: () => SettledSearch | null;
 }
 
 const parseSignal = (event: Event): SearchSignal | null => {
@@ -32,7 +39,7 @@ export function createSearchSignals(readClock: () => number = Date.now): SearchS
   const listeners: (() => void)[] = [];
   const startTimes: number[] = [];
   let hasReceivedSignal = false;
-  let lastDoneAt = 0;
+  let lastSettled: SettledSearch | null = null;
 
   return {
     handleEvent(event) {
@@ -42,7 +49,7 @@ export function createSearchSignals(readClock: () => number = Date.now): SearchS
       if (signal.phase === 'start') startTimes.push(readClock());
       else {
         startTimes.shift();
-        lastDoneAt = readClock();
+        if (signal.settled === true) lastSettled = { query: signal.query, firstSlug: typeof signal.firstSlug === 'string' ? signal.firstSlug : null };
       }
       listeners.forEach((listener) => listener());
     },
@@ -53,6 +60,6 @@ export function createSearchSignals(readClock: () => number = Date.now): SearchS
       const oldestStartTime = startTimes.find((startTime) => readClock() - startTime < MAX_PENDING_MS);
       return oldestStartTime === undefined ? 0 : readClock() - oldestStartTime;
     },
-    doneAt: () => lastDoneAt,
+    lastSettled: () => lastSettled,
   };
 }

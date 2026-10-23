@@ -4,7 +4,8 @@ import { createSearchSignals, type SearchSignal } from '../utils/search/search-s
 
 const event = (signal: Partial<SearchSignal>) => new CustomEvent('senkutools:search', { detail: JSON.stringify(signal) });
 const start = (query = 'naruto') => event({ phase: 'start', query, type: 'MANGA' });
-const done = (query = 'naruto') => event({ phase: 'done', query, type: 'MANGA' });
+const done = (query = 'naruto', firstSlug: string | null = 'naruto-first') => event({ phase: 'done', query, type: 'MANGA', settled: true, firstSlug });
+const cancelled = (query = 'naruto') => event({ phase: 'done', query, type: 'MANGA' });
 
 const clocked = () => {
   const clock = { time: 1000 };
@@ -16,7 +17,7 @@ describe('search signals', () => {
     const { signals } = clocked();
     expect(signals.hasSeenSignal()).toBe(false);
     expect(signals.isSearchPending()).toBe(false);
-    expect(signals.doneAt()).toBe(0);
+    expect(signals.lastSettled()).toBeNull();
   });
 
   it('is pending from a start until its done', () => {
@@ -27,7 +28,35 @@ describe('search signals', () => {
     clock.time = 1300;
     signals.handleEvent(done());
     expect(signals.isSearchPending()).toBe(false);
-    expect(signals.doneAt()).toBe(1300);
+  });
+
+  it('remembers what the last settled search asked and which result came first', () => {
+    const { signals } = clocked();
+    signals.handleEvent(start('nar'));
+    signals.handleEvent(done('nar', 'naruto-gaiden'));
+    expect(signals.lastSettled()).toEqual({ query: 'nar', firstSlug: 'naruto-gaiden' });
+    signals.handleEvent(start('naruto'));
+    signals.handleEvent(done('naruto', 'naruto'));
+    expect(signals.lastSettled()).toEqual({ query: 'naruto', firstSlug: 'naruto' });
+  });
+
+  it('takes a search that found nothing for an answer with no first result', () => {
+    const { signals } = clocked();
+    signals.handleEvent(start('zzzz'));
+    signals.handleEvent(done('zzzz', null));
+    expect(signals.lastSettled()).toEqual({ query: 'zzzz', firstSlug: null });
+    signals.handleEvent(event({ phase: 'done', query: 'qqqq', type: 'MANGA', settled: true, firstSlug: 5 as unknown as string }));
+    expect(signals.lastSettled()).toEqual({ query: 'qqqq', firstSlug: null });
+  });
+
+  it('does not take a search the page gave up on for an answer', () => {
+    const { signals } = clocked();
+    signals.handleEvent(start('nar'));
+    signals.handleEvent(done('nar', 'naruto-gaiden'));
+    signals.handleEvent(start('naruto'));
+    signals.handleEvent(cancelled('naruto'));
+    expect(signals.isSearchPending()).toBe(false);
+    expect(signals.lastSettled()).toEqual({ query: 'nar', firstSlug: 'naruto-gaiden' });
   });
 
   it('tells how long the oldest search in flight has been waiting', () => {

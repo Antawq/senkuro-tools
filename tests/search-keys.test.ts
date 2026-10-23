@@ -729,15 +729,19 @@ describe('arrows', () => {
 });
 
 describe('with signals from the page', () => {
-  const emit = (phase: 'start' | 'done', query: string) =>
-    signals.handleEvent(new CustomEvent('senkutools:search', { detail: JSON.stringify({ phase, query, type: 'MANGA' }) }));
+  const emit = (phase: 'start' | 'done', query: string, firstSlug: string | null = null) =>
+    signals.handleEvent(
+      new CustomEvent('senkutools:search', {
+        detail: JSON.stringify(phase === 'done' ? { phase, query, type: 'MANGA', settled: true, firstSlug } : { phase, query, type: 'MANGA' }),
+      })
+    );
 
   const heardOnce = () => {
     emit('start', 'earlier');
-    emit('done', 'earlier');
+    emit('done', 'earlier', 'old-a');
   };
 
-  it('opens the first result only after the search for what was typed has come back', async () => {
+  it('opens the first result only once the search for what was typed has come back and the page shows it', async () => {
     open(['old-a'], '');
     heardOnce();
     typed('naruto');
@@ -748,24 +752,37 @@ describe('with signals from the page', () => {
     expect(clicked).toEqual([]);
     await arrive('final-a');
     expect(clicked).toEqual([]);
-    emit('done', 'naruto');
+    emit('done', 'naruto', 'final-a');
     await settle(100);
     expect(clicked).toEqual(['/manga/final-a']);
   });
 
-  it('gives the page a moment to paint an answer before it opens anything', async () => {
+  it('waits for the page to draw an answer, however late, and never opens the rows of the answer before it', async () => {
     open(['old-a'], '');
     heardOnce();
     typed('naruto');
     press('Enter');
     await settle(210);
     emit('start', 'naruto');
-    await settle(100);
-    emit('done', 'naruto');
-    await settle(30);
+    emit('done', 'naruto', 'new-a');
+    await settle(1500);
+    expect(clicked).toEqual([]);
     await arrive('new-a');
-    await settle(100);
     expect(clicked).toEqual(['/manga/new-a']);
+  });
+
+  it('does not take the rows of an earlier query for the answer when the page is slow to start its search', async () => {
+    open(['old-a'], '');
+    heardOnce();
+    typed('naruto');
+    press('Enter');
+    await settle(2000);
+    expect(clicked).toEqual([]);
+    emit('start', 'naruto');
+    await arrive('final-a');
+    emit('done', 'naruto', 'final-a');
+    await settle(100);
+    expect(clicked).toEqual(['/manga/final-a']);
   });
 
   it('is not taken in by the answer to a partial query that lands right after the last key', async () => {
@@ -776,24 +793,33 @@ describe('with signals from the page', () => {
     press('Enter');
     await settle(100);
     await arrive('partial-a');
-    emit('done', 'naru');
+    emit('done', 'naru', 'partial-a');
     await settle(100);
     expect(clicked).toEqual([]);
     await settle(100);
     emit('start', 'naruto');
     await settle(200);
     await arrive('final-a');
-    emit('done', 'naruto');
+    emit('done', 'naruto', 'final-a');
     await settle(100);
     expect(clicked).toEqual(['/manga/final-a']);
   });
 
-  it('opens what is shown when no new search was needed for what was typed', async () => {
+  it('compares what was typed with what was searched without the spaces around it', () => {
     open(['a', 'b'], '');
-    heardOnce();
+    emit('start', 'naruto ');
+    emit('done', 'naruto ', 'a');
+    typed(' naruto');
+    press('Enter');
+    expect(clicked).toEqual(['/manga/a']);
+  });
+
+  it('opens what is shown at once when it is the answer to what was typed', () => {
+    open(['a', 'b'], '');
+    emit('start', 'naruto');
+    emit('done', 'naruto', 'a');
     typed('naruto');
     press('Enter');
-    await settle(400);
     expect(clicked).toEqual(['/manga/a']);
   });
 
@@ -804,6 +830,19 @@ describe('with signals from the page', () => {
     press('Enter');
     await settle(210);
     emit('start', 'naruto');
+    await settle(5000);
+    expect(clicked).toEqual([]);
+  });
+
+  it('opens nothing for an answer that found nothing', async () => {
+    open(['old-a'], '');
+    heardOnce();
+    typed('zzzz');
+    press('Enter');
+    await settle(210);
+    emit('start', 'zzzz');
+    await arrive();
+    emit('done', 'zzzz', null);
     await settle(5000);
     expect(clicked).toEqual([]);
   });

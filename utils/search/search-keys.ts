@@ -17,7 +17,6 @@ import {
 
 const CONTROL = 'button, a, input, select, textarea, [contenteditable], [role="button"], [role="radio"]';
 const DEBOUNCE_MS = 250;
-const PAINT_MS = 60;
 const SETTLE_MS = 900;
 const GIVE_UP_MS = 3000;
 const HANDLED_KEYS = new Set(['Enter', 'ArrowDown', 'ArrowUp']);
@@ -93,9 +92,11 @@ export function createSearchKeys(pageDocument: Document, { runAfter, isContextVa
   };
 
   const isFresh = (): boolean => {
-    const sinceTyped = Date.now() - typedAt;
-    if (!signals.hasSeenSignal()) return changedAt >= typedAt + DEBOUNCE_MS || sinceTyped >= SETTLE_MS;
-    return sinceTyped >= DEBOUNCE_MS && !signals.isSearchPending() && Date.now() - signals.doneAt() >= PAINT_MS;
+    if (!signals.hasSeenSignal()) return changedAt >= typedAt + DEBOUNCE_MS || Date.now() - typedAt >= SETTLE_MS;
+    const settled = signals.lastSettled();
+    if (!settled || settled.query.trim() !== (currentField()?.value.trim() ?? '')) return false;
+    const firstRow = currentRows()[0];
+    return settled.firstSlug === null ? firstRow === undefined : firstRow?.getAttribute('href')?.endsWith(`/${settled.firstSlug}`) === true;
   };
 
   const noticeTyping = (): void => {
@@ -157,8 +158,10 @@ export function createSearchKeys(pageDocument: Document, { runAfter, isContextVa
     const startedAt = waitStartedAt;
     openResultIfReady(startedAt, waitModal);
     if (!isWaiting) return;
-    runAfter(() => openResultIfReady(startedAt, waitModal), Math.max(0, typedAt + DEBOUNCE_MS - startedAt) + PAINT_MS);
-    runAfter(() => openResultIfReady(startedAt, waitModal), Math.max(0, typedAt + SETTLE_MS - startedAt));
+    if (!signals.hasSeenSignal()) {
+      runAfter(() => openResultIfReady(startedAt, waitModal), Math.max(0, typedAt + DEBOUNCE_MS - startedAt));
+      runAfter(() => openResultIfReady(startedAt, waitModal), Math.max(0, typedAt + SETTLE_MS - startedAt));
+    }
     runAfter(() => {
       openResultIfReady(startedAt, waitModal);
       if (startedAt === waitStartedAt) isWaiting = false;
@@ -168,9 +171,7 @@ export function createSearchKeys(pageDocument: Document, { runAfter, isContextVa
   signals.subscribe(() => {
     const waitModal = searchModal;
     if (!isWaiting || !waitModal) return;
-    const startedAt = waitStartedAt;
-    openResultIfReady(startedAt, waitModal);
-    if (isWaiting) runAfter(() => openResultIfReady(startedAt, waitModal), PAINT_MS);
+    openResultIfReady(waitStartedAt, waitModal);
   });
 
   const moveActiveRow = (rows: HTMLElement[], delta: number): void => {

@@ -17,6 +17,15 @@ const KEY_HASH_STRIDE = 31;
 
 type Publish = (signal: SearchSignal) => void;
 
+interface SearchAnswer extends SourceResult {
+  data?: { search?: { edges?: { node?: { slug?: unknown } }[] } | null };
+}
+
+const firstSlugOf = (answer: SearchAnswer): string | null => {
+  const slug = answer.data?.search?.edges?.[0]?.node?.slug;
+  return typeof slug === 'string' ? slug : null;
+};
+
 interface AstNode {
   kind?: string;
   name?: { value?: string };
@@ -67,18 +76,18 @@ function publishSearchPhases(source: unknown, request: QueryRequest, publish: Pu
   const { query, type } = request.variables ?? {};
   if (typeof source !== 'function' || typeof query !== 'string' || typeof type !== 'string') return source;
   let openCount = 0;
-  const finish = () => {
+  const finish = (settledAnswer?: SearchAnswer) => {
     if (openCount === 0) return;
     openCount -= 1;
-    publish({ phase: 'done', query, type });
+    publish(settledAnswer ? { phase: 'done', query, type, settled: true, firstSlug: firstSlugOf(settledAnswer) } : { phase: 'done', query, type });
   };
-  return tapSource(source as (sink: Sink<SourceResult>) => void, {
+  return tapSource(source as (sink: Sink<SearchAnswer>) => void, {
     onStart: () => {
       openCount += 1;
       publish({ phase: 'start', query, type });
     },
     onSettled: finish,
-    onEnd: finish,
+    onEnd: () => finish(),
   });
 }
 

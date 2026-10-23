@@ -154,9 +154,9 @@ describe('installSearchRequest', () => {
 });
 
 describe('search signals', () => {
-  const streamingClient = (results: { stale?: boolean }[] = [{}], complete = true): QueryClient => ({
+  const streamingClient = (results: { stale?: boolean; data?: unknown }[] = [{}], complete = true): QueryClient => ({
     executeQuery: () =>
-      make<{ stale?: boolean }>((observer) => {
+      make<{ stale?: boolean; data?: unknown }>((observer) => {
         results.forEach((entry) => observer.next(entry));
         if (complete) observer.complete();
         return () => undefined;
@@ -165,7 +165,7 @@ describe('search signals', () => {
     query: () => ({ toPromise: () => Promise.resolve({}) }),
   });
 
-  const streaming = (results?: { stale?: boolean }[], complete?: boolean) => {
+  const streaming = (results?: { stale?: boolean; data?: unknown }[], complete?: boolean) => {
     const signals: SearchSignal[] = [];
     const client = streamingClient(results, complete);
     installSearchWidening(client, (signal) => signals.push(signal));
@@ -173,14 +173,31 @@ describe('search signals', () => {
   };
 
   it('publishes a search when it starts and when its answer is in, with what was asked', async () => {
-    const { client, signals } = streaming([{ stale: true }, {}]);
+    const { client, signals } = streaming([
+      { stale: true },
+      { data: { search: { edges: [{ node: { slug: 'naruto' } }, { node: { slug: 'naruto-gaiden' } }] } } },
+    ]);
     const source = client.executeQuery(request('search'));
     expect(signals).toEqual([]);
     await (source as { toPromise(): Promise<unknown> }).toPromise();
     expect(signals).toEqual([
       { phase: 'start', query: 'naruto', type: 'MANGA' },
-      { phase: 'done', query: 'naruto', type: 'MANGA' },
+      { phase: 'done', query: 'naruto', type: 'MANGA', settled: true, firstSlug: 'naruto' },
     ]);
+  });
+
+  it('says there is no first result when the answer holds none, or holds something unexpected', async () => {
+    for (const data of [
+      { search: { edges: [] } },
+      { search: null },
+      { search: { edges: [{ node: {} }] } },
+      { search: { edges: [{ node: { slug: 5 } }] } },
+      undefined,
+    ]) {
+      const { client, signals } = streaming([{ data }]);
+      await (client.executeQuery(request('search')) as { toPromise(): Promise<unknown> }).toPromise();
+      expect(signals.at(-1)).toEqual({ phase: 'done', query: 'naruto', type: 'MANGA', settled: true, firstSlug: null });
+    }
   });
 
   it('publishes the end of a search the page gave up on', () => {
@@ -189,6 +206,7 @@ describe('search signals', () => {
     expect(signals.map((signal) => signal.phase)).toEqual(['start']);
     subscription.unsubscribe();
     expect(signals.map((signal) => signal.phase)).toEqual(['start', 'done']);
+    expect(signals.at(-1)).toEqual({ phase: 'done', query: 'naruto', type: 'MANGA' });
   });
 
   it('says nothing about other operations, or about a search whose variables are unknown', () => {
@@ -225,7 +243,7 @@ describe('search signals', () => {
     await (client.executeQuery(request('search')) as { toPromise(): Promise<unknown> }).toPromise();
     expect(heard).toEqual([
       { phase: 'start', query: 'naruto', type: 'MANGA' },
-      { phase: 'done', query: 'naruto', type: 'MANGA' },
+      { phase: 'done', query: 'naruto', type: 'MANGA', settled: true, firstSlug: null },
     ]);
   });
 });
