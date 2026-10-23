@@ -3,9 +3,10 @@ export const MONEY_STICKER_ID = 25;
 export const COIN_ALT = 'сенкоинов';
 export const COIN_CLASS = 'senkutools-avatar-coin';
 
-const BUTTON = '.edit-media__user + .edit-media__actions > button:first-child';
-const MODALS_KEY = 'modals';
-const SERVICE_WORKER = '/sw.js';
+const APP_ROOT = '#app';
+const AVATAR_UPLOAD_BUTTON = '.edit-media__user + .edit-media__actions > button:first-child';
+const MODALS_SYMBOL_DESCRIPTION = 'modals';
+const SERVICE_WORKER_PATH = '/sw.js';
 const CONFIRM_CHUNK = /assets\/BaseConfirmModal-[\w-]+\.js/;
 const COIN_IMAGE = /assets\/money-3d-[\w-]+\.png/;
 const COST_MARK = '.modal-alert__desc span';
@@ -46,9 +47,9 @@ interface VueHost {
 const isSiteModals = (value: unknown): value is SiteModals => typeof (value as SiteModals | null)?.showModal === 'function';
 
 export function findSiteModals(pageDocument: Document): SiteModals | null {
-  const provides = (pageDocument.querySelector('#app') as VueHost | null)?.__vue_app__?._context?.provides;
+  const provides = (pageDocument.querySelector(APP_ROOT) as VueHost | null)?.__vue_app__?._context?.provides;
   if (!provides) return null;
-  const key = Object.getOwnPropertySymbols(provides).find((symbol) => symbol.description === MODALS_KEY);
+  const key = Object.getOwnPropertySymbols(provides).find((symbol) => symbol.description === MODALS_SYMBOL_DESCRIPTION);
   const modals = key ? provides[key] : null;
   return isSiteModals(modals) ? modals : null;
 }
@@ -62,9 +63,9 @@ export function createSiteAssets(
 
   const fetchPrecacheListing = (): Promise<string> => {
     precacheListing ??= pageWindow
-      .fetch(SERVICE_WORKER)
+      .fetch(SERVICE_WORKER_PATH)
       .then((response) => {
-        if (!response.ok) throw new Error(`${SERVICE_WORKER}: HTTP ${response.status}`);
+        if (!response.ok) throw new Error(`${SERVICE_WORKER_PATH}: HTTP ${response.status}`);
         return response.text();
       })
       .catch((error: unknown) => {
@@ -145,7 +146,7 @@ export function installAvatarConfirm({ pageDocument, findSiteModals, assets }: A
 
   const handleClick = (event: MouseEvent): void => {
     if (isReplayingClick) return;
-    const button = event.target instanceof Element ? event.target.closest(BUTTON) : null;
+    const button = event.target instanceof Element ? event.target.closest(AVATAR_UPLOAD_BUTTON) : null;
     if (!button) return;
     const siteModals = findSiteModals();
     if (!siteModals) return;
