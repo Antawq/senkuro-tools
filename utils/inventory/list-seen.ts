@@ -13,9 +13,9 @@ interface ListAnswer {
   data?: { userCards?: { pageInfo?: { endCursor?: unknown } | null } | null } | null;
 }
 
-function listVariables(init: RequestInit | undefined): Variables | null {
-  if (typeof init?.body !== 'string') return null;
-  const query = parseJson(init.body) as ListQuery | null;
+function parseListVariables(requestInit: RequestInit | undefined): Variables | null {
+  if (typeof requestInit?.body !== 'string') return null;
+  const query = parseJson(requestInit.body) as ListQuery | null;
   const { variables } = query ?? {};
   return query?.operationName === LIST_OPERATION && variables && typeof variables === 'object' ? (variables as Variables) : null;
 }
@@ -34,7 +34,7 @@ export function learnFromFetch(pageWindow: PageWindow, ledger: CursorLedger): vo
   const nativeFetch = pageWindow.fetch.bind(pageWindow);
   pageWindow.fetch = (...fetchArguments: Parameters<typeof fetch>) => {
     const pendingResponse = nativeFetch(...fetchArguments);
-    const variables = isGraphqlRequest(fetchArguments[0], pageWindow.location.href) ? listVariables(fetchArguments[1]) : null;
+    const variables = isGraphqlRequest(fetchArguments[0], pageWindow.location.href) ? parseListVariables(fetchArguments[1]) : null;
     if (!variables) return pendingResponse;
     ledger.learn(variables, variables.after);
     return pendingResponse.then(async (response) => {

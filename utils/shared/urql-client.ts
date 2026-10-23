@@ -26,14 +26,14 @@ interface VueApp {
 
 interface Waiting {
   client: QueryClient | null;
-  callbacks: ((client: QueryClient) => void)[];
+  listeners: ((client: QueryClient) => void)[];
 }
 
 export const operationName = (request: QueryRequest): string | undefined =>
-  request.query?.definitions?.find((part) => part.kind === OPERATION_KIND)?.name?.value;
+  request.query?.definitions?.find((definition) => definition.kind === OPERATION_KIND)?.name?.value;
 
-const isClient = (value: unknown): value is QueryClient =>
-  CLIENT_METHODS.every((name) => typeof (value as Record<string, unknown> | null)?.[name] === 'function');
+const isClient = (candidate: unknown): candidate is QueryClient =>
+  CLIENT_METHODS.every((name) => typeof (candidate as Record<string, unknown> | null)?.[name] === 'function');
 
 export function findClient(pageDocument: Document): QueryClient | null {
   const app = pageDocument.querySelector<Element & { __vue_app__?: VueApp }>(APP_ROOT)?.__vue_app__;
@@ -43,7 +43,7 @@ export function findClient(pageDocument: Document): QueryClient | null {
   return isClient(inner) ? inner : null;
 }
 
-function watch(pageWindow: PageWindow, waiting: Waiting): void {
+function watchFetch(pageWindow: PageWindow, waiting: Waiting): void {
   const nativeFetch = pageWindow.fetch.bind(pageWindow);
   pageWindow.fetch = (...fetchArguments: Parameters<typeof fetch>) => {
     const pendingResponse = nativeFetch(...fetchArguments);
@@ -54,7 +54,7 @@ function watch(pageWindow: PageWindow, waiting: Waiting): void {
           const client = findClient(pageWindow.document);
           if (!client) return;
           waiting.client = client;
-          waiting.callbacks.splice(0).forEach((run) => run(client));
+          waiting.listeners.splice(0).forEach((run) => run(client));
         },
         () => undefined
       );
@@ -64,13 +64,13 @@ function watch(pageWindow: PageWindow, waiting: Waiting): void {
 }
 
 export function whenClient(pageWindow: PageWindow, run: (client: QueryClient) => void): void {
-  const host = pageWindow as unknown as Record<symbol, Waiting | undefined>;
-  let waiting = host[WAITING];
+  const windowSlots = pageWindow as unknown as Record<symbol, Waiting | undefined>;
+  let waiting = windowSlots[WAITING];
   if (!waiting) {
-    waiting = { client: null, callbacks: [] };
-    host[WAITING] = waiting;
-    watch(pageWindow, waiting);
+    waiting = { client: null, listeners: [] };
+    windowSlots[WAITING] = waiting;
+    watchFetch(pageWindow, waiting);
   }
   if (waiting.client) run(waiting.client);
-  else waiting.callbacks.push(run);
+  else waiting.listeners.push(run);
 }
