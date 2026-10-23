@@ -1027,13 +1027,14 @@ describe('plain Enter where the site opens the catalog for the tab', () => {
     }
   });
 
-  it('still opens the first result for a query the catalog search cannot match, such as Cyrillic', async () => {
+  it('leaves Enter to the site for a query in another alphabet too, which the catalog fallback answers with the search results', async () => {
     for (const query of ['наруто', 'Наруто', 'ナルト', 'naruto наруто']) {
       openCatalogPage();
-      clicked.length = 0;
+      siteSaw.length = 0;
       const event = await typeAndEnter(query);
-      expect(event.defaultPrevented).toBe(true);
-      expect(clicked).toEqual(['/manga/a']);
+      expect(event.defaultPrevented).toBe(false);
+      expect(siteSaw).toContain('site:Enter');
+      expect(clicked).toEqual([]);
     }
   });
 
