@@ -120,7 +120,6 @@ describe('profile-cards', () => {
       const summary = calculateProfileValue(cards, mockDb, plain);
       expect(summary.totalCards).toBe(4);
       expect(summary.totalShards).toBe(0);
-      expect(summary.totalF).toBeGreaterThan(0);
       expect(summary.formattedF).toContain('F');
       expect(summary.cards[0]).toBe('2R');
     });

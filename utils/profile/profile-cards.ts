@@ -5,7 +5,6 @@ import { decodeSafely } from '../shared/uri';
 import { fetchUserCards, type FetchOptions, type UserCard } from './user-cards';
 
 export interface ProfileValueSummary {
-  totalF: number;
   formattedF: string;
   bank: string[];
   cards: string[];
@@ -52,7 +51,6 @@ export function calculateProfileValue(cards: UserCard[], db: Database, valuation
   const whole = cards.filter((card) => !card.shard);
   const shards = cards.filter((card) => card.shard);
   return {
-    totalF: value.f,
     formattedF: `${formatAmount(value.f)}${F_UNIT}`,
     bank: formatByRank(value.bank),
     cards: formatByRank(countByRank(whole, db)),
