@@ -17,7 +17,7 @@ export interface SearchSignals {
   doneAt: () => number;
 }
 
-const parse = (event: Event): SearchSignal | null => {
+const parseSignal = (event: Event): SearchSignal | null => {
   const detail = (event as CustomEvent<unknown>).detail;
   if (typeof detail !== 'string') return null;
   try {
@@ -28,31 +28,31 @@ const parse = (event: Event): SearchSignal | null => {
   }
 };
 
-export function createSearchSignals(now: () => number = Date.now): SearchSignals {
+export function createSearchSignals(readClock: () => number = Date.now): SearchSignals {
   const listeners: (() => void)[] = [];
-  const starts: number[] = [];
+  const startTimes: number[] = [];
   let hasReceivedSignal = false;
-  let lastDone = 0;
+  let lastDoneAt = 0;
 
   return {
     handleEvent(event) {
-      const signal = parse(event);
+      const signal = parseSignal(event);
       if (!signal) return;
       hasReceivedSignal = true;
-      if (signal.phase === 'start') starts.push(now());
+      if (signal.phase === 'start') startTimes.push(readClock());
       else {
-        starts.shift();
-        lastDone = now();
+        startTimes.shift();
+        lastDoneAt = readClock();
       }
       listeners.forEach((listener) => listener());
     },
     subscribe: (listener) => void listeners.push(listener),
     hasSeenSignal: () => hasReceivedSignal,
-    isSearchPending: () => starts.some((startedAt) => now() - startedAt < MAX_PENDING_MS),
+    isSearchPending: () => startTimes.some((startTime) => readClock() - startTime < MAX_PENDING_MS),
     waited() {
-      const oldest = starts.find((startedAt) => now() - startedAt < MAX_PENDING_MS);
-      return oldest === undefined ? 0 : now() - oldest;
+      const oldestStartTime = startTimes.find((startTime) => readClock() - startTime < MAX_PENDING_MS);
+      return oldestStartTime === undefined ? 0 : readClock() - oldestStartTime;
     },
-    doneAt: () => lastDone,
+    doneAt: () => lastDoneAt,
   };
 }
