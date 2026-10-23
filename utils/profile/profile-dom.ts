@@ -121,9 +121,9 @@ const isUnknown = (item: string): boolean => item.endsWith(UNKNOWN_MARK);
 function rankItem(item: string): HTMLElement | string {
   if (isR(item)) return element('span', R_HIGHLIGHT, item);
   if (!isUnknown(item)) return item;
-  const unknown = element('span', undefined, item);
-  unknown.title = UNKNOWN_LEGEND;
-  return unknown;
+  const unknownElement = element('span', undefined, item);
+  unknownElement.title = UNKNOWN_LEGEND;
+  return unknownElement;
 }
 
 const rFirst = (items: string[]): string[] => [...items.filter(isR), ...items.filter((item) => !isR(item))];
