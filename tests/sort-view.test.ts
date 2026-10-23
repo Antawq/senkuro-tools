@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Database } from '../utils/shared/database';
-import { LIST_LOADED_EVENT, encodeLoaded } from '../utils/shared/list-signal';
+import { LIST_LOADED_EVENT, encodeLoaded, type LoadOutcome } from '../utils/shared/list-signal';
 import { STALL_MS, createPriceSort, touchesSort, type PriceSort, type SortHost } from '../utils/sort/sort-view';
 
 const db: Database = {
@@ -65,8 +65,10 @@ const setup = () => {
   };
   const sort = createPriceSort(document, host);
   const choose = () => press(sort, own());
-  const loaded = (complete: boolean) => sort.loaded(new CustomEvent(LIST_LOADED_EVENT, { detail: encodeLoaded(complete) }));
-  return { sort, host, requests, timers, choose, loaded };
+  const answered = (outcome: LoadOutcome) => sort.loaded(new CustomEvent(LIST_LOADED_EVENT, { detail: encodeLoaded(outcome) }));
+  const loaded = (complete: boolean) => answered(complete ? 'complete' : 'partial');
+  const moved = () => answered('moved');
+  return { sort, host, requests, timers, choose, loaded, moved };
 };
 
 const on = () => filters()?.setAttribute('data-senkutools-sort', 'price');
@@ -361,6 +363,19 @@ describe('a list that is not all there', () => {
     expect(slugsByPlace()).toEqual(['dear', 'mid', 'cheap']);
     expect(label()).toBe('По цене (часть)');
     expect(document.querySelector('#sort-trigger')?.getAttribute('title')).toBe('Отсортированы только загруженные карты');
+  });
+
+  it('asks for the list the site moved to when the load it started was left half way by that move', () => {
+    render({ more: true });
+    const { sort, requests, moved } = setup();
+    on();
+    sort.sync(db, settings);
+    expect(requests.count).toBe(1);
+    grid()?.insertAdjacentHTML('afterbegin', cardHtml('other', 8));
+    moved();
+    sort.sync(db, settings);
+    expect(requests.count).toBe(2);
+    expect(grid()?.getAttribute('data-senkutools-sort-state')).toBe('loading');
   });
 
   it('asks again when more cards have come in since, for example by scrolling', () => {

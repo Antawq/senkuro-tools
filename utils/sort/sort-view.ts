@@ -103,10 +103,10 @@ export function createPriceSort(doc: Document, host: SortHost): PriceSort {
       }
     },
     loaded(event) {
-      const complete = readLoaded(event);
-      if (complete === null) return;
+      const outcome = readLoaded(event);
+      if (outcome === null) return;
       loading = false;
-      if (!complete) triedAt = keyNow();
+      if (outcome === 'partial') triedAt = keyNow();
       host.schedule();
     },
   };

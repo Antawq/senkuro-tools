@@ -1,3 +1,4 @@
+import type { LoadOutcome } from '../shared/list-signal';
 import { delayForPage } from '../shared/paging';
 import type { QueryClient } from '../shared/urql-client';
 import { familyIdOf, type PageRequest } from './list-families';
@@ -34,23 +35,24 @@ const stillTheSameList = (env: LoadEnv, family: string): boolean => {
   return now !== null && familyIdOf(now.variables) === family;
 };
 
-async function loadAll(env: LoadEnv, page: PageRequest): Promise<boolean> {
+async function loadAll(env: LoadEnv, page: PageRequest): Promise<LoadOutcome> {
   const family = familyIdOf(page.variables);
   let info = await askFor(env, page, undefined, READ_POLICY);
   for (let loaded = 0; info?.hasNextPage === true; loaded++) {
-    if (typeof info.endCursor !== 'string' || loaded >= MAX_LOAD_PAGES || !stillTheSameList(env, family)) return false;
+    if (!stillTheSameList(env, family)) return 'moved';
+    if (typeof info.endCursor !== 'string' || loaded >= MAX_LOAD_PAGES) return 'partial';
     if (loaded > 0) await env.sleep(delayForPage(loaded - 1));
     info = await askFor(env, page, info.endCursor, LOAD_POLICY);
   }
-  return info !== null;
+  return info === null ? 'partial' : 'complete';
 }
 
-export async function loadRest(env: LoadEnv): Promise<boolean> {
+export async function loadRest(env: LoadEnv): Promise<LoadOutcome> {
   const page = env.latest();
-  if (!page) return false;
+  if (!page) return 'partial';
   try {
     return await loadAll(env, page);
   } catch {
-    return false;
+    return 'partial';
   }
 }

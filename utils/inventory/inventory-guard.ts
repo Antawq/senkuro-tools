@@ -1,5 +1,5 @@
 import { debugLogger } from '../shared/debug';
-import { LIST_LOAD_EVENT, LIST_LOADED_EVENT, encodeLoaded } from '../shared/list-signal';
+import { LIST_LOAD_EVENT, LIST_LOADED_EVENT, encodeLoaded, type LoadOutcome } from '../shared/list-signal';
 import { claimPage } from '../shared/page-claim';
 import { operationName, whenClient, type QueryClient } from '../shared/urql-client';
 import { recordLists, tapMutations, type MutationResult } from './client-hooks';
@@ -64,19 +64,19 @@ export function installInventoryGuard(win: GuardWindow): void {
       );
   };
 
-  const answer = (complete: boolean) => win.document.dispatchEvent(new win.CustomEvent(LIST_LOADED_EVENT, { detail: encodeLoaded(complete) }));
+  const answer = (outcome: LoadOutcome) => win.document.dispatchEvent(new win.CustomEvent(LIST_LOADED_EVENT, { detail: encodeLoaded(outcome) }));
   const sleep = (ms: number) => (ms > 0 ? new Promise<void>((resolve) => win.setTimeout(resolve, ms)) : Promise.resolve());
 
   win.document.addEventListener(LIST_LOAD_EVENT, () => {
     if (loading) return;
     if (!attached) {
-      answer(false);
+      answer('partial');
       return;
     }
     loading = true;
-    void loadRest({ client: attached, latest: () => latest, sleep }).then((complete) => {
+    void loadRest({ client: attached, latest: () => latest, sleep }).then((outcome) => {
       loading = false;
-      answer(complete);
+      answer(outcome);
     });
   });
 

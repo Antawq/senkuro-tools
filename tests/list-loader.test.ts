@@ -47,7 +47,7 @@ const chain =
 describe('loadRest', () => {
   it('reads what is loaded, then asks the network for every page after it, one after another, ending at the last', async () => {
     const { env, asked } = rig({ answers: chain(3) });
-    expect(await loadRest(env)).toBe(true);
+    expect(await loadRest(env)).toBe('complete');
     expect(asked.map((entry) => entry.after)).toEqual([undefined, 'c1', 'c2', 'c3']);
     expect(asked.map((entry) => entry.options?.requestPolicy)).toEqual(['cache-first', 'network-only', 'network-only', 'network-only']);
     expect(asked.every((entry) => entry.document === document && entry.options?.suspense === true)).toBe(true);
@@ -61,40 +61,40 @@ describe('loadRest', () => {
 
   it('asks nothing of the network when the whole list is already there', async () => {
     const { env, asked } = rig({ answers: chain(0) });
-    expect(await loadRest(env)).toBe(true);
+    expect(await loadRest(env)).toBe('complete');
     expect(asked).toHaveLength(1);
   });
 
   it('gives up when no list was ever asked for', async () => {
     const { env, asked } = rig({ answers: chain(2), latest: () => null });
-    expect(await loadRest(env)).toBe(false);
+    expect(await loadRest(env)).toBe('partial');
     expect(asked).toHaveLength(0);
   });
 
   it('gives up at a failed page and asks for nothing more, even when the failure came with some data', async () => {
     for (const failure of [{ error: new Error('429') }, { ...info(true, 'c3'), error: new Error('429') }]) {
       const { env, asked } = rig({ answers: (_asked, index) => (index === 2 ? failure : info(true, `c${index + 1}`)) });
-      expect(await loadRest(env)).toBe(false);
+      expect(await loadRest(env)).toBe('partial');
       expect(asked).toHaveLength(3);
     }
   });
 
   it('does not go on without a cursor to go on', async () => {
     const { env, asked } = rig({ answers: () => info(true, null) });
-    expect(await loadRest(env)).toBe(false);
+    expect(await loadRest(env)).toBe('partial');
     expect(asked).toHaveLength(1);
   });
 
   it('gives up on an answer without a list and on a query that throws', async () => {
     for (const answers of [() => ({ data: null }), () => ({ data: { userCards: { pageInfo: null } } })]) {
-      expect(await loadRest(rig({ answers }).env)).toBe(false);
+      expect(await loadRest(rig({ answers }).env)).toBe('partial');
     }
     const throwing = rig({ answers: chain(1) });
     throwing.env.client.query = () => ({ toPromise: () => Promise.reject(new Error('network')) });
-    expect(await loadRest(throwing.env)).toBe(false);
+    expect(await loadRest(throwing.env)).toBe('partial');
   });
 
-  it('stops when the site has moved on to another list, which now needs its own load', async () => {
+  it('stops and says so when the site has moved on to another list, which now needs its own load', async () => {
     let current: PageRequest = recorded();
     const { env, asked } = rig({
       answers: (_asked, index) => {
@@ -103,7 +103,7 @@ describe('loadRest', () => {
       },
       latest: () => current,
     });
-    expect(await loadRest(env)).toBe(false);
+    expect(await loadRest(env)).toBe('moved');
     expect(asked).toHaveLength(3);
   });
 
@@ -116,12 +116,12 @@ describe('loadRest', () => {
       },
       latest: () => current,
     });
-    expect(await loadRest(env)).toBe(true);
+    expect(await loadRest(env)).toBe('complete');
   });
 
   it('waits between pages, fast at first and slower once the list is long', async () => {
     const { env, sleeps } = rig({ answers: chain(FAST_PAGES + 2) });
-    expect(await loadRest(env)).toBe(true);
+    expect(await loadRest(env)).toBe('complete');
     expect(sleeps).toHaveLength(FAST_PAGES + 1);
     expect(sleeps.slice(0, FAST_PAGES)).toEqual(Array.from({ length: FAST_PAGES }, () => 0));
     expect(sleeps.at(-1)).toBe(THROTTLED_DELAY_MS);
@@ -129,7 +129,7 @@ describe('loadRest', () => {
 
   it('stops at the page cap instead of running forever', async () => {
     const { env, asked } = rig({ answers: (_asked, index) => info(true, `c${index + 1}`) });
-    expect(await loadRest(env)).toBe(false);
+    expect(await loadRest(env)).toBe('partial');
     expect(asked).toHaveLength(MAX_LOAD_PAGES + 1);
   });
 });

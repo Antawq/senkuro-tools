@@ -7,7 +7,7 @@ import type { MutationResult } from '../utils/inventory/client-hooks';
 import { LIST_OPERATION, createListRecord, type Variables } from '../utils/inventory/list-families';
 import { installInventoryGuard, planRefresh } from '../utils/inventory/inventory-guard';
 import { REFRESH_POLICY } from '../utils/inventory/list-refresh';
-import { LIST_LOAD_EVENT, LIST_LOADED_EVENT, readLoaded } from '../utils/shared/list-signal';
+import { LIST_LOAD_EVENT, LIST_LOADED_EVENT, readLoaded, type LoadOutcome } from '../utils/shared/list-signal';
 import type { QueryClient, QueryRequest } from '../utils/shared/urql-client';
 
 const GRAPHQL = 'https://api.senkuro.me/graphql';
@@ -94,7 +94,7 @@ const rig = ({ answer = {}, mounted = true, results = [], slow = false }: Rig = 
   const respond = () => win.fetch(GRAPHQL, { method: 'POST', body: JSON.stringify({ operationName: 'fetchViewer' }) });
   const browse = (variables: Variables) => client.executeQuery(request(LIST_OPERATION, variables));
   const mutate = (name: string) => (client.executeMutation(request(name)) as { toPromise(): Promise<MutationResult> }).toPromise();
-  const loaded: (boolean | null)[] = [];
+  const loaded: (LoadOutcome | null)[] = [];
   win.document.addEventListener(LIST_LOADED_EVENT, (event) => loaded.push(readLoaded(event as unknown as Event)));
   const ask = () => win.document.dispatchEvent(new win.CustomEvent(LIST_LOAD_EVENT));
   return { win, queries, reached, log, loaded, ask, mount, respond, browse, mutate };
@@ -229,7 +229,7 @@ describe('installInventoryGuard', () => {
       browse(profileGrid('USER:1'));
       ask();
       await settle();
-      expect(loaded).toEqual([true]);
+      expect(loaded).toEqual(['complete']);
       expect(queries.map((query) => query.variables)).toEqual([profileGrid('USER:1')]);
       await win.happyDOM.close();
     });
@@ -241,7 +241,7 @@ describe('installInventoryGuard', () => {
       browse(profileGrid('USER:1'));
       ask();
       await settle();
-      expect(loaded).toEqual([true]);
+      expect(loaded).toEqual(['complete']);
       expect(queries.map((query) => query.variables.after)).toEqual([undefined, 'c1', 'c2']);
       expect(queries.map((query) => query.options.requestPolicy)).toEqual(['cache-first', 'network-only', 'network-only']);
       await win.happyDOM.close();
@@ -250,7 +250,7 @@ describe('installInventoryGuard', () => {
     it('answers no at once when the app is not up yet', async () => {
       const { win, ask, loaded } = rig({ mounted: false });
       ask();
-      expect(loaded).toEqual([false]);
+      expect(loaded).toEqual(['partial']);
       await win.happyDOM.close();
     });
 
@@ -259,7 +259,7 @@ describe('installInventoryGuard', () => {
       await respond();
       ask();
       await settle();
-      expect(loaded).toEqual([false]);
+      expect(loaded).toEqual(['partial']);
       await win.happyDOM.close();
     });
 
@@ -274,7 +274,7 @@ describe('installInventoryGuard', () => {
       });
       ask();
       await settle();
-      expect(loaded).toEqual([true, true]);
+      expect(loaded).toEqual(['complete', 'complete']);
       await win.happyDOM.close();
     });
 
@@ -286,12 +286,12 @@ describe('installInventoryGuard', () => {
       ask();
       await settle();
       await settle();
-      expect(loaded).toEqual([true]);
+      expect(loaded).toEqual(['complete']);
       expect(queries).toHaveLength(1);
       ask();
       await settle();
       await settle();
-      expect(loaded).toEqual([true, true]);
+      expect(loaded).toEqual(['complete', 'complete']);
       await win.happyDOM.close();
     });
   });
