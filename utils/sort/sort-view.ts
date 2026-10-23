@@ -2,8 +2,8 @@ import type { Database } from '../shared/database';
 import { readLoaded } from '../shared/list-signal';
 import type { Settings } from '../shared/settings';
 import { clearOrder, inspectGrid, markState, orderCards, type GridView } from './sort-grid';
-import { DIRECTION_ASCENDING, FILTERS, MENU_ITEM, MENU, MODE_ATTRIBUTE, OWN_ITEM, PRICE_MODE, WATCHED_AREAS, type GridState } from './sort-dom';
-import { decorateMenu, isPriceMode, reflectLabel, findSortTrigger } from './sort-menu';
+import { DIRECTION_ASCENDING, FILTERS, MENU, MENU_ITEM, MODE_ATTRIBUTE, OWN_ITEM, PRICE_MODE, WATCHED_AREAS, type GridState } from './sort-dom';
+import { decorateMenu, findSortTrigger, isPriceMode, reflectLabel } from './sort-menu';
 
 const STALL_MS = 15000;
 

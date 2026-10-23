@@ -1,8 +1,8 @@
 import { MODAL_CONTENT_SELECTOR } from '../shared/modal-selectors';
 import {
   FILTERS,
-  MENU_ITEM,
   MENU,
+  MENU_ITEM,
   MODE_ATTRIBUTE,
   OWN_ITEM,
   OWN_ITEM_ATTRIBUTE,

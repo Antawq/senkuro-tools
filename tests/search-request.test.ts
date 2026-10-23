@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { Window } from 'happy-dom';
 import { make } from 'wonka';
 
-import { SEARCH_PAGE_SIZE, installSearchRequest, widenSearchRequest, installSearchWidening } from '../utils/search/search-request';
+import { SEARCH_PAGE_SIZE, installSearchRequest, installSearchWidening, widenSearchRequest } from '../utils/search/search-request';
 import { SEARCH_EVENT, type SearchSignal } from '../utils/search/search-signal';
 import type { QueryClient, QueryRequest } from '../utils/shared/urql-client';
 
