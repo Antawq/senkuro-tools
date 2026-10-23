@@ -21,7 +21,7 @@ export function inspectGrid(pageDocument: Document): GridView | null {
   return { grid, cards, hasMoreCards: grid.children.length > cards.length, gridKey: keyOf(cards) };
 }
 
-const priceFor =
+const createPriceLookup =
   (database: Database, commission: boolean) =>
   (slug: string): number | null => {
     const entry = database[slug];
@@ -29,10 +29,10 @@ const priceFor =
   };
 
 export function orderCards(cards: HTMLElement[], database: Database, commission: boolean, isDescending: boolean): void {
-  const order = priceOrder(cards.map(slugOf), priceFor(database, commission), isDescending);
+  const order = priceOrder(cards.map(slugOf), createPriceLookup(database, commission), isDescending);
   cards.forEach((card, index) => {
-    const place = String(order[index]);
-    if (card.style.order !== place) card.style.order = place;
+    const orderValue = String(order[index]);
+    if (card.style.order !== orderValue) card.style.order = orderValue;
   });
 }
 
