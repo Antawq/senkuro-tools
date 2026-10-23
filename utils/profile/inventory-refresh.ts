@@ -1,12 +1,12 @@
 import { isAppMounted } from '../shared/app-mounted';
 import { element } from '../shared/dom';
 import { refreshIcon } from '../shared/svg';
-import { decodeSafely } from '../shared/uri';
+import { extractProfileSlug } from './profile-cards';
 import { warnStore } from './profile-store';
 
 export const REFRESH_BUTTON_ID = 'senkuro-inventory-refresh';
 
-const CARDS_PATH = /^\/users\/([^/?#]+)\/cards\/?$/;
+const CARDS_PATH = /^\/users\/[^/?#]+\/cards\/?$/;
 const FILTERS = '.user-card__filters';
 const HEADER = 'header.back';
 const TITLE = 'h2';
@@ -19,10 +19,7 @@ export interface RefreshDeps {
   reload: () => void;
 }
 
-function cardsSlug(): string | null {
-  const slug = decodeSafely(CARDS_PATH.exec(window.location.pathname)?.[1] ?? '').trim();
-  return slug || null;
-}
+const cardsSlug = (): string | null => (CARDS_PATH.test(window.location.pathname) ? extractProfileSlug(window.location.pathname) : null);
 
 const cardsTitle = (): Element | null => document.querySelector(FILTERS)?.closest(HEADER)?.querySelector(TITLE) ?? null;
 
