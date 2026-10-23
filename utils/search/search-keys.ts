@@ -93,8 +93,8 @@ export function createSearchKeys(doc: Document, { runAfter, isContextValid, sign
 
   const isFresh = (): boolean => {
     const sinceTyped = Date.now() - typedAt;
-    if (!signals.live()) return changedAt >= typedAt + DEBOUNCE_MS || sinceTyped >= SETTLE_MS;
-    return sinceTyped >= DEBOUNCE_MS && !signals.pending() && Date.now() - signals.doneAt() >= PAINT_MS;
+    if (!signals.hasSeenSignal()) return changedAt >= typedAt + DEBOUNCE_MS || sinceTyped >= SETTLE_MS;
+    return sinceTyped >= DEBOUNCE_MS && !signals.isSearchPending() && Date.now() - signals.doneAt() >= PAINT_MS;
   };
 
   const noticeTyping = (): void => {

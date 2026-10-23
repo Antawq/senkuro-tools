@@ -11,8 +11,8 @@ export interface SearchSignal {
 export interface SearchSignals {
   event: (event: Event) => void;
   subscribe: (listener: () => void) => void;
-  live: () => boolean;
-  pending: () => boolean;
+  hasSeenSignal: () => boolean;
+  isSearchPending: () => boolean;
   waited: () => number;
   doneAt: () => number;
 }
@@ -31,14 +31,14 @@ const parse = (event: Event): SearchSignal | null => {
 export function createSearchSignals(now: () => number = Date.now): SearchSignals {
   const listeners: (() => void)[] = [];
   const starts: number[] = [];
-  let seen = false;
+  let hasReceivedSignal = false;
   let lastDone = 0;
 
   return {
     event(event) {
       const signal = parse(event);
       if (!signal) return;
-      seen = true;
+      hasReceivedSignal = true;
       if (signal.phase === 'start') starts.push(now());
       else {
         starts.shift();
@@ -47,8 +47,8 @@ export function createSearchSignals(now: () => number = Date.now): SearchSignals
       listeners.forEach((listener) => listener());
     },
     subscribe: (listener) => void listeners.push(listener),
-    live: () => seen,
-    pending: () => starts.some((startedAt) => now() - startedAt < MAX_PENDING_MS),
+    hasSeenSignal: () => hasReceivedSignal,
+    isSearchPending: () => starts.some((startedAt) => now() - startedAt < MAX_PENDING_MS),
     waited() {
       const oldest = starts.find((startedAt) => now() - startedAt < MAX_PENDING_MS);
       return oldest === undefined ? 0 : now() - oldest;

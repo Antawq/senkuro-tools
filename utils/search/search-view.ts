@@ -157,7 +157,7 @@ export function createSearchView(doc: Document, { runAfter, isContextValid, sign
 
   signals.subscribe(() => {
     render();
-    if (!searchModal || !signals.pending()) return;
+    if (!searchModal || !signals.isSearchPending()) return;
     runAfter(render, SLOW_SEARCH_MS);
     runAfter(render, MAX_PENDING_MS + EXPIRY_MARGIN_MS);
   });
