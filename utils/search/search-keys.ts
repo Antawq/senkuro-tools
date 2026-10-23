@@ -3,15 +3,16 @@ import {
   ANY_MODAL,
   EDITABLE,
   FIELD,
-  MIN_QUERY_LENGTH,
   MODAL,
   OPEN_BUTTON,
   TAB_ACTIVE,
   fieldOf as fieldIn,
+  isTooShort,
   rowsOf as rowsIn,
+  signatureOf,
   topModal,
+  type SearchHost,
 } from './search-dom';
-import type { SearchSignals } from './search-signal';
 
 const CONTROL = 'button, a, input, select, textarea, [contenteditable], [role="button"], [role="radio"]';
 const DEBOUNCE_MS = 250;
@@ -22,19 +23,11 @@ const HANDLED_KEYS = new Set(['Enter', 'ArrowDown', 'ArrowUp']);
 const HANDLED_CODES = new Set(['Enter', 'NumpadEnter', 'ArrowDown', 'ArrowUp']);
 const IME_KEY_CODE = 229;
 
-export interface SearchKeysHost {
-  later: (run: () => void, ms: number) => void;
-  alive: () => boolean;
-  signals: SearchSignals;
-}
-
 export interface SearchKeys {
   keydown: (event: KeyboardEvent) => void;
   input: (event: Event) => void;
   dispose: () => void;
 }
-
-const signatureOf = (rows: HTMLElement[]): string => rows.map((row) => row.getAttribute('href') ?? '').join('|');
 
 const sameElements = (left: HTMLElement[], right: HTMLElement[]): boolean =>
   left.length === right.length && left.every((row, position) => row === right[position]);
@@ -58,7 +51,7 @@ const take = (event: Event): void => {
   event.stopImmediatePropagation();
 };
 
-export function createSearchKeys(doc: Document, { later, alive, signals }: SearchKeysHost): SearchKeys {
+export function createSearchKeys(doc: Document, { later, alive, signals }: SearchHost): SearchKeys {
   const spent = new WeakSet<HTMLElement>();
   let session: HTMLElement | null = null;
   let observer: MutationObserver | null = null;
@@ -242,7 +235,7 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
         if (rows.length > 0) step(rows, event.key === 'ArrowDown' ? 1 : -1);
         return;
       }
-      if (waiting || (fieldOf()?.value.trim().length ?? 0) < MIN_QUERY_LENGTH) return;
+      if (waiting || isTooShort(fieldOf()?.value ?? '')) return;
       wait(modal, newTab ? { ctrlKey: event.ctrlKey, metaKey: event.metaKey } : null);
     },
     input(event) {

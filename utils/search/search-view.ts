@@ -1,5 +1,5 @@
-import { ACTIVE, LIST, ROW, TAB, TAB_ACTIVE, TITLE, fieldOf, isTooShort, rowsOf, topModal } from './search-dom';
-import { MAX_PENDING_MS, type SearchSignals } from './search-signal';
+import { ACTIVE, LIST, ROW, TAB, TAB_ACTIVE, TITLE, fieldOf, isTooShort, rowsOf, signatureOf, topModal, type SearchHost } from './search-dom';
+import { MAX_PENDING_MS } from './search-signal';
 
 const STALE = 'data-stale';
 const SEARCHING = 'data-searching';
@@ -9,14 +9,9 @@ const OPTION_ID = 'senkutools-search-option-';
 const TAB_ID = 'senkutools-search-tab-';
 const MIN_WORD_LENGTH = 2;
 const SLOW_SEARCH_MS = 300;
+const EXPIRY_MARGIN_MS = 50;
 const REFOCUS = '.tabs-tab, .icon-click, .nav-search__cnt-space button';
 const HOVER = '(hover: hover)';
-
-export interface SearchViewHost {
-  later: (run: () => void, ms: number) => void;
-  alive: () => boolean;
-  signals: SearchSignals;
-}
 
 export interface SearchView {
   touch: () => void;
@@ -27,8 +22,6 @@ export interface SearchView {
 const flag = (element: HTMLElement, name: string, on: boolean): void => {
   if (element.hasAttribute(name) !== on) element.toggleAttribute(name, on);
 };
-
-const signatureOf = (rows: HTMLElement[]): string => rows.map((row) => row.getAttribute('href') ?? '').join('|');
 
 const attribute = (element: HTMLElement, name: string, value: string | null): void => {
   if (value === null) {
@@ -45,7 +38,7 @@ const wordsOf = (query: string): string[] => [
   ),
 ];
 
-export function createSearchView(doc: Document, { later, alive, signals }: SearchViewHost): SearchView {
+export function createSearchView(doc: Document, { later, alive, signals }: SearchHost): SearchView {
   let session: HTMLElement | null = null;
   let observer: MutationObserver | null = null;
   let shownSignature = '';
@@ -153,7 +146,7 @@ export function createSearchView(doc: Document, { later, alive, signals }: Searc
     render();
     if (!session || !signals.pending()) return;
     later(render, SLOW_SEARCH_MS);
-    later(render, MAX_PENDING_MS + 50);
+    later(render, MAX_PENDING_MS + EXPIRY_MARGIN_MS);
   });
 
   const touch = (): void => {

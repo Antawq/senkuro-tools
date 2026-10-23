@@ -1,3 +1,5 @@
+import type { SearchSignals } from './search-signal';
+
 export const MODAL = '.modal-content--search';
 const HOST = '.vfm';
 const CLOSING = 'vfm--prevent-none';
@@ -23,3 +25,11 @@ export const fieldOf = (modal: HTMLElement): HTMLInputElement | null => modal.qu
 export const rowsOf = (modal: HTMLElement): HTMLElement[] => [...modal.querySelectorAll<HTMLElement>(ROW)];
 
 export const isTooShort = (query: string): boolean => query.trim().length < MIN_QUERY_LENGTH;
+
+export const signatureOf = (rows: HTMLElement[]): string => rows.map((row) => row.getAttribute('href') ?? '').join('|');
+
+export interface SearchHost {
+  later: (run: () => void, ms: number) => void;
+  alive: () => boolean;
+  signals: SearchSignals;
+}
