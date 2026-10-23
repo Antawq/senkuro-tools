@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   AVATAR_COST,
   COIN_ALT,
+  COIN_CLASS,
   MONEY_STICKER,
   confirmProps,
   createSiteAssets,
@@ -221,15 +222,12 @@ describe('the 3D coin in place of the word', () => {
     expect(coin?.getAttribute('alt')).toBe(COIN_ALT);
   });
 
-  it('sizes the coin with the text it stands in', async () => {
+  it('leaves the size of the coin to the stylesheet of the extension', async () => {
     upload().click();
     await flush();
-    const style = (costs()[0]?.querySelector('img') as HTMLImageElement).style;
-    expect(style.height).toBe('1.4em');
-    expect(style.width).toBe('auto');
-    expect(style.verticalAlign).toBe('-0.3em');
-    expect(style.marginLeft).toBe('0.25em');
-    expect(style.marginRight).toBe('-0.15em');
+    const coin = costs()[0]?.querySelector('img');
+    expect(coin?.className).toBe(COIN_CLASS);
+    expect(coin?.getAttribute('style')).toBeNull();
   });
 
   it('puts one coin however often the window changes', async () => {

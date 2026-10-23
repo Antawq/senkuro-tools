@@ -37,6 +37,19 @@ describe('trade modal layout', () => {
   });
 });
 
+describe('avatar price coin', () => {
+  it('is sized with the text it stands in, and wins over the image rules of the site', () => {
+    document.head.insertAdjacentHTML('afterbegin', '<style>img{vertical-align:middle;max-width:100%}</style>');
+    document.body.innerHTML = '<div class="modal-alert__desc"><span>5000<img class="senkuro-avatar-coin"></span></div>';
+    const coin = styleOf('.senkuro-avatar-coin');
+    expect(coin.height).toBe('22.4px');
+    expect(coin.width).toBe('auto');
+    expect(coin.verticalAlign).toBe('-0.3em');
+    expect(coin.marginLeft).toBe('4px');
+    expect(coin.marginRight).toBe('-2.4px');
+  });
+});
+
 describe('profile header layout', () => {
   it('wraps once it holds the value chip so a long nickname does not push the chip out of the card', () => {
     document.body.innerHTML = profileHeader('<div class="senkuro-profile-f-chip"></div>');

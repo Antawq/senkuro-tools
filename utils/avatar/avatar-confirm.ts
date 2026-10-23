@@ -1,6 +1,7 @@
 export const AVATAR_COST = 5000;
 export const MONEY_STICKER = 25;
 export const COIN_ALT = 'сенкоинов';
+export const COIN_CLASS = 'senkuro-avatar-coin';
 
 const BUTTON = '.edit-media__user + .edit-media__actions > button:first-child';
 const MODALS_KEY = 'modals';
@@ -102,7 +103,7 @@ const createCoin = (doc: Document, url: string): HTMLImageElement => {
   const coin = doc.createElement('img');
   coin.src = url;
   coin.alt = COIN_ALT;
-  Object.assign(coin.style, { height: '1.4em', width: 'auto', margin: '0 -0.15em 0 0.25em', verticalAlign: '-0.3em' });
+  coin.className = COIN_CLASS;
   return coin;
 };
 
