@@ -56,7 +56,7 @@ export function createSearchView(pageDocument: Document, { runAfter, isContextVa
   let observer: MutationObserver | null = null;
   let shownSignature = '';
 
-  const matchesIn = (titles: HTMLElement[], words: string[]): Range[] => {
+  const matchRangesIn = (titles: HTMLElement[], words: string[]): Range[] => {
     const ranges: Range[] = [];
     for (const title of titles) {
       const textWalker = pageDocument.createTreeWalker(title, NodeFilter.SHOW_TEXT);
@@ -80,7 +80,7 @@ export function createSearchView(pageDocument: Document, { runAfter, isContextVa
   const paint = (searchModal: HTMLElement, query: string): void => {
     const view = pageDocument.defaultView;
     if (!view?.CSS?.highlights || typeof view.Highlight !== 'function') return;
-    const ranges = matchesIn([...searchModal.querySelectorAll<HTMLElement>(RESULT_TITLE)], wordsOf(query));
+    const ranges = matchRangesIn([...searchModal.querySelectorAll<HTMLElement>(RESULT_TITLE)], wordsOf(query));
     if (ranges.length > 0) view.CSS.highlights.set(MATCH_HIGHLIGHT, new view.Highlight(...ranges));
     else view.CSS.highlights.delete(MATCH_HIGHLIGHT);
   };
