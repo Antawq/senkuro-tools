@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { MAX_LOAD_PAGES, loadRest, type LoadEnv } from '../utils/inventory/list-loader';
+import { MAX_LOAD_PAGES, loadRest, type LoadHost } from '../utils/inventory/list-loader';
 import { LIST_OPERATION, type PageRequest, type Variables } from '../utils/inventory/list-families';
 import { FAST_PAGES, THROTTLED_DELAY_MS } from '../utils/shared/paging';
 import type { QueryClient } from '../utils/shared/urql-client';
@@ -20,10 +20,10 @@ interface Asked {
 
 interface Rig {
   answers: (asked: Asked, index: number) => unknown;
-  latest?: () => PageRequest | null;
+  latestPage?: () => PageRequest | null;
 }
 
-const rig = ({ answers, latest = () => recorded() }: Rig) => {
+const rig = ({ answers, latestPage = () => recorded() }: Rig) => {
   const asked: Asked[] = [];
   const sleeps: number[] = [];
   const client: QueryClient = {
@@ -35,8 +35,8 @@ const rig = ({ answers, latest = () => recorded() }: Rig) => {
       return { toPromise: () => Promise.resolve(answers(entry, asked.length - 1)) };
     },
   };
-  const env: LoadEnv = { client, latest, sleep: (ms) => Promise.resolve(void sleeps.push(ms)) };
-  return { env, asked, sleeps };
+  const host: LoadHost = { client, latestPage, sleep: (ms) => Promise.resolve(void sleeps.push(ms)) };
+  return { host, asked, sleeps };
 };
 
 const chain =
@@ -46,90 +46,90 @@ const chain =
 
 describe('loadRest', () => {
   it('reads what is loaded, then asks the network for every page after it, one after another, ending at the last', async () => {
-    const { env, asked } = rig({ answers: chain(3) });
-    expect(await loadRest(env)).toBe('complete');
+    const { host, asked } = rig({ answers: chain(3) });
+    expect(await loadRest(host)).toBe('complete');
     expect(asked.map((entry) => entry.after)).toEqual([undefined, 'c1', 'c2', 'c3']);
     expect(asked.map((entry) => entry.options?.requestPolicy)).toEqual(['cache-first', 'network-only', 'network-only', 'network-only']);
     expect(asked.every((entry) => entry.document === document && entry.options?.suspense === true)).toBe(true);
   });
 
   it('keeps the cursor the list was asked with when it reads what is loaded', async () => {
-    const { env, asked } = rig({ answers: chain(1), latest: () => recorded({ ...GRID, after: 'c0' }) });
-    await loadRest(env);
+    const { host, asked } = rig({ answers: chain(1), latestPage: () => recorded({ ...GRID, after: 'c0' }) });
+    await loadRest(host);
     expect(asked.map((entry) => entry.after)).toEqual(['c0', 'c1']);
   });
 
   it('asks nothing of the network when the whole list is already there', async () => {
-    const { env, asked } = rig({ answers: chain(0) });
-    expect(await loadRest(env)).toBe('complete');
+    const { host, asked } = rig({ answers: chain(0) });
+    expect(await loadRest(host)).toBe('complete');
     expect(asked).toHaveLength(1);
   });
 
   it('gives up when no list was ever asked for', async () => {
-    const { env, asked } = rig({ answers: chain(2), latest: () => null });
-    expect(await loadRest(env)).toBe('partial');
+    const { host, asked } = rig({ answers: chain(2), latestPage: () => null });
+    expect(await loadRest(host)).toBe('partial');
     expect(asked).toHaveLength(0);
   });
 
   it('gives up at a failed page and asks for nothing more, even when the failure came with some data', async () => {
     for (const failure of [{ error: new Error('429') }, { ...info(true, 'c3'), error: new Error('429') }]) {
-      const { env, asked } = rig({ answers: (_asked, index) => (index === 2 ? failure : info(true, `c${index + 1}`)) });
-      expect(await loadRest(env)).toBe('partial');
+      const { host, asked } = rig({ answers: (_asked, index) => (index === 2 ? failure : info(true, `c${index + 1}`)) });
+      expect(await loadRest(host)).toBe('partial');
       expect(asked).toHaveLength(3);
     }
   });
 
   it('does not go on without a cursor to go on', async () => {
-    const { env, asked } = rig({ answers: () => info(true, null) });
-    expect(await loadRest(env)).toBe('partial');
+    const { host, asked } = rig({ answers: () => info(true, null) });
+    expect(await loadRest(host)).toBe('partial');
     expect(asked).toHaveLength(1);
   });
 
   it('gives up on an answer without a list and on a query that throws', async () => {
     for (const answers of [() => ({ data: null }), () => ({ data: { userCards: { pageInfo: null } } })]) {
-      expect(await loadRest(rig({ answers }).env)).toBe('partial');
+      expect(await loadRest(rig({ answers }).host)).toBe('partial');
     }
     const throwing = rig({ answers: chain(1) });
-    throwing.env.client.query = () => ({ toPromise: () => Promise.reject(new Error('network')) });
-    expect(await loadRest(throwing.env)).toBe('partial');
+    throwing.host.client.query = () => ({ toPromise: () => Promise.reject(new Error('network')) });
+    expect(await loadRest(throwing.host)).toBe('partial');
   });
 
   it('stops and says so when the site has moved on to another list, which now needs its own load', async () => {
     let current: PageRequest = recorded();
-    const { env, asked } = rig({
+    const { host, asked } = rig({
       answers: (_asked, index) => {
         if (index === 2) current = recorded({ ...GRID, modifier: { include: [1] } });
         return info(true, `c${index + 1}`);
       },
-      latest: () => current,
+      latestPage: () => current,
     });
-    expect(await loadRest(env)).toBe('moved');
+    expect(await loadRest(host)).toBe('moved');
     expect(asked).toHaveLength(3);
   });
 
   it('keeps going when only the cursor of the same list moved on', async () => {
     let current: PageRequest = recorded();
-    const { env } = rig({
+    const { host } = rig({
       answers: (...args) => {
         current = recorded({ ...GRID, after: `c${args[1]}` });
         return chain(3)(...args);
       },
-      latest: () => current,
+      latestPage: () => current,
     });
-    expect(await loadRest(env)).toBe('complete');
+    expect(await loadRest(host)).toBe('complete');
   });
 
   it('waits between pages, fast at first and slower once the list is long', async () => {
-    const { env, sleeps } = rig({ answers: chain(FAST_PAGES + 2) });
-    expect(await loadRest(env)).toBe('complete');
+    const { host, sleeps } = rig({ answers: chain(FAST_PAGES + 2) });
+    expect(await loadRest(host)).toBe('complete');
     expect(sleeps).toHaveLength(FAST_PAGES + 1);
     expect(sleeps.slice(0, FAST_PAGES)).toEqual(Array.from({ length: FAST_PAGES }, () => 0));
     expect(sleeps.at(-1)).toBe(THROTTLED_DELAY_MS);
   });
 
   it('stops at the page cap instead of running forever', async () => {
-    const { env, asked } = rig({ answers: (_asked, index) => info(true, `c${index + 1}`) });
-    expect(await loadRest(env)).toBe('partial');
+    const { host, asked } = rig({ answers: (_asked, index) => info(true, `c${index + 1}`) });
+    expect(await loadRest(host)).toBe('partial');
     expect(asked).toHaveLength(MAX_LOAD_PAGES + 1);
   });
 });

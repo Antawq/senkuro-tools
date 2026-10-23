@@ -8,10 +8,10 @@ export const MAX_LOAD_PAGES = 300;
 const READ_POLICY = 'cache-first';
 const LOAD_POLICY = 'network-only';
 
-export interface LoadEnv {
+export interface LoadHost {
   client: QueryClient;
-  latest: () => PageRequest | null;
-  sleep: (ms: number) => Promise<void>;
+  latestPage: () => PageRequest | null;
+  sleep: (delayMs: number) => Promise<void>;
 }
 
 interface PageInfo {
@@ -24,34 +24,34 @@ interface ListResult {
   error?: unknown;
 }
 
-async function askFor(env: LoadEnv, page: PageRequest, after: unknown, policy: string): Promise<PageInfo | null> {
+async function fetchPageInfo(host: LoadHost, page: PageRequest, after: unknown, policy: string): Promise<PageInfo | null> {
   const variables = after === undefined ? page.variables : { ...page.variables, after };
-  const result = (await env.client.query(page.document, variables, { ...page.options, requestPolicy: policy }).toPromise()) as ListResult | undefined;
-  return result?.error ? null : (result?.data?.userCards?.pageInfo ?? null);
+  const queryResult = (await host.client.query(page.document, variables, { ...page.options, requestPolicy: policy }).toPromise()) as ListResult | undefined;
+  return queryResult?.error ? null : (queryResult?.data?.userCards?.pageInfo ?? null);
 }
 
-const stillTheSameList = (env: LoadEnv, family: string): boolean => {
-  const now = env.latest();
-  return now !== null && familyIdOf(now.variables) === family;
+const isLatestList = (host: LoadHost, familyId: string): boolean => {
+  const currentPage = host.latestPage();
+  return currentPage !== null && familyIdOf(currentPage.variables) === familyId;
 };
 
-async function loadAll(env: LoadEnv, page: PageRequest): Promise<LoadOutcome> {
-  const family = familyIdOf(page.variables);
-  let info = await askFor(env, page, undefined, READ_POLICY);
-  for (let loaded = 0; info?.hasNextPage === true; loaded++) {
-    if (!stillTheSameList(env, family)) return 'moved';
-    if (typeof info.endCursor !== 'string' || loaded >= MAX_LOAD_PAGES) return 'partial';
-    if (loaded > 0) await env.sleep(delayForPage(loaded - 1));
-    info = await askFor(env, page, info.endCursor, LOAD_POLICY);
+async function loadFollowingPages(host: LoadHost, page: PageRequest): Promise<LoadOutcome> {
+  const familyId = familyIdOf(page.variables);
+  let pageInfo = await fetchPageInfo(host, page, undefined, READ_POLICY);
+  for (let loadedCount = 0; pageInfo?.hasNextPage === true; loadedCount++) {
+    if (!isLatestList(host, familyId)) return 'moved';
+    if (typeof pageInfo.endCursor !== 'string' || loadedCount >= MAX_LOAD_PAGES) return 'partial';
+    if (loadedCount > 0) await host.sleep(delayForPage(loadedCount - 1));
+    pageInfo = await fetchPageInfo(host, page, pageInfo.endCursor, LOAD_POLICY);
   }
-  return info === null ? 'partial' : 'complete';
+  return pageInfo === null ? 'partial' : 'complete';
 }
 
-export async function loadRest(env: LoadEnv): Promise<LoadOutcome> {
-  const page = env.latest();
+export async function loadRest(host: LoadHost): Promise<LoadOutcome> {
+  const page = host.latestPage();
   if (!page) return 'partial';
   try {
-    return await loadAll(env, page);
+    return await loadFollowingPages(host, page);
   } catch {
     return 'partial';
   }

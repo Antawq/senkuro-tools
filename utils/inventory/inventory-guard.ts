@@ -45,7 +45,7 @@ export function installInventoryGuard(win: PageWindow): void {
   const ledger = createCursorLedger();
   const silent = new WeakSet<object>();
   let queue: Promise<unknown> = Promise.resolve();
-  let latest: PageRequest | null = null;
+  let latestPage: PageRequest | null = null;
   let attached: QueryClient | null = null;
   let loading = false;
 
@@ -73,7 +73,7 @@ export function installInventoryGuard(win: PageWindow): void {
       return;
     }
     loading = true;
-    void loadRest({ client: attached, latest: () => latest, sleep }).then((outcome) => {
+    void loadRest({ client: attached, latestPage: () => latestPage, sleep }).then((outcome) => {
       loading = false;
       publishListLoaded(outcome);
     });
@@ -86,7 +86,7 @@ export function installInventoryGuard(win: PageWindow): void {
     const recording = recordLists(
       client,
       (page) => {
-        latest = page;
+        latestPage = page;
         record.record(page);
       },
       silent
