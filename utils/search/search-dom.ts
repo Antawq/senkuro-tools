@@ -14,16 +14,16 @@ export const OPEN_BUTTON = '.nav-search__btn';
 export const EDITABLE = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
 export const MIN_QUERY_CHARACTERS = 2;
 
-export const topModal = (doc: Document, isSpent: (modal: HTMLElement) => boolean = () => false): HTMLElement | null => {
-  const open = [...doc.querySelectorAll<HTMLElement>(SEARCH_MODAL)].filter(
-    (modal) => !isSpent(modal) && !modal.closest(MODAL_HOST)?.classList.contains(MODAL_CLOSING_CLASS)
+export const findTopSearchModal = (doc: Document, isSpent: (searchModal: HTMLElement) => boolean = () => false): HTMLElement | null => {
+  const openSearchModals = [...doc.querySelectorAll<HTMLElement>(SEARCH_MODAL)].filter(
+    (searchModal) => !isSpent(searchModal) && !searchModal.closest(MODAL_HOST)?.classList.contains(MODAL_CLOSING_CLASS)
   );
-  return open.at(-1) ?? null;
+  return openSearchModals.at(-1) ?? null;
 };
 
-export const fieldOf = (modal: HTMLElement): HTMLInputElement | null => modal.querySelector<HTMLInputElement>(SEARCH_FIELD);
+export const fieldOf = (searchModal: HTMLElement): HTMLInputElement | null => searchModal.querySelector<HTMLInputElement>(SEARCH_FIELD);
 
-export const rowsOf = (modal: HTMLElement): HTMLElement[] => [...modal.querySelectorAll<HTMLElement>(RESULT_ROW)];
+export const rowsOf = (searchModal: HTMLElement): HTMLElement[] => [...searchModal.querySelectorAll<HTMLElement>(RESULT_ROW)];
 
 export const isTooShort = (query: string): boolean => query.trim().length < MIN_QUERY_CHARACTERS;
 

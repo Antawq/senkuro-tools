@@ -1,15 +1,15 @@
 import {
   ACTIVE_ROW_CLASS,
+  ACTIVE_TAB,
   RESULTS,
   RESULT_ROW,
-  TAB,
-  ACTIVE_TAB,
   RESULT_TITLE,
+  TAB,
   fieldOf,
+  findTopSearchModal,
   isTooShort,
   rowsOf,
   signatureOf,
-  topModal,
   type SearchHost,
 } from './search-dom';
 import { MAX_PENDING_MS } from './search-signal';
@@ -52,7 +52,7 @@ const wordsOf = (query: string): string[] => [
 ];
 
 export function createSearchView(doc: Document, { later, alive, signals }: SearchHost): SearchView {
-  let session: HTMLElement | null = null;
+  let searchModal: HTMLElement | null = null;
   let observer: MutationObserver | null = null;
   let shownSignature = '';
 
@@ -77,17 +77,17 @@ export function createSearchView(doc: Document, { later, alive, signals }: Searc
     return ranges;
   };
 
-  const paint = (modal: HTMLElement, query: string): void => {
+  const paint = (searchModal: HTMLElement, query: string): void => {
     const view = doc.defaultView;
     if (!view?.CSS?.highlights || typeof view.Highlight !== 'function') return;
-    const ranges = matchesIn([...modal.querySelectorAll<HTMLElement>(RESULT_TITLE)], wordsOf(query));
+    const ranges = matchesIn([...searchModal.querySelectorAll<HTMLElement>(RESULT_TITLE)], wordsOf(query));
     if (ranges.length > 0) view.CSS.highlights.set(MATCH_HIGHLIGHT, new view.Highlight(...ranges));
     else view.CSS.highlights.delete(MATCH_HIGHLIGHT);
   };
 
-  const announce = (modal: HTMLElement, rows: HTMLElement[], shown: boolean, managed = true): void => {
+  const announce = (searchModal: HTMLElement, rows: HTMLElement[], shown: boolean, managed = true): void => {
     const active = rows.find((row) => row.classList.contains(ACTIVE_ROW_CLASS));
-    const field = fieldOf(modal);
+    const field = fieldOf(searchModal);
     if (field) {
       attribute(field, 'role', managed ? 'combobox' : null);
       attribute(field, 'aria-autocomplete', managed ? 'list' : null);
@@ -95,12 +95,12 @@ export function createSearchView(doc: Document, { later, alive, signals }: Searc
       attribute(field, 'aria-controls', shown ? RESULTS_ID : null);
       attribute(field, 'aria-activedescendant', shown && active ? active.id : null);
     }
-    modal.querySelectorAll<HTMLElement>(TAB).forEach((tab, index) => attribute(tab, 'id', managed ? `${TAB_ID}${index}` : null));
-    const list = modal.querySelector<HTMLElement>(RESULTS);
+    searchModal.querySelectorAll<HTMLElement>(TAB).forEach((tab, index) => attribute(tab, 'id', managed ? `${TAB_ID}${index}` : null));
+    const list = searchModal.querySelector<HTMLElement>(RESULTS);
     if (list) {
       attribute(list, 'role', shown ? 'listbox' : null);
       attribute(list, 'id', shown ? RESULTS_ID : null);
-      attribute(list, 'aria-labelledby', shown ? (modal.querySelector<HTMLElement>(ACTIVE_TAB)?.id ?? null) : null);
+      attribute(list, 'aria-labelledby', shown ? (searchModal.querySelector<HTMLElement>(ACTIVE_TAB)?.id ?? null) : null);
     }
     rows.forEach((row, index) => {
       attribute(row, 'role', shown ? 'option' : null);
@@ -114,50 +114,50 @@ export function createSearchView(doc: Document, { later, alive, signals }: Searc
   };
 
   const render = (): void => {
-    const modal = session;
-    if (!modal || !alive()) return;
-    const query = fieldOf(modal)?.value ?? '';
-    const rows = rowsOf(modal);
+    const openSearchModal = searchModal;
+    if (!openSearchModal || !alive()) return;
+    const query = fieldOf(openSearchModal)?.value ?? '';
+    const rows = rowsOf(openSearchModal);
     const tooShort = isTooShort(query);
     const stale = tooShort && rows.length > 0;
-    flag(modal, STALE, stale);
-    announce(modal, rows, rows.length > 0 && !stale);
-    flag(modal, SEARCHING, !tooShort && signals.waited() >= SLOW_SEARCH_MS);
-    paint(modal, query);
+    flag(openSearchModal, STALE, stale);
+    announce(openSearchModal, rows, rows.length > 0 && !stale);
+    flag(openSearchModal, SEARCHING, !tooShort && signals.waited() >= SLOW_SEARCH_MS);
+    paint(openSearchModal, query);
     const signature = signatureOf(rows);
     if (signature === shownSignature) return;
     shownSignature = signature;
-    modal.querySelector<HTMLElement>(RESULTS)?.scrollTo({ top: 0 });
+    openSearchModal.querySelector<HTMLElement>(RESULTS)?.scrollTo({ top: 0 });
   };
 
   const dispose = (): void => {
-    if (session) {
-      flag(session, STALE, false);
-      flag(session, SEARCHING, false);
-      announce(session, rowsOf(session), false, false);
+    if (searchModal) {
+      flag(searchModal, STALE, false);
+      flag(searchModal, SEARCHING, false);
+      announce(searchModal, rowsOf(searchModal), false, false);
     }
     unpaint();
     observer?.disconnect();
     observer = null;
-    session = null;
+    searchModal = null;
   };
 
   const adopt = (): void => {
-    const found = topModal(doc);
-    if (found === session) return;
+    const topSearchModal = findTopSearchModal(doc);
+    if (topSearchModal === searchModal) return;
     observer?.disconnect();
     observer = null;
-    session = found;
+    searchModal = topSearchModal;
     shownSignature = '';
     unpaint();
-    if (!found) return;
+    if (!topSearchModal) return;
     observer = new MutationObserver(render);
-    observer.observe(found, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class'] });
+    observer.observe(topSearchModal, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class'] });
   };
 
   signals.subscribe(() => {
     render();
-    if (!session || !signals.pending()) return;
+    if (!searchModal || !signals.pending()) return;
     later(render, SLOW_SEARCH_MS);
     later(render, MAX_PENDING_MS + EXPIRY_MARGIN_MS);
   });
@@ -172,9 +172,9 @@ export function createSearchView(doc: Document, { later, alive, signals }: Searc
   };
 
   const click = (event: MouseEvent): void => {
-    const modal = alive() ? topModal(doc) : null;
+    const openSearchModal = alive() ? findTopSearchModal(doc) : null;
     const target = event.target;
-    if (!modal || !(target instanceof Element) || !modal.contains(target)) return;
+    if (!openSearchModal || !(target instanceof Element) || !openSearchModal.contains(target)) return;
     if ((event.ctrlKey || event.metaKey || event.shiftKey) && target.closest(RESULT_ROW)) {
       event.stopImmediatePropagation();
       return;
@@ -182,7 +182,7 @@ export function createSearchView(doc: Document, { later, alive, signals }: Searc
     const pointed = event.detail > 0 && target.closest(REFOCUS_TRIGGER) !== null && doc.defaultView?.matchMedia(HOVER_MEDIA_QUERY).matches === true;
     later(() => {
       touch();
-      if (pointed && alive()) fieldOf(modal)?.focus({ preventScroll: true });
+      if (pointed && alive()) fieldOf(openSearchModal)?.focus({ preventScroll: true });
     }, 0);
   };
 

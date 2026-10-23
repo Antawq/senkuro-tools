@@ -1,16 +1,16 @@
 import { MODAL_CONTENT_SELECTOR } from '../shared/modal-selectors';
 import {
   ACTIVE_ROW_CLASS,
+  ACTIVE_TAB,
   EDITABLE,
+  OPEN_BUTTON,
   SEARCH_FIELD,
   SEARCH_MODAL,
-  OPEN_BUTTON,
-  ACTIVE_TAB,
-  fieldOf as fieldIn,
+  fieldOf,
+  findTopSearchModal,
   isTooShort,
-  rowsOf as rowsIn,
+  rowsOf,
   signatureOf,
-  topModal,
   type SearchHost,
 } from './search-dom';
 
@@ -44,7 +44,7 @@ const isOpenKey = (event: KeyboardEvent): boolean =>
 const isNewTabEnter = (event: KeyboardEvent): boolean =>
   (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key === 'Enter' && !isComposing(event);
 
-const askedOf = (modal: HTMLElement): string => JSON.stringify([fieldIn(modal)?.value, modal.querySelector(ACTIVE_TAB)?.textContent]);
+const askedOf = (searchModal: HTMLElement): string => JSON.stringify([fieldOf(searchModal)?.value, searchModal.querySelector(ACTIVE_TAB)?.textContent]);
 
 const take = (event: Event): void => {
   event.preventDefault();
@@ -52,8 +52,8 @@ const take = (event: Event): void => {
 };
 
 export function createSearchKeys(doc: Document, { later, alive, signals }: SearchHost): SearchKeys {
-  const spent = new WeakSet<HTMLElement>();
-  let session: HTMLElement | null = null;
+  const spentSearchModals = new WeakSet<HTMLElement>();
+  let searchModal: HTMLElement | null = null;
   let observer: MutationObserver | null = null;
   let index: number | null = null;
   let shownRows: HTMLElement[] = [];
@@ -67,14 +67,14 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
   let waitNewTab: { ctrlKey: boolean; metaKey: boolean } | null = null;
   let steppedBeforeAnswer = false;
 
-  const openModal = (): HTMLElement | null => topModal(doc, (modal) => spent.has(modal));
+  const findUnspentSearchModal = (): HTMLElement | null => findTopSearchModal(doc, (searchModal) => spentSearchModals.has(searchModal));
 
-  const fieldOf = (): HTMLInputElement | null => (session ? fieldIn(session) : null);
-  const rowsOf = (): HTMLElement[] => (session ? rowsIn(session) : []);
+  const currentField = (): HTMLInputElement | null => (searchModal ? fieldOf(searchModal) : null);
+  const currentRows = (): HTMLElement[] => (searchModal ? rowsOf(searchModal) : []);
   const mark = (rows: HTMLElement[]): void => rows.forEach((row, position) => row.classList.toggle(ACTIVE_ROW_CLASS, position === index));
 
   const refresh = (): HTMLElement[] => {
-    const rows = rowsOf();
+    const rows = currentRows();
     const signature = signatureOf(rows);
     if (signature !== shownSignature) {
       shownSignature = signature;
@@ -98,17 +98,17 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
   };
 
   const noticeTyping = (): void => {
-    const value = fieldOf()?.value ?? '';
+    const value = currentField()?.value ?? '';
     if (value === knownValue) return;
     knownValue = value;
     typedAt = Date.now();
     index = null;
-    mark(rowsOf());
+    mark(currentRows());
   };
 
-  const check = (startedAt: number, owner: HTMLElement): void => {
+  const openResultIfReady = (startedAt: number, waitModal: HTMLElement): void => {
     if (!waiting || startedAt !== waitStartedAt) return;
-    if (session !== owner || openModal() !== owner || askedOf(owner) !== waitAsked) {
+    if (searchModal !== waitModal || findUnspentSearchModal() !== waitModal || askedOf(waitModal) !== waitAsked) {
       waiting = false;
       return;
     }
@@ -118,19 +118,19 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
       const row = rows[index ?? 0];
       if (waitNewTab) row?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: doc.defaultView, ...waitNewTab }));
       else {
-        spent.add(owner);
+        spentSearchModals.add(waitModal);
         row?.click();
       }
       return;
     }
   };
 
-  const adopt = (): HTMLElement | null => {
-    const found = openModal();
-    if (found === session) return found;
+  const adoptTopModal = (): HTMLElement | null => {
+    const topSearchModal = findUnspentSearchModal();
+    if (topSearchModal === searchModal) return topSearchModal;
     observer?.disconnect();
     observer = null;
-    session = found;
+    searchModal = topSearchModal;
     waiting = false;
     index = null;
     shownRows = [];
@@ -138,38 +138,38 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
     changedAt = Date.now();
     typedAt = 0;
     knownValue = '';
-    if (found) {
+    if (topSearchModal) {
       observer = new MutationObserver(() => {
         refresh();
-        check(waitStartedAt, found);
+        openResultIfReady(waitStartedAt, topSearchModal);
       });
-      observer.observe(found, { childList: true, subtree: true });
+      observer.observe(topSearchModal, { childList: true, subtree: true });
     }
-    return found;
+    return topSearchModal;
   };
 
-  const wait = (owner: HTMLElement, newTab: { ctrlKey: boolean; metaKey: boolean } | null): void => {
+  const startWait = (waitModal: HTMLElement, newTab: { ctrlKey: boolean; metaKey: boolean } | null): void => {
     waiting = true;
     waitNewTab = newTab;
-    waitAsked = askedOf(owner);
+    waitAsked = askedOf(waitModal);
     waitStartedAt = Date.now();
     const started = waitStartedAt;
-    check(started, owner);
+    openResultIfReady(started, waitModal);
     if (!waiting) return;
-    later(() => check(started, owner), Math.max(0, typedAt + DEBOUNCE_MS - started) + PAINT_MS);
-    later(() => check(started, owner), Math.max(0, typedAt + SETTLE_MS - started));
+    later(() => openResultIfReady(started, waitModal), Math.max(0, typedAt + DEBOUNCE_MS - started) + PAINT_MS);
+    later(() => openResultIfReady(started, waitModal), Math.max(0, typedAt + SETTLE_MS - started));
     later(() => {
-      check(started, owner);
+      openResultIfReady(started, waitModal);
       if (started === waitStartedAt) waiting = false;
     }, GIVE_UP_MS);
   };
 
   signals.subscribe(() => {
-    const owner = session;
-    if (!waiting || !owner) return;
+    const waitModal = searchModal;
+    if (!waiting || !waitModal) return;
     const started = waitStartedAt;
-    check(started, owner);
-    if (waiting) later(() => check(started, owner), PAINT_MS);
+    openResultIfReady(started, waitModal);
+    if (waiting) later(() => openResultIfReady(started, waitModal), PAINT_MS);
   });
 
   const step = (rows: HTMLElement[], delta: number): void => {
@@ -179,15 +179,15 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
     rows[index]?.scrollIntoView({ block: 'nearest' });
   };
 
-  const owns = (target: EventTarget | null, modal: HTMLElement): boolean =>
-    target === doc.body || target === doc.documentElement || (target instanceof Node && modal.contains(target));
+  const isModalTarget = (target: EventTarget | null, searchModal: HTMLElement): boolean =>
+    target === doc.body || target === doc.documentElement || (target instanceof Node && searchModal.contains(target));
 
   const dispose = (): void => {
     index = null;
-    mark(rowsOf());
+    mark(currentRows());
     observer?.disconnect();
     observer = null;
-    session = null;
+    searchModal = null;
     waiting = false;
   };
 
@@ -206,10 +206,10 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
         return;
       }
       if (isSearchHotkey(event)) {
-        const open = adopt();
-        if (!open) return;
+        const openSearchModal = adoptTopModal();
+        if (!openSearchModal) return;
         take(event);
-        const field = fieldIn(open);
+        const field = fieldOf(openSearchModal);
         field?.focus();
         field?.select();
         return;
@@ -217,12 +217,12 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
       const newTab = isNewTabEnter(event);
       const aside = !newTab && (isComposing(event) || isModified(event));
       if (!HANDLED_KEYS.has(event.key) && !(aside && HANDLED_CODES.has(event.code))) return;
-      const modal = adopt();
+      const topSearchModal = adoptTopModal();
       if (aside) {
-        if (modal && owns(event.target, modal)) event.stopImmediatePropagation();
+        if (topSearchModal && isModalTarget(event.target, topSearchModal)) event.stopImmediatePropagation();
         return;
       }
-      if (!modal || !owns(event.target, modal)) return;
+      if (!topSearchModal || !isModalTarget(event.target, topSearchModal)) return;
       const onControl = event.target instanceof HTMLElement && !event.target.matches(SEARCH_FIELD) && event.target.closest(CONTROL) !== null;
       if (onControl) {
         event.stopImmediatePropagation();
@@ -235,12 +235,12 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
         if (rows.length > 0) step(rows, event.key === 'ArrowDown' ? 1 : -1);
         return;
       }
-      if (waiting || isTooShort(fieldOf()?.value ?? '')) return;
-      wait(modal, newTab ? { ctrlKey: event.ctrlKey, metaKey: event.metaKey } : null);
+      if (waiting || isTooShort(currentField()?.value ?? '')) return;
+      startWait(topSearchModal, newTab ? { ctrlKey: event.ctrlKey, metaKey: event.metaKey } : null);
     },
     input(event) {
       if (!alive() || !(event.target instanceof HTMLElement) || !event.target.matches(`${SEARCH_MODAL} ${SEARCH_FIELD}`)) return;
-      if (adopt()) noticeTyping();
+      if (adoptTopModal()) noticeTyping();
     },
     dispose,
   };
