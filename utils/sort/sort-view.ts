@@ -14,7 +14,7 @@ export interface SortHost {
 }
 
 export interface PriceSort {
-  sync: (db: Database, settings: Pick<Settings, 'commission'>) => void;
+  sync: (database: Database, settings: Pick<Settings, 'commission'>) => void;
   handleClick: (event: Event) => void;
   handleLoaded: (event: Event) => void;
 }
@@ -66,11 +66,11 @@ export function createPriceSort(pageDocument: Document, host: SortHost): PriceSo
     clearOrder(view.cards);
   }
 
-  function show(view: GridView, state: GridState, db: Database, commission: boolean): void {
+  function show(view: GridView, state: GridState, database: Database, commission: boolean): void {
     markState(view.grid, state);
     reflectLabel(pageDocument, state === 'partial' ? 'partial' : 'price');
     if (state === 'loading') clearOrder(view.cards);
-    else orderCards(view.cards, db, commission, pageDocument.querySelector(DIRECTION_ASCENDING) === null);
+    else orderCards(view.cards, database, commission, pageDocument.querySelector(DIRECTION_ASCENDING) === null);
   }
 
   function choose(filters: Element): void {
@@ -81,14 +81,14 @@ export function createPriceSort(pageDocument: Document, host: SortHost): PriceSo
   }
 
   return {
-    sync(db, { commission }) {
+    sync(database, { commission }) {
       const filters = pageDocument.querySelector(FILTERS);
       if (!filters) return;
       const on = isPriceMode(filters);
       decorateMenu(pageDocument, on);
       const view = inspectGrid(pageDocument);
       if (!on) return release(view);
-      if (view) show(view, resolve(view), db, commission);
+      if (view) show(view, resolve(view), database, commission);
       else reflectLabel(pageDocument, 'price');
     },
     handleClick(event) {

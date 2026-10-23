@@ -4,7 +4,7 @@ import type { Database } from '../utils/shared/database';
 import { LIST_LOADED_EVENT, encodeLoaded, type LoadOutcome } from '../utils/shared/list-signal';
 import { createPriceSort, touchesSort, type PriceSort, type SortHost } from '../utils/sort/sort-view';
 
-const db: Database = {
+const database: Database = {
   cheap: { price: 1.5, name: 'Cheap', rank: 'F' },
   mid: { price: 20, name: 'Mid', rank: 'D' },
   dear: { price: 300, name: 'Dear', rank: 'S' },
@@ -87,7 +87,7 @@ describe('the menu', () => {
   it('gets a last item for the price, built like the site items and unchecked', () => {
     render({ menu: true });
     const { sort } = setup();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     const items = [...document.querySelectorAll('#cards-browse-order label.radio--list')];
     expect(items).toHaveLength(SORT_ITEMS.length + 1);
     const added = items.at(-1) as HTMLElement;
@@ -100,30 +100,30 @@ describe('the menu', () => {
   it('leaves the item the site checked alone while the mode is off', () => {
     render({ menu: true });
     const { sort } = setup();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(checkedItems()).toEqual(['Дате получения']);
   });
 
   it('is decorated once, however often it is looked at', () => {
     render({ menu: true });
     const { sort } = setup();
-    sort.sync(db, settings);
-    sort.sync(db, settings);
+    sort.sync(database, settings);
+    sort.sync(database, settings);
     expect(document.querySelectorAll('[data-senkutools-sort-item]')).toHaveLength(1);
   });
 
   it('is left alone when it is not the cards page, or a window is open over it, or the menu is not the sort menu of this page', () => {
     render({ menu: true, filters: false });
     const first = setup();
-    first.sort.sync(db, settings);
+    first.sort.sync(database, settings);
     expect(own()).toBeNull();
     render({ menu: true });
     document.body.insertAdjacentHTML('beforeend', '<div class="modal-content modal-content--trade"></div>');
-    first.sort.sync(db, settings);
+    first.sort.sync(database, settings);
     expect(own()).toBeNull();
     render();
     document.body.insertAdjacentHTML('beforeend', '<div class="dropdown-menu dropdown-menu--sm">' + radio('Рангу', true) + '</div>');
-    first.sort.sync(db, settings);
+    first.sort.sync(database, settings);
     expect(own()).toBeNull();
   });
 
@@ -134,10 +134,10 @@ describe('the menu', () => {
       '<div id="cards-browse-order"><div class="dropdown-menu dropdown-menu--sm"><div>Сортировать по</div></div></div>'
     );
     const { sort } = setup();
-    expect(() => sort.sync(db, settings)).not.toThrow();
+    expect(() => sort.sync(database, settings)).not.toThrow();
     expect(own()).toBeNull();
     document.querySelector('#cards-browse-order .dropdown-menu')?.insertAdjacentHTML('beforeend', '<label class="radio--list"></label>');
-    expect(() => sort.sync(db, settings)).not.toThrow();
+    expect(() => sort.sync(database, settings)).not.toThrow();
     expect(own()).toBeNull();
   });
 });
@@ -146,14 +146,14 @@ describe('choosing the price', () => {
   it('turns it on, closes the menu through its button, labels the button and shows the item as the checked one', () => {
     render({ menu: true });
     const { sort, host, choose } = setup();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     const closed = vi.fn();
     document.querySelector('#sort-trigger')?.addEventListener('click', closed);
     choose();
     expect(closed).toHaveBeenCalledTimes(1);
     expect(filters()?.getAttribute('data-senkutools-sort')).toBe('price');
     expect(host.schedule).toHaveBeenCalled();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(label()).toBe('По цене');
     expect(own()?.checked).toBe(true);
     expect([...document.querySelectorAll<HTMLInputElement>('#cards-browse-order input')].filter((input) => input.checked)).toHaveLength(1);
@@ -164,7 +164,7 @@ describe('choosing the price', () => {
     const { sort } = setup();
     on();
     document.body.insertAdjacentHTML('beforeend', menuHtml());
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(own()?.checked).toBe(true);
     expect(document.querySelectorAll<HTMLInputElement>('#cards-browse-order input:checked')).toHaveLength(1);
   });
@@ -172,7 +172,7 @@ describe('choosing the price', () => {
   it('chooses once when the label is clicked, although the browser follows that with a click on the field', () => {
     render({ menu: true });
     const { sort } = setup();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     const closed = vi.fn();
     document.querySelector('#sort-trigger')?.addEventListener('click', closed);
     press(sort, document.querySelector('[data-senkutools-sort-item]'));
@@ -184,14 +184,14 @@ describe('choosing the price', () => {
     render({ menu: true });
     const { sort, host } = setup();
     on();
-    sort.sync(db, settings);
-    sort.sync(db, settings);
+    sort.sync(database, settings);
+    sort.sync(database, settings);
     expect(label()).toBe('По цене');
     const before = vi.mocked(host.schedule).mock.calls.length;
     press(sort, document.querySelector('#cards-browse-order label.radio--list input'));
     expect(filters()?.getAttribute('data-senkutools-sort')).toBeNull();
     expect(vi.mocked(host.schedule).mock.calls.length).toBeGreaterThan(before);
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(label()).toBe('По дате получения');
     expect(filters()?.hasAttribute('data-senkutools-sort-label')).toBe(false);
     expect(grid()?.hasAttribute('data-senkutools-sort-state')).toBe(false);
@@ -201,17 +201,17 @@ describe('choosing the price', () => {
     render({ menu: true });
     const { sort } = setup();
     on();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     document.querySelector('#sort-trigger span')!.textContent = 'По рангу';
     filters()?.removeAttribute('data-senkutools-sort');
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(label()).toBe('По рангу');
   });
 
   it('does nothing when an item of the site is chosen and the price was not on', () => {
     render({ menu: true });
     const { sort, host } = setup();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     press(sort, document.querySelector('#cards-browse-order label.radio--list input'));
     expect(host.schedule).not.toHaveBeenCalled();
   });
@@ -222,7 +222,7 @@ describe('choosing the price', () => {
     document.querySelector('.user-card__filters')!.insertBefore(filterPopper, document.querySelector('#sort-trigger')!.parentElement);
     const { sort } = setup();
     on();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(label()).toBe('По цене');
     expect(document.querySelector('#filter-trigger span')?.textContent).toBe('Фильтр');
   });
@@ -230,7 +230,7 @@ describe('choosing the price', () => {
   it('does nothing for clicks elsewhere', () => {
     render({ menu: true });
     const { sort, host } = setup();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     sort.handleClick(new MouseEvent('click'));
     press(sort, document.querySelector('#filter-trigger'));
     press(sort, document.querySelector('#cards-browse-order .dropdown-menu__caption'));
@@ -244,7 +244,7 @@ describe('ordering the cards', () => {
     render();
     const { sort } = setup();
     on();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(slugsByPlace()).toEqual(['dear', 'mid', 'cheap']);
     expect(grid()?.getAttribute('data-senkutools-sort-state')).toBe('ready');
     expect(label()).toBe('По цене');
@@ -254,7 +254,7 @@ describe('ordering the cards', () => {
     render({ ascending: true });
     const { sort } = setup();
     on();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(slugsByPlace()).toEqual(['cheap', 'mid', 'dear']);
   });
 
@@ -262,7 +262,7 @@ describe('ordering the cards', () => {
     render({ slugs: ['twin', 'mid', 'dear'] });
     const { sort } = setup();
     on();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(slugsByPlace()).toEqual(['dear', 'twin', 'mid']);
   });
 
@@ -281,7 +281,7 @@ describe('ordering the cards', () => {
     render({ slugs: ['bad', 'cheap', 'worse', 'dear'] });
     const { sort } = setup();
     on();
-    sort.sync({ ...db, bad: { price: Number.NaN, name: 'x', rank: 'F' }, worse: { price: null as unknown as number, name: 'y', rank: 'F' } }, settings);
+    sort.sync({ ...database, bad: { price: Number.NaN, name: 'x', rank: 'F' }, worse: { price: null as unknown as number, name: 'y', rank: 'F' } }, settings);
     expect(slugsByPlace()).toEqual(['dear', 'cheap', 'bad', 'worse']);
   });
 
@@ -289,7 +289,7 @@ describe('ordering the cards', () => {
     render({ slugs: ['stranger', 'cheap', 'unknown', 'dear'] });
     const { sort } = setup();
     on();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(slugsByPlace()).toEqual(['dear', 'cheap', 'stranger', 'unknown']);
   });
 
@@ -297,19 +297,19 @@ describe('ordering the cards', () => {
     render({ slugs: ['cheap', 'mid'] });
     const { sort } = setup();
     on();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     document.querySelector('.user-cards-grid')?.insertAdjacentHTML('beforeend', cardHtml('dear', 2));
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(slugsByPlace()).toEqual(['dear', 'mid', 'cheap']);
     filters()?.removeAttribute('data-senkutools-sort');
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(cards().map(placeOf)).toEqual(['', '', '']);
   });
 
   it('does nothing when the cards page is not there', () => {
     render({ filters: false });
     const { sort, requests } = setup();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(requests.count).toBe(0);
     expect(cards().map(placeOf)).toEqual(['', '', '']);
   });
@@ -319,7 +319,7 @@ describe('ordering the cards', () => {
     document.querySelector('.user-cards-grid')?.remove();
     const { sort } = setup();
     on();
-    expect(() => sort.sync(db, settings)).not.toThrow();
+    expect(() => sort.sync(database, settings)).not.toThrow();
     expect(label()).toBe('По цене');
   });
 });
@@ -329,8 +329,8 @@ describe('a list that is not all there', () => {
     render({ more: true });
     const { sort, requests } = setup();
     on();
-    sort.sync(db, settings);
-    sort.sync(db, settings);
+    sort.sync(database, settings);
+    sort.sync(database, settings);
     expect(requests.count).toBe(1);
     expect(grid()?.getAttribute('data-senkutools-sort-state')).toBe('loading');
     expect(cards().map(placeOf)).toEqual(['', '', '']);
@@ -341,11 +341,11 @@ describe('a list that is not all there', () => {
     render({ more: true });
     const { sort, loaded } = setup();
     on();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     grid()?.insertAdjacentHTML('afterbegin', cardHtml('twin', 9));
     grid()?.lastElementChild?.remove();
     loaded(true);
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(grid()?.getAttribute('data-senkutools-sort-state')).toBe('ready');
     expect(slugsByPlace()).toEqual(['dear', 'twin', 'mid', 'cheap']);
   });
@@ -354,10 +354,10 @@ describe('a list that is not all there', () => {
     render({ more: true });
     const { sort, requests, loaded } = setup();
     on();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     loaded(false);
-    sort.sync(db, settings);
-    sort.sync(db, settings);
+    sort.sync(database, settings);
+    sort.sync(database, settings);
     expect(requests.count).toBe(1);
     expect(grid()?.getAttribute('data-senkutools-sort-state')).toBe('partial');
     expect(slugsByPlace()).toEqual(['dear', 'mid', 'cheap']);
@@ -369,11 +369,11 @@ describe('a list that is not all there', () => {
     render({ more: true });
     const { sort, requests, moved } = setup();
     on();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(requests.count).toBe(1);
     grid()?.insertAdjacentHTML('afterbegin', cardHtml('other', 8));
     moved();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(requests.count).toBe(2);
     expect(grid()?.getAttribute('data-senkutools-sort-state')).toBe('loading');
   });
@@ -382,11 +382,11 @@ describe('a list that is not all there', () => {
     render({ more: true });
     const { sort, requests, loaded } = setup();
     on();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     loaded(false);
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     grid()?.insertAdjacentHTML('afterbegin', cardHtml('twin', 9));
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(requests.count).toBe(2);
     expect(grid()?.getAttribute('data-senkutools-sort-state')).toBe('loading');
   });
@@ -395,9 +395,9 @@ describe('a list that is not all there', () => {
     render({ more: true });
     const { sort, requests, loaded } = setup();
     on();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     loaded(true);
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(requests.count).toBe(1);
     expect(grid()?.getAttribute('data-senkutools-sort-state')).toBe('partial');
   });
@@ -406,10 +406,10 @@ describe('a list that is not all there', () => {
     render({ more: true });
     const { sort, requests, loaded } = setup();
     on();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     grid()?.insertAdjacentHTML('afterbegin', cardHtml('twin', 9));
     loaded(false);
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(requests.count).toBe(1);
     expect(grid()?.getAttribute('data-senkutools-sort-state')).toBe('partial');
   });
@@ -418,10 +418,10 @@ describe('a list that is not all there', () => {
     render({ more: true });
     const { sort, requests, loaded } = setup();
     on();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     grid()?.insertAdjacentHTML('afterbegin', cardHtml('twin', 9));
     loaded(true);
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(requests.count).toBe(2);
   });
 
@@ -429,34 +429,34 @@ describe('a list that is not all there', () => {
     render({ more: true });
     const { sort, loaded } = setup();
     on();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     loaded(false);
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(document.querySelector('#sort-trigger')?.hasAttribute('title')).toBe(true);
     grid()?.lastElementChild?.remove();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(label()).toBe('По цене');
     expect(document.querySelector('#sort-trigger')?.hasAttribute('title')).toBe(false);
     render({ more: true });
     on();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     loaded(false);
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     filters()?.removeAttribute('data-senkutools-sort');
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(document.querySelector('#sort-trigger')?.hasAttribute('title')).toBe(false);
   });
 
   it('asks again when the price is chosen once more', () => {
     render({ more: true, menu: true });
     const { sort, requests, loaded, choose } = setup();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     choose();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     loaded(false);
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     choose();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(requests.count).toBe(2);
   });
 
@@ -464,9 +464,9 @@ describe('a list that is not all there', () => {
     render({ slugs: ['mid', 'dear', 'cheap'], more: true });
     const { sort, requests, loaded } = setup();
     on();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     loaded(false);
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(grid()?.getAttribute('data-senkutools-sort-state')).toBe('partial');
     for (const slugs of [
       ['dear', 'twin', 'cheap'],
@@ -474,7 +474,7 @@ describe('a list that is not all there', () => {
     ]) {
       render({ slugs, more: true });
       on();
-      sort.sync(db, settings);
+      sort.sync(database, settings);
       expect(grid()?.getAttribute('data-senkutools-sort-state')).toBe('loading');
       loaded(false);
     }
@@ -485,11 +485,11 @@ describe('a list that is not all there', () => {
     render({ more: true });
     const { sort, requests, loaded } = setup();
     on();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     loaded(true);
     render({ slugs: ['mid', 'cheap'], more: true });
     on();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(requests.count).toBe(2);
     expect(grid()?.getAttribute('data-senkutools-sort-state')).toBe('loading');
   });
@@ -498,15 +498,15 @@ describe('a list that is not all there', () => {
     render({ more: true });
     const { sort, timers, requests } = setup();
     on();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(timers).toHaveLength(1);
     grid()?.insertAdjacentHTML('afterbegin', cardHtml('twin', 9));
     timers.shift()?.();
     expect(timers).toHaveLength(1);
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(grid()?.getAttribute('data-senkutools-sort-state')).toBe('loading');
     timers.shift()?.();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     expect(grid()?.getAttribute('data-senkutools-sort-state')).toBe('partial');
     expect(requests.count).toBe(1);
   });
@@ -515,7 +515,7 @@ describe('a list that is not all there', () => {
     render({ more: true });
     const { sort, timers, loaded, host } = setup();
     on();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     loaded(true);
     const before = vi.mocked(host.schedule).mock.calls.length;
     timers.shift()?.();
@@ -528,7 +528,7 @@ describe('the answer of the page', () => {
     render({ more: true });
     const { sort, host, loaded } = setup();
     on();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     const before = vi.mocked(host.schedule).mock.calls.length;
     loaded(true);
     expect(vi.mocked(host.schedule).mock.calls.length).toBe(before + 1);
@@ -538,7 +538,7 @@ describe('the answer of the page', () => {
     render({ more: true });
     const { sort, host } = setup();
     on();
-    sort.sync(db, settings);
+    sort.sync(database, settings);
     const before = vi.mocked(host.schedule).mock.calls.length;
     sort.handleLoaded(new CustomEvent(LIST_LOADED_EVENT, { detail: 'nonsense' }));
     sort.handleLoaded(new CustomEvent(LIST_LOADED_EVENT));

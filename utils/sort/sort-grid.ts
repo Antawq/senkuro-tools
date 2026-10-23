@@ -22,14 +22,14 @@ export function inspectGrid(pageDocument: Document): GridView | null {
 }
 
 const priceFor =
-  (db: Database, commission: boolean) =>
+  (database: Database, commission: boolean) =>
   (slug: string): number | null => {
-    const entry = db[slug];
+    const entry = database[slug];
     return entry && Number.isFinite(entry.price) ? Number(effectivePrice(entry.price, commission).toFixed(PRICE_DECIMALS)) : null;
   };
 
-export function orderCards(cards: HTMLElement[], db: Database, commission: boolean, descending: boolean): void {
-  const order = priceOrder(cards.map(slugOf), priceFor(db, commission), descending);
+export function orderCards(cards: HTMLElement[], database: Database, commission: boolean, descending: boolean): void {
+  const order = priceOrder(cards.map(slugOf), priceFor(database, commission), descending);
   cards.forEach((card, index) => {
     const place = String(order[index]);
     if (card.style.order !== place) card.style.order = place;
