@@ -24,7 +24,7 @@ function cardsSlug(): string | null {
   return slug || null;
 }
 
-const cardsHeader = (): Element | null => document.querySelector(FILTERS)?.closest(HEADER) ?? null;
+const cardsTitle = (): Element | null => document.querySelector(FILTERS)?.closest(HEADER)?.querySelector(TITLE) ?? null;
 
 function build(slug: string, deps: RefreshDeps): HTMLButtonElement {
   const button = element('button', SITE_BUTTON);
@@ -48,17 +48,14 @@ function build(slug: string, deps: RefreshDeps): HTMLButtonElement {
 
 export function syncRefreshButton(deps: RefreshDeps): void {
   const slug = cardsSlug();
-  const header = cardsHeader();
+  const title = cardsTitle();
   const existing = document.getElementById(REFRESH_BUTTON_ID);
-  const place = slug !== null && header !== null;
+  const place = slug !== null && title !== null;
   if (place && existing?.dataset.slug === slug) return;
   existing?.remove();
   if (!place || !isAppMounted(document)) return;
-  const button = build(slug, deps);
-  const title = header.querySelector(TITLE);
-  if (title) title.after(button);
-  else header.append(button);
+  title.after(build(slug, deps));
 }
 
 export const refreshButtonMissing = (): boolean =>
-  Boolean(cardsSlug() && cardsHeader() && !document.getElementById(REFRESH_BUTTON_ID) && isAppMounted(document));
+  Boolean(cardsSlug() && cardsTitle() && !document.getElementById(REFRESH_BUTTON_ID) && isAppMounted(document));

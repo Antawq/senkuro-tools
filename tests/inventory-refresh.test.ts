@@ -128,11 +128,12 @@ describe('the button', () => {
     expect(document.querySelectorAll(`#${REFRESH_BUTTON_ID}`)).toHaveLength(1);
   });
 
-  it('goes at the end of the header when the site has no title there', () => {
+  it('is not made when the site has no title in the header, and is not asked for', () => {
     open('/users/phaivroh/cards');
     title().remove();
     syncRefreshButton(rig().deps);
-    expect(document.querySelector('header')?.lastElementChild).toBe(button());
+    expect(button()).toBeNull();
+    expect(refreshButtonMissing()).toBe(false);
   });
 
   it('goes after the title of its own header, not after any other title on the page', () => {
