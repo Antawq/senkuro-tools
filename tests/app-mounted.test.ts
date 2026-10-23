@@ -6,18 +6,18 @@ import { APP_MOUNTED_EVENT, POLL_MS, announceMounted, isAppMounted } from '../ut
 
 type PageWindow = Parameters<typeof announceMounted>[0];
 
-const onFakeClock = (win: Window): PageWindow => {
-  win.setTimeout = (run: () => void, ms?: number) => globalThis.setTimeout(run, ms);
-  return win as unknown as PageWindow;
+const onFakeClock = (pageWindow: Window): PageWindow => {
+  pageWindow.setTimeout = (run: () => void, ms?: number) => globalThis.setTimeout(run, ms);
+  return pageWindow as unknown as PageWindow;
 };
 
-const page = (): { win: PageWindow; mount: () => void } => {
-  const win = onFakeClock(new Window({ url: 'https://senkuro.me/users/x/cards' }));
-  win.document.body.innerHTML = '<div id="app"></div>';
+const page = (): { pageWindow: PageWindow; mount: () => void } => {
+  const pageWindow = onFakeClock(new Window({ url: 'https://senkuro.me/users/x/cards' }));
+  pageWindow.document.body.innerHTML = '<div id="app"></div>';
   const mount = () => {
-    (win.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = {};
+    (pageWindow.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = {};
   };
-  return { win, mount };
+  return { pageWindow, mount };
 };
 
 beforeEach(() => {
@@ -30,55 +30,55 @@ afterEach(() => {
 
 describe('announceMounted', () => {
   it('marks the page and says so once the app has mounted, however late', () => {
-    const { win, mount } = page();
+    const { pageWindow, mount } = page();
     const heard = vi.fn();
-    win.document.addEventListener(APP_MOUNTED_EVENT, heard);
-    announceMounted(win);
-    expect(isAppMounted(win.document)).toBe(false);
+    pageWindow.document.addEventListener(APP_MOUNTED_EVENT, heard);
+    announceMounted(pageWindow);
+    expect(isAppMounted(pageWindow.document)).toBe(false);
     vi.advanceTimersByTime(POLL_MS * 5);
     expect(heard).not.toHaveBeenCalled();
     mount();
     vi.advanceTimersByTime(POLL_MS);
-    expect(isAppMounted(win.document)).toBe(true);
+    expect(isAppMounted(pageWindow.document)).toBe(true);
     expect(heard).toHaveBeenCalledOnce();
     vi.advanceTimersByTime(POLL_MS * 30);
     expect(heard).toHaveBeenCalledOnce();
   });
 
   it('is told at once when the app was mounted already', () => {
-    const { win, mount } = page();
+    const { pageWindow, mount } = page();
     mount();
-    announceMounted(win);
-    expect(isAppMounted(win.document)).toBe(true);
+    announceMounted(pageWindow);
+    expect(isAppMounted(pageWindow.document)).toBe(true);
   });
 
   it('waits for the page to draw its root, which may not be there at the start', () => {
-    const win = onFakeClock(new Window({ url: 'https://senkuro.me/' }));
-    announceMounted(win);
+    const pageWindow = onFakeClock(new Window({ url: 'https://senkuro.me/' }));
+    announceMounted(pageWindow);
     vi.advanceTimersByTime(POLL_MS * 3);
-    expect(isAppMounted(win.document)).toBe(false);
-    win.document.body.innerHTML = '<div id="app"></div>';
-    (win.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = {};
+    expect(isAppMounted(pageWindow.document)).toBe(false);
+    pageWindow.document.body.innerHTML = '<div id="app"></div>';
+    (pageWindow.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = {};
     vi.advanceTimersByTime(POLL_MS);
-    expect(isAppMounted(win.document)).toBe(true);
+    expect(isAppMounted(pageWindow.document)).toBe(true);
   });
 
   it('never gives up, however late the app mounts', () => {
-    const { win, mount } = page();
-    announceMounted(win);
+    const { pageWindow, mount } = page();
+    announceMounted(pageWindow);
     vi.advanceTimersByTime(POLL_MS * 1000);
-    expect(isAppMounted(win.document)).toBe(false);
+    expect(isAppMounted(pageWindow.document)).toBe(false);
     mount();
     vi.advanceTimersByTime(POLL_MS);
-    expect(isAppMounted(win.document)).toBe(true);
+    expect(isAppMounted(pageWindow.document)).toBe(true);
   });
 
   it('looks only once for a page however often it is asked to', () => {
-    const { win, mount } = page();
+    const { pageWindow, mount } = page();
     const heard = vi.fn();
-    win.document.addEventListener(APP_MOUNTED_EVENT, heard);
-    announceMounted(win);
-    announceMounted(win);
+    pageWindow.document.addEventListener(APP_MOUNTED_EVENT, heard);
+    announceMounted(pageWindow);
+    announceMounted(pageWindow);
     mount();
     vi.advanceTimersByTime(POLL_MS);
     expect(heard).toHaveBeenCalledOnce();
@@ -87,6 +87,6 @@ describe('announceMounted', () => {
 
 describe('isAppMounted', () => {
   it('is false for a page nobody marked', () => {
-    expect(isAppMounted(page().win.document)).toBe(false);
+    expect(isAppMounted(page().pageWindow.document)).toBe(false);
   });
 });
