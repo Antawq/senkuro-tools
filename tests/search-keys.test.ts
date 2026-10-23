@@ -85,8 +85,8 @@ beforeEach(() => {
   isContextAlive = true;
   signals = createSearchSignals();
   keys = createSearchKeys(document, { runAfter: (run, delayMs) => void setTimeout(run, delayMs), isContextValid: () => isContextAlive, signals });
-  listen('keydown', keys.keydown, { capture: true });
-  listen('input', keys.input, { capture: true });
+  listen('keydown', keys.handleKeydown, { capture: true });
+  listen('input', keys.handleInput, { capture: true });
   listen('keydown', (event: KeyboardEvent) => siteSaw.push(`site:${event.key}`));
 });
 
@@ -730,7 +730,7 @@ describe('arrows', () => {
 
 describe('with signals from the page', () => {
   const emit = (phase: 'start' | 'done', query: string) =>
-    signals.event(new CustomEvent('senkutools:search', { detail: JSON.stringify({ phase, query, type: 'MANGA' }) }));
+    signals.handleEvent(new CustomEvent('senkutools:search', { detail: JSON.stringify({ phase, query, type: 'MANGA' }) }));
 
   const heardOnce = () => {
     emit('start', 'earlier');

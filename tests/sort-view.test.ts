@@ -65,7 +65,7 @@ const setup = () => {
   };
   const sort = createPriceSort(document, host);
   const choose = () => press(sort, own());
-  const answered = (outcome: LoadOutcome) => sort.loaded(new CustomEvent(LIST_LOADED_EVENT, { detail: encodeLoaded(outcome) }));
+  const answered = (outcome: LoadOutcome) => sort.handleLoaded(new CustomEvent(LIST_LOADED_EVENT, { detail: encodeLoaded(outcome) }));
   const loaded = (complete: boolean) => answered(complete ? 'complete' : 'partial');
   const moved = () => answered('moved');
   return { sort, host, requests, timers, choose, loaded, moved };
@@ -74,9 +74,9 @@ const setup = () => {
 const on = () => filters()?.setAttribute('data-senkutools-sort', 'price');
 
 const press = (sort: PriceSort, element: Element | null): void => {
-  document.addEventListener('click', sort.click, true);
+  document.addEventListener('click', sort.handleClick, true);
   element?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-  document.removeEventListener('click', sort.click, true);
+  document.removeEventListener('click', sort.handleClick, true);
 };
 
 beforeEach(() => {
@@ -231,7 +231,7 @@ describe('choosing the price', () => {
     render({ menu: true });
     const { sort, host } = setup();
     sort.sync(db, settings);
-    sort.click(new MouseEvent('click'));
+    sort.handleClick(new MouseEvent('click'));
     press(sort, document.querySelector('#filter-trigger'));
     press(sort, document.querySelector('#cards-browse-order .dropdown-menu__caption'));
     press(sort, document.querySelector('.user-card'));
@@ -540,8 +540,8 @@ describe('the answer of the page', () => {
     on();
     sort.sync(db, settings);
     const before = vi.mocked(host.schedule).mock.calls.length;
-    sort.loaded(new CustomEvent(LIST_LOADED_EVENT, { detail: 'nonsense' }));
-    sort.loaded(new CustomEvent(LIST_LOADED_EVENT));
+    sort.handleLoaded(new CustomEvent(LIST_LOADED_EVENT, { detail: 'nonsense' }));
+    sort.handleLoaded(new CustomEvent(LIST_LOADED_EVENT));
     expect(vi.mocked(host.schedule).mock.calls.length).toBe(before);
     expect(grid()?.getAttribute('data-senkutools-sort-state')).toBe('loading');
   });

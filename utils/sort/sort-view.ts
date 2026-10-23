@@ -15,8 +15,8 @@ export interface SortHost {
 
 export interface PriceSort {
   sync: (db: Database, settings: Pick<Settings, 'commission'>) => void;
-  click: (event: Event) => void;
-  loaded: (event: Event) => void;
+  handleClick: (event: Event) => void;
+  handleLoaded: (event: Event) => void;
 }
 
 export function touchesSort(mutations: Iterable<MutationRecord>): boolean {
@@ -91,7 +91,7 @@ export function createPriceSort(doc: Document, host: SortHost): PriceSort {
       if (view) show(view, resolve(view), db, commission);
       else reflectLabel(doc, 'price');
     },
-    click(event) {
+    handleClick(event) {
       const filters = doc.querySelector(FILTERS);
       const item = event.target instanceof Element ? event.target.closest(`${MENU} ${ITEM}`) : null;
       if (!filters || !item) return;
@@ -102,7 +102,7 @@ export function createPriceSort(doc: Document, host: SortHost): PriceSort {
         host.schedule();
       }
     },
-    loaded(event) {
+    handleLoaded(event) {
       const outcome = readLoaded(event);
       if (outcome === null) return;
       loading = false;

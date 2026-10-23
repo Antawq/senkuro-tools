@@ -9,7 +9,7 @@ export interface SearchSignal {
 }
 
 export interface SearchSignals {
-  event: (event: Event) => void;
+  handleEvent: (event: Event) => void;
   subscribe: (listener: () => void) => void;
   hasSeenSignal: () => boolean;
   isSearchPending: () => boolean;
@@ -35,7 +35,7 @@ export function createSearchSignals(now: () => number = Date.now): SearchSignals
   let lastDone = 0;
 
   return {
-    event(event) {
+    handleEvent(event) {
       const signal = parse(event);
       if (!signal) return;
       hasReceivedSignal = true;

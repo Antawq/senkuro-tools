@@ -24,8 +24,8 @@ const HANDLED_CODES = new Set(['Enter', 'NumpadEnter', 'ArrowDown', 'ArrowUp']);
 const IME_KEY_CODE = 229;
 
 export interface SearchKeys {
-  keydown: (event: KeyboardEvent) => void;
-  input: (event: Event) => void;
+  handleKeydown: (event: KeyboardEvent) => void;
+  handleInput: (event: Event) => void;
   dispose: () => void;
 }
 
@@ -192,7 +192,7 @@ export function createSearchKeys(doc: Document, { runAfter, isContextValid, sign
   };
 
   return {
-    keydown(event) {
+    handleKeydown(event) {
       if (!isContextValid()) {
         dispose();
         return;
@@ -238,7 +238,7 @@ export function createSearchKeys(doc: Document, { runAfter, isContextValid, sign
       if (waiting || isTooShort(currentField()?.value ?? '')) return;
       startWait(topSearchModal, newTab ? { ctrlKey: event.ctrlKey, metaKey: event.metaKey } : null);
     },
-    input(event) {
+    handleInput(event) {
       if (!isContextValid() || !(event.target instanceof HTMLElement) || !event.target.matches(`${SEARCH_MODAL} ${SEARCH_FIELD}`)) return;
       if (adoptTopModal()) noticeTyping();
     },

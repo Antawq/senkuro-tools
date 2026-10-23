@@ -27,8 +27,8 @@ const REFOCUS_TRIGGER = '.tabs-tab, .icon-click, .nav-search__cnt-space button';
 const HOVER_MEDIA_QUERY = '(hover: hover)';
 
 export interface SearchView {
-  touch: () => void;
-  click: (event: MouseEvent) => void;
+  syncView: () => void;
+  handleClick: (event: MouseEvent) => void;
   dispose: () => void;
 }
 
@@ -162,7 +162,7 @@ export function createSearchView(doc: Document, { runAfter, isContextValid, sign
     runAfter(render, MAX_PENDING_MS + EXPIRY_MARGIN_MS);
   });
 
-  const touch = (): void => {
+  const syncView = (): void => {
     if (!isContextValid()) {
       dispose();
       return;
@@ -171,7 +171,7 @@ export function createSearchView(doc: Document, { runAfter, isContextValid, sign
     render();
   };
 
-  const click = (event: MouseEvent): void => {
+  const handleClick = (event: MouseEvent): void => {
     const openSearchModal = isContextValid() ? findTopSearchModal(doc) : null;
     const target = event.target;
     if (!openSearchModal || !(target instanceof Element) || !openSearchModal.contains(target)) return;
@@ -181,10 +181,10 @@ export function createSearchView(doc: Document, { runAfter, isContextValid, sign
     }
     const pointed = event.detail > 0 && target.closest(REFOCUS_TRIGGER) !== null && doc.defaultView?.matchMedia(HOVER_MEDIA_QUERY).matches === true;
     runAfter(() => {
-      touch();
+      syncView();
       if (pointed && isContextValid()) fieldOf(openSearchModal)?.focus({ preventScroll: true });
     }, 0);
   };
 
-  return { touch, click, dispose };
+  return { syncView, handleClick, dispose };
 }

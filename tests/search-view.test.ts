@@ -36,7 +36,7 @@ const list = () => document.querySelector('.nav-search__cnt') as HTMLElement;
 const settle = (ms = 0) => vi.advanceTimersByTimeAsync(ms);
 
 const say = (phase: 'start' | 'done', query = 'naruto') => {
-  signals.event(new CustomEvent(SEARCH_EVENT, { detail: JSON.stringify({ phase, query, type: 'MANGA' }) }));
+  signals.handleEvent(new CustomEvent(SEARCH_EVENT, { detail: JSON.stringify({ phase, query, type: 'MANGA' }) }));
 };
 
 let registry: Map<string, Set<Range>>;
@@ -76,34 +76,34 @@ afterEach(() => {
 describe('stale results', () => {
   it('marks the results of an earlier query once the field is cleared', () => {
     open(['a', 'b'], 'naruto');
-    view.touch();
+    view.syncView();
     expect(modal().hasAttribute('data-stale')).toBe(false);
     field().value = '';
-    view.touch();
+    view.syncView();
     expect(modal().hasAttribute('data-stale')).toBe(true);
     field().value = 'n';
-    view.touch();
+    view.syncView();
     expect(modal().hasAttribute('data-stale')).toBe(true);
     field().value = 'na';
-    view.touch();
+    view.syncView();
     expect(modal().hasAttribute('data-stale')).toBe(false);
   });
 
   it('counts only the typed letters, not the spaces around them', () => {
     open(['a'], ' n ');
-    view.touch();
+    view.syncView();
     expect(modal().hasAttribute('data-stale')).toBe(true);
   });
 
   it('marks nothing while there are no results to hide', () => {
     open([], '');
-    view.touch();
+    view.syncView();
     expect(modal().hasAttribute('data-stale')).toBe(false);
   });
 
   it('follows the results the page draws afterwards', async () => {
     open([], '');
-    view.touch();
+    view.syncView();
     list().innerHTML = rowsOf('a');
     await settle();
     expect(modal().hasAttribute('data-stale')).toBe(true);
@@ -116,7 +116,7 @@ describe('stale results', () => {
 describe('searching', () => {
   it('turns on once a search has taken a while and off when it ends', async () => {
     open(['a'], 'naruto');
-    view.touch();
+    view.syncView();
     say('start');
     await settle(299);
     expect(modal().hasAttribute('data-searching')).toBe(false);
@@ -128,7 +128,7 @@ describe('searching', () => {
 
   it('never shows for a search that answers quickly', async () => {
     open(['a'], 'naruto');
-    view.touch();
+    view.syncView();
     say('start');
     await settle(250);
     say('done');
@@ -138,13 +138,13 @@ describe('searching', () => {
 
   it('stays off while the page-world script has not spoken', () => {
     open(['a'], 'naruto');
-    view.touch();
+    view.syncView();
     expect(modal().hasAttribute('data-searching')).toBe(false);
   });
 
   it('stays off for a query too short to be searched', async () => {
     open(['a'], 'n');
-    view.touch();
+    view.syncView();
     say('start', 'n');
     await settle(400);
     expect(modal().hasAttribute('data-searching')).toBe(false);
@@ -152,7 +152,7 @@ describe('searching', () => {
 
   it('gives up on a search that never reports back', async () => {
     open(['a'], 'naruto');
-    view.touch();
+    view.syncView();
     say('start');
     await settle(400);
     expect(modal().hasAttribute('data-searching')).toBe(true);
@@ -164,7 +164,7 @@ describe('searching', () => {
 describe('scroll position', () => {
   it('goes back to the top when other results arrive', async () => {
     open(['a', 'b', 'c'], 'naruto');
-    view.touch();
+    view.syncView();
     list().scrollTop = 120;
     list().innerHTML = rowsOf('x', 'y', 'z');
     await settle();
@@ -173,7 +173,7 @@ describe('scroll position', () => {
 
   it('scrolls the list back to the top when other results arrive', async () => {
     open(['a', 'b', 'c'], 'naruto');
-    view.touch();
+    view.syncView();
     const scrollTo = vi.spyOn(list(), 'scrollTo');
     list().innerHTML = rowsOf('x', 'y', 'z');
     await settle();
@@ -182,7 +182,7 @@ describe('scroll position', () => {
 
   it('is left alone while the same results stay', async () => {
     open(['a', 'b', 'c'], 'naruto');
-    view.touch();
+    view.syncView();
     list().scrollTop = 120;
     list().firstElementChild?.classList.add('card-search--active');
     await settle();
@@ -193,7 +193,7 @@ describe('scroll position', () => {
 describe('which modal it looks at', () => {
   it('ignores a modal that is closing', () => {
     open(['a'], '', 'vfm vfm--prevent-none');
-    view.touch();
+    view.syncView();
     expect(modal().hasAttribute('data-stale')).toBe(false);
     expect(modal().hasAttribute('data-searching')).toBe(false);
   });
@@ -201,13 +201,13 @@ describe('which modal it looks at', () => {
   it('does nothing once the extension context is gone', () => {
     open(['a'], '');
     isContextAlive = false;
-    view.touch();
+    view.syncView();
     expect(modal().hasAttribute('data-stale')).toBe(false);
   });
 
   it('stops flagging once the extension context is gone while the page keeps changing', async () => {
     open([], '');
-    view.touch();
+    view.syncView();
     isContextAlive = false;
     list().innerHTML = rowsOf('a');
     await settle();
@@ -218,11 +218,11 @@ describe('which modal it looks at', () => {
     open(['a', 'b'], 'naruto');
     modal().insertAdjacentHTML('afterbegin', '<div class="tabs"><button class="tabs-tab tabs-tab--active">Манга</button></div>');
     document.querySelector('[data-index]')?.classList.add('card-search--active');
-    view.touch();
+    view.syncView();
     say('start');
     await settle(400);
     field().value = '';
-    view.touch();
+    view.syncView();
     const marked = (element: Element) =>
       [...element.attributes]
         .map((attribute) => attribute.name)
@@ -235,7 +235,7 @@ describe('which modal it looks at', () => {
 
   it('takes the in-flight flag back when it is disposed during a slow search', async () => {
     open(['a'], 'naruto');
-    view.touch();
+    view.syncView();
     say('start');
     await settle(400);
     expect(modal().hasAttribute('data-searching')).toBe(true);
@@ -245,7 +245,7 @@ describe('which modal it looks at', () => {
 
   it('stops watching the page after dispose', async () => {
     open([], '');
-    view.touch();
+    view.syncView();
     view.dispose();
     list().innerHTML = rowsOf('a');
     await settle();
@@ -256,63 +256,63 @@ describe('which modal it looks at', () => {
 describe('matching words', () => {
   it('marks every occurrence of the typed words in the titles, whatever their case', () => {
     openTitled(['Наруто и НАРУТО', 'Боруто', 'Цикл Naruto'], 'наруто');
-    view.touch();
+    view.syncView();
     expect(matched()).toEqual(['Наруто', 'НАРУТО']);
     field().value = 'naruto';
-    view.touch();
+    view.syncView();
     expect(matched()).toEqual(['Naruto']);
   });
 
   it('does not care about the case the query was typed in', () => {
     openTitled(['Наруто'], 'НАРУТО');
-    view.touch();
+    view.syncView();
     expect(matched()).toEqual(['Наруто']);
   });
 
   it('marks side by side matches once, not overlapping ones', () => {
     openTitled(['aaaa'], 'aa');
-    view.touch();
+    view.syncView();
     expect(matched()).toEqual(['aa', 'aa']);
   });
 
   it('marks each word of a longer query', () => {
     openTitled(['Naruto Uzumaki Boruto'], 'uzumaki naruto');
-    view.touch();
+    view.syncView();
     expect(matched().sort()).toEqual(['Naruto', 'Uzumaki']);
   });
 
   it('marks the names of other kinds of rows too', () => {
     openTitled(['chumei_'], 'chu', 'card-name');
-    view.touch();
+    view.syncView();
     expect(matched()).toEqual(['chu']);
   });
 
   it('marks nothing, and leaves no mark behind, when the titles do not contain the query', () => {
     openTitled(['Naruto'], 'naruto');
-    view.touch();
+    view.syncView();
     expect(registry.has('senkutools-match')).toBe(true);
     field().value = 'bleach';
-    view.touch();
+    view.syncView();
     expect(registry.has('senkutools-match')).toBe(false);
   });
 
   it('leaves out a one-letter word of a longer query', () => {
     openTitled(['Naruto a Uzumaki'], 'a naruto');
-    view.touch();
+    view.syncView();
     expect(matched()).toEqual(['Naruto']);
   });
 
   it('marks nothing while the results are those of a query that is no longer there', () => {
     openTitled(['Naruto'], 'naruto');
-    view.touch();
+    view.syncView();
     field().value = 'n';
-    view.touch();
+    view.syncView();
     expect(registry.has('senkutools-match')).toBe(false);
   });
 
   it('follows the titles the page draws afterwards, including a changed text', async () => {
     openTitled(['Naruto'], 'naruto');
-    view.touch();
+    view.syncView();
     list().innerHTML = titledRows('Boruto', 'Naruto Shippuden');
     await settle();
     expect(matched()).toEqual(['Naruto']);
@@ -324,13 +324,13 @@ describe('matching words', () => {
 
   it('skips a text whose lower case is longer than itself rather than mark the wrong letters', () => {
     openTitled(['İ naruto'], 'naruto');
-    view.touch();
+    view.syncView();
     expect(registry.has('senkutools-match')).toBe(false);
   });
 
   it('removes its marks when it is disposed', () => {
     openTitled(['Naruto'], 'naruto');
-    view.touch();
+    view.syncView();
     expect(registry.has('senkutools-match')).toBe(true);
     view.dispose();
     expect(registry.has('senkutools-match')).toBe(false);
@@ -338,16 +338,16 @@ describe('matching words', () => {
 
   it('removes its marks once the modal is gone', () => {
     openTitled(['Naruto'], 'naruto');
-    view.touch();
+    view.syncView();
     document.body.innerHTML = '';
-    view.touch();
+    view.syncView();
     expect(registry.has('senkutools-match')).toBe(false);
   });
 
   it('works without the highlight API', () => {
     Reflect.deleteProperty(document.defaultView as unknown as object, 'Highlight');
     openTitled(['Naruto'], 'naruto');
-    expect(() => view.touch()).not.toThrow();
+    expect(() => view.syncView()).not.toThrow();
     expect(registry.has('senkutools-match')).toBe(false);
   });
 });
@@ -357,7 +357,7 @@ describe('screen reader wiring', () => {
 
   it('makes the field a combobox over the result list while results are shown', () => {
     open(['a', 'b'], 'naruto');
-    view.touch();
+    view.syncView();
     expect(field().getAttribute('role')).toBe('combobox');
     expect(field().getAttribute('aria-autocomplete')).toBe('list');
     expect(field().getAttribute('aria-expanded')).toBe('true');
@@ -371,7 +371,7 @@ describe('screen reader wiring', () => {
       'afterbegin',
       '<div class="tabs"><button class="tabs-tab tabs-tab--active">Манга</button><button class="tabs-tab">Аниме</button></div>'
     );
-    view.touch();
+    view.syncView();
     const labelOf = () => document.getElementById(list().getAttribute('aria-labelledby') ?? '')?.textContent;
     expect(labelOf()).toBe('Манга');
     const [first, second] = [...document.querySelectorAll('.tabs-tab')];
@@ -385,13 +385,13 @@ describe('screen reader wiring', () => {
   it('leaves the listbox unnamed while it is not one', () => {
     open([], 'naruto');
     modal().insertAdjacentHTML('afterbegin', '<div class="tabs"><button class="tabs-tab tabs-tab--active">Манга</button></div>');
-    view.touch();
+    view.syncView();
     expect(list().hasAttribute('aria-labelledby')).toBe(false);
   });
 
   it('gives each result the option role and an id of its own', () => {
     open(['a', 'b', 'c'], 'naruto');
-    view.touch();
+    view.syncView();
     expect([...document.querySelectorAll('[data-index]')].map((row) => row.getAttribute('role'))).toEqual(['option', 'option', 'option']);
     expect(new Set(optionIds()).size).toBe(3);
     expect(optionIds().every((id) => id && document.querySelectorAll(`[id="${id}"]`).length === 1)).toBe(true);
@@ -399,7 +399,7 @@ describe('screen reader wiring', () => {
 
   it('follows the highlighted result the keys set', async () => {
     open(['a', 'b', 'c'], 'naruto');
-    view.touch();
+    view.syncView();
     const rows = [...document.querySelectorAll<HTMLElement>('[data-index]')];
     expect(rows.map((row) => row.getAttribute('aria-selected'))).toEqual(['false', 'false', 'false']);
     expect(field().hasAttribute('aria-activedescendant')).toBe(false);
@@ -414,7 +414,7 @@ describe('screen reader wiring', () => {
 
   it('describes a field with nothing to choose from as collapsed and the list as no listbox', () => {
     open([], 'naruto');
-    view.touch();
+    view.syncView();
     expect(field().getAttribute('role')).toBe('combobox');
     expect(field().getAttribute('aria-expanded')).toBe('false');
     expect(field().hasAttribute('aria-controls')).toBe(false);
@@ -425,10 +425,10 @@ describe('screen reader wiring', () => {
   it('takes the list back as soon as the results are stale', () => {
     open(['a', 'b'], 'naruto');
     document.querySelector('[data-index]')?.classList.add('card-search--active');
-    view.touch();
+    view.syncView();
     expect(field().hasAttribute('aria-activedescendant')).toBe(true);
     field().value = '';
-    view.touch();
+    view.syncView();
     expect(field().getAttribute('aria-expanded')).toBe('false');
     expect(list().hasAttribute('role')).toBe(false);
     expect(document.querySelector('[data-index]')?.hasAttribute('role')).toBe(false);
@@ -438,7 +438,7 @@ describe('screen reader wiring', () => {
 
   it('wires the results the page draws afterwards', async () => {
     open([], 'naruto');
-    view.touch();
+    view.syncView();
     list().innerHTML = rowsOf('a', 'b');
     await settle();
     expect(field().getAttribute('aria-expanded')).toBe('true');
@@ -447,14 +447,14 @@ describe('screen reader wiring', () => {
 
   it('writes nothing when nothing has changed', async () => {
     open(['a', 'b'], 'naruto');
-    view.touch();
+    view.syncView();
     const writes: string[] = [];
     new MutationObserver((records) => records.forEach((record) => writes.push(record.attributeName ?? ''))).observe(modal(), {
       attributes: true,
       subtree: true,
     });
-    view.touch();
-    view.touch();
+    view.syncView();
+    view.syncView();
     await settle();
     expect(writes).toEqual([]);
   });
@@ -491,12 +491,12 @@ describe('clicks', () => {
     emulateHover(true);
     siteClicks = [];
     document.addEventListener('click', siteHandler);
-    document.addEventListener('click', view.click, { capture: true });
+    document.addEventListener('click', view.handleClick, { capture: true });
   });
 
   afterEach(() => {
     document.removeEventListener('click', siteHandler);
-    document.removeEventListener('click', view.click, { capture: true });
+    document.removeEventListener('click', view.handleClick, { capture: true });
     Reflect.deleteProperty(document.defaultView as unknown as object, 'matchMedia');
   });
 
@@ -583,7 +583,7 @@ describe('clicks', () => {
 
   it('shows the stale state after a click that empties the field without any input event', async () => {
     withControls(['a']);
-    view.touch();
+    view.syncView();
     document.querySelector('.icon-click')?.addEventListener('click', () => (field().value = ''));
     pointer(document.querySelector('.icon-click') as Element);
     await settle();

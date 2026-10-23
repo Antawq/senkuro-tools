@@ -93,16 +93,16 @@ export default defineContentScript({
     };
     const searchKeys = createSearchKeys(document, searchHost);
     const searchView = createSearchView(document, searchHost);
-    ctx.addEventListener(document, SEARCH_EVENT, searchSignals.event);
+    ctx.addEventListener(document, SEARCH_EVENT, searchSignals.handleEvent);
     ctx.onInvalidated(searchKeys.dispose);
     ctx.onInvalidated(searchView.dispose);
-    ctx.addEventListener(document, 'focusin', searchView.touch, { capture: true });
-    ctx.addEventListener(document, 'input', searchView.touch, { capture: true });
-    ctx.addEventListener(document, 'click', searchView.click, { capture: true });
-    ctx.addEventListener(document, 'click', priceSort.click, { capture: true });
-    ctx.addEventListener(document, LIST_LOADED_EVENT, priceSort.loaded);
-    ctx.addEventListener(document, 'keydown', searchKeys.keydown, { capture: true });
-    ctx.addEventListener(document, 'input', searchKeys.input, { capture: true });
+    ctx.addEventListener(document, 'focusin', searchView.syncView, { capture: true });
+    ctx.addEventListener(document, 'input', searchView.syncView, { capture: true });
+    ctx.addEventListener(document, 'click', searchView.handleClick, { capture: true });
+    ctx.addEventListener(document, 'click', priceSort.handleClick, { capture: true });
+    ctx.addEventListener(document, LIST_LOADED_EVENT, priceSort.handleLoaded);
+    ctx.addEventListener(document, 'keydown', searchKeys.handleKeydown, { capture: true });
+    ctx.addEventListener(document, 'input', searchKeys.handleInput, { capture: true });
 
     ctx.addEventListener(window, 'wxt:locationchange', () => {
       badges.resetPage();

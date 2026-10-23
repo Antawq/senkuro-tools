@@ -21,11 +21,11 @@ describe('search signals', () => {
 
   it('is pending from a start until its done', () => {
     const { clock, signals } = clocked();
-    signals.event(start());
+    signals.handleEvent(start());
     expect(signals.hasSeenSignal()).toBe(true);
     expect(signals.isSearchPending()).toBe(true);
     clock.time = 1300;
-    signals.event(done());
+    signals.handleEvent(done());
     expect(signals.isSearchPending()).toBe(false);
     expect(signals.doneAt()).toBe(1300);
   });
@@ -33,37 +33,37 @@ describe('search signals', () => {
   it('tells how long the oldest search in flight has been waiting', () => {
     const { clock, signals } = clocked();
     expect(signals.waited()).toBe(0);
-    signals.event(start('nar'));
+    signals.handleEvent(start('nar'));
     clock.time = 1400;
-    signals.event(start('naruto'));
+    signals.handleEvent(start('naruto'));
     clock.time = 1700;
     expect(signals.waited()).toBe(700);
-    signals.event(done('nar'));
+    signals.handleEvent(done('nar'));
     expect(signals.waited()).toBe(300);
-    signals.event(done('naruto'));
+    signals.handleEvent(done('naruto'));
     expect(signals.waited()).toBe(0);
   });
 
   it('does not count a search it has stopped waiting for', () => {
     const { clock, signals } = clocked();
-    signals.event(start());
+    signals.handleEvent(start());
     clock.time = 1000 + 5000;
     expect(signals.waited()).toBe(0);
   });
 
   it('counts overlapping searches and stays pending until each is done', () => {
     const { signals } = clocked();
-    signals.event(start('nar'));
-    signals.event(start('naruto'));
-    signals.event(done('nar'));
+    signals.handleEvent(start('nar'));
+    signals.handleEvent(start('naruto'));
+    signals.handleEvent(done('nar'));
     expect(signals.isSearchPending()).toBe(true);
-    signals.event(done('naruto'));
+    signals.handleEvent(done('naruto'));
     expect(signals.isSearchPending()).toBe(false);
   });
 
   it('stops waiting for a search that never reports back', () => {
     const { clock, signals } = clocked();
-    signals.event(start());
+    signals.handleEvent(start());
     clock.time = 1000 + 4999;
     expect(signals.isSearchPending()).toBe(true);
     clock.time = 1000 + 5000;
@@ -72,10 +72,10 @@ describe('search signals', () => {
 
   it('ignores events it cannot read', () => {
     const { signals } = clocked();
-    signals.event(new CustomEvent('senkutools:search'));
-    signals.event(new CustomEvent('senkutools:search', { detail: 'not json' }));
-    signals.event(new CustomEvent('senkutools:search', { detail: JSON.stringify({ phase: 'later', query: 'x' }) }));
-    signals.event(new CustomEvent('senkutools:search', { detail: JSON.stringify({ phase: 'start' }) }));
+    signals.handleEvent(new CustomEvent('senkutools:search'));
+    signals.handleEvent(new CustomEvent('senkutools:search', { detail: 'not json' }));
+    signals.handleEvent(new CustomEvent('senkutools:search', { detail: JSON.stringify({ phase: 'later', query: 'x' }) }));
+    signals.handleEvent(new CustomEvent('senkutools:search', { detail: JSON.stringify({ phase: 'start' }) }));
     expect(signals.hasSeenSignal()).toBe(false);
   });
 
@@ -83,9 +83,9 @@ describe('search signals', () => {
     const { signals } = clocked();
     let heard = 0;
     signals.subscribe(() => (heard += 1));
-    signals.event(start());
-    signals.event(new CustomEvent('senkutools:search', { detail: 'not json' }));
-    signals.event(done());
+    signals.handleEvent(start());
+    signals.handleEvent(new CustomEvent('senkutools:search', { detail: 'not json' }));
+    signals.handleEvent(done());
     expect(heard).toBe(2);
   });
 });
