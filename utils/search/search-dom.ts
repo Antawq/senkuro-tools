@@ -30,7 +30,7 @@ export const isTooShort = (query: string): boolean => query.trim().length < MIN_
 export const signatureOf = (rows: HTMLElement[]): string => rows.map((row) => row.getAttribute('href') ?? '').join('|');
 
 export interface SearchHost {
-  later: (run: () => void, ms: number) => void;
-  alive: () => boolean;
+  runAfter: (run: () => void, delayMs: number) => void;
+  isContextValid: () => boolean;
   signals: SearchSignals;
 }

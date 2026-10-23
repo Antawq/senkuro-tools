@@ -51,7 +51,7 @@ const take = (event: Event): void => {
   event.stopImmediatePropagation();
 };
 
-export function createSearchKeys(doc: Document, { later, alive, signals }: SearchHost): SearchKeys {
+export function createSearchKeys(doc: Document, { runAfter, isContextValid, signals }: SearchHost): SearchKeys {
   const spentSearchModals = new WeakSet<HTMLElement>();
   let searchModal: HTMLElement | null = null;
   let observer: MutationObserver | null = null;
@@ -156,9 +156,9 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
     const started = waitStartedAt;
     openResultIfReady(started, waitModal);
     if (!waiting) return;
-    later(() => openResultIfReady(started, waitModal), Math.max(0, typedAt + DEBOUNCE_MS - started) + PAINT_MS);
-    later(() => openResultIfReady(started, waitModal), Math.max(0, typedAt + SETTLE_MS - started));
-    later(() => {
+    runAfter(() => openResultIfReady(started, waitModal), Math.max(0, typedAt + DEBOUNCE_MS - started) + PAINT_MS);
+    runAfter(() => openResultIfReady(started, waitModal), Math.max(0, typedAt + SETTLE_MS - started));
+    runAfter(() => {
       openResultIfReady(started, waitModal);
       if (started === waitStartedAt) waiting = false;
     }, GIVE_UP_MS);
@@ -169,7 +169,7 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
     if (!waiting || !waitModal) return;
     const started = waitStartedAt;
     openResultIfReady(started, waitModal);
-    if (waiting) later(() => openResultIfReady(started, waitModal), PAINT_MS);
+    if (waiting) runAfter(() => openResultIfReady(started, waitModal), PAINT_MS);
   });
 
   const step = (rows: HTMLElement[], delta: number): void => {
@@ -193,7 +193,7 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
 
   return {
     keydown(event) {
-      if (!alive()) {
+      if (!isContextValid()) {
         dispose();
         return;
       }
@@ -239,7 +239,7 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
       startWait(topSearchModal, newTab ? { ctrlKey: event.ctrlKey, metaKey: event.metaKey } : null);
     },
     input(event) {
-      if (!alive() || !(event.target instanceof HTMLElement) || !event.target.matches(`${SEARCH_MODAL} ${SEARCH_FIELD}`)) return;
+      if (!isContextValid() || !(event.target instanceof HTMLElement) || !event.target.matches(`${SEARCH_MODAL} ${SEARCH_FIELD}`)) return;
       if (adoptTopModal()) noticeTyping();
     },
     dispose,

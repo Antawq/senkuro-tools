@@ -60,7 +60,7 @@ const setup = () => {
   const timers: (() => void)[] = [];
   const host: SortHost = {
     request: () => void (requests.count += 1),
-    later: (run) => void timers.push(run),
+    runAfter: (run) => void timers.push(run),
     schedule: vi.fn<() => void>(),
   };
   const sort = createPriceSort(document, host);

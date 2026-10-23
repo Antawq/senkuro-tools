@@ -9,7 +9,7 @@ const STALL_MS = 15000;
 
 export interface SortHost {
   request: () => void;
-  later: (run: () => void, ms: number) => void;
+  runAfter: (run: () => void, delayMs: number) => void;
   schedule: () => void;
 }
 
@@ -35,7 +35,7 @@ export function createPriceSort(doc: Document, host: SortHost): PriceSort {
   const keyNow = (): string => inspectGrid(doc)?.key ?? '';
 
   const watch = (seen: string): void =>
-    host.later(() => {
+    host.runAfter(() => {
       if (!loading) return;
       const now = keyNow();
       if (now !== seen) return watch(now);

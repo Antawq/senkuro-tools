@@ -55,7 +55,7 @@ export default defineContentScript({
     const badges = createPriceBadges({ touch });
     const priceSort = createPriceSort(document, {
       request: () => void document.dispatchEvent(new CustomEvent(LIST_LOAD_EVENT)),
-      later: (run, ms) => void ctx.setTimeout(run, ms),
+      runAfter: (run, delayMs) => void ctx.setTimeout(run, delayMs),
       schedule: loop.schedule,
     });
 
@@ -86,7 +86,11 @@ export default defineContentScript({
     );
 
     const searchSignals = createSearchSignals();
-    const searchHost = { later: (run: () => void, ms: number) => void ctx.setTimeout(run, ms), alive: () => !ctx.isInvalid, signals: searchSignals };
+    const searchHost = {
+      runAfter: (run: () => void, delayMs: number) => void ctx.setTimeout(run, delayMs),
+      isContextValid: () => !ctx.isInvalid,
+      signals: searchSignals,
+    };
     const searchKeys = createSearchKeys(document, searchHost);
     const searchView = createSearchView(document, searchHost);
     ctx.addEventListener(document, SEARCH_EVENT, searchSignals.event);

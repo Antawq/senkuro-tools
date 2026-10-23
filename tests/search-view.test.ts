@@ -42,7 +42,7 @@ const say = (phase: 'start' | 'done', query = 'naruto') => {
 let registry: Map<string, Set<Range>>;
 let signals: SearchSignals;
 let view: SearchView;
-let alive: boolean;
+let isContextAlive: boolean;
 
 const installHighlights = () => {
   registry = new Map();
@@ -56,11 +56,11 @@ const matched = () => [...(registry.get('senkutools-match') ?? [])].map((range) 
 beforeEach(() => {
   vi.useFakeTimers();
   installHighlights();
-  alive = true;
+  isContextAlive = true;
   signals = createSearchSignals();
   view = createSearchView(document, {
-    later: (run, ms) => void setTimeout(run, ms),
-    alive: () => alive,
+    runAfter: (run, delayMs) => void setTimeout(run, delayMs),
+    isContextValid: () => isContextAlive,
     signals,
   });
 });
@@ -200,7 +200,7 @@ describe('which modal it looks at', () => {
 
   it('does nothing once the extension context is gone', () => {
     open(['a'], '');
-    alive = false;
+    isContextAlive = false;
     view.touch();
     expect(modal().hasAttribute('data-stale')).toBe(false);
   });
@@ -208,7 +208,7 @@ describe('which modal it looks at', () => {
   it('stops flagging once the extension context is gone while the page keeps changing', async () => {
     open([], '');
     view.touch();
-    alive = false;
+    isContextAlive = false;
     list().innerHTML = rowsOf('a');
     await settle();
     expect(modal().hasAttribute('data-stale')).toBe(false);
@@ -576,7 +576,7 @@ describe('clicks', () => {
     const button = document.querySelector('.tabs-tab') as HTMLElement;
     button.focus();
     pointer(button);
-    alive = false;
+    isContextAlive = false;
     await settle();
     expect(document.activeElement).toBe(button);
   });
@@ -602,7 +602,7 @@ describe('clicks', () => {
     document.body.insertAdjacentHTML('beforeend', '<button class="outside">x</button>');
     pointer(document.querySelector('.outside') as Element, { ctrlKey: true });
     expect(siteClicks).toHaveLength(1);
-    alive = false;
+    isContextAlive = false;
     pointer(document.querySelector('[data-index]') as Element, { ctrlKey: true });
     expect(siteClicks).toHaveLength(2);
   });

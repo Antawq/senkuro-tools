@@ -51,7 +51,7 @@ const wordsOf = (query: string): string[] => [
   ),
 ];
 
-export function createSearchView(doc: Document, { later, alive, signals }: SearchHost): SearchView {
+export function createSearchView(doc: Document, { runAfter, isContextValid, signals }: SearchHost): SearchView {
   let searchModal: HTMLElement | null = null;
   let observer: MutationObserver | null = null;
   let shownSignature = '';
@@ -115,7 +115,7 @@ export function createSearchView(doc: Document, { later, alive, signals }: Searc
 
   const render = (): void => {
     const openSearchModal = searchModal;
-    if (!openSearchModal || !alive()) return;
+    if (!openSearchModal || !isContextValid()) return;
     const query = fieldOf(openSearchModal)?.value ?? '';
     const rows = rowsOf(openSearchModal);
     const tooShort = isTooShort(query);
@@ -158,12 +158,12 @@ export function createSearchView(doc: Document, { later, alive, signals }: Searc
   signals.subscribe(() => {
     render();
     if (!searchModal || !signals.pending()) return;
-    later(render, SLOW_SEARCH_MS);
-    later(render, MAX_PENDING_MS + EXPIRY_MARGIN_MS);
+    runAfter(render, SLOW_SEARCH_MS);
+    runAfter(render, MAX_PENDING_MS + EXPIRY_MARGIN_MS);
   });
 
   const touch = (): void => {
-    if (!alive()) {
+    if (!isContextValid()) {
       dispose();
       return;
     }
@@ -172,7 +172,7 @@ export function createSearchView(doc: Document, { later, alive, signals }: Searc
   };
 
   const click = (event: MouseEvent): void => {
-    const openSearchModal = alive() ? findTopSearchModal(doc) : null;
+    const openSearchModal = isContextValid() ? findTopSearchModal(doc) : null;
     const target = event.target;
     if (!openSearchModal || !(target instanceof Element) || !openSearchModal.contains(target)) return;
     if ((event.ctrlKey || event.metaKey || event.shiftKey) && target.closest(RESULT_ROW)) {
@@ -180,9 +180,9 @@ export function createSearchView(doc: Document, { later, alive, signals }: Searc
       return;
     }
     const pointed = event.detail > 0 && target.closest(REFOCUS_TRIGGER) !== null && doc.defaultView?.matchMedia(HOVER_MEDIA_QUERY).matches === true;
-    later(() => {
+    runAfter(() => {
       touch();
-      if (pointed && alive()) fieldOf(openSearchModal)?.focus({ preventScroll: true });
+      if (pointed && isContextValid()) fieldOf(openSearchModal)?.focus({ preventScroll: true });
     }, 0);
   };
 

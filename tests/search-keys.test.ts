@@ -39,7 +39,7 @@ const clickKeys: string[] = [];
 let siteSaw: string[];
 let keys: SearchKeys;
 let detach: (() => void)[];
-let alive: boolean;
+let isContextAlive: boolean;
 let signals: SearchSignals;
 
 const press = (key: string, init: KeyboardEventInit = {}, target: EventTarget = input()) => {
@@ -82,9 +82,9 @@ beforeEach(() => {
   clickKeys.length = 0;
   siteSaw = [];
   detach = [];
-  alive = true;
+  isContextAlive = true;
   signals = createSearchSignals();
-  keys = createSearchKeys(document, { later: (run, ms) => void setTimeout(run, ms), alive: () => alive, signals });
+  keys = createSearchKeys(document, { runAfter: (run, delayMs) => void setTimeout(run, delayMs), isContextValid: () => isContextAlive, signals });
   listen('keydown', keys.keydown, { capture: true });
   listen('input', keys.input, { capture: true });
   listen('keydown', (event: KeyboardEvent) => siteSaw.push(`site:${event.key}`));
@@ -415,7 +415,7 @@ describe('Enter', () => {
 
   it('does nothing once the extension has been unloaded', () => {
     open(['a']);
-    alive = false;
+    isContextAlive = false;
     const event = press('Enter');
     expect(clicked).toEqual([]);
     expect(event.defaultPrevented).toBe(false);
@@ -486,7 +486,7 @@ describe('Ctrl or Meta+Enter', () => {
 
   it('does nothing once the extension has been unloaded', async () => {
     await ready(['a']);
-    alive = false;
+    isContextAlive = false;
     press('Enter', { ctrlKey: true });
     expect(clicked).toEqual([]);
     expect(siteSaw).toContain('site:Enter');
@@ -567,7 +567,7 @@ describe('the slash key', () => {
 
   it('does nothing once the extension has been unloaded', () => {
     page();
-    alive = false;
+    isContextAlive = false;
     slash();
     expect(opened).toBe(0);
   });
@@ -912,7 +912,7 @@ describe('Ctrl+K', () => {
 
   it('does nothing once the extension has been unloaded', () => {
     open(['a']);
-    alive = false;
+    isContextAlive = false;
     const event = hotkey();
     expect(event.defaultPrevented).toBe(false);
     expect(siteSaw).toContain('site:k');
