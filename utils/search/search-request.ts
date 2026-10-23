@@ -27,32 +27,32 @@ interface AstNode {
   definitions?: AstNode[];
 }
 
-const widened = new WeakMap<object, unknown>();
-const patched = new WeakSet<QueryClient>();
+const widenedByQueryDocument = new WeakMap<object, unknown>();
+const patchedClients = new WeakSet<QueryClient>();
 
 const isPageArgument = (node: AstNode, size: number): boolean =>
   node.kind === 'Argument' && node.name?.value === PAGE_ARGUMENT && node.value?.kind === INT_LITERAL && Number(node.value.value) < size;
 
 function setPageSizeInQuery(node: AstNode | undefined, size: number): boolean {
   if (!node) return false;
-  let changed = false;
+  let didChange = false;
   const isSearchField = node.kind === 'Field' && node.name?.value === SEARCH_OPERATION;
   for (const argument of isSearchField ? (node.arguments ?? []) : []) {
     if (!isPageArgument(argument, size) || !argument.value) continue;
     argument.value.value = String(size);
-    changed = true;
+    didChange = true;
   }
   const children = [...(node.definitions ?? []), ...(node.selections ?? []), ...(node.selectionSet ? [node.selectionSet] : [])];
-  return children.map((child) => setPageSizeInQuery(child, size)).some(Boolean) || changed;
+  return children.map((child) => setPageSizeInQuery(child, size)).some(Boolean) || didChange;
 }
 
-function widenQueryDocument(document: object, size: number): unknown {
-  if (widened.has(document)) return widened.get(document);
-  const copy = structuredClone(document) as AstNode & Record<string, unknown>;
+function widenQueryDocument(queryDocument: object, size: number): unknown {
+  if (widenedByQueryDocument.has(queryDocument)) return widenedByQueryDocument.get(queryDocument);
+  const copy = structuredClone(queryDocument) as AstNode & Record<string, unknown>;
   Reflect.deleteProperty(copy, DOCUMENT_KEY);
-  const result = setPageSizeInQuery(copy, size) ? copy : null;
-  widened.set(document, result);
-  return result;
+  const widenedQuery = setPageSizeInQuery(copy, size) ? copy : null;
+  widenedByQueryDocument.set(queryDocument, widenedQuery);
+  return widenedQuery;
 }
 
 const keyFor = (key: number, size: number): number => (Math.imul(key ^ KEY_HASH_MIX, KEY_HASH_STRIDE) + size) | 0;
@@ -66,15 +66,15 @@ export function widenSearchRequest(request: QueryRequest, size = SEARCH_PAGE_SIZ
 function publishSearchPhases(source: unknown, request: QueryRequest, publish: Publish): unknown {
   const { query, type } = request.variables ?? {};
   if (typeof source !== 'function' || typeof query !== 'string' || typeof type !== 'string') return source;
-  let open = 0;
+  let openCount = 0;
   const finish = () => {
-    if (open === 0) return;
-    open -= 1;
+    if (openCount === 0) return;
+    openCount -= 1;
     publish({ phase: 'done', query, type });
   };
   return tapSource(source as (sink: Sink<SourceResult>) => void, {
     start: () => {
-      open += 1;
+      openCount += 1;
       publish({ phase: 'start', query, type });
     },
     settled: finish,
@@ -83,7 +83,7 @@ function publishSearchPhases(source: unknown, request: QueryRequest, publish: Pu
 }
 
 export function installSearchWidening(client: QueryClient, publish: Publish = () => undefined, size = SEARCH_PAGE_SIZE): boolean {
-  if (patched.has(client)) return true;
+  if (patchedClients.has(client)) return true;
   const original = client.executeQuery.bind(client);
   try {
     client.executeQuery = (request, options) => {
@@ -93,7 +93,7 @@ export function installSearchWidening(client: QueryClient, publish: Publish = ()
   } catch {
     return false;
   }
-  patched.add(client);
+  patchedClients.add(client);
   return true;
 }
 
