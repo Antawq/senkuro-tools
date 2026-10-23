@@ -51,7 +51,7 @@ const wordsOf = (query: string): string[] => [
   ),
 ];
 
-export function createSearchView(doc: Document, { runAfter, isContextValid, signals }: SearchHost): SearchView {
+export function createSearchView(pageDocument: Document, { runAfter, isContextValid, signals }: SearchHost): SearchView {
   let searchModal: HTMLElement | null = null;
   let observer: MutationObserver | null = null;
   let shownSignature = '';
@@ -59,14 +59,14 @@ export function createSearchView(doc: Document, { runAfter, isContextValid, sign
   const matchesIn = (titles: HTMLElement[], words: string[]): Range[] => {
     const ranges: Range[] = [];
     for (const title of titles) {
-      const texts = doc.createTreeWalker(title, NodeFilter.SHOW_TEXT);
+      const texts = pageDocument.createTreeWalker(title, NodeFilter.SHOW_TEXT);
       for (let node = texts.nextNode(); node; node = texts.nextNode()) {
         const text = node.nodeValue ?? '';
         const lower = text.toLowerCase();
         if (lower.length !== text.length) continue;
         for (const word of words) {
           for (let at = lower.indexOf(word); at >= 0; at = lower.indexOf(word, at + word.length)) {
-            const range = doc.createRange();
+            const range = pageDocument.createRange();
             range.setStart(node, at);
             range.setEnd(node, at + word.length);
             ranges.push(range);
@@ -78,7 +78,7 @@ export function createSearchView(doc: Document, { runAfter, isContextValid, sign
   };
 
   const paint = (searchModal: HTMLElement, query: string): void => {
-    const view = doc.defaultView;
+    const view = pageDocument.defaultView;
     if (!view?.CSS?.highlights || typeof view.Highlight !== 'function') return;
     const ranges = matchesIn([...searchModal.querySelectorAll<HTMLElement>(RESULT_TITLE)], wordsOf(query));
     if (ranges.length > 0) view.CSS.highlights.set(MATCH_HIGHLIGHT, new view.Highlight(...ranges));
@@ -110,7 +110,7 @@ export function createSearchView(doc: Document, { runAfter, isContextValid, sign
   };
 
   const unpaint = (): void => {
-    doc.defaultView?.CSS?.highlights?.delete(MATCH_HIGHLIGHT);
+    pageDocument.defaultView?.CSS?.highlights?.delete(MATCH_HIGHLIGHT);
   };
 
   const render = (): void => {
@@ -143,7 +143,7 @@ export function createSearchView(doc: Document, { runAfter, isContextValid, sign
   };
 
   const adopt = (): void => {
-    const topSearchModal = findTopSearchModal(doc);
+    const topSearchModal = findTopSearchModal(pageDocument);
     if (topSearchModal === searchModal) return;
     observer?.disconnect();
     observer = null;
@@ -172,14 +172,14 @@ export function createSearchView(doc: Document, { runAfter, isContextValid, sign
   };
 
   const handleClick = (event: MouseEvent): void => {
-    const openSearchModal = isContextValid() ? findTopSearchModal(doc) : null;
+    const openSearchModal = isContextValid() ? findTopSearchModal(pageDocument) : null;
     const target = event.target;
     if (!openSearchModal || !(target instanceof Element) || !openSearchModal.contains(target)) return;
     if ((event.ctrlKey || event.metaKey || event.shiftKey) && target.closest(RESULT_ROW)) {
       event.stopImmediatePropagation();
       return;
     }
-    const pointed = event.detail > 0 && target.closest(REFOCUS_TRIGGER) !== null && doc.defaultView?.matchMedia(HOVER_MEDIA_QUERY).matches === true;
+    const pointed = event.detail > 0 && target.closest(REFOCUS_TRIGGER) !== null && pageDocument.defaultView?.matchMedia(HOVER_MEDIA_QUERY).matches === true;
     runAfter(() => {
       syncView();
       if (pointed && isContextValid()) fieldOf(openSearchModal)?.focus({ preventScroll: true });

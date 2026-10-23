@@ -35,23 +35,23 @@ export const operationName = (request: QueryRequest): string | undefined =>
 const isClient = (value: unknown): value is QueryClient =>
   CLIENT_METHODS.every((name) => typeof (value as Record<string, unknown> | null)?.[name] === 'function');
 
-export function findClient(doc: Document): QueryClient | null {
-  const app = doc.querySelector<Element & { __vue_app__?: VueApp }>(APP_ROOT)?.__vue_app__;
+export function findClient(pageDocument: Document): QueryClient | null {
+  const app = pageDocument.querySelector<Element & { __vue_app__?: VueApp }>(APP_ROOT)?.__vue_app__;
   const provided = app?._context?.provides?.[CLIENT_KEY];
   if (isClient(provided)) return provided;
   const inner = (provided as { value?: unknown } | null | undefined)?.value;
   return isClient(inner) ? inner : null;
 }
 
-function watch(win: PageWindow, waiting: Waiting): void {
-  const nativeFetch = win.fetch.bind(win);
-  win.fetch = (...args: Parameters<typeof fetch>) => {
+function watch(pageWindow: PageWindow, waiting: Waiting): void {
+  const nativeFetch = pageWindow.fetch.bind(pageWindow);
+  pageWindow.fetch = (...args: Parameters<typeof fetch>) => {
     const pending = nativeFetch(...args);
     if (!waiting.client) {
       void pending.then(
         () => {
           if (waiting.client) return;
-          const client = findClient(win.document);
+          const client = findClient(pageWindow.document);
           if (!client) return;
           waiting.client = client;
           waiting.callbacks.splice(0).forEach((run) => run(client));
@@ -63,13 +63,13 @@ function watch(win: PageWindow, waiting: Waiting): void {
   };
 }
 
-export function whenClient(win: PageWindow, run: (client: QueryClient) => void): void {
-  const host = win as unknown as Record<symbol, Waiting | undefined>;
+export function whenClient(pageWindow: PageWindow, run: (client: QueryClient) => void): void {
+  const host = pageWindow as unknown as Record<symbol, Waiting | undefined>;
   let waiting = host[WAITING];
   if (!waiting) {
     waiting = { client: null, callbacks: [] };
     host[WAITING] = waiting;
-    watch(win, waiting);
+    watch(pageWindow, waiting);
   }
   if (waiting.client) run(waiting.client);
   else waiting.callbacks.push(run);

@@ -18,20 +18,20 @@ const body = (variables: Variables, operationName = LIST_OPERATION) => JSON.stri
 type Reply = () => Response | Promise<Response>;
 
 const rig = (reply: Reply = () => new Response(JSON.stringify(answerOf('c1')))) => {
-  const win = new Window({ url: 'https://senkuro.me/users/x/cards' });
+  const pageWindow = new Window({ url: 'https://senkuro.me/users/x/cards' });
   const seen: { url: string; init?: RequestInit }[] = [];
-  win.fetch = ((url: string, init?: RequestInit) => {
+  pageWindow.fetch = ((url: string, init?: RequestInit) => {
     seen.push({ url, init });
     try {
       return Promise.resolve(reply());
     } catch (error) {
       return Promise.reject(error instanceof Error ? error : new Error(String(error)));
     }
-  }) as unknown as typeof win.fetch;
+  }) as unknown as typeof pageWindow.fetch;
   const ledger = createCursorLedger();
-  learnFromFetch(win as unknown as Parameters<typeof learnFromFetch>[0], ledger);
-  const call = (url: string, init?: RequestInit) => (win.fetch as unknown as (url: string, init?: RequestInit) => Promise<Response>)(url, init);
-  return { win, seen, ledger, call };
+  learnFromFetch(pageWindow as unknown as Parameters<typeof learnFromFetch>[0], ledger);
+  const call = (url: string, init?: RequestInit) => (pageWindow.fetch as unknown as (url: string, init?: RequestInit) => Promise<Response>)(url, init);
+  return { pageWindow, seen, ledger, call };
 };
 
 describe('learnFromFetch', () => {
@@ -59,7 +59,7 @@ describe('learnFromFetch', () => {
   });
 
   it('reads the request body and the answer only for list queries on the graphql address', async () => {
-    const { call, ledger, win } = rig();
+    const { call, ledger, pageWindow } = rig();
     await call(GRAPHQL, { method: 'POST', body: body(cards(), 'fetchViewer') });
     await call('https://senkuro.me/other', { method: 'POST', body: body(cards()) });
     await call(new URL(GRAPHQL).href.replace('/graphql', '/graphql/extra'), { method: 'POST', body: body(cards()) });
@@ -70,17 +70,17 @@ describe('learnFromFetch', () => {
     await call(GRAPHQL, { method: 'POST', body: JSON.stringify({ operationName: LIST_OPERATION }) });
     await call(GRAPHQL, { method: 'POST', body: JSON.stringify({ operationName: LIST_OPERATION, variables: 'x' }) });
     expect(ledger.isForeign(shards('c1'))).toBe(false);
-    await win.happyDOM.close();
+    await pageWindow.happyDOM.close();
   });
 
   it('takes the address from a request object or a URL too', async () => {
-    const { call, ledger, win } = rig();
+    const { call, ledger, pageWindow } = rig();
     await call(new URL(GRAPHQL) as unknown as string, { method: 'POST', body: body(cards()) });
     expect(ledger.isForeign(shards('c1'))).toBe(true);
     const second = rig(() => new Response(JSON.stringify(answerOf('c7'))));
     await second.call({ url: GRAPHQL } as unknown as string, { method: 'POST', body: body(cards()) });
     expect(second.ledger.isForeign(shards('c7'))).toBe(true);
-    await win.happyDOM.close();
+    await pageWindow.happyDOM.close();
   });
 
   it('learns nothing from an answer that is not a list, is not json, or has no cursor, and still returns it', async () => {
@@ -149,10 +149,10 @@ describe('learnFromFetch', () => {
   });
 
   it('passes a failed call on as it failed', async () => {
-    const { win, call } = rig(() => {
+    const { pageWindow, call } = rig(() => {
       throw new Error('offline');
     });
     await expect(call(GRAPHQL, { method: 'POST', body: body(cards()) })).rejects.toThrow('offline');
-    await win.happyDOM.close();
+    await pageWindow.happyDOM.close();
   });
 });

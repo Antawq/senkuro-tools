@@ -38,8 +38,8 @@ const acceptedTrade: MutationResult = { operation: request('acceptCardTrade'), d
 const page = { data: { userCards: { pageInfo: { endCursor: 'c1', hasNextPage: false }, edges: [{ node: { modifier: 0, card: { id: 'c1' } } }] } } };
 
 const guardedPage = (installs: InstallGuard[]) => {
-  const win = new Window({ url: 'https://senkuro.me/forge/split' });
-  win.document.body.innerHTML = '<div id="app"></div>';
+  const pageWindow = new Window({ url: 'https://senkuro.me/forge/split' });
+  pageWindow.document.body.innerHTML = '<div id="app"></div>';
   const refreshes: Variables[] = [];
   const pending = [acceptedTrade];
   const client: QueryClient = {
@@ -62,22 +62,22 @@ const guardedPage = (installs: InstallGuard[]) => {
       },
     }),
   };
-  win.fetch = (() => Promise.resolve(new Response(JSON.stringify(page)))) as unknown as typeof win.fetch;
-  (win.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = { _context: { provides: { $urql: { value: client } } } };
-  installs.forEach((install) => install(win as unknown as Parameters<InstallGuard>[0]));
-  const respond = () => win.fetch(GRAPHQL, { method: 'POST', body: JSON.stringify({ operationName: 'fetchViewer' }) });
+  pageWindow.fetch = (() => Promise.resolve(new Response(JSON.stringify(page)))) as unknown as typeof pageWindow.fetch;
+  (pageWindow.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = { _context: { provides: { $urql: { value: client } } } };
+  installs.forEach((install) => install(pageWindow as unknown as Parameters<InstallGuard>[0]));
+  const respond = () => pageWindow.fetch(GRAPHQL, { method: 'POST', body: JSON.stringify({ operationName: 'fetchViewer' }) });
   const browse = (variables: Variables) => client.executeQuery(request(LIST_OPERATION, variables));
   const mutate = (name: string) => (client.executeMutation(request(name)) as { toPromise(): Promise<MutationResult> }).toPromise();
-  return { win, refreshes, respond, browse, mutate };
+  return { pageWindow, refreshes, respond, browse, mutate };
 };
 
 const refreshesAfterTrade = async (installs: InstallGuard[]): Promise<number> => {
-  const { win, refreshes, respond, browse, mutate } = guardedPage(installs);
+  const { pageWindow, refreshes, respond, browse, mutate } = guardedPage(installs);
   await respond();
   browse({ userId: 'USER:1' });
   await mutate('acceptCardTrade');
   await settle();
-  await win.happyDOM.close();
+  await pageWindow.happyDOM.close();
   return refreshes.length;
 };
 
@@ -102,17 +102,17 @@ const trade = {
 };
 
 const eventsPerAnswer = async (installs: InstallCapture[]): Promise<number> => {
-  const win = new Window({ url: 'https://senkuro.me/notifications/all' });
-  win.fetch = (() =>
+  const pageWindow = new Window({ url: 'https://senkuro.me/notifications/all' });
+  pageWindow.fetch = (() =>
     Promise.resolve(
       new Response(JSON.stringify({ data: { cardTrade: trade } }), { headers: { 'content-type': 'application/json' } })
-    )) as unknown as typeof win.fetch;
+    )) as unknown as typeof pageWindow.fetch;
   const seen: Capture[] = [];
-  win.document.addEventListener(TRADES_EVENT, (event) => seen.push(JSON.parse((event as unknown as CustomEvent<string>).detail) as Capture));
-  installs.forEach((install) => install(win as unknown as Parameters<InstallCapture>[0]));
-  await (await win.fetch(GRAPHQL, { method: 'POST' })).json();
+  pageWindow.document.addEventListener(TRADES_EVENT, (event) => seen.push(JSON.parse((event as unknown as CustomEvent<string>).detail) as Capture));
+  installs.forEach((install) => install(pageWindow as unknown as Parameters<InstallCapture>[0]));
+  await (await pageWindow.fetch(GRAPHQL, { method: 'POST' })).json();
   await settle();
-  await win.happyDOM.close();
+  await pageWindow.happyDOM.close();
   return seen.length;
 };
 

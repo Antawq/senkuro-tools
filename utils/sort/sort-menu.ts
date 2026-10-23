@@ -19,9 +19,9 @@ function buildItem(menu: Element): HTMLElement | null {
   return clone;
 }
 
-export function decorateMenu(doc: Document, on: boolean): void {
-  const menu = doc.querySelector(MENU);
-  if (!menu || doc.querySelector(MODAL_CONTENT_SELECTOR)) return;
+export function decorateMenu(pageDocument: Document, on: boolean): void {
+  const menu = pageDocument.querySelector(MENU);
+  if (!menu || pageDocument.querySelector(MODAL_CONTENT_SELECTOR)) return;
   if (!menu.querySelector(OWN_ITEM)) {
     const built = buildItem(menu);
     if (!built) return;
@@ -33,8 +33,8 @@ export function decorateMenu(doc: Document, on: boolean): void {
   }
 }
 
-export const sortTrigger = (doc: Document): HTMLElement | undefined =>
-  [...doc.querySelectorAll<HTMLElement>(TRIGGER)].find((button) => SORT_LABEL.test(button.textContent?.trim() ?? ''));
+export const sortTrigger = (pageDocument: Document): HTMLElement | undefined =>
+  [...pageDocument.querySelectorAll<HTMLElement>(TRIGGER)].find((button) => SORT_LABEL.test(button.textContent?.trim() ?? ''));
 
 function restoreLabel(filters: Element, text: Element): void {
   const saved = filters.getAttribute(SAVED_LABEL_ATTRIBUTE);
@@ -42,9 +42,9 @@ function restoreLabel(filters: Element, text: Element): void {
   if (saved && isOwnLabel(text.textContent)) text.textContent = saved;
 }
 
-export function reflectLabel(doc: Document, state: LabelState): void {
-  const filters = doc.querySelector(FILTERS);
-  const trigger = sortTrigger(doc);
+export function reflectLabel(pageDocument: Document, state: LabelState): void {
+  const filters = pageDocument.querySelector(FILTERS);
+  const trigger = sortTrigger(pageDocument);
   const text = trigger?.querySelector('span');
   if (!filters || !trigger || !text) return;
   if (state === 'off') {

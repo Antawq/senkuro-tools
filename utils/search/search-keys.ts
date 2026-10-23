@@ -51,7 +51,7 @@ const take = (event: Event): void => {
   event.stopImmediatePropagation();
 };
 
-export function createSearchKeys(doc: Document, { runAfter, isContextValid, signals }: SearchHost): SearchKeys {
+export function createSearchKeys(pageDocument: Document, { runAfter, isContextValid, signals }: SearchHost): SearchKeys {
   const spentSearchModals = new WeakSet<HTMLElement>();
   let searchModal: HTMLElement | null = null;
   let observer: MutationObserver | null = null;
@@ -67,7 +67,7 @@ export function createSearchKeys(doc: Document, { runAfter, isContextValid, sign
   let waitNewTab: { ctrlKey: boolean; metaKey: boolean } | null = null;
   let steppedBeforeAnswer = false;
 
-  const findUnspentSearchModal = (): HTMLElement | null => findTopSearchModal(doc, (searchModal) => spentSearchModals.has(searchModal));
+  const findUnspentSearchModal = (): HTMLElement | null => findTopSearchModal(pageDocument, (searchModal) => spentSearchModals.has(searchModal));
 
   const currentField = (): HTMLInputElement | null => (searchModal ? fieldOf(searchModal) : null);
   const currentRows = (): HTMLElement[] => (searchModal ? rowsOf(searchModal) : []);
@@ -116,7 +116,7 @@ export function createSearchKeys(doc: Document, { runAfter, isContextValid, sign
     if (rows.length > 0 && isFresh()) {
       waiting = false;
       const row = rows[index ?? 0];
-      if (waitNewTab) row?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: doc.defaultView, ...waitNewTab }));
+      if (waitNewTab) row?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: pageDocument.defaultView, ...waitNewTab }));
       else {
         spentSearchModals.add(waitModal);
         row?.click();
@@ -180,7 +180,7 @@ export function createSearchKeys(doc: Document, { runAfter, isContextValid, sign
   };
 
   const isModalTarget = (target: EventTarget | null, searchModal: HTMLElement): boolean =>
-    target === doc.body || target === doc.documentElement || (target instanceof Node && searchModal.contains(target));
+    target === pageDocument.body || target === pageDocument.documentElement || (target instanceof Node && searchModal.contains(target));
 
   const dispose = (): void => {
     index = null;
@@ -198,9 +198,9 @@ export function createSearchKeys(doc: Document, { runAfter, isContextValid, sign
         return;
       }
       if (isOpenKey(event)) {
-        const opener = doc.querySelector<HTMLElement>(OPEN_BUTTON);
+        const opener = pageDocument.querySelector<HTMLElement>(OPEN_BUTTON);
         if (event.target instanceof Element && event.target.closest(EDITABLE)) return;
-        if (!opener || doc.querySelector(MODAL_CONTENT_SELECTOR)) return;
+        if (!opener || pageDocument.querySelector(MODAL_CONTENT_SELECTOR)) return;
         take(event);
         opener.click();
         return;

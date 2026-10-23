@@ -97,8 +97,8 @@ export function installSearchWidening(client: QueryClient, publish: Publish = ()
   return true;
 }
 
-export function installSearchRequest(win: PageWindow): void {
-  if (!claimPage(win, 'search-request')) return;
-  const publish: Publish = (signal) => win.document.dispatchEvent(new win.CustomEvent(SEARCH_EVENT, { detail: JSON.stringify(signal) }));
-  whenClient(win, (client) => void installSearchWidening(client, publish));
+export function installSearchRequest(pageWindow: PageWindow): void {
+  if (!claimPage(pageWindow, 'search-request')) return;
+  const publish: Publish = (signal) => pageWindow.document.dispatchEvent(new pageWindow.CustomEvent(SEARCH_EVENT, { detail: JSON.stringify(signal) }));
+  whenClient(pageWindow, (client) => void installSearchWidening(client, publish));
 }

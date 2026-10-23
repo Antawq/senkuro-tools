@@ -137,15 +137,15 @@ describe('widenSearches', () => {
 
 describe('installSearchRequest', () => {
   it('widens the searches once the site client exists, and installs once per page', async () => {
-    const win = new Window({ url: 'https://senkuro.me/' });
-    win.document.body.innerHTML = '<div id="app"></div>';
+    const pageWindow = new Window({ url: 'https://senkuro.me/' });
+    pageWindow.document.body.innerHTML = '<div id="app"></div>';
     const { client, asked } = clientWith();
-    (win.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = { _context: { provides: { $urql: { value: client } } } };
-    win.fetch = (() => Promise.resolve(new Response('{}'))) as unknown as typeof win.fetch;
-    const typed = win as unknown as Parameters<typeof installSearchRequest>[0];
+    (pageWindow.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = { _context: { provides: { $urql: { value: client } } } };
+    pageWindow.fetch = (() => Promise.resolve(new Response('{}'))) as unknown as typeof pageWindow.fetch;
+    const typed = pageWindow as unknown as Parameters<typeof installSearchRequest>[0];
     installSearchRequest(typed);
     installSearchRequest(typed);
-    await win.fetch('https://api.senkuro.me/graphql');
+    await pageWindow.fetch('https://api.senkuro.me/graphql');
     await new Promise((resolve) => setTimeout(resolve, 0));
     client.executeQuery(request('search'));
     expect(asked).toHaveLength(1);
@@ -212,15 +212,15 @@ describe('search signals', () => {
   });
 
   it('reaches the extension as a document event with a JSON detail', async () => {
-    const win = new Window({ url: 'https://senkuro.me/' });
-    win.document.body.innerHTML = '<div id="app"></div>';
+    const pageWindow = new Window({ url: 'https://senkuro.me/' });
+    pageWindow.document.body.innerHTML = '<div id="app"></div>';
     const client = streamingClient();
-    (win.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = { _context: { provides: { $urql: { value: client } } } };
-    win.fetch = (() => Promise.resolve(new Response('{}'))) as unknown as typeof win.fetch;
-    installSearchRequest(win as unknown as Parameters<typeof installSearchRequest>[0]);
+    (pageWindow.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = { _context: { provides: { $urql: { value: client } } } };
+    pageWindow.fetch = (() => Promise.resolve(new Response('{}'))) as unknown as typeof pageWindow.fetch;
+    installSearchRequest(pageWindow as unknown as Parameters<typeof installSearchRequest>[0]);
     const heard: unknown[] = [];
-    win.document.addEventListener(SEARCH_EVENT, (event) => heard.push(JSON.parse((event as unknown as CustomEvent<string>).detail)));
-    await win.fetch('https://api.senkuro.me/graphql');
+    pageWindow.document.addEventListener(SEARCH_EVENT, (event) => heard.push(JSON.parse((event as unknown as CustomEvent<string>).detail)));
+    await pageWindow.fetch('https://api.senkuro.me/graphql');
     await new Promise((resolve) => setTimeout(resolve, 0));
     await (client.executeQuery(request('search')) as { toPromise(): Promise<unknown> }).toPromise();
     expect(heard).toEqual([

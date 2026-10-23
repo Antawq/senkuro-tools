@@ -30,11 +30,11 @@ async function learnFromAnswer(response: Response, variables: Variables, ledger:
   }
 }
 
-export function learnFromFetch(win: PageWindow, ledger: CursorLedger): void {
-  const nativeFetch = win.fetch.bind(win);
-  win.fetch = (...args: Parameters<typeof fetch>) => {
+export function learnFromFetch(pageWindow: PageWindow, ledger: CursorLedger): void {
+  const nativeFetch = pageWindow.fetch.bind(pageWindow);
+  pageWindow.fetch = (...args: Parameters<typeof fetch>) => {
     const pending = nativeFetch(...args);
-    const variables = isGraphqlRequest(args[0], win.location.href) ? listVariables(args[1]) : null;
+    const variables = isGraphqlRequest(args[0], pageWindow.location.href) ? listVariables(args[1]) : null;
     if (!variables) return pending;
     ledger.learn(variables, variables.after);
     return pending.then(async (response) => {

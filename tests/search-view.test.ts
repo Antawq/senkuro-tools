@@ -46,9 +46,9 @@ let isContextAlive: boolean;
 
 const installHighlights = () => {
   registry = new Map();
-  const win = document.defaultView as unknown as object;
-  Object.defineProperty(win, 'Highlight', { value: FakeHighlight, configurable: true });
-  Object.defineProperty(win, 'CSS', { value: { highlights: registry }, configurable: true });
+  const pageWindow = document.defaultView as unknown as object;
+  Object.defineProperty(pageWindow, 'Highlight', { value: FakeHighlight, configurable: true });
+  Object.defineProperty(pageWindow, 'CSS', { value: { highlights: registry }, configurable: true });
 };
 
 const matched = () => [...(registry.get('senkutools-match') ?? [])].map((range) => range.toString());

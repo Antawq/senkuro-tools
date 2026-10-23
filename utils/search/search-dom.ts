@@ -14,8 +14,8 @@ export const OPEN_BUTTON = '.nav-search__btn';
 export const EDITABLE = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
 export const MIN_QUERY_CHARACTERS = 2;
 
-export const findTopSearchModal = (doc: Document, isSpent: (searchModal: HTMLElement) => boolean = () => false): HTMLElement | null => {
-  const openSearchModals = [...doc.querySelectorAll<HTMLElement>(SEARCH_MODAL)].filter(
+export const findTopSearchModal = (pageDocument: Document, isSpent: (searchModal: HTMLElement) => boolean = () => false): HTMLElement | null => {
+  const openSearchModals = [...pageDocument.querySelectorAll<HTMLElement>(SEARCH_MODAL)].filter(
     (searchModal) => !isSpent(searchModal) && !searchModal.closest(MODAL_HOST)?.classList.contains(MODAL_CLOSING_CLASS)
   );
   return openSearchModals.at(-1) ?? null;

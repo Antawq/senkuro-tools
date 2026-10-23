@@ -28,11 +28,11 @@ export function touchesSort(mutations: Iterable<MutationRecord>): boolean {
   return false;
 }
 
-export function createPriceSort(doc: Document, host: SortHost): PriceSort {
+export function createPriceSort(pageDocument: Document, host: SortHost): PriceSort {
   let loading = false;
   let triedAt: string | null = null;
 
-  const keyNow = (): string => inspectGrid(doc)?.key ?? '';
+  const keyNow = (): string => inspectGrid(pageDocument)?.key ?? '';
 
   const watch = (seen: string): void =>
     host.runAfter(() => {
@@ -60,7 +60,7 @@ export function createPriceSort(doc: Document, host: SortHost): PriceSort {
   }
 
   function release(view: GridView | null): void {
-    reflectLabel(doc, 'off');
+    reflectLabel(pageDocument, 'off');
     if (!view) return;
     markState(view.grid, null);
     clearOrder(view.cards);
@@ -68,31 +68,31 @@ export function createPriceSort(doc: Document, host: SortHost): PriceSort {
 
   function show(view: GridView, state: GridState, db: Database, commission: boolean): void {
     markState(view.grid, state);
-    reflectLabel(doc, state === 'partial' ? 'partial' : 'price');
+    reflectLabel(pageDocument, state === 'partial' ? 'partial' : 'price');
     if (state === 'loading') clearOrder(view.cards);
-    else orderCards(view.cards, db, commission, doc.querySelector(DIRECTION_ASCENDING) === null);
+    else orderCards(view.cards, db, commission, pageDocument.querySelector(DIRECTION_ASCENDING) === null);
   }
 
   function choose(filters: Element): void {
     filters.setAttribute(MODE_ATTRIBUTE, PRICE_MODE);
     triedAt = null;
-    sortTrigger(doc)?.click();
+    sortTrigger(pageDocument)?.click();
     host.schedule();
   }
 
   return {
     sync(db, { commission }) {
-      const filters = doc.querySelector(FILTERS);
+      const filters = pageDocument.querySelector(FILTERS);
       if (!filters) return;
       const on = isPriceMode(filters);
-      decorateMenu(doc, on);
-      const view = inspectGrid(doc);
+      decorateMenu(pageDocument, on);
+      const view = inspectGrid(pageDocument);
       if (!on) return release(view);
       if (view) show(view, resolve(view), db, commission);
-      else reflectLabel(doc, 'price');
+      else reflectLabel(pageDocument, 'price');
     },
     handleClick(event) {
-      const filters = doc.querySelector(FILTERS);
+      const filters = pageDocument.querySelector(FILTERS);
       const item = event.target instanceof Element ? event.target.closest(`${MENU} ${ITEM}`) : null;
       if (!filters || !item) return;
       if (item.matches(OWN_ITEM)) {
