@@ -19,9 +19,9 @@ export interface RefreshHost {
   reload: () => void;
 }
 
-const cardsSlug = (): string | null => (CARDS_PATH.test(window.location.pathname) ? extractProfileSlug(window.location.pathname) : null);
+const findCardsSlug = (): string | null => (CARDS_PATH.test(window.location.pathname) ? extractProfileSlug(window.location.pathname) : null);
 
-const cardsTitle = (): Element | null => document.querySelector(FILTERS)?.closest(HEADER)?.querySelector(TITLE) ?? null;
+const findCardsTitle = (): Element | null => document.querySelector(FILTERS)?.closest(HEADER)?.querySelector(TITLE) ?? null;
 
 function build(slug: string, host: RefreshHost): HTMLButtonElement {
   const button = element('button', SITE_BUTTON);
@@ -44,8 +44,8 @@ function build(slug: string, host: RefreshHost): HTMLButtonElement {
 }
 
 export function syncRefreshButton(host: RefreshHost): void {
-  const slug = cardsSlug();
-  const title = cardsTitle();
+  const slug = findCardsSlug();
+  const title = findCardsTitle();
   const existing = document.getElementById(REFRESH_BUTTON_ID);
   const place = slug !== null && title !== null;
   if (place && existing?.dataset.slug === slug) return;
@@ -55,4 +55,4 @@ export function syncRefreshButton(host: RefreshHost): void {
 }
 
 export const refreshButtonMissing = (): boolean =>
-  Boolean(cardsSlug() && cardsTitle() && !document.getElementById(REFRESH_BUTTON_ID) && isAppMounted(document));
+  Boolean(findCardsSlug() && findCardsTitle() && !document.getElementById(REFRESH_BUTTON_ID) && isAppMounted(document));
