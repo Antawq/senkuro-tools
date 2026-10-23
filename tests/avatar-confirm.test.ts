@@ -7,7 +7,7 @@ import {
   MONEY_STICKER_ID,
   createConfirmProps,
   createSiteAssets,
-  findModals,
+  findSiteModals,
   installAvatarConfirm,
   type ModalEntry,
   type SiteAssets,
@@ -86,7 +86,7 @@ beforeEach(() => {
   document.addEventListener('click', siteHandler);
   dispose = installAvatarConfirm({
     pageDocument: document,
-    modals: () => modals,
+    findSiteModals: () => modals,
     assets: { loadConfirmComponent: () => assets.loadConfirmComponent(), findCoinUrl: () => assets.findCoinUrl() },
   });
 });
@@ -344,7 +344,7 @@ describe('finding the modal controller of the site', () => {
   it('takes the one the app provides under the modals symbol', () => {
     const controller = { showModal: () => ({ emitted: () => Promise.resolve(true) }) };
     appWith({ [Symbol('urql')]: {}, [Symbol('modals')]: controller, [Symbol('snackbar')]: {} });
-    expect(findModals(document)).toBe(controller);
+    expect(findSiteModals(document)).toBe(controller);
   });
 
   it.each([
@@ -355,7 +355,7 @@ describe('finding the modal controller of the site', () => {
     ['a modals entry that is empty', () => appWith({ [Symbol('modals')]: null })],
   ])('finds nothing with %s', (_name, setup) => {
     setup();
-    expect(findModals(document)).toBeNull();
+    expect(findSiteModals(document)).toBeNull();
   });
 });
 

@@ -35,7 +35,7 @@ export interface SiteAssets {
 
 interface AvatarConfirmHost {
   pageDocument: Document;
-  modals: () => SiteModals | null;
+  findSiteModals: () => SiteModals | null;
   assets: SiteAssets;
 }
 
@@ -45,7 +45,7 @@ interface VueHost {
 
 const isSiteModals = (value: unknown): value is SiteModals => typeof (value as SiteModals | null)?.showModal === 'function';
 
-export function findModals(pageDocument: Document): SiteModals | null {
+export function findSiteModals(pageDocument: Document): SiteModals | null {
   const provides = (pageDocument.querySelector('#app') as VueHost | null)?.__vue_app__?._context?.provides;
   if (!provides) return null;
   const key = Object.getOwnPropertySymbols(provides).find((symbol) => symbol.description === MODALS_KEY);
@@ -119,7 +119,7 @@ const addCoinToCostMark = (pageDocument: Document, url: string | null): (() => v
   return () => observer.disconnect();
 };
 
-export function installAvatarConfirm({ pageDocument, modals, assets }: AvatarConfirmHost): () => void {
+export function installAvatarConfirm({ pageDocument, findSiteModals, assets }: AvatarConfirmHost): () => void {
   let isReplayingClick = false;
   let isAsking = false;
 
@@ -132,11 +132,11 @@ export function installAvatarConfirm({ pageDocument, modals, assets }: AvatarCon
     }
   };
 
-  const ask = async (site: SiteModals): Promise<boolean> => {
+  const ask = async (siteModals: SiteModals): Promise<boolean> => {
     const [confirmComponent, coinUrl] = await Promise.all([assets.loadConfirmComponent(), assets.findCoinUrl()]);
     const stopAddingCoin = addCoinToCostMark(pageDocument, coinUrl);
     try {
-      const entry = site.showModal(() => Promise.resolve(confirmComponent), createConfirmProps(coinUrl !== null), {});
+      const entry = siteModals.showModal(() => Promise.resolve(confirmComponent), createConfirmProps(coinUrl !== null), {});
       return await Promise.race([entry.emitted('confirm'), entry.emitted('close').then(() => false)]);
     } finally {
       stopAddingCoin();
@@ -147,12 +147,12 @@ export function installAvatarConfirm({ pageDocument, modals, assets }: AvatarCon
     if (isReplayingClick) return;
     const button = event.target instanceof Element ? event.target.closest(BUTTON) : null;
     if (!button) return;
-    const site = modals();
-    if (!site) return;
+    const siteModals = findSiteModals();
+    if (!siteModals) return;
     event.stopImmediatePropagation();
     if (isAsking) return;
     isAsking = true;
-    ask(site)
+    ask(siteModals)
       .then(
         (isConfirmed) => {
           if (isConfirmed) proceed(button);
