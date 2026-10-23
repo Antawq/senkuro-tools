@@ -35,7 +35,7 @@ export async function readCollection(slug: string): Promise<Collection | null> {
   return { at: entry.at, userId: entry.userId, cards: unpackCards(entry.cards), after: entry.after, pages: entry.pages };
 }
 
-export const warnStore = (error: unknown): null => {
+export const warnStoreFailure = (error: unknown): null => {
   console.warn('SenkuTools: profile store', error);
   return null;
 };

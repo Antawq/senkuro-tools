@@ -3,7 +3,7 @@ import { element } from '../shared/dom';
 import { chevronIcon, refreshIcon } from '../shared/svg';
 import { R_RANK, type Valuation } from '../shared/trade-value';
 import { calculateProfileValue, extractProfileSlug, fetchProfileCards, fetchProfileUser, type ProfileValueSummary } from './profile-cards';
-import { isComplete, readCollection, saveCollection, warnStore, type Collection } from './profile-store';
+import { isComplete, readCollection, saveCollection, warnStoreFailure, type Collection } from './profile-store';
 
 export const WIDGET_ID = 'senkuro-profile-card-value';
 
@@ -80,14 +80,14 @@ const valuationKey = ({ commission, valueBySplit, valueBasis, excludeShards }: V
 
 function remember(slug: string, collection: Collection): void {
   known.set(slug, collection);
-  void saveCollection(slug, collection).catch(warnStore);
+  void saveCollection(slug, collection).catch(warnStoreFailure);
 }
 
 function readStored(slug: string, deps: ProfileBadgeDeps): void {
   if (reading.has(slug)) return;
   reading.add(slug);
   void readCollection(slug)
-    .catch(warnStore)
+    .catch(warnStoreFailure)
     .then((collection) => {
       reading.delete(slug);
       if (!known.has(slug)) known.set(slug, collection);
@@ -240,7 +240,7 @@ const widgetFor = (slug: string): HTMLElement | null => {
 };
 
 async function download(slug: string, signal: AbortSignal, fresh: boolean, onPage: (latest: Collection) => void): Promise<Collection | null> {
-  const stored = fresh ? null : ((await readCollection(slug).catch(warnStore)) ?? known.get(slug) ?? null);
+  const stored = fresh ? null : ((await readCollection(slug).catch(warnStoreFailure)) ?? known.get(slug) ?? null);
   if (stored && isComplete(stored)) {
     known.set(slug, stored);
     return stored;

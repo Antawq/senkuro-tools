@@ -2,7 +2,7 @@ import { isAppMounted } from '../shared/app-mounted';
 import { element } from '../shared/dom';
 import { refreshIcon } from '../shared/svg';
 import { extractProfileSlug } from './profile-cards';
-import { warnStore } from './profile-store';
+import { warnStoreFailure } from './profile-store';
 
 export const REFRESH_BUTTON_ID = 'senkuro-inventory-refresh';
 
@@ -37,7 +37,7 @@ function createRefreshButton(slug: string, host: RefreshHost): HTMLButtonElement
     button.disabled = true;
     void host
       .forget(slug)
-      .catch(warnStore)
+      .catch(warnStoreFailure)
       .then(() => host.reload());
   });
   return button;
