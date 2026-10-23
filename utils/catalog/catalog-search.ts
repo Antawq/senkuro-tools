@@ -2,6 +2,7 @@ import { claimPage } from '../shared/page-claim';
 import type { PageWindow } from '../shared/page-window';
 import { runWhenClientFound } from '../shared/urql-client';
 import { findVueApp } from '../shared/vue-app';
+import { installCatalogFallback } from './catalog-fallback';
 
 const CATALOG_ROUTE_NAMES: ReadonlySet<string> = new Set(['browse-manga', 'browse-anime']);
 const QUERY_PARAMETER = 'query';
@@ -40,7 +41,8 @@ export function findRouter(pageDocument: Document): PageRouter | null {
 
 export function installCatalogSearch(pageWindow: PageWindow): void {
   if (!claimPage(pageWindow, 'catalog-search')) return;
-  runWhenClientFound(pageWindow, () => {
+  runWhenClientFound(pageWindow, (client) => {
+    installCatalogFallback(client);
     findRouter(pageWindow.document)?.beforeEach(redirectQueryToSearch);
   });
 }

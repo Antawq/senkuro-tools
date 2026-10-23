@@ -98,7 +98,7 @@ describe('installCatalogSearch', () => {
       await pageWindow.fetch('https://api.senkuro.me/graphql');
       await new Promise((resolve) => setTimeout(resolve, 0));
     };
-    return { guards, router, mount, respond, typed: pageWindow as unknown as Parameters<typeof installCatalogSearch>[0] };
+    return { guards, router, client, mount, respond, typed: pageWindow as unknown as Parameters<typeof installCatalogSearch>[0] };
   };
 
   it('puts its guard on the site router once the app is up, and not before', async () => {
@@ -109,6 +109,15 @@ describe('installCatalogSearch', () => {
     mount();
     await respond();
     expect(router.beforeEach).toHaveBeenCalledTimes(1);
+  });
+
+  it('puts the fallback of the catalog on the site client at the same time', async () => {
+    const { typed, client, mount, respond } = rig();
+    const before = client.executeQuery;
+    installCatalogSearch(typed);
+    mount();
+    await respond();
+    expect(client.executeQuery).not.toBe(before);
   });
 
   it('gives the router the guard that redirects a catalog query', async () => {
