@@ -38,7 +38,7 @@ const deferred = <T>() => {
   return { promise, resolve, reject };
 };
 
-interface Shown {
+interface ShownModal {
   confirmComponent: unknown;
   props: { description: { type: string; text: string }[] };
   options: object;
@@ -47,35 +47,35 @@ interface Shown {
 let siteClicks: string[];
 let answer: ReturnType<typeof deferred<boolean>>;
 let closed: ReturnType<typeof deferred<boolean>>;
-let shown: Shown[];
-let waitedFor: string[];
-let modals: SiteModals | null;
+let shownModals: ShownModal[];
+let awaitedEvents: string[];
+let siteModals: SiteModals | null;
 let assets: SiteAssets;
 let dispose: () => void;
 
 const handleSiteClick = (event: Event) => siteClicks.push((event.target as Element).closest('button')?.id ?? '');
 
-const mountModal = (mark: string) => {
+const mountModal = (costText: string) => {
   document.body.insertAdjacentHTML(
     'beforeend',
-    `<div class="modal-alert"><div class="modal-alert__desc">С вашего баланса спишется <span>${mark}</span>. Продолжить?</div></div>`
+    `<div class="modal-alert"><div class="modal-alert__desc">С вашего баланса спишется <span>${costText}</span>. Продолжить?</div></div>`
   );
 };
 
 beforeEach(() => {
   document.body.innerHTML = APPEARANCE_SECTION_HTML;
   siteClicks = [];
-  shown = [];
-  waitedFor = [];
+  shownModals = [];
+  awaitedEvents = [];
   answer = deferred<boolean>();
   closed = deferred<boolean>();
-  modals = {
+  siteModals = {
     showModal: (loader, props, options) => {
-      void loader().then((confirmComponent) => shown.push({ confirmComponent, props: props as Shown['props'], options }));
-      queueMicrotask(() => mountModal((props as Shown['props']).description[1]?.text ?? ''));
+      void loader().then((confirmComponent) => shownModals.push({ confirmComponent, props: props as ShownModal['props'], options }));
+      queueMicrotask(() => mountModal((props as ShownModal['props']).description[1]?.text ?? ''));
       const entry: ModalEntry = {
         emitted: (event) => {
-          waitedFor.push(event);
+          awaitedEvents.push(event);
           return event === 'confirm' ? answer.promise : closed.promise;
         },
       };
@@ -86,7 +86,7 @@ beforeEach(() => {
   document.addEventListener('click', handleSiteClick);
   dispose = installAvatarConfirm({
     pageDocument: document,
-    findSiteModals: () => modals,
+    findSiteModals: () => siteModals,
     assets: { loadConfirmComponent: () => assets.loadConfirmComponent(), findCoinUrl: () => assets.findCoinUrl() },
   });
 });
@@ -104,14 +104,14 @@ describe('the warning before an avatar upload', () => {
     uploadButton().click();
     await flush();
     expect(siteClicks).toEqual([]);
-    expect(shown).toHaveLength(1);
-    expect(shown[0]?.confirmComponent).toBe(COMPONENT);
+    expect(shownModals).toHaveLength(1);
+    expect(shownModals[0]?.confirmComponent).toBe(COMPONENT);
   });
 
   it('waits for the confirmation and for the window being closed', async () => {
     uploadButton().click();
     await flush();
-    expect(waitedFor).toEqual(['confirm', 'close']);
+    expect(awaitedEvents).toEqual(['confirm', 'close']);
   });
 
   it('shows the money sticker and says the price, with the amount marked as the site marks its own', async () => {
@@ -119,7 +119,7 @@ describe('the warning before an avatar upload', () => {
     await flush();
     expect(MONEY_STICKER_ID).toBe(25);
     expect(AVATAR_COST_SENKOINS).toBe(5000);
-    expect(shown[0]?.props).toEqual(createConfirmProps(true));
+    expect(shownModals[0]?.props).toEqual(createConfirmProps(true));
     expect(createConfirmProps(true).sticker).toBe(MONEY_STICKER_ID);
     expect(createConfirmProps(true).title).toBe('Платная загрузка аватарки');
     expect(createConfirmProps(true).description).toEqual([
@@ -155,7 +155,7 @@ describe('the warning before an avatar upload', () => {
     closed = deferred<boolean>();
     uploadButton().click();
     await flush();
-    expect(shown).toHaveLength(2);
+    expect(shownModals).toHaveLength(2);
   });
 
   it('goes on when the window reports the confirmation first and its closing right after', async () => {
@@ -175,7 +175,7 @@ describe('the warning before an avatar upload', () => {
     answer = deferred<boolean>();
     uploadButton().click();
     await flush();
-    expect(shown).toHaveLength(2);
+    expect(shownModals).toHaveLength(2);
     answer.resolve(true);
     await flush();
     expect(siteClicks).toEqual(['upload']);
@@ -186,7 +186,7 @@ describe('the warning before an avatar upload', () => {
     uploadButton().click();
     uploadButton().click();
     await flush();
-    expect(shown).toHaveLength(1);
+    expect(shownModals).toHaveLength(1);
     answer.resolve(true);
     await flush();
     expect(siteClicks).toEqual(['upload']);
@@ -196,7 +196,7 @@ describe('the warning before an avatar upload', () => {
     (uploadButton().querySelector('span') as HTMLElement).click();
     await flush();
     expect(siteClicks).toEqual([]);
-    expect(shown).toHaveLength(1);
+    expect(shownModals).toHaveLength(1);
   });
 
   it('is only the avatar button, not the button beside it nor the banner', async () => {
@@ -204,7 +204,7 @@ describe('the warning before an avatar upload', () => {
     document.getElementById('banner')?.click();
     await flush();
     expect(siteClicks).toEqual(['remove', 'banner']);
-    expect(shown).toHaveLength(0);
+    expect(shownModals).toHaveLength(0);
   });
 
   it('stops asking once it is switched off', async () => {
@@ -212,7 +212,7 @@ describe('the warning before an avatar upload', () => {
     uploadButton().click();
     await flush();
     expect(siteClicks).toEqual(['upload']);
-    expect(shown).toHaveLength(0);
+    expect(shownModals).toHaveLength(0);
   });
 });
 
@@ -269,7 +269,7 @@ describe('the 3D coin in place of the word', () => {
     assets = { loadConfirmComponent: () => Promise.resolve(COMPONENT), findCoinUrl: () => Promise.resolve(null) };
     uploadButton().click();
     await flush();
-    expect(shown[0]?.props).toEqual(createConfirmProps(false));
+    expect(shownModals[0]?.props).toEqual(createConfirmProps(false));
     expect(createConfirmProps(false).description[1]?.text).toBe(`${AVATAR_COST_SENKOINS} ${COIN_ALT}`);
     expect(costMarks()[0]?.textContent).toBe(`${AVATAR_COST_SENKOINS} ${COIN_ALT}`);
     expect(document.querySelector('img')).toBeNull();
@@ -286,10 +286,10 @@ describe('the 3D coin in place of the word', () => {
   });
 
   it('puts the coin in the window it asked for even when that window is slow to appear', async () => {
-    modals = {
+    siteModals = {
       showModal: (loader, props) => {
         void loader();
-        setTimeout(() => mountModal((props as Shown['props']).description[1]?.text ?? ''), 20);
+        setTimeout(() => mountModal((props as ShownModal['props']).description[1]?.text ?? ''), 20);
         return { emitted: (event) => (event === 'confirm' ? answer.promise : closed.promise) };
       },
     };
@@ -301,7 +301,7 @@ describe('the 3D coin in place of the word', () => {
 
 describe('when the window of the site cannot be reached, the upload is not blocked', () => {
   it('does not even hold the click when the site has no modal controller', () => {
-    modals = null;
+    siteModals = null;
     uploadButton().click();
     expect(siteClicks).toEqual(['upload']);
   });
@@ -314,7 +314,7 @@ describe('when the window of the site cannot be reached, the upload is not block
   });
 
   it('goes on when the controller refuses to show it', async () => {
-    modals = {
+    siteModals = {
       showModal: () => {
         throw new Error('no container');
       },
@@ -331,7 +331,7 @@ describe('when the window of the site cannot be reached, the upload is not block
     assets = { loadConfirmComponent: () => Promise.resolve(COMPONENT), findCoinUrl: () => Promise.resolve(COIN_URL) };
     uploadButton().click();
     await flush();
-    expect(shown).toHaveLength(1);
+    expect(shownModals).toHaveLength(1);
   });
 });
 
@@ -392,8 +392,8 @@ describe('loading the confirm window and the coin of the site', () => {
 
   it('finds no coin when the list names none, or cannot be read, and never fails for it', async () => {
     expect(await createSiteAssets(createPageWindow('precache([])')).findCoinUrl()).toBeNull();
-    const broken = { fetch: vi.fn(() => Promise.reject(new Error('offline'))), location: { origin: 'https://senkuro.me' } as Location };
-    expect(await createSiteAssets(broken).findCoinUrl()).toBeNull();
+    const brokenPageWindow = { fetch: vi.fn(() => Promise.reject(new Error('offline'))), location: { origin: 'https://senkuro.me' } as Location };
+    expect(await createSiteAssets(brokenPageWindow).findCoinUrl()).toBeNull();
   });
 
   it('fails when the list names no such chunk, and tries again next time', async () => {
