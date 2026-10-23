@@ -16,7 +16,7 @@ const cursorOf = (variables: Variables): string | null => {
   return typeof cursor === 'string' ? cursor : null;
 };
 
-export function createCursorLedger(limit = MAX_CURSORS): CursorLedger {
+export function createCursorLedger(maxCursors = MAX_CURSORS): CursorLedger {
   const listIdsByCursor = new Map<string, Set<string>>();
   return {
     learn(variables, cursor) {
@@ -26,7 +26,7 @@ export function createCursorLedger(limit = MAX_CURSORS): CursorLedger {
       listIdsByCursor.delete(cursor);
       listIdsByCursor.set(cursor, listIds);
       const oldestCursor = listIdsByCursor.keys().next();
-      if (listIdsByCursor.size > limit && !oldestCursor.done) listIdsByCursor.delete(oldestCursor.value);
+      if (listIdsByCursor.size > maxCursors && !oldestCursor.done) listIdsByCursor.delete(oldestCursor.value);
     },
     isForeign(variables) {
       const cursor = cursorOf(variables);
