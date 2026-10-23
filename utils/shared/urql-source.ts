@@ -8,7 +8,7 @@ export interface SourceResult {
 
 export interface TapHooks<T extends SourceResult> {
   onStart?: () => void;
-  onSettled?: (result: T) => void;
+  onSettled?: (sourceResult: T) => void;
   onEnd?: () => void;
 }
 
@@ -16,10 +16,10 @@ export interface TappedSource<T extends SourceResult> {
   (sink: Sink<T>): void;
   toPromise(): Promise<T>;
   then: PromiseLike<T>['then'];
-  subscribe(onResult: (result: T) => void): { unsubscribe(): void };
+  subscribe(onResult: (sourceResult: T) => void): { unsubscribe(): void };
 }
 
-export const isSettled = (result: SourceResult): boolean => !result.stale && !result.hasNext;
+export const isSettled = (sourceResult: SourceResult): boolean => !sourceResult.stale && !sourceResult.hasNext;
 
 function callGuarded(run: (() => void) | undefined): () => void {
   return () => {
@@ -34,8 +34,8 @@ function callGuarded(run: (() => void) | undefined): () => void {
 export function tapSource<T extends SourceResult>(source: (sink: Sink<T>) => void, hooks: TapHooks<T>): TappedSource<T> {
   const piped = pipe(
     source,
-    onPush((result: T) => {
-      if (isSettled(result)) callGuarded(() => hooks.onSettled?.(result))();
+    onPush((sourceResult: T) => {
+      if (isSettled(sourceResult)) callGuarded(() => hooks.onSettled?.(sourceResult))();
     }),
     onEnd(callGuarded(hooks.onEnd))
   );
@@ -46,13 +46,13 @@ export function tapSource<T extends SourceResult>(source: (sink: Sink<T>) => voi
   const firstSettledResult = (): Promise<T> =>
     pipe(
       wrapped,
-      filter((result: T) => isSettled(result)),
+      filter((sourceResult: T) => isSettled(sourceResult)),
       take(1),
       toPromise
     );
   return Object.assign(wrapped, {
     toPromise: firstSettledResult,
     then: ((resolve, reject) => firstSettledResult().then(resolve, reject)) as PromiseLike<T>['then'],
-    subscribe: (onResult: (result: T) => void) => subscribe(onResult)(wrapped),
+    subscribe: (onResult: (sourceResult: T) => void) => subscribe(onResult)(wrapped),
   });
 }
