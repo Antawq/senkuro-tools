@@ -71,7 +71,7 @@ const setup = () => {
   return { sort, host, requests, timers, choose, loaded, moved };
 };
 
-const on = () => filters()?.setAttribute('data-senkutools-sort', 'price');
+const enablePriceMode = () => filters()?.setAttribute('data-senkutools-sort', 'price');
 
 const press = (sort: PriceSort, element: Element | null): void => {
   document.addEventListener('click', sort.handleClick, true);
@@ -88,10 +88,10 @@ describe('the menu', () => {
     render({ menu: true });
     const { sort } = setup();
     sort.sync(database, settings);
-    const items = [...document.querySelectorAll('#cards-browse-order label.radio--list')];
-    expect(items).toHaveLength(SORT_ITEMS.length + 1);
-    const added = items.at(-1) as HTMLElement;
-    expect(added.className).toBe(items[0]?.className);
+    const menuItems = [...document.querySelectorAll('#cards-browse-order label.radio--list')];
+    expect(menuItems).toHaveLength(SORT_ITEMS.length + 1);
+    const added = menuItems.at(-1) as HTMLElement;
+    expect(added.className).toBe(menuItems[0]?.className);
     expect(added.textContent?.trim()).toBe('Цене');
     expect(own()?.value).toBe('price');
     expect(own()?.checked).toBe(false);
@@ -162,7 +162,7 @@ describe('choosing the price', () => {
   it('shows it as the checked item when the menu is opened again later', () => {
     render();
     const { sort } = setup();
-    on();
+    enablePriceMode();
     document.body.insertAdjacentHTML('beforeend', menuHtml());
     sort.sync(database, settings);
     expect(own()?.checked).toBe(true);
@@ -183,7 +183,7 @@ describe('choosing the price', () => {
   it('turns off when any item of the site is chosen, and gives the button its own label back', () => {
     render({ menu: true });
     const { sort, host } = setup();
-    on();
+    enablePriceMode();
     sort.sync(database, settings);
     sort.sync(database, settings);
     expect(label()).toBe('По цене');
@@ -200,7 +200,7 @@ describe('choosing the price', () => {
   it('leaves the button text to the site when the site already changed it', () => {
     render({ menu: true });
     const { sort } = setup();
-    on();
+    enablePriceMode();
     sort.sync(database, settings);
     document.querySelector('#sort-trigger span')!.textContent = 'По рангу';
     filters()?.removeAttribute('data-senkutools-sort');
@@ -221,7 +221,7 @@ describe('choosing the price', () => {
     const filterPopper = document.querySelector('#filter-trigger')!.parentElement!;
     document.querySelector('.user-card__filters')!.insertBefore(filterPopper, document.querySelector('#sort-trigger')!.parentElement);
     const { sort } = setup();
-    on();
+    enablePriceMode();
     sort.sync(database, settings);
     expect(label()).toBe('По цене');
     expect(document.querySelector('#filter-trigger span')?.textContent).toBe('Фильтр');
@@ -243,7 +243,7 @@ describe('ordering the cards', () => {
   it('puts the most expensive first, the way the site lists newest and largest first', () => {
     render();
     const { sort } = setup();
-    on();
+    enablePriceMode();
     sort.sync(database, settings);
     expect(slugsByPlace()).toEqual(['dear', 'mid', 'cheap']);
     expect(grid()?.getAttribute('data-senkutools-sort-state')).toBe('ready');
@@ -253,7 +253,7 @@ describe('ordering the cards', () => {
   it('turns around with the direction button of the site', () => {
     render({ ascending: true });
     const { sort } = setup();
-    on();
+    enablePriceMode();
     sort.sync(database, settings);
     expect(slugsByPlace()).toEqual(['cheap', 'mid', 'dear']);
   });
@@ -261,7 +261,7 @@ describe('ordering the cards', () => {
   it('prices cards the way their badges show, so equal-looking prices keep the site order', () => {
     render({ slugs: ['twin', 'mid', 'dear'] });
     const { sort } = setup();
-    on();
+    enablePriceMode();
     sort.sync(database, settings);
     expect(slugsByPlace()).toEqual(['dear', 'twin', 'mid']);
   });
@@ -269,7 +269,7 @@ describe('ordering the cards', () => {
   it('prices cards the way their badges show, with the commission taken when it is', () => {
     render({ slugs: ['a', 'b'] });
     const { sort } = setup();
-    on();
+    enablePriceMode();
     const prices: Database = { a: { price: 100.004, name: 'A', rank: 'F' }, b: { price: 100.006, name: 'B', rank: 'F' } };
     sort.sync(prices, { commission: false });
     expect(slugsByPlace()).toEqual(['b', 'a']);
@@ -280,7 +280,7 @@ describe('ordering the cards', () => {
   it('counts a price that is not a number as no price', () => {
     render({ slugs: ['bad', 'cheap', 'worse', 'dear'] });
     const { sort } = setup();
-    on();
+    enablePriceMode();
     sort.sync({ ...database, bad: { price: Number.NaN, name: 'x', rank: 'F' }, worse: { price: null as unknown as number, name: 'y', rank: 'F' } }, settings);
     expect(slugsByPlace()).toEqual(['dear', 'cheap', 'bad', 'worse']);
   });
@@ -288,7 +288,7 @@ describe('ordering the cards', () => {
   it('puts cards the database does not know at the end, in the site order', () => {
     render({ slugs: ['stranger', 'cheap', 'unknown', 'dear'] });
     const { sort } = setup();
-    on();
+    enablePriceMode();
     sort.sync(database, settings);
     expect(slugsByPlace()).toEqual(['dear', 'cheap', 'stranger', 'unknown']);
   });
@@ -296,7 +296,7 @@ describe('ordering the cards', () => {
   it('puts in order the cards that arrive later, and takes the order off when the mode ends', () => {
     render({ slugs: ['cheap', 'mid'] });
     const { sort } = setup();
-    on();
+    enablePriceMode();
     sort.sync(database, settings);
     document.querySelector('.user-cards-grid')?.insertAdjacentHTML('beforeend', cardHtml('dear', 2));
     sort.sync(database, settings);
@@ -318,7 +318,7 @@ describe('ordering the cards', () => {
     render();
     document.querySelector('.user-cards-grid')?.remove();
     const { sort } = setup();
-    on();
+    enablePriceMode();
     expect(() => sort.sync(database, settings)).not.toThrow();
     expect(label()).toBe('По цене');
   });
@@ -328,7 +328,7 @@ describe('a list that is not all there', () => {
   it('asks for the rest once, keeps the site order and dims the grid until it has come', () => {
     render({ more: true });
     const { sort, requests } = setup();
-    on();
+    enablePriceMode();
     sort.sync(database, settings);
     sort.sync(database, settings);
     expect(requests.count).toBe(1);
@@ -340,7 +340,7 @@ describe('a list that is not all there', () => {
   it('orders the whole list once the rest has come', () => {
     render({ more: true });
     const { sort, loaded } = setup();
-    on();
+    enablePriceMode();
     sort.sync(database, settings);
     grid()?.insertAdjacentHTML('afterbegin', cardHtml('twin', 9));
     grid()?.lastElementChild?.remove();
@@ -353,7 +353,7 @@ describe('a list that is not all there', () => {
   it('shows what it has, says so, and does not ask again, when the rest could not be loaded', () => {
     render({ more: true });
     const { sort, requests, loaded } = setup();
-    on();
+    enablePriceMode();
     sort.sync(database, settings);
     loaded(false);
     sort.sync(database, settings);
@@ -368,7 +368,7 @@ describe('a list that is not all there', () => {
   it('asks for the list the site moved to when the load it started was left half way by that move', () => {
     render({ more: true });
     const { sort, requests, moved } = setup();
-    on();
+    enablePriceMode();
     sort.sync(database, settings);
     expect(requests.count).toBe(1);
     grid()?.insertAdjacentHTML('afterbegin', cardHtml('other', 8));
@@ -381,7 +381,7 @@ describe('a list that is not all there', () => {
   it('asks again when more cards have come in since, for example by scrolling', () => {
     render({ more: true });
     const { sort, requests, loaded } = setup();
-    on();
+    enablePriceMode();
     sort.sync(database, settings);
     loaded(false);
     sort.sync(database, settings);
@@ -394,7 +394,7 @@ describe('a list that is not all there', () => {
   it('does not ask again when the page says it has everything but the grid still shows more, and no card came in', () => {
     render({ more: true });
     const { sort, requests, loaded } = setup();
-    on();
+    enablePriceMode();
     sort.sync(database, settings);
     loaded(true);
     sort.sync(database, settings);
@@ -405,7 +405,7 @@ describe('a list that is not all there', () => {
   it('shows what it has, and does not ask again, when the load failed after cards had come in', () => {
     render({ more: true });
     const { sort, requests, loaded } = setup();
-    on();
+    enablePriceMode();
     sort.sync(database, settings);
     grid()?.insertAdjacentHTML('afterbegin', cardHtml('twin', 9));
     loaded(false);
@@ -417,7 +417,7 @@ describe('a list that is not all there', () => {
   it('asks again when the page says it has everything, the grid still shows more, and cards had come in', () => {
     render({ more: true });
     const { sort, requests, loaded } = setup();
-    on();
+    enablePriceMode();
     sort.sync(database, settings);
     grid()?.insertAdjacentHTML('afterbegin', cardHtml('twin', 9));
     loaded(true);
@@ -428,7 +428,7 @@ describe('a list that is not all there', () => {
   it('takes the hint off the button when the list is complete after all, and when the mode ends', () => {
     render({ more: true });
     const { sort, loaded } = setup();
-    on();
+    enablePriceMode();
     sort.sync(database, settings);
     loaded(false);
     sort.sync(database, settings);
@@ -438,7 +438,7 @@ describe('a list that is not all there', () => {
     expect(label()).toBe('По цене');
     expect(document.querySelector('#sort-trigger')?.hasAttribute('title')).toBe(false);
     render({ more: true });
-    on();
+    enablePriceMode();
     sort.sync(database, settings);
     loaded(false);
     sort.sync(database, settings);
@@ -463,7 +463,7 @@ describe('a list that is not all there', () => {
   it('tells a new list from the one it already tried by its cards, not by how many there are', () => {
     render({ slugs: ['mid', 'dear', 'cheap'], more: true });
     const { sort, requests, loaded } = setup();
-    on();
+    enablePriceMode();
     sort.sync(database, settings);
     loaded(false);
     sort.sync(database, settings);
@@ -473,7 +473,7 @@ describe('a list that is not all there', () => {
       ['dear', 'mid', 'twin'],
     ]) {
       render({ slugs, more: true });
-      on();
+      enablePriceMode();
       sort.sync(database, settings);
       expect(grid()?.getAttribute('data-senkutools-sort-state')).toBe('loading');
       loaded(false);
@@ -484,11 +484,11 @@ describe('a list that is not all there', () => {
   it('asks for the new list when the site switches to another one, and stops dimming when the label comes back', () => {
     render({ more: true });
     const { sort, requests, loaded } = setup();
-    on();
+    enablePriceMode();
     sort.sync(database, settings);
     loaded(true);
     render({ slugs: ['mid', 'cheap'], more: true });
-    on();
+    enablePriceMode();
     sort.sync(database, settings);
     expect(requests.count).toBe(2);
     expect(grid()?.getAttribute('data-senkutools-sort-state')).toBe('loading');
@@ -497,7 +497,7 @@ describe('a list that is not all there', () => {
   it('gives up waiting when nothing arrives for a long time, and waits on while cards keep coming', () => {
     render({ more: true });
     const { sort, timers, requests } = setup();
-    on();
+    enablePriceMode();
     sort.sync(database, settings);
     expect(timers).toHaveLength(1);
     grid()?.insertAdjacentHTML('afterbegin', cardHtml('twin', 9));
@@ -514,7 +514,7 @@ describe('a list that is not all there', () => {
   it('does not mind a late timer once the answer has come', () => {
     render({ more: true });
     const { sort, timers, loaded, host } = setup();
-    on();
+    enablePriceMode();
     sort.sync(database, settings);
     loaded(true);
     const before = vi.mocked(host.schedule).mock.calls.length;
@@ -527,7 +527,7 @@ describe('the answer of the page', () => {
   it('asks for a redraw, so the grid is looked at again', () => {
     render({ more: true });
     const { sort, host, loaded } = setup();
-    on();
+    enablePriceMode();
     sort.sync(database, settings);
     const before = vi.mocked(host.schedule).mock.calls.length;
     loaded(true);
@@ -537,7 +537,7 @@ describe('the answer of the page', () => {
   it('is ignored when it is not one', () => {
     render({ more: true });
     const { sort, host } = setup();
-    on();
+    enablePriceMode();
     sort.sync(database, settings);
     const before = vi.mocked(host.schedule).mock.calls.length;
     sort.handleLoaded(new CustomEvent(LIST_LOADED_EVENT, { detail: 'nonsense' }));

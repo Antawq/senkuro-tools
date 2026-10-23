@@ -7,7 +7,7 @@ import { SEARCH_PAGE_SIZE, installSearchRequest, widenSearchRequest, installSear
 import { SEARCH_EVENT, type SearchSignal } from '../utils/search/search-signal';
 import type { QueryClient, QueryRequest } from '../utils/shared/urql-client';
 
-const argument = (name: string, value: string) => ({ kind: 'Argument', name: { value: name }, value: { kind: 'IntValue', value } });
+const argument = (name: string, argumentValue: string) => ({ kind: 'Argument', name: { value: name }, value: { kind: 'IntValue', value: argumentValue } });
 
 const searchDocument = (first = '10', field = 'search') => ({
   __key: 123,
@@ -40,9 +40,9 @@ const firstOf = (asked: QueryRequest): string[] => {
   const found: string[] = [];
   const walk = (node: unknown): void => {
     if (!node || typeof node !== 'object') return;
-    const item = node as { kind?: string; name?: { value?: string }; value?: { value?: string } };
-    if (item.kind === 'Argument' && item.name?.value === 'first') found.push(String(item.value?.value));
-    Object.values(item).forEach(walk);
+    const astNode = node as { kind?: string; name?: { value?: string }; value?: { value?: string } };
+    if (astNode.kind === 'Argument' && astNode.name?.value === 'first') found.push(String(astNode.value?.value));
+    Object.values(astNode).forEach(walk);
   };
   walk(asked.query);
   return found;

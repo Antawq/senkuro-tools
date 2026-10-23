@@ -26,12 +26,12 @@ const titledRows = (...titles: string[]) =>
 
 const openTitled = (titles: string[], query: string, name = 'card-title') => {
   open([], query);
-  list().innerHTML = titledRows(...titles).replaceAll('card-title', name);
+  results().innerHTML = titledRows(...titles).replaceAll('card-title', name);
 };
 
 const modal = () => document.querySelector('.modal-content--search') as HTMLElement;
 const field = () => document.querySelector('input.input-el') as HTMLInputElement;
-const list = () => document.querySelector('.nav-search__cnt') as HTMLElement;
+const results = () => document.querySelector('.nav-search__cnt') as HTMLElement;
 
 const settle = (ms = 0) => vi.advanceTimersByTimeAsync(ms);
 
@@ -104,10 +104,10 @@ describe('stale results', () => {
   it('follows the results the page draws afterwards', async () => {
     open([], '');
     view.syncView();
-    list().innerHTML = rowsOf('a');
+    results().innerHTML = rowsOf('a');
     await settle();
     expect(modal().hasAttribute('data-senkutools-stale')).toBe(true);
-    list().innerHTML = '';
+    results().innerHTML = '';
     await settle();
     expect(modal().hasAttribute('data-senkutools-stale')).toBe(false);
   });
@@ -165,17 +165,17 @@ describe('scroll position', () => {
   it('goes back to the top when other results arrive', async () => {
     open(['a', 'b', 'c'], 'naruto');
     view.syncView();
-    list().scrollTop = 120;
-    list().innerHTML = rowsOf('x', 'y', 'z');
+    results().scrollTop = 120;
+    results().innerHTML = rowsOf('x', 'y', 'z');
     await settle();
-    expect(list().scrollTop).toBe(0);
+    expect(results().scrollTop).toBe(0);
   });
 
   it('scrolls the list back to the top when other results arrive', async () => {
     open(['a', 'b', 'c'], 'naruto');
     view.syncView();
-    const scrollTo = vi.spyOn(list(), 'scrollTo');
-    list().innerHTML = rowsOf('x', 'y', 'z');
+    const scrollTo = vi.spyOn(results(), 'scrollTo');
+    results().innerHTML = rowsOf('x', 'y', 'z');
     await settle();
     expect(scrollTo).toHaveBeenCalledWith({ top: 0 });
   });
@@ -183,10 +183,10 @@ describe('scroll position', () => {
   it('is left alone while the same results stay', async () => {
     open(['a', 'b', 'c'], 'naruto');
     view.syncView();
-    list().scrollTop = 120;
-    list().firstElementChild?.classList.add('card-search--active');
+    results().scrollTop = 120;
+    results().firstElementChild?.classList.add('card-search--active');
     await settle();
-    expect(list().scrollTop).toBe(120);
+    expect(results().scrollTop).toBe(120);
   });
 });
 
@@ -209,7 +209,7 @@ describe('which modal it looks at', () => {
     open([], '');
     view.syncView();
     isContextAlive = false;
-    list().innerHTML = rowsOf('a');
+    results().innerHTML = rowsOf('a');
     await settle();
     expect(modal().hasAttribute('data-senkutools-stale')).toBe(false);
   });
@@ -227,9 +227,9 @@ describe('which modal it looks at', () => {
       [...element.attributes]
         .map((attribute) => attribute.name)
         .filter((name) => name !== 'class' && name !== 'href' && name !== 'data-index' && name !== 'value' && name !== 'type');
-    expect(marked(modal()).length + marked(field()).length + marked(list()).length).toBeGreaterThan(0);
+    expect(marked(modal()).length + marked(field()).length + marked(results()).length).toBeGreaterThan(0);
     view.dispose();
-    const everything = [modal(), field(), list(), ...document.querySelectorAll('[data-index], .tabs-tab')];
+    const everything = [modal(), field(), results(), ...document.querySelectorAll('[data-index], .tabs-tab')];
     expect(everything.flatMap((element) => marked(element))).toEqual([]);
   });
 
@@ -247,7 +247,7 @@ describe('which modal it looks at', () => {
     open([], '');
     view.syncView();
     view.dispose();
-    list().innerHTML = rowsOf('a');
+    results().innerHTML = rowsOf('a');
     await settle();
     expect(modal().hasAttribute('data-senkutools-stale')).toBe(false);
   });
@@ -313,10 +313,10 @@ describe('matching words', () => {
   it('follows the titles the page draws afterwards, including a changed text', async () => {
     openTitled(['Naruto'], 'naruto');
     view.syncView();
-    list().innerHTML = titledRows('Boruto', 'Naruto Shippuden');
+    results().innerHTML = titledRows('Boruto', 'Naruto Shippuden');
     await settle();
     expect(matched()).toEqual(['Naruto']);
-    const title = list().querySelector('h3.card-title');
+    const title = results().querySelector('h3.card-title');
     if (title?.firstChild) title.firstChild.nodeValue = 'Naruto naruto';
     await settle();
     expect(matched()).toEqual(['Naruto', 'naruto', 'Naruto']);
@@ -361,8 +361,8 @@ describe('screen reader wiring', () => {
     expect(field().getAttribute('role')).toBe('combobox');
     expect(field().getAttribute('aria-autocomplete')).toBe('list');
     expect(field().getAttribute('aria-expanded')).toBe('true');
-    expect(field().getAttribute('aria-controls')).toBe(list().id);
-    expect(list().getAttribute('role')).toBe('listbox');
+    expect(field().getAttribute('aria-controls')).toBe(results().id);
+    expect(results().getAttribute('role')).toBe('listbox');
   });
 
   it('names the listbox by the tab it belongs to, so a screen reader says which kind of results these are', async () => {
@@ -372,7 +372,7 @@ describe('screen reader wiring', () => {
       '<div class="tabs"><button class="tabs-tab tabs-tab--active">Манга</button><button class="tabs-tab">Аниме</button></div>'
     );
     view.syncView();
-    const labelOf = () => document.getElementById(list().getAttribute('aria-labelledby') ?? '')?.textContent;
+    const labelOf = () => document.getElementById(results().getAttribute('aria-labelledby') ?? '')?.textContent;
     expect(labelOf()).toBe('Манга');
     const [first, second] = [...document.querySelectorAll('.tabs-tab')];
     first?.classList.remove('tabs-tab--active');
@@ -386,7 +386,7 @@ describe('screen reader wiring', () => {
     open([], 'naruto');
     modal().insertAdjacentHTML('afterbegin', '<div class="tabs"><button class="tabs-tab tabs-tab--active">Манга</button></div>');
     view.syncView();
-    expect(list().hasAttribute('aria-labelledby')).toBe(false);
+    expect(results().hasAttribute('aria-labelledby')).toBe(false);
   });
 
   it('gives each result the option role and an id of its own', () => {
@@ -418,8 +418,8 @@ describe('screen reader wiring', () => {
     expect(field().getAttribute('role')).toBe('combobox');
     expect(field().getAttribute('aria-expanded')).toBe('false');
     expect(field().hasAttribute('aria-controls')).toBe(false);
-    expect(list().hasAttribute('role')).toBe(false);
-    expect(list().hasAttribute('id')).toBe(false);
+    expect(results().hasAttribute('role')).toBe(false);
+    expect(results().hasAttribute('id')).toBe(false);
   });
 
   it('takes the list back as soon as the results are stale', () => {
@@ -430,7 +430,7 @@ describe('screen reader wiring', () => {
     field().value = '';
     view.syncView();
     expect(field().getAttribute('aria-expanded')).toBe('false');
-    expect(list().hasAttribute('role')).toBe(false);
+    expect(results().hasAttribute('role')).toBe(false);
     expect(document.querySelector('[data-index]')?.hasAttribute('role')).toBe(false);
     expect(document.querySelector('[data-index]')?.hasAttribute('aria-selected')).toBe(false);
     expect(field().hasAttribute('aria-activedescendant')).toBe(false);
@@ -439,7 +439,7 @@ describe('screen reader wiring', () => {
   it('wires the results the page draws afterwards', async () => {
     open([], 'naruto');
     view.syncView();
-    list().innerHTML = rowsOf('a', 'b');
+    results().innerHTML = rowsOf('a', 'b');
     await settle();
     expect(field().getAttribute('aria-expanded')).toBe('true');
     expect(optionIds()).toHaveLength(2);
@@ -467,7 +467,7 @@ describe('clicks', () => {
       'afterbegin',
       '<div class="tabs"><button class="tabs-tab">Манга</button></div><span class="input-suffix"><svg class="icon-click"></svg></span>'
     );
-    list().insertAdjacentHTML('beforeend', '<div class="nav-search__cnt-space"><button class="chip">naruto</button></div>');
+    results().insertAdjacentHTML('beforeend', '<div class="nav-search__cnt-space"><button class="chip">naruto</button></div>');
   };
 
   const pointer = (target: Element, init: MouseEventInit = {}) => {
@@ -547,7 +547,7 @@ describe('clicks', () => {
     const button = document.querySelector('.tabs-tab') as HTMLElement;
     button.focus();
     pointer(document.querySelector('[data-index]') as Element);
-    pointer(list());
+    pointer(results());
     await settle();
     expect(document.activeElement).toBe(button);
   });

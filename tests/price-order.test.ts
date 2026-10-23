@@ -8,11 +8,11 @@ const priceOf = (slug: string): number | null => prices[slug] ?? null;
 
 const shown = (slugs: (string | null)[], descending: boolean): (string | null)[] => {
   const order = priceOrder(slugs, priceOf, descending);
-  const result: (string | null)[] = [];
+  const slugsInOrder: (string | null)[] = [];
   order.forEach((position, index) => {
-    result[position] = slugs[index] ?? null;
+    slugsInOrder[position] = slugs[index] ?? null;
   });
-  return result;
+  return slugsInOrder;
 };
 
 describe('priceOrder', () => {

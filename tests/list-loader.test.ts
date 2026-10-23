@@ -10,7 +10,7 @@ const document = { definitions: [{ kind: 'OperationDefinition', name: { value: L
 
 const recorded = (variables: Variables = GRID, options: Record<string, unknown> = { suspense: true }): PageRequest => ({ document, variables, options });
 
-const info = (hasNextPage: boolean, endCursor: string | null) => ({ data: { userCards: { pageInfo: { hasNextPage, endCursor } } } });
+const pageInfoAnswer = (hasNextPage: boolean, endCursor: string | null) => ({ data: { userCards: { pageInfo: { hasNextPage, endCursor } } } });
 
 interface Asked {
   document: unknown;
@@ -42,7 +42,7 @@ const rig = ({ answers, latestPage = () => recorded() }: Rig) => {
 const chain =
   (total: number) =>
   (_asked: Asked, index: number): unknown =>
-    index === 0 ? info(total > 0, total > 0 ? 'c1' : null) : info(index < total, index < total ? `c${index + 1}` : null);
+    index === 0 ? pageInfoAnswer(total > 0, total > 0 ? 'c1' : null) : pageInfoAnswer(index < total, index < total ? `c${index + 1}` : null);
 
 describe('loadRest', () => {
   it('reads what is loaded, then asks the network for every page after it, one after another, ending at the last', async () => {
@@ -72,15 +72,15 @@ describe('loadRest', () => {
   });
 
   it('gives up at a failed page and asks for nothing more, even when the failure came with some data', async () => {
-    for (const failure of [{ error: new Error('429') }, { ...info(true, 'c3'), error: new Error('429') }]) {
-      const { host, asked } = rig({ answers: (_asked, index) => (index === 2 ? failure : info(true, `c${index + 1}`)) });
+    for (const failure of [{ error: new Error('429') }, { ...pageInfoAnswer(true, 'c3'), error: new Error('429') }]) {
+      const { host, asked } = rig({ answers: (_asked, index) => (index === 2 ? failure : pageInfoAnswer(true, `c${index + 1}`)) });
       expect(await loadRest(host)).toBe('partial');
       expect(asked).toHaveLength(3);
     }
   });
 
   it('does not go on without a cursor to go on', async () => {
-    const { host, asked } = rig({ answers: () => info(true, null) });
+    const { host, asked } = rig({ answers: () => pageInfoAnswer(true, null) });
     expect(await loadRest(host)).toBe('partial');
     expect(asked).toHaveLength(1);
   });
@@ -99,7 +99,7 @@ describe('loadRest', () => {
     const { host, asked } = rig({
       answers: (_asked, index) => {
         if (index === 2) current = recorded({ ...GRID, modifier: { include: [1] } });
-        return info(true, `c${index + 1}`);
+        return pageInfoAnswer(true, `c${index + 1}`);
       },
       latestPage: () => current,
     });
@@ -128,7 +128,7 @@ describe('loadRest', () => {
   });
 
   it('stops at the page cap instead of running forever', async () => {
-    const { host, asked } = rig({ answers: (_asked, index) => info(true, `c${index + 1}`) });
+    const { host, asked } = rig({ answers: (_asked, index) => pageInfoAnswer(true, `c${index + 1}`) });
     expect(await loadRest(host)).toBe('partial');
     expect(asked).toHaveLength(MAX_LOAD_PAGES + 1);
   });

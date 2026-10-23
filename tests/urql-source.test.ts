@@ -8,7 +8,7 @@ interface Result extends SourceResult {
   id: number;
 }
 
-const result = (id: number, extra: SourceResult = {}): Result => ({ id, ...extra });
+const createResult = (id: number, extra: SourceResult = {}): Result => ({ id, ...extra });
 
 const sourceOf = (results: Result[], complete = true) => {
   const log = { started: 0, torndown: 0 };
@@ -45,14 +45,14 @@ describe('isSettled', () => {
 
 describe('tapSource', () => {
   it('reports the start, each settled result and the end, in that order', async () => {
-    const { source } = sourceOf([result(1, { stale: true }), result(2)]);
+    const { source } = sourceOf([createResult(1, { stale: true }), createResult(2)]);
     const { seen, hooks } = hooksWith();
     await tapSource(source, hooks).toPromise();
     expect(seen).toEqual(['start', 'settled 2', 'end']);
   });
 
   it('reports the end when the reader walks away before the source is done', () => {
-    const { source, log } = sourceOf([result(1, { stale: true })], false);
+    const { source, log } = sourceOf([createResult(1, { stale: true })], false);
     const { seen, hooks } = hooksWith();
     const subscription = tapSource(source, hooks).subscribe(() => undefined);
     expect(seen).toEqual(['start']);
@@ -72,16 +72,16 @@ describe('tapSource', () => {
         }),
     ];
     for (const read of reads) {
-      const { source, log } = sourceOf([result(5)]);
+      const { source, log } = sourceOf([createResult(5)]);
       const { seen, hooks } = hooksWith();
-      expect(await read(tapSource(source, hooks))).toEqual(result(5));
+      expect(await read(tapSource(source, hooks))).toEqual(createResult(5));
       expect(seen).toContain('settled 5');
       expect(log.started).toBe(1);
     }
   });
 
   it('keeps the source working when a hook throws', async () => {
-    const { source } = sourceOf([result(7)]);
+    const { source } = sourceOf([createResult(7)]);
     const tapped = tapSource(source, {
       onStart: () => {
         throw new Error('start');
@@ -93,11 +93,11 @@ describe('tapSource', () => {
         throw new Error('end');
       },
     });
-    expect(await tapped.toPromise()).toEqual(result(7));
+    expect(await tapped.toPromise()).toEqual(createResult(7));
   });
 
   it('needs no hooks at all', async () => {
-    const { source } = sourceOf([result(9)]);
-    expect(await tapSource(source, {}).toPromise()).toEqual(result(9));
+    const { source } = sourceOf([createResult(9)]);
+    expect(await tapSource(source, {}).toPromise()).toEqual(createResult(9));
   });
 });

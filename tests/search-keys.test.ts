@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSearchKeys, type SearchKeys } from '../utils/search/search-keys';
 import { createSearchSignals, type SearchSignals } from '../utils/search/search-signal';
 
-const ACTIVE = 'card-search--active';
+const ACTIVE_ROW_CLASS = 'card-search--active';
 
 const row = (index: number, slug: string) => `<a class="card-search" data-index="${index}" href="/manga/${slug}">${slug}</a>`;
 
@@ -30,9 +30,9 @@ const ready = async (slugs: string[], query = 'naruto') => {
 };
 
 const input = () => document.querySelector<HTMLInputElement>('input.input-el') as HTMLInputElement;
-const list = () => document.querySelector('.nav-search__cnt') as HTMLElement;
+const results = () => document.querySelector('.nav-search__cnt') as HTMLElement;
 const rows = () => [...document.querySelectorAll<HTMLAnchorElement>('[data-index]')];
-const activeIndexes = () => rows().flatMap((el, index) => (el.classList.contains(ACTIVE) ? [index] : []));
+const activeIndexes = () => rows().flatMap((element, index) => (element.classList.contains(ACTIVE_ROW_CLASS) ? [index] : []));
 
 const clicked: string[] = [];
 const clickKeys: string[] = [];
@@ -48,25 +48,25 @@ const press = (key: string, init: KeyboardEventInit = {}, target: EventTarget = 
   return event;
 };
 
-const typed = (value: string) => {
-  input().value = value;
+const typed = (text: string) => {
+  input().value = text;
   input().dispatchEvent(new Event('input', { bubbles: true }));
 };
 
 const settle = (ms = 0) => vi.advanceTimersByTimeAsync(ms);
 
 function watchClicks() {
-  for (const el of rows()) {
-    el.addEventListener('click', (event) => {
+  for (const element of rows()) {
+    element.addEventListener('click', (event) => {
       event.preventDefault();
-      clicked.push(el.getAttribute('href') ?? '');
+      clicked.push(element.getAttribute('href') ?? '');
       clickKeys.push(`${event.ctrlKey ? 'ctrl' : ''}${event.metaKey ? 'meta' : ''}`);
     });
   }
 }
 
 const arrive = async (...slugs: string[]) => {
-  list().innerHTML = rowsOf(...slugs);
+  results().innerHTML = rowsOf(...slugs);
   watchClicks();
   await settle();
 };
