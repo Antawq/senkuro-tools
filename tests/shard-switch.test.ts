@@ -158,6 +158,81 @@ describe('updateShardSwitches', () => {
     expect(document.querySelectorAll('.senkutools-shard-switch__empty')).toHaveLength(1);
   });
 
+  describe('paging of the site in a view that hides rows', () => {
+    const frames: (() => void)[] = [];
+    const runFrames = (count = 2) => {
+      for (let i = 0; i < count; i++) frames.splice(0).forEach((run) => run());
+    };
+    const sentinel = () => document.querySelector('.sentinel') as HTMLElement;
+    const isParked = () => sentinel().hasAttribute('data-senkutools-paging-parked');
+    const place = (element: Element, top: number, bottom: number) =>
+      vi
+        .spyOn(element, 'getBoundingClientRect')
+        .mockReturnValue({ top, bottom, left: 0, right: 0, width: 0, height: bottom - top, x: 0, y: top, toJSON: () => ({}) });
+
+    beforeEach(() => {
+      frames.length = 0;
+      vi.stubGlobal('requestAnimationFrame', (run: () => void) => frames.push(run));
+    });
+
+    it('moves the paging sentinel away for two frames and back, so the site sees it enter the view again', () => {
+      document.body.innerHTML = tradeModal(row('card') + row('shard'));
+      updateShardSwitches();
+      expect(isParked()).toBe(false);
+      press('Осколки');
+      expect(isParked()).toBe(true);
+      runFrames(1);
+      expect(isParked()).toBe(true);
+      runFrames(1);
+      expect(isParked()).toBe(false);
+    });
+
+    it('parks it far outside the window with a rule of the stylesheet, not with a style set on the site element', () => {
+      document.body.innerHTML = tradeModal(row('card') + row('shard'));
+      updateShardSwitches();
+      press('Осколки');
+      expect(sentinel().getAttribute('style')).toBeNull();
+      expect(getComputedStyle(sentinel()).transform).toContain('translateY(200000px)');
+    });
+
+    it('leaves the sentinel alone while the whole list is shown', () => {
+      document.body.innerHTML = tradeModal(row('card') + row('shard'));
+      updateShardSwitches();
+      press('Осколки');
+      runFrames();
+      press('Все');
+      expect(isParked()).toBe(false);
+    });
+
+    it('does it once for the rows it has, and again when more rows have arrived', () => {
+      document.body.innerHTML = tradeModal(row('card') + row('shard'));
+      updateShardSwitches();
+      press('Осколки');
+      runFrames();
+      updateShardSwitches();
+      expect(isParked()).toBe(false);
+      document.querySelector('.modal-trade__body-result')?.insertAdjacentHTML('afterbegin', row('shard'));
+      updateShardSwitches();
+      expect(isParked()).toBe(true);
+    });
+
+    it('leaves a sentinel alone that is far below the visible part of the window', () => {
+      document.body.innerHTML = tradeModal(row('card') + row('shard'));
+      updateShardSwitches();
+      place(sentinel(), 2000, 2000);
+      place(picker(), 100, 500);
+      press('Осколки');
+      expect(isParked()).toBe(false);
+    });
+
+    it('has nothing to move when the list is complete', () => {
+      document.body.innerHTML = tradeModal(row('card') + row('shard'), false);
+      updateShardSwitches();
+      expect(() => press('Осколки')).not.toThrow();
+      expect(frames).toHaveLength(0);
+    });
+  });
+
   it('leaves every page and window other than the trade window alone', () => {
     document.body.innerHTML = `<div class="modal-content modal-content--review"><div class="modal-trade__body"><div class="modal-trade__body-result">${row('shard')}</div></div></div>
       <div class="user-cards"><div class="modal-trade__body-result">${row('shard')}</div></div>`;

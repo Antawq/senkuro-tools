@@ -12,3 +12,7 @@
 [data-senkutools-shard-view='shards'] .modal-trade__body-result .card-collect-preview:not(.card-collect-preview--shard) {
   display: none;
 }
+
+[data-senkutools-paging-parked] {
+  transform: translateY(200000px);
+}

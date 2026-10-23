@@ -10,6 +10,9 @@ const SWITCH_BUTTON = `${SWITCH}__button`;
 const EMPTY_NOTE = `${SWITCH}__empty`;
 const OWN_NODES = `.${SWITCH}, .${EMPTY_NOTE}`;
 const ROW = 'card-collect-preview';
+const PAGING_MARGIN_PX = 250;
+const PARKED_ATTRIBUTE = 'data-senkutools-paging-parked';
+const PARKED_FRAMES = 2;
 const VIEW_ATTRIBUTE = 'data-senkutools-shard-view';
 const SITE_SEGMENT = 'tabs tabs--segment';
 const SITE_SEGMENT_INNER = 'tabs-inner';
@@ -27,6 +30,8 @@ const VIEWS = Object.keys(VIEW_LABELS) as ShardView[];
 const EMPTY_TEXTS: Partial<Record<ShardView, string>> = { cards: 'Нет карт', shards: 'Нет осколков' };
 
 const viewsByModal = new WeakMap<Element, ShardView>();
+
+const parkedStates = new WeakMap<Element, string>();
 
 interface ShardSwitchHost {
   nextFrame: (run: () => void) => void;
@@ -70,6 +75,25 @@ const emptyTextOf = (results: Element, view: ShardView): string | null => {
   return shownRows.length === 0 && !hasMorePages ? (EMPTY_TEXTS[view] ?? null) : null;
 };
 
+const findSentinel = (results: Element): HTMLElement | undefined =>
+  [...results.children].find((child): child is HTMLElement => child instanceof HTMLElement && !child.classList.contains(ROW));
+
+const waitFrames = (count: number, run: () => void) => {
+  if (count <= 0) run();
+  else requestAnimationFrame(() => waitFrames(count - 1, run));
+};
+
+const retriggerPaging = (results: Element, picker: Element, view: ShardView) => {
+  const sentinel = findSentinel(results);
+  if (view === 'all' || !sentinel) return;
+  const state = `${view}:${results.querySelectorAll(`.${ROW}`).length}`;
+  if (parkedStates.get(results) === state) return;
+  if (sentinel.getBoundingClientRect().top > picker.getBoundingClientRect().bottom + PAGING_MARGIN_PX) return;
+  parkedStates.set(results, state);
+  sentinel.setAttribute(PARKED_ATTRIBUTE, '');
+  waitFrames(PARKED_FRAMES, () => sentinel.removeAttribute(PARKED_ATTRIBUTE));
+};
+
 const syncEmptyNote = (picker: HTMLElement, shardSwitch: Element, text: string | null) => {
   const note = childWithClass(picker, EMPTY_NOTE);
   if (text === null) note?.remove();
@@ -102,6 +126,7 @@ const syncPicker = (modal: Element, picker: HTMLElement) => {
   syncEmptyNote(picker, shardSwitch, emptyTextOf(results, view));
   if (view === 'all') picker.removeAttribute(VIEW_ATTRIBUTE);
   else picker.setAttribute(VIEW_ATTRIBUTE, view);
+  retriggerPaging(results, picker, view);
 };
 
 export function updateShardSwitches(pageDocument: Document = document): void {
