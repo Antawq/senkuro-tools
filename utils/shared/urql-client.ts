@@ -1,6 +1,6 @@
 import type { PageWindow } from './page-window';
+import { findVueApp } from './vue-app';
 
-const APP_ROOT = '#app';
 const CLIENT_KEY = '$urql';
 const OPERATION_KIND = 'OperationDefinition';
 const CLIENT_METHODS = ['executeQuery', 'executeMutation', 'query'];
@@ -20,10 +20,6 @@ export interface QueryClient {
   query(queryDocument: unknown, variables: Variables, options?: Record<string, unknown>): { toPromise(): Promise<unknown> };
 }
 
-interface VueApp {
-  _context?: { provides?: Record<string, unknown> };
-}
-
 interface Waiting {
   client: QueryClient | null;
   listeners: ((client: QueryClient) => void)[];
@@ -36,8 +32,7 @@ const isClient = (candidate: unknown): candidate is QueryClient =>
   CLIENT_METHODS.every((name) => typeof (candidate as Record<string, unknown> | null)?.[name] === 'function');
 
 export function findClient(pageDocument: Document): QueryClient | null {
-  const app = pageDocument.querySelector<Element & { __vue_app__?: VueApp }>(APP_ROOT)?.__vue_app__;
-  const provided = app?._context?.provides?.[CLIENT_KEY];
+  const provided = findVueApp(pageDocument)?._context?.provides?.[CLIENT_KEY];
   if (isClient(provided)) return provided;
   const inner = (provided as { value?: unknown } | null | undefined)?.value;
   return isClient(inner) ? inner : null;
