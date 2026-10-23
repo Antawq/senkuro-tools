@@ -1,7 +1,7 @@
 export const AVATAR_COST_SENKOINS = 5000;
 export const MONEY_STICKER_ID = 25;
 export const COIN_ALT = 'сенкоинов';
-export const COIN_CLASS = 'senkuro-avatar-coin';
+export const COIN_CLASS = 'senkutools-avatar-coin';
 
 const BUTTON = '.edit-media__user + .edit-media__actions > button:first-child';
 const MODALS_KEY = 'modals';
