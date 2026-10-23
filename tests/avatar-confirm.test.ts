@@ -23,7 +23,6 @@ const section = `
 const COIN_URL = 'https://senkuro.me/assets/money-3d-D_1Eg9LH.png';
 const COMPONENT = { name: 'BaseConfirmModal' };
 
-const visit = (path: string) => window.history.pushState({}, '', path);
 const upload = () => document.getElementById('upload') as HTMLElement;
 const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 const costs = () => [...document.querySelectorAll('.modal-alert__desc span')];
@@ -63,7 +62,6 @@ const mountWindow = (mark: string) => {
 };
 
 beforeEach(() => {
-  visit('/settings/appearance');
   document.body.innerHTML = section;
   siteClicks = [];
   shown = [];
@@ -94,7 +92,6 @@ afterEach(async () => {
   dispose();
   document.removeEventListener('click', siteHandler);
   document.body.innerHTML = '';
-  visit('/');
 });
 
 describe('the warning before an avatar upload', () => {
@@ -197,13 +194,6 @@ describe('the warning before an avatar upload', () => {
     expect(shown).toHaveLength(1);
   });
 
-  it('works on the sub pages of the appearance settings, where the same section is shown', async () => {
-    visit('/settings/appearance/frames');
-    upload().click();
-    await flush();
-    expect(shown).toHaveLength(1);
-  });
-
   it('is only the avatar button, not the button beside it nor the banner', async () => {
     document.getElementById('remove')?.click();
     document.getElementById('banner')?.click();
@@ -211,17 +201,6 @@ describe('the warning before an avatar upload', () => {
     expect(siteClicks).toEqual(['remove', 'banner']);
     expect(shown).toHaveLength(0);
   });
-
-  it.each([['/guilds/some/edit'], ['/teams/some/edit'], ['/settings/account'], ['/settings/appearances'], ['/']])(
-    'leaves the same button on %s alone, which is not the user avatar',
-    async (path) => {
-      visit(path);
-      upload().click();
-      await flush();
-      expect(siteClicks).toEqual(['upload']);
-      expect(shown).toHaveLength(0);
-    }
-  );
 
   it('stops asking once it is switched off', async () => {
     dispose();

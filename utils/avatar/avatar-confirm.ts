@@ -2,7 +2,6 @@ export const AVATAR_COST = 5000;
 export const MONEY_STICKER = 25;
 export const COIN_ALT = 'сенкоинов';
 
-const SETTINGS_PATH = '/settings/appearance';
 const BUTTON = '.edit-media__user + .edit-media__actions > button:first-child';
 const MODALS_KEY = 'modals';
 const SERVICE_WORKER = '/sw.js';
@@ -42,8 +41,6 @@ export interface AvatarConfirmHost {
 interface VueHost {
   __vue_app__?: { _context?: { provides?: Record<symbol, unknown> } };
 }
-
-const onSettings = (path: string): boolean => path === SETTINGS_PATH || path.startsWith(`${SETTINGS_PATH}/`);
 
 const isSiteModals = (value: unknown): value is SiteModals => typeof (value as SiteModals | null)?.showModal === 'function';
 
@@ -146,7 +143,7 @@ export function installAvatarConfirm({ doc, modals, assets }: AvatarConfirmHost)
   };
 
   const onClick = (event: MouseEvent): void => {
-    if (passing || !onSettings(doc.location.pathname)) return;
+    if (passing) return;
     const button = event.target instanceof Element ? event.target.closest(BUTTON) : null;
     if (!button) return;
     const site = modals();
