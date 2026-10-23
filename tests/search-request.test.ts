@@ -3,94 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { Window } from 'happy-dom';
 import { make } from 'wonka';
 
-import { SEARCH_PAGE_SIZE, installSearchRequest, installSearchWidening, widenSearchRequest } from '../utils/search/search-request';
+import { SEARCH_PAGE_SIZE, installSearchRequest, installSearchWidening } from '../utils/search/search-request';
 import { SEARCH_EVENT, type SearchSignal } from '../utils/search/search-signal';
 import type { QueryClient, QueryRequest } from '../utils/shared/urql-client';
-
-const argument = (name: string, argumentValue: string) => ({ kind: 'Argument', name: { value: name }, value: { kind: 'IntValue', value: argumentValue } });
-
-const searchDocument = (first = '10', field = 'search') => ({
-  __key: 123,
-  definitions: [
-    { kind: 'FragmentDefinition', name: { value: 'Part' } },
-    {
-      kind: 'OperationDefinition',
-      name: { value: 'search' },
-      selectionSet: {
-        selections: [
-          {
-            kind: 'Field',
-            name: { value: field },
-            arguments: [{ kind: 'Argument', name: { value: 'query' }, value: { kind: 'Variable' } }, argument('first', first)],
-            selectionSet: { selections: [{ kind: 'Field', name: { value: 'edges' }, arguments: [argument('first', '5')] }] },
-          },
-        ],
-      },
-    },
-  ],
-});
-
-const request = (name: string, document = searchDocument(), key = 7): QueryRequest => ({
-  key,
-  variables: { query: 'naruto', type: 'MANGA' },
-  query: { ...document, definitions: document.definitions.map((part) => (part.kind === 'OperationDefinition' ? { ...part, name: { value: name } } : part)) },
-});
-
-const firstOf = (asked: QueryRequest): string[] => {
-  const found: string[] = [];
-  const walk = (node: unknown): void => {
-    if (!node || typeof node !== 'object') return;
-    const astNode = node as { kind?: string; name?: { value?: string }; value?: { value?: string } };
-    if (astNode.kind === 'Argument' && astNode.name?.value === 'first') found.push(String(astNode.value?.value));
-    Object.values(astNode).forEach(walk);
-  };
-  walk(asked.query);
-  return found;
-};
-
-const keyOf = (asked: QueryRequest) => (asked.query as { __key?: number }).__key;
-
-describe('widenSearchRequest', () => {
-  it('raises the page size of the search field only, on a copy of the document that leaves the original and the key as they are', () => {
-    const original = request('search');
-    const wider = widenSearchRequest(original);
-    expect(firstOf(wider)).toEqual([String(SEARCH_PAGE_SIZE), '5']);
-    expect(firstOf(original)).toEqual(['10', '5']);
-    expect(wider.query).not.toBe(original.query);
-    expect(wider.key).toBe(original.key);
-    expect(wider.variables).toBe(original.variables);
-    expect(keyOf(wider)).toBeUndefined();
-    expect(keyOf(original)).toBe(123);
-  });
-
-  it('gives the same answer for the same request', () => {
-    const one = request('search');
-    expect(widenSearchRequest(one)).toEqual(widenSearchRequest(one));
-  });
-
-  it('widens a document once and reuses the copy, so the client does not print and hash a new one per search', () => {
-    const one = request('search');
-    expect(widenSearchRequest(one).query).toBe(widenSearchRequest(one).query);
-  });
-
-  it('uses the size it is given', () => {
-    expect(firstOf(widenSearchRequest(request('search'), 40))).toEqual(['40', '5']);
-  });
-
-  it('leaves every other operation exactly as it is', () => {
-    const other = request('fetchUserCards');
-    expect(widenSearchRequest(other)).toBe(other);
-  });
-
-  it('leaves a search that already asks for as much, or whose page size it cannot find', () => {
-    const big = request('search', searchDocument('50'));
-    expect(widenSearchRequest(big)).toBe(big);
-    const renamed = request('search', searchDocument('10', 'lookup'));
-    expect(widenSearchRequest(renamed)).toBe(renamed);
-    const empty: QueryRequest = { key: 1 };
-    expect(widenSearchRequest(empty)).toBe(empty);
-  });
-});
+import { firstOf, request } from './helpers/search-requests';
 
 const clientWith = () => {
   const asked: QueryRequest[] = [];
