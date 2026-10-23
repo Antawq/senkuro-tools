@@ -29,7 +29,6 @@ export interface SideValue {
   shards: Map<string, number>;
   shardBank: Map<string, number>;
   shardUnknown: number;
-  hasShards: boolean;
   r: RValue;
   complete: boolean;
 }
@@ -85,7 +84,7 @@ interface Pricing {
   excludeShards: boolean;
 }
 
-type Tally = Omit<SideValue, 'hasShards' | 'r' | 'complete'> & { r: Omit<RValue, 'complete'> };
+type Tally = Omit<SideValue, 'r' | 'complete'> & { r: Omit<RValue, 'complete'> };
 
 const emptyTally = (hidden: number): Tally => ({
   f: 0,
@@ -136,7 +135,6 @@ function settle(tally: Tally, excludeShards: boolean): SideValue {
   const settled = tally.unknown === 0 && (excludeShards || tally.shardUnknown === 0);
   return {
     ...tally,
-    hasShards: tally.shards.size > 0 || tally.shardUnknown > 0,
     r: { ...tally.r, complete: settled && tally.r.shards === 0 },
     complete: settled && !tally.beyondF,
   };

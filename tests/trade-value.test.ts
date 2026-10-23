@@ -97,7 +97,6 @@ describe('valueSide', () => {
       const side = valueSide(mixed, db, noShards);
       expect(formatShardsByRank(side.shards)).toEqual(['2oR', '3oS']);
       expect(formatShardsByRank(side.shardBank)).toEqual(['2oR', '3oS']);
-      expect(side.hasShards).toBe(true);
     });
 
     it('does not let shards unsettle the total', () => {
@@ -129,7 +128,6 @@ describe('valueSide', () => {
     expect(formatByRank(side.count)).toEqual(['1F']);
     expect(formatByRank(side.bank)).toEqual(['1F']);
     expect(formatShardsByRank(side.shards)).toEqual(['3oS']);
-    expect(side.hasShards).toBe(true);
   });
 
   it.each([
