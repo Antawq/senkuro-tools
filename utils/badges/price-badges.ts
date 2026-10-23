@@ -1,4 +1,4 @@
-import { BADGE_INSET, CENTER, CENTERED, centerGapShift, faceGap, gapKey, insetAbove, insetBelow, NO_GAP, type FaceGap } from '../shared/badge-layout';
+import { BADGE_INSET, CENTER, CENTERING_SHIFT, centerGapShift, faceGap, gapKey, insetAbove, insetBelow, NO_GAP, type FaceGap } from '../shared/badge-layout';
 import { CARD_LINK, PERCENT, PRICE_DECIMALS, effectivePrice, slugFromHref } from '../shared/cards';
 import { removeCopyButton, syncCopyButton } from '../shared/copy-button';
 import type { CardEntry, Database } from '../shared/database';
@@ -40,7 +40,7 @@ function applyPosition(target: HTMLElement, positionX: BadgePositionX, positionY
   else if (positionY === 'bottom') target.style.setProperty('--s-bottom', insetBelow(gap));
   else if (positionY === 'center') {
     target.style.setProperty('--s-top', CENTER);
-    target.style.setProperty('--s-ty', CENTERED);
+    target.style.setProperty('--s-ty', CENTERING_SHIFT);
     target.style.setProperty('--s-mt', centerGapShift(gap));
   }
 
@@ -52,7 +52,7 @@ function applyPosition(target: HTMLElement, positionX: BadgePositionX, positionY
     target.style.setProperty('--s-align', 'right');
   } else if (positionX === 'center') {
     target.style.setProperty('--s-left', CENTER);
-    target.style.setProperty('--s-tx', CENTERED);
+    target.style.setProperty('--s-tx', CENTERING_SHIFT);
     target.style.setProperty('--s-align', 'center');
   }
 }

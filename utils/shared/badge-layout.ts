@@ -1,6 +1,6 @@
 export const BADGE_INSET = '5px';
 export const CENTER = '50%';
-export const CENTERED = '-50%';
+export const CENTERING_SHIFT = '-50%';
 
 export interface FaceGap {
   top: number;
