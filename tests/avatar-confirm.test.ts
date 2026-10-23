@@ -5,7 +5,7 @@ import {
   COIN_ALT,
   COIN_CLASS,
   MONEY_STICKER_ID,
-  confirmProps,
+  createConfirmProps,
   createSiteAssets,
   findModals,
   installAvatarConfirm,
@@ -115,10 +115,10 @@ describe('the warning before an avatar upload', () => {
     await flush();
     expect(MONEY_STICKER_ID).toBe(25);
     expect(AVATAR_COST_SENKOINS).toBe(5000);
-    expect(shown[0]?.props).toEqual(confirmProps(true));
-    expect(confirmProps(true).sticker).toBe(MONEY_STICKER_ID);
-    expect(confirmProps(true).title).toBe('Платная загрузка аватарки');
-    expect(confirmProps(true).description).toEqual([
+    expect(shown[0]?.props).toEqual(createConfirmProps(true));
+    expect(createConfirmProps(true).sticker).toBe(MONEY_STICKER_ID);
+    expect(createConfirmProps(true).title).toBe('Платная загрузка аватарки');
+    expect(createConfirmProps(true).description).toEqual([
       { type: 'text', text: 'С вашего баланса спишется ' },
       { type: 'mark', text: String(AVATAR_COST_SENKOINS) },
       { type: 'text', text: '. Продолжить?' },
@@ -265,8 +265,8 @@ describe('the 3D coin in place of the word', () => {
     assets = { component: () => Promise.resolve(COMPONENT), coin: () => Promise.resolve(null) };
     upload().click();
     await flush();
-    expect(shown[0]?.props).toEqual(confirmProps(false));
-    expect(confirmProps(false).description[1]?.text).toBe(`${AVATAR_COST_SENKOINS} ${COIN_ALT}`);
+    expect(shown[0]?.props).toEqual(createConfirmProps(false));
+    expect(createConfirmProps(false).description[1]?.text).toBe(`${AVATAR_COST_SENKOINS} ${COIN_ALT}`);
     expect(costs()[0]?.textContent).toBe(`${AVATAR_COST_SENKOINS} ${COIN_ALT}`);
     expect(document.querySelector('img')).toBeNull();
   });

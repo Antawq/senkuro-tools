@@ -10,7 +10,7 @@ const CONFIRM_CHUNK = /assets\/BaseConfirmModal-[\w-]+\.js/;
 const COIN_IMAGE = /assets\/money-3d-[\w-]+\.png/;
 const COST_MARK = '.modal-alert__desc span';
 
-export const confirmProps = (hasCoin: boolean) => ({
+export const createConfirmProps = (hasCoin: boolean) => ({
   title: 'Платная загрузка аватарки',
   description: [
     { type: 'text', text: 'С вашего баланса спишется ' },
@@ -136,7 +136,7 @@ export function installAvatarConfirm({ pageDocument, modals, assets }: AvatarCon
     const [loaded, coin] = await Promise.all([assets.component(), assets.coin()]);
     const stop = putCoinInCost(pageDocument, coin);
     try {
-      const entry = site.showModal(() => Promise.resolve(loaded), confirmProps(coin !== null), {});
+      const entry = site.showModal(() => Promise.resolve(loaded), createConfirmProps(coin !== null), {});
       return await Promise.race([entry.emitted('confirm'), entry.emitted('close').then(() => false)]);
     } finally {
       stop();
