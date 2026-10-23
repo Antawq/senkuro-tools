@@ -29,53 +29,53 @@ export function touchesSort(mutations: Iterable<MutationRecord>): boolean {
 }
 
 export function createPriceSort(pageDocument: Document, host: SortHost): PriceSort {
-  let loading = false;
-  let triedAt: string | null = null;
+  let isLoading = false;
+  let triedGridKey: string | null = null;
 
-  const keyNow = (): string => inspectGrid(pageDocument)?.key ?? '';
+  const readGridKey = (): string => inspectGrid(pageDocument)?.gridKey ?? '';
 
-  const watch = (seen: string): void =>
+  const watchStall = (seenGridKey: string): void =>
     host.runAfter(() => {
-      if (!loading) return;
-      const now = keyNow();
-      if (now !== seen) return watch(now);
-      loading = false;
-      triedAt = now;
+      if (!isLoading) return;
+      const currentGridKey = readGridKey();
+      if (currentGridKey !== seenGridKey) return watchStall(currentGridKey);
+      isLoading = false;
+      triedGridKey = currentGridKey;
       host.schedule();
     }, STALL_MS);
 
-  function startLoad(seen: string): void {
-    loading = true;
-    triedAt = seen;
-    watch(seen);
+  function startLoad(seenGridKey: string): void {
+    isLoading = true;
+    triedGridKey = seenGridKey;
+    watchStall(seenGridKey);
     host.requestListLoad();
   }
 
-  function resolve(view: GridView): GridState {
+  function resolveGridState(view: GridView): GridState {
     if (!view.pending) return 'ready';
-    if (loading) return 'loading';
-    if (triedAt === view.key) return 'partial';
-    startLoad(view.key);
+    if (isLoading) return 'loading';
+    if (triedGridKey === view.gridKey) return 'partial';
+    startLoad(view.gridKey);
     return 'loading';
   }
 
-  function release(view: GridView | null): void {
+  function releaseGrid(view: GridView | null): void {
     reflectLabel(pageDocument, 'off');
     if (!view) return;
     markState(view.grid, null);
     clearOrder(view.cards);
   }
 
-  function show(view: GridView, state: GridState, database: Database, commission: boolean): void {
+  function showGrid(view: GridView, state: GridState, database: Database, commission: boolean): void {
     markState(view.grid, state);
     reflectLabel(pageDocument, state === 'partial' ? 'partial' : 'price');
     if (state === 'loading') clearOrder(view.cards);
     else orderCards(view.cards, database, commission, pageDocument.querySelector(DIRECTION_ASCENDING) === null);
   }
 
-  function choose(filters: Element): void {
+  function choosePriceMode(filters: Element): void {
     filters.setAttribute(MODE_ATTRIBUTE, PRICE_MODE);
-    triedAt = null;
+    triedGridKey = null;
     sortTrigger(pageDocument)?.click();
     host.schedule();
   }
@@ -87,8 +87,8 @@ export function createPriceSort(pageDocument: Document, host: SortHost): PriceSo
       const on = isPriceMode(filters);
       decorateMenu(pageDocument, on);
       const view = inspectGrid(pageDocument);
-      if (!on) return release(view);
-      if (view) show(view, resolve(view), database, commission);
+      if (!on) return releaseGrid(view);
+      if (view) showGrid(view, resolveGridState(view), database, commission);
       else reflectLabel(pageDocument, 'price');
     },
     handleClick(event) {
@@ -96,7 +96,7 @@ export function createPriceSort(pageDocument: Document, host: SortHost): PriceSo
       const item = event.target instanceof Element ? event.target.closest(`${MENU} ${ITEM}`) : null;
       if (!filters || !item) return;
       if (item.matches(OWN_ITEM)) {
-        if (event.target instanceof HTMLInputElement) choose(filters);
+        if (event.target instanceof HTMLInputElement) choosePriceMode(filters);
       } else if (isPriceMode(filters)) {
         filters.removeAttribute(MODE_ATTRIBUTE);
         host.schedule();
@@ -105,8 +105,8 @@ export function createPriceSort(pageDocument: Document, host: SortHost): PriceSo
     handleLoaded(event) {
       const outcome = readLoaded(event);
       if (outcome === null) return;
-      loading = false;
-      if (outcome === 'partial') triedAt = keyNow();
+      isLoading = false;
+      if (outcome === 'partial') triedGridKey = readGridKey();
       host.schedule();
     },
   };

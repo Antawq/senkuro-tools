@@ -7,7 +7,7 @@ export interface GridView {
   grid: HTMLElement;
   cards: HTMLElement[];
   pending: boolean;
-  key: string;
+  gridKey: string;
 }
 
 const slugOf = (card: HTMLElement | undefined): string | null => slugFromHref(card?.querySelector(CARD_LINK)?.getAttribute('href'));
@@ -18,7 +18,7 @@ export function inspectGrid(pageDocument: Document): GridView | null {
   const grid = pageDocument.querySelector<HTMLElement>(GRID);
   if (!grid) return null;
   const cards = [...grid.children].filter((child): child is HTMLElement => child instanceof HTMLElement && child.matches(CARD));
-  return { grid, cards, pending: grid.children.length > cards.length, key: keyOf(cards) };
+  return { grid, cards, pending: grid.children.length > cards.length, gridKey: keyOf(cards) };
 }
 
 const priceFor =
