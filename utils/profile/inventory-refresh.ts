@@ -27,7 +27,7 @@ function createRefreshButton(slug: string, host: RefreshHost): HTMLButtonElement
   const button = element('button', SITE_BUTTON);
   button.type = 'button';
   button.id = REFRESH_BUTTON_ID;
-  button.dataset.slug = slug;
+  button.dataset.senkutoolsSlug = slug;
   button.title = LABEL;
   button.setAttribute('aria-label', LABEL);
   const icon = refreshIcon(ICON_SIZE_PX);
@@ -48,7 +48,7 @@ export function syncRefreshButton(host: RefreshHost): void {
   const cardsTitle = findCardsTitle();
   const existingButton = document.getElementById(REFRESH_BUTTON_ID);
   const canPlaceButton = slug !== null && cardsTitle !== null;
-  if (canPlaceButton && existingButton?.dataset.slug === slug) return;
+  if (canPlaceButton && existingButton?.dataset.senkutoolsSlug === slug) return;
   existingButton?.remove();
   if (!canPlaceButton || !isAppMounted(document)) return;
   cardsTitle.after(createRefreshButton(slug, host));

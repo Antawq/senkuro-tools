@@ -66,7 +66,7 @@ describe('the button', () => {
     expect(added?.getAttribute('aria-label')).toBe('Обновить инвентарь');
     expect(added?.title).toBe('Обновить инвентарь');
     expect(added?.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
-    expect(added?.dataset.slug).toBe('phaivroh');
+    expect(added?.dataset.senkutoolsSlug).toBe('phaivroh');
   });
 
   it('is there once however often the page is looked at', () => {
@@ -115,7 +115,7 @@ describe('the button', () => {
     window.history.pushState({}, '', '/users/chu/cards');
     syncRefreshButton(host);
     expect(document.querySelectorAll(`#${REFRESH_BUTTON_ID}`)).toHaveLength(1);
-    expect(findRefreshButton()?.dataset.slug).toBe('chu');
+    expect(findRefreshButton()?.dataset.senkutoolsSlug).toBe('chu');
   });
 
   it('is made again in the bar the site drew after it', () => {
@@ -155,13 +155,13 @@ describe('the button', () => {
   it('is there for the cards address with a closing slash too', () => {
     openPage('/users/phaivroh/cards/');
     syncRefreshButton(createRig().host);
-    expect(findRefreshButton()?.dataset.slug).toBe('phaivroh');
+    expect(findRefreshButton()?.dataset.senkutoolsSlug).toBe('phaivroh');
   });
 
   it('reads the profile name out of a link that is encoded', () => {
     openPage('/users/%D1%87%D1%83/cards');
     syncRefreshButton(createRig().host);
-    expect(findRefreshButton()?.dataset.slug).toBe('чу');
+    expect(findRefreshButton()?.dataset.senkutoolsSlug).toBe('чу');
   });
 });
 
