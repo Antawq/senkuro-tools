@@ -45,10 +45,10 @@ export function findClient(pageDocument: Document): QueryClient | null {
 
 function watch(pageWindow: PageWindow, waiting: Waiting): void {
   const nativeFetch = pageWindow.fetch.bind(pageWindow);
-  pageWindow.fetch = (...args: Parameters<typeof fetch>) => {
-    const pending = nativeFetch(...args);
+  pageWindow.fetch = (...fetchArguments: Parameters<typeof fetch>) => {
+    const pendingResponse = nativeFetch(...fetchArguments);
     if (!waiting.client) {
-      void pending.then(
+      void pendingResponse.then(
         () => {
           if (waiting.client) return;
           const client = findClient(pageWindow.document);
@@ -59,7 +59,7 @@ function watch(pageWindow: PageWindow, waiting: Waiting): void {
         () => undefined
       );
     }
-    return pending;
+    return pendingResponse;
   };
 }
 

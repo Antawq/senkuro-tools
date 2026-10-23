@@ -32,12 +32,12 @@ async function learnFromAnswer(response: Response, variables: Variables, ledger:
 
 export function learnFromFetch(pageWindow: PageWindow, ledger: CursorLedger): void {
   const nativeFetch = pageWindow.fetch.bind(pageWindow);
-  pageWindow.fetch = (...args: Parameters<typeof fetch>) => {
-    const pending = nativeFetch(...args);
-    const variables = isGraphqlRequest(args[0], pageWindow.location.href) ? listVariables(args[1]) : null;
-    if (!variables) return pending;
+  pageWindow.fetch = (...fetchArguments: Parameters<typeof fetch>) => {
+    const pendingResponse = nativeFetch(...fetchArguments);
+    const variables = isGraphqlRequest(fetchArguments[0], pageWindow.location.href) ? listVariables(fetchArguments[1]) : null;
+    if (!variables) return pendingResponse;
     ledger.learn(variables, variables.after);
-    return pending.then(async (response) => {
+    return pendingResponse.then(async (response) => {
       await learnFromAnswer(response, variables, ledger);
       return response;
     });
