@@ -267,10 +267,10 @@ describe('installInventoryGuard', () => {
       const { win, respond, browse, ask, loaded } = rig({ answer: everything });
       await respond();
       browse(profileGrid('USER:1'));
-      let again = true;
+      let shouldAskAgain = true;
       win.document.addEventListener(LIST_LOADED_EVENT, () => {
-        if (again) ask();
-        again = false;
+        if (shouldAskAgain) ask();
+        shouldAskAgain = false;
       });
       ask();
       await settle();

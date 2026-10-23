@@ -206,10 +206,10 @@ describe('profile-dom', () => {
 
       const shiftOf = () => widget()?.querySelector<HTMLElement>('.senkuro-profile-f-popover')?.style.getPropertyValue(SHIFT);
 
-      const underCursor = (hovered: boolean) => {
+      const underCursor = (isHovered: boolean) => {
         const matches = Reflect.get(Element.prototype, 'matches') as (this: Element, selector: string) => boolean;
         vi.spyOn(Element.prototype, 'matches').mockImplementation(function (this: Element, selector: string) {
-          return selector === ':hover' ? hovered && this.id === WIDGET_ID : matches.call(this, selector);
+          return selector === ':hover' ? isHovered && this.id === WIDGET_ID : matches.call(this, selector);
         });
       };
 

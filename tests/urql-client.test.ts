@@ -64,7 +64,7 @@ describe('findClient', () => {
 });
 
 describe('whenClient', () => {
-  const rig = (mounted: boolean) => {
+  const rig = (isMounted: boolean) => {
     const { client } = clientWith();
     const pageWindow = new Window({ url: 'https://senkuro.me/' });
     pageWindow.document.body.innerHTML = '<div id="app"></div>';
@@ -73,7 +73,7 @@ describe('whenClient', () => {
     const mount = () => {
       (pageWindow.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = { _context: { provides: { $urql: { value: client } } } };
     };
-    if (mounted) mount();
+    if (isMounted) mount();
     const typed = pageWindow as unknown as Parameters<typeof whenClient>[0];
     const respond = async () => {
       await pageWindow.fetch('https://api.senkuro.me/graphql');

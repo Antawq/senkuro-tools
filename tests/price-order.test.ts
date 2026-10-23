@@ -6,8 +6,8 @@ const prices: Record<string, number> = { cheap: 1.5, mid: 20, dear: 300, twin: 2
 
 const priceOf = (slug: string): number | null => prices[slug] ?? null;
 
-const shown = (slugs: (string | null)[], descending: boolean): (string | null)[] => {
-  const order = priceOrder(slugs, priceOf, descending);
+const shown = (slugs: (string | null)[], isDescending: boolean): (string | null)[] => {
+  const order = priceOrder(slugs, priceOf, isDescending);
   const slugsInOrder: (string | null)[] = [];
   order.forEach((position, index) => {
     slugsInOrder[position] = slugs[index] ?? null;

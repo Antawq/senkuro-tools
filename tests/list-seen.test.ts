@@ -99,23 +99,23 @@ describe('learnFromFetch', () => {
   });
 
   it('does not read an answer that is streamed', async () => {
-    let read = false;
+    let didRead = false;
     const reply: Reply = () => {
       const response = new Response('x', { headers: { 'content-type': 'multipart/mixed; boundary=-' } });
       response.clone = () => {
-        read = true;
+        didRead = true;
         return new Response(JSON.stringify(answerOf('c1')));
       };
       return response;
     };
     const { call, ledger } = rig(reply);
     await call(GRAPHQL, { method: 'POST', body: body(cards()) });
-    expect(read).toBe(false);
+    expect(didRead).toBe(false);
     expect(ledger.isForeign(shards('c1'))).toBe(false);
   });
 
   it('has read the copy before the site gets the answer, so the site closing the request cannot cut the copy short', async () => {
-    let read = false;
+    let didRead = false;
     const reply: Reply = () => {
       const response = new Response('x');
       response.clone = () =>
@@ -123,7 +123,7 @@ describe('learnFromFetch', () => {
           text: () =>
             new Promise<string>((resolve) =>
               setTimeout(() => {
-                read = true;
+                didRead = true;
                 resolve(JSON.stringify(answerOf('c1')));
               }, 10)
             ),
@@ -132,7 +132,7 @@ describe('learnFromFetch', () => {
     };
     const { call } = rig(reply);
     await call(GRAPHQL, { method: 'POST', body: body(cards()) });
-    expect(read).toBe(true);
+    expect(didRead).toBe(true);
   });
 
   it('keeps the site working when the copy cannot be read', async () => {

@@ -13,8 +13,8 @@ const database: Database = {
 
 const SORT_ITEMS = ['Рангу', 'Количеству', 'Популярности', 'Персонажу', 'Произведению', 'Дате получения', 'Дате обновления'];
 
-const radio = (text: string, checked: boolean) =>
-  `<label class="radio radio-size--md radio--list"><input type="radio" value="${text}"${checked ? ' checked=""' : ''}><div class="radio__label"><!----><span>${text}</span><!----></div></label>`;
+const radio = (text: string, isChecked: boolean) =>
+  `<label class="radio radio-size--md radio--list"><input type="radio" value="${text}"${isChecked ? ' checked=""' : ''}><div class="radio__label"><!----><span>${text}</span><!----></div></label>`;
 
 const menuHtml = (checkedIndex = 5) =>
   `<div id="cards-browse-order" class="v-popper__popper"><div class="dropdown-menu dropdown-menu--sm"><div class="dropdown-menu__caption"> Сортировать по </div>${SORT_ITEMS.map((text, index) => radio(text, index === checkedIndex)).join('')}</div></div>`;
@@ -24,18 +24,18 @@ const cardHtml = (slug: string, index: number) =>
 
 interface Page {
   slugs?: string[];
-  more?: boolean;
-  ascending?: boolean;
-  menu?: boolean;
-  filters?: boolean;
+  hasMoreCards?: boolean;
+  isAscending?: boolean;
+  hasMenu?: boolean;
+  hasFilters?: boolean;
 }
 
-const render = ({ slugs = ['mid', 'dear', 'cheap'], more = false, ascending = false, menu = false, filters = true }: Page = {}) => {
+const render = ({ slugs = ['mid', 'dear', 'cheap'], hasMoreCards = false, isAscending = false, hasMenu = false, hasFilters = true }: Page = {}) => {
   document.body.innerHTML = `${
-    filters
-      ? `<div class="back-actions"><div class="user-card__filters"><button class="button button--icon${ascending ? ' cards-cnt__nav-filter--asc' : ''}" id="direction"></button><div class="v-popper"><button id="sort-trigger" class="button"><span>По дате получения</span></button></div><div class="v-popper"><button id="filter-trigger" class="button"><span>Фильтр</span></button></div></div></div>`
+    hasFilters
+      ? `<div class="back-actions"><div class="user-card__filters"><button class="button button--icon${isAscending ? ' cards-cnt__nav-filter--asc' : ''}" id="direction"></button><div class="v-popper"><button id="sort-trigger" class="button"><span>По дате получения</span></button></div><div class="v-popper"><button id="filter-trigger" class="button"><span>Фильтр</span></button></div></div></div>`
       : ''
-  }<div class="user-cards-grid">${slugs.map(cardHtml).join('')}${more ? '<div></div>' : ''}</div>${menu ? menuHtml() : ''}`;
+  }<div class="user-cards-grid">${slugs.map(cardHtml).join('')}${hasMoreCards ? '<div></div>' : ''}</div>${hasMenu ? menuHtml() : ''}`;
 };
 
 const cards = (): HTMLElement[] => [...document.querySelectorAll<HTMLElement>('.user-cards-grid > .user-card')];
@@ -66,7 +66,7 @@ const setup = () => {
   const sort = createPriceSort(document, host);
   const choose = () => press(sort, own());
   const answered = (outcome: LoadOutcome) => sort.handleLoaded(new CustomEvent(LIST_LOADED_EVENT, { detail: encodeLoaded(outcome) }));
-  const loaded = (complete: boolean) => answered(complete ? 'complete' : 'partial');
+  const loaded = (isComplete: boolean) => answered(isComplete ? 'complete' : 'partial');
   const moved = () => answered('moved');
   return { sort, host, requests, timers, choose, loaded, moved };
 };
@@ -85,7 +85,7 @@ beforeEach(() => {
 
 describe('the menu', () => {
   it('gets a last item for the price, built like the site items and unchecked', () => {
-    render({ menu: true });
+    render({ hasMenu: true });
     const { sort } = setup();
     sort.sync(database, settings);
     const menuItems = [...document.querySelectorAll('#cards-browse-order label.radio--list')];
@@ -98,14 +98,14 @@ describe('the menu', () => {
   });
 
   it('leaves the item the site checked alone while the mode is off', () => {
-    render({ menu: true });
+    render({ hasMenu: true });
     const { sort } = setup();
     sort.sync(database, settings);
     expect(checkedItems()).toEqual(['Дате получения']);
   });
 
   it('is decorated once, however often it is looked at', () => {
-    render({ menu: true });
+    render({ hasMenu: true });
     const { sort } = setup();
     sort.sync(database, settings);
     sort.sync(database, settings);
@@ -113,11 +113,11 @@ describe('the menu', () => {
   });
 
   it('is left alone when it is not the cards page, or a window is open over it, or the menu is not the sort menu of this page', () => {
-    render({ menu: true, filters: false });
+    render({ hasMenu: true, hasFilters: false });
     const first = setup();
     first.sort.sync(database, settings);
     expect(own()).toBeNull();
-    render({ menu: true });
+    render({ hasMenu: true });
     document.body.insertAdjacentHTML('beforeend', '<div class="modal-content modal-content--trade"></div>');
     first.sort.sync(database, settings);
     expect(own()).toBeNull();
@@ -144,7 +144,7 @@ describe('the menu', () => {
 
 describe('choosing the price', () => {
   it('turns it on, closes the menu through its button, labels the button and shows the item as the checked one', () => {
-    render({ menu: true });
+    render({ hasMenu: true });
     const { sort, host, choose } = setup();
     sort.sync(database, settings);
     const closed = vi.fn();
@@ -170,7 +170,7 @@ describe('choosing the price', () => {
   });
 
   it('chooses once when the label is clicked, although the browser follows that with a click on the field', () => {
-    render({ menu: true });
+    render({ hasMenu: true });
     const { sort } = setup();
     sort.sync(database, settings);
     const closed = vi.fn();
@@ -181,7 +181,7 @@ describe('choosing the price', () => {
   });
 
   it('turns off when any item of the site is chosen, and gives the button its own label back', () => {
-    render({ menu: true });
+    render({ hasMenu: true });
     const { sort, host } = setup();
     enablePriceMode();
     sort.sync(database, settings);
@@ -198,7 +198,7 @@ describe('choosing the price', () => {
   });
 
   it('leaves the button text to the site when the site already changed it', () => {
-    render({ menu: true });
+    render({ hasMenu: true });
     const { sort } = setup();
     enablePriceMode();
     sort.sync(database, settings);
@@ -209,7 +209,7 @@ describe('choosing the price', () => {
   });
 
   it('does nothing when an item of the site is chosen and the price was not on', () => {
-    render({ menu: true });
+    render({ hasMenu: true });
     const { sort, host } = setup();
     sort.sync(database, settings);
     press(sort, document.querySelector('#cards-browse-order label.radio--list input'));
@@ -217,7 +217,7 @@ describe('choosing the price', () => {
   });
 
   it('finds the sort button by its text, not by its place among the buttons', () => {
-    render({ menu: true });
+    render({ hasMenu: true });
     const filterPopper = document.querySelector('#filter-trigger')!.parentElement!;
     document.querySelector('.user-card__filters')!.insertBefore(filterPopper, document.querySelector('#sort-trigger')!.parentElement);
     const { sort } = setup();
@@ -228,7 +228,7 @@ describe('choosing the price', () => {
   });
 
   it('does nothing for clicks elsewhere', () => {
-    render({ menu: true });
+    render({ hasMenu: true });
     const { sort, host } = setup();
     sort.sync(database, settings);
     sort.handleClick(new MouseEvent('click'));
@@ -251,7 +251,7 @@ describe('ordering the cards', () => {
   });
 
   it('turns around with the direction button of the site', () => {
-    render({ ascending: true });
+    render({ isAscending: true });
     const { sort } = setup();
     enablePriceMode();
     sort.sync(database, settings);
@@ -307,7 +307,7 @@ describe('ordering the cards', () => {
   });
 
   it('does nothing when the cards page is not there', () => {
-    render({ filters: false });
+    render({ hasFilters: false });
     const { sort, requests } = setup();
     sort.sync(database, settings);
     expect(requests.count).toBe(0);
@@ -326,7 +326,7 @@ describe('ordering the cards', () => {
 
 describe('a list that is not all there', () => {
   it('asks for the rest once, keeps the site order and dims the grid until it has come', () => {
-    render({ more: true });
+    render({ hasMoreCards: true });
     const { sort, requests } = setup();
     enablePriceMode();
     sort.sync(database, settings);
@@ -338,7 +338,7 @@ describe('a list that is not all there', () => {
   });
 
   it('orders the whole list once the rest has come', () => {
-    render({ more: true });
+    render({ hasMoreCards: true });
     const { sort, loaded } = setup();
     enablePriceMode();
     sort.sync(database, settings);
@@ -351,7 +351,7 @@ describe('a list that is not all there', () => {
   });
 
   it('shows what it has, says so, and does not ask again, when the rest could not be loaded', () => {
-    render({ more: true });
+    render({ hasMoreCards: true });
     const { sort, requests, loaded } = setup();
     enablePriceMode();
     sort.sync(database, settings);
@@ -366,7 +366,7 @@ describe('a list that is not all there', () => {
   });
 
   it('asks for the list the site moved to when the load it started was left half way by that move', () => {
-    render({ more: true });
+    render({ hasMoreCards: true });
     const { sort, requests, moved } = setup();
     enablePriceMode();
     sort.sync(database, settings);
@@ -379,7 +379,7 @@ describe('a list that is not all there', () => {
   });
 
   it('asks again when more cards have come in since, for example by scrolling', () => {
-    render({ more: true });
+    render({ hasMoreCards: true });
     const { sort, requests, loaded } = setup();
     enablePriceMode();
     sort.sync(database, settings);
@@ -392,7 +392,7 @@ describe('a list that is not all there', () => {
   });
 
   it('does not ask again when the page says it has everything but the grid still shows more, and no card came in', () => {
-    render({ more: true });
+    render({ hasMoreCards: true });
     const { sort, requests, loaded } = setup();
     enablePriceMode();
     sort.sync(database, settings);
@@ -403,7 +403,7 @@ describe('a list that is not all there', () => {
   });
 
   it('shows what it has, and does not ask again, when the load failed after cards had come in', () => {
-    render({ more: true });
+    render({ hasMoreCards: true });
     const { sort, requests, loaded } = setup();
     enablePriceMode();
     sort.sync(database, settings);
@@ -415,7 +415,7 @@ describe('a list that is not all there', () => {
   });
 
   it('asks again when the page says it has everything, the grid still shows more, and cards had come in', () => {
-    render({ more: true });
+    render({ hasMoreCards: true });
     const { sort, requests, loaded } = setup();
     enablePriceMode();
     sort.sync(database, settings);
@@ -426,7 +426,7 @@ describe('a list that is not all there', () => {
   });
 
   it('takes the hint off the button when the list is complete after all, and when the mode ends', () => {
-    render({ more: true });
+    render({ hasMoreCards: true });
     const { sort, loaded } = setup();
     enablePriceMode();
     sort.sync(database, settings);
@@ -437,7 +437,7 @@ describe('a list that is not all there', () => {
     sort.sync(database, settings);
     expect(label()).toBe('По цене');
     expect(document.querySelector('#sort-trigger')?.hasAttribute('title')).toBe(false);
-    render({ more: true });
+    render({ hasMoreCards: true });
     enablePriceMode();
     sort.sync(database, settings);
     loaded(false);
@@ -448,7 +448,7 @@ describe('a list that is not all there', () => {
   });
 
   it('asks again when the price is chosen once more', () => {
-    render({ more: true, menu: true });
+    render({ hasMoreCards: true, hasMenu: true });
     const { sort, requests, loaded, choose } = setup();
     sort.sync(database, settings);
     choose();
@@ -461,7 +461,7 @@ describe('a list that is not all there', () => {
   });
 
   it('tells a new list from the one it already tried by its cards, not by how many there are', () => {
-    render({ slugs: ['mid', 'dear', 'cheap'], more: true });
+    render({ slugs: ['mid', 'dear', 'cheap'], hasMoreCards: true });
     const { sort, requests, loaded } = setup();
     enablePriceMode();
     sort.sync(database, settings);
@@ -472,7 +472,7 @@ describe('a list that is not all there', () => {
       ['dear', 'twin', 'cheap'],
       ['dear', 'mid', 'twin'],
     ]) {
-      render({ slugs, more: true });
+      render({ slugs, hasMoreCards: true });
       enablePriceMode();
       sort.sync(database, settings);
       expect(grid()?.getAttribute('data-senkutools-sort-state')).toBe('loading');
@@ -482,12 +482,12 @@ describe('a list that is not all there', () => {
   });
 
   it('asks for the new list when the site switches to another one, and stops dimming when the label comes back', () => {
-    render({ more: true });
+    render({ hasMoreCards: true });
     const { sort, requests, loaded } = setup();
     enablePriceMode();
     sort.sync(database, settings);
     loaded(true);
-    render({ slugs: ['mid', 'cheap'], more: true });
+    render({ slugs: ['mid', 'cheap'], hasMoreCards: true });
     enablePriceMode();
     sort.sync(database, settings);
     expect(requests.count).toBe(2);
@@ -495,7 +495,7 @@ describe('a list that is not all there', () => {
   });
 
   it('gives up waiting when nothing arrives for a long time, and waits on while cards keep coming', () => {
-    render({ more: true });
+    render({ hasMoreCards: true });
     const { sort, timers, requests } = setup();
     enablePriceMode();
     sort.sync(database, settings);
@@ -512,7 +512,7 @@ describe('a list that is not all there', () => {
   });
 
   it('does not mind a late timer once the answer has come', () => {
-    render({ more: true });
+    render({ hasMoreCards: true });
     const { sort, timers, loaded, host } = setup();
     enablePriceMode();
     sort.sync(database, settings);
@@ -525,7 +525,7 @@ describe('a list that is not all there', () => {
 
 describe('the answer of the page', () => {
   it('asks for a redraw, so the grid is looked at again', () => {
-    render({ more: true });
+    render({ hasMoreCards: true });
     const { sort, host, loaded } = setup();
     enablePriceMode();
     sort.sync(database, settings);
@@ -535,7 +535,7 @@ describe('the answer of the page', () => {
   });
 
   it('is ignored when it is not one', () => {
-    render({ more: true });
+    render({ hasMoreCards: true });
     const { sort, host } = setup();
     enablePriceMode();
     sort.sync(database, settings);
@@ -551,7 +551,7 @@ describe('touchesSort', () => {
   const record = (target: Node, added: Node[] = []): MutationRecord => ({ target, addedNodes: added as unknown as NodeList }) as MutationRecord;
 
   it('notices changes in the grid, the bar, and the sort menu, and a menu that is added', () => {
-    render({ menu: true });
+    render({ hasMenu: true });
     expect(hasSortMutation([record(document.querySelector('.user-cards-grid')!)])).toBe(true);
     expect(hasSortMutation([record(document.querySelector('.user-card__filters button')!)])).toBe(true);
     expect(hasSortMutation([record(document.querySelector('#cards-browse-order .dropdown-menu')!)])).toBe(true);
@@ -564,7 +564,7 @@ describe('touchesSort', () => {
   });
 
   it('does not notice the rest of the page', () => {
-    render({ menu: true });
+    render({ hasMenu: true });
     const other = document.createElement('p');
     document.body.append(other);
     expect(hasSortMutation([record(other, [document.createElement('span'), document.createTextNode('x')])])).toBe(false);
