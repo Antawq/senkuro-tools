@@ -21,7 +21,7 @@ import { isTradeMutation, updateTradeSummaries } from '@/utils/trades/trade-summ
 
 const LATE_RENDER_DELAYS_MS = [400, 1500];
 const WATCHED_ATTRIBUTES = ['src', 'srcset', 'data-srcset'];
-const INVENTORY_REFRESH: RefreshHost = { forget: forgetCollection, reload: () => window.location.reload() };
+const inventoryRefresh: RefreshHost = { forget: forgetCollection, reload: () => window.location.reload() };
 
 const applySummaryFontSize = (size: number) => document.documentElement.style.setProperty('--senkuro-summary-font-size', `${size}px`);
 
@@ -46,7 +46,7 @@ export default defineContentScript({
         trades: (db) => updateTradeSummaries(db, settings, tradeStore),
         profile: (db) => {
           updateProfileBadge({ db, valuation: settings, redraw: loop.schedule });
-          syncRefreshButton(INVENTORY_REFRESH);
+          syncRefreshButton(inventoryRefresh);
         },
       },
       loadDatabase,
