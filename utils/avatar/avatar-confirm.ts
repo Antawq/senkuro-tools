@@ -29,8 +29,8 @@ export interface SiteModals {
 }
 
 export interface SiteAssets {
-  component: () => Promise<unknown>;
-  coin: () => Promise<string | null>;
+  loadConfirmComponent: () => Promise<unknown>;
+  findCoinUrl: () => Promise<string | null>;
 }
 
 interface AvatarConfirmHost {
@@ -88,14 +88,14 @@ export function createSiteAssets(
   };
 
   return {
-    component: () => {
+    loadConfirmComponent: () => {
       confirmComponentPromise ??= importConfirmComponent().catch((error: unknown) => {
         confirmComponentPromise = null;
         throw error;
       });
       return confirmComponentPromise;
     },
-    coin: () => findAssetUrl(COIN_IMAGE).catch(() => null),
+    findCoinUrl: () => findAssetUrl(COIN_IMAGE).catch(() => null),
   };
 }
 
@@ -133,10 +133,10 @@ export function installAvatarConfirm({ pageDocument, modals, assets }: AvatarCon
   };
 
   const ask = async (site: SiteModals): Promise<boolean> => {
-    const [loaded, coin] = await Promise.all([assets.component(), assets.coin()]);
-    const stopAddingCoin = addCoinToCostMark(pageDocument, coin);
+    const [confirmComponent, coinUrl] = await Promise.all([assets.loadConfirmComponent(), assets.findCoinUrl()]);
+    const stopAddingCoin = addCoinToCostMark(pageDocument, coinUrl);
     try {
-      const entry = site.showModal(() => Promise.resolve(loaded), createConfirmProps(coin !== null), {});
+      const entry = site.showModal(() => Promise.resolve(confirmComponent), createConfirmProps(coinUrl !== null), {});
       return await Promise.race([entry.emitted('confirm'), entry.emitted('close').then(() => false)]);
     } finally {
       stopAddingCoin();

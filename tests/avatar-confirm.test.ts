@@ -82,9 +82,13 @@ beforeEach(() => {
       return entry;
     },
   };
-  assets = { component: () => Promise.resolve(COMPONENT), coin: () => Promise.resolve(COIN_URL) };
+  assets = { loadConfirmComponent: () => Promise.resolve(COMPONENT), findCoinUrl: () => Promise.resolve(COIN_URL) };
   document.addEventListener('click', siteHandler);
-  dispose = installAvatarConfirm({ pageDocument: document, modals: () => modals, assets: { component: () => assets.component(), coin: () => assets.coin() } });
+  dispose = installAvatarConfirm({
+    pageDocument: document,
+    modals: () => modals,
+    assets: { loadConfirmComponent: () => assets.loadConfirmComponent(), findCoinUrl: () => assets.findCoinUrl() },
+  });
 });
 
 afterEach(async () => {
@@ -262,7 +266,7 @@ describe('the 3D coin in place of the word', () => {
   });
 
   it('says the word instead when the coin cannot be found, and puts no picture', async () => {
-    assets = { component: () => Promise.resolve(COMPONENT), coin: () => Promise.resolve(null) };
+    assets = { loadConfirmComponent: () => Promise.resolve(COMPONENT), findCoinUrl: () => Promise.resolve(null) };
     upload().click();
     await flush();
     expect(shown[0]?.props).toEqual(createConfirmProps(false));
@@ -303,7 +307,7 @@ describe('when the window of the site cannot be reached, the upload is not block
   });
 
   it('goes on when the window cannot be loaded', async () => {
-    assets = { component: () => Promise.reject(new Error('offline')), coin: () => Promise.resolve(COIN_URL) };
+    assets = { loadConfirmComponent: () => Promise.reject(new Error('offline')), findCoinUrl: () => Promise.resolve(COIN_URL) };
     upload().click();
     await flush();
     expect(siteClicks).toEqual(['upload']);
@@ -321,10 +325,10 @@ describe('when the window of the site cannot be reached, the upload is not block
   });
 
   it('can ask again after a failure', async () => {
-    assets = { component: () => Promise.reject(new Error('offline')), coin: () => Promise.resolve(COIN_URL) };
+    assets = { loadConfirmComponent: () => Promise.reject(new Error('offline')), findCoinUrl: () => Promise.resolve(COIN_URL) };
     upload().click();
     await flush();
-    assets = { component: () => Promise.resolve(COMPONENT), coin: () => Promise.resolve(COIN_URL) };
+    assets = { loadConfirmComponent: () => Promise.resolve(COMPONENT), findCoinUrl: () => Promise.resolve(COIN_URL) };
     upload().click();
     await flush();
     expect(shown).toHaveLength(1);
@@ -366,38 +370,38 @@ describe('loading the confirm window and the coin of the site', () => {
   it('reads the chunk of the window from the service worker list and imports it from the site', async () => {
     const importer = vi.fn(() => Promise.resolve({ default: COMPONENT }));
     const pageWindow = createPageWindow(sw);
-    expect(await createSiteAssets(pageWindow, importer).component()).toBe(COMPONENT);
+    expect(await createSiteAssets(pageWindow, importer).loadConfirmComponent()).toBe(COMPONENT);
     expect(pageWindow.fetch).toHaveBeenCalledWith('/sw.js');
     expect(importer).toHaveBeenCalledWith('https://senkuro.me/assets/BaseConfirmModal-Dw121HiH.js');
   });
 
   it('reads the picture of the coin from the same list', async () => {
-    expect(await createSiteAssets(createPageWindow(sw)).coin()).toBe(COIN_URL);
+    expect(await createSiteAssets(createPageWindow(sw)).findCoinUrl()).toBe(COIN_URL);
   });
 
   it('reads the list once for both, however often they are asked', async () => {
     const importer = vi.fn(() => Promise.resolve({ default: COMPONENT }));
     const pageWindow = createPageWindow(sw);
     const loader = createSiteAssets(pageWindow, importer);
-    await Promise.all([loader.component(), loader.component(), loader.coin()]);
-    await loader.component();
-    await loader.coin();
+    await Promise.all([loader.loadConfirmComponent(), loader.loadConfirmComponent(), loader.findCoinUrl()]);
+    await loader.loadConfirmComponent();
+    await loader.findCoinUrl();
     expect(pageWindow.fetch).toHaveBeenCalledTimes(1);
     expect(importer).toHaveBeenCalledTimes(1);
   });
 
   it('finds no coin when the list names none, or cannot be read, and never fails for it', async () => {
-    expect(await createSiteAssets(createPageWindow('precache([])')).coin()).toBeNull();
+    expect(await createSiteAssets(createPageWindow('precache([])')).findCoinUrl()).toBeNull();
     const broken = { fetch: vi.fn(() => Promise.reject(new Error('offline'))), location: { origin: 'https://senkuro.me' } as Location };
-    expect(await createSiteAssets(broken).coin()).toBeNull();
+    expect(await createSiteAssets(broken).findCoinUrl()).toBeNull();
   });
 
   it('fails when the list names no such chunk, and tries again next time', async () => {
     const importer = vi.fn(() => Promise.resolve({ default: COMPONENT }));
     const pageWindow = createPageWindow('precache([])');
     const loader = createSiteAssets(pageWindow, importer);
-    await expect(loader.component()).rejects.toThrow();
-    await expect(loader.component()).rejects.toThrow();
+    await expect(loader.loadConfirmComponent()).rejects.toThrow();
+    await expect(loader.loadConfirmComponent()).rejects.toThrow();
     expect(importer).not.toHaveBeenCalled();
   });
 
@@ -410,8 +414,8 @@ describe('loading the confirm window and the coin of the site', () => {
       location: { origin: 'https://senkuro.me' } as Location,
     };
     const loader = createSiteAssets(pageWindow, () => Promise.resolve({ default: COMPONENT }));
-    expect(await loader.coin()).toBeNull();
-    expect(await loader.coin()).toBe(COIN_URL);
+    expect(await loader.findCoinUrl()).toBeNull();
+    expect(await loader.findCoinUrl()).toBe(COIN_URL);
   });
 
   it('reads the list again after the site answered with an error status', async () => {
@@ -423,20 +427,20 @@ describe('loading the confirm window and the coin of the site', () => {
       location: { origin: 'https://senkuro.me' } as Location,
     };
     const loader = createSiteAssets(pageWindow, () => Promise.resolve({ default: COMPONENT }));
-    expect(await loader.coin()).toBeNull();
-    expect(await loader.coin()).toBe(COIN_URL);
+    expect(await loader.findCoinUrl()).toBeNull();
+    expect(await loader.findCoinUrl()).toBe(COIN_URL);
     expect(pageWindow.fetch).toHaveBeenCalledTimes(2);
   });
 
   it('fails when the chunk has no component', async () => {
     const loader = createSiteAssets(createPageWindow(sw), () => Promise.resolve({}));
-    await expect(loader.component()).rejects.toThrow();
+    await expect(loader.loadConfirmComponent()).rejects.toThrow();
   });
 
   it('fails when the chunk cannot be imported, and tries again next time', async () => {
     const importer = vi.fn().mockRejectedValueOnce(new Error('404')).mockResolvedValue({ default: COMPONENT });
     const loader = createSiteAssets(createPageWindow(sw), importer);
-    await expect(loader.component()).rejects.toThrow('404');
-    expect(await loader.component()).toBe(COMPONENT);
+    await expect(loader.loadConfirmComponent()).rejects.toThrow('404');
+    expect(await loader.loadConfirmComponent()).toBe(COMPONENT);
   });
 });
