@@ -123,7 +123,7 @@ export function installAvatarConfirm({ pageDocument, findSiteModals, assets }: A
   let isReplayingClick = false;
   let isAsking = false;
 
-  const proceed = (button: Element): void => {
+  const replayClick = (button: Element): void => {
     isReplayingClick = true;
     try {
       (button as HTMLElement).click();
@@ -143,7 +143,7 @@ export function installAvatarConfirm({ pageDocument, findSiteModals, assets }: A
     }
   };
 
-  const onClick = (event: MouseEvent): void => {
+  const handleClick = (event: MouseEvent): void => {
     if (isReplayingClick) return;
     const button = event.target instanceof Element ? event.target.closest(BUTTON) : null;
     if (!button) return;
@@ -155,15 +155,15 @@ export function installAvatarConfirm({ pageDocument, findSiteModals, assets }: A
     ask(siteModals)
       .then(
         (isConfirmed) => {
-          if (isConfirmed) proceed(button);
+          if (isConfirmed) replayClick(button);
         },
-        () => proceed(button)
+        () => replayClick(button)
       )
       .finally(() => {
         isAsking = false;
       });
   };
 
-  pageDocument.addEventListener('click', onClick, true);
-  return () => pageDocument.removeEventListener('click', onClick, true);
+  pageDocument.addEventListener('click', handleClick, true);
+  return () => pageDocument.removeEventListener('click', handleClick, true);
 }
