@@ -58,7 +58,8 @@ describe('better-search stylesheet values', () => {
     expect(stylesheet).toMatch(/\(width >= 576px\) \{\s+\.modal-content--search \{\s+--better-search-chrome: 260px;/);
   });
 
-  it('cuts the list through the middle of a row, with a plain height for browsers without round()', () => {
+  it('cuts the list through the middle of a row, and only where round() exists, so other browsers keep the plain height', () => {
+    expect(stylesheet).toContain('@supports (max-height: round(down, 10px, 1px)) {');
     expect(stylesheet).toContain('--better-search-row: 88px;');
     expect(stylesheet).toContain('calc(16px + 7.5 * var(--better-search-row))');
     expect(stylesheet).toContain('calc(100dvh - var(--better-search-chrome))');
