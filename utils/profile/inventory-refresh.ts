@@ -47,12 +47,12 @@ export function syncRefreshButton(host: RefreshHost): void {
   const slug = findCardsSlug();
   const cardsTitle = findCardsTitle();
   const existingButton = document.getElementById(REFRESH_BUTTON_ID);
-  const place = slug !== null && cardsTitle !== null;
-  if (place && existingButton?.dataset.slug === slug) return;
+  const canPlaceButton = slug !== null && cardsTitle !== null;
+  if (canPlaceButton && existingButton?.dataset.slug === slug) return;
   existingButton?.remove();
-  if (!place || !isAppMounted(document)) return;
+  if (!canPlaceButton || !isAppMounted(document)) return;
   cardsTitle.after(build(slug, host));
 }
 
-export const refreshButtonMissing = (): boolean =>
+export const isRefreshButtonMissing = (): boolean =>
   Boolean(findCardsSlug() && findCardsTitle() && !document.getElementById(REFRESH_BUTTON_ID) && isAppMounted(document));

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { APP_MOUNTED_ATTRIBUTE } from '../utils/shared/app-mounted';
-import { REFRESH_BUTTON_ID, refreshButtonMissing, syncRefreshButton, type RefreshHost } from '../utils/profile/inventory-refresh';
+import { REFRESH_BUTTON_ID, isRefreshButtonMissing, syncRefreshButton, type RefreshHost } from '../utils/profile/inventory-refresh';
 
 const BAR =
   '<header class="back"><a href="/users/phaivroh" class="router-link-active"></a><h2 class="caption">Все карточки</h2><div class="back-actions"><div class="user-card__filters"><button id="direction" class="button button--secondary button--icon"></button><div class="v-popper"></div></div></div></header>';
@@ -133,7 +133,7 @@ describe('the button', () => {
     title().remove();
     syncRefreshButton(rig().host);
     expect(button()).toBeNull();
-    expect(refreshButtonMissing()).toBe(false);
+    expect(isRefreshButtonMissing()).toBe(false);
   });
 
   it('goes after the title of its own header, not after any other title on the page', () => {
@@ -149,7 +149,7 @@ describe('the button', () => {
     document.body.innerHTML = '<div class="user-card__filters"></div>';
     syncRefreshButton(rig().host);
     expect(button()).toBeNull();
-    expect(refreshButtonMissing()).toBe(false);
+    expect(isRefreshButtonMissing()).toBe(false);
   });
 
   it('is there for the cards address with a closing slash too', () => {
@@ -173,9 +173,9 @@ describe('before the page has been taken over by the app', () => {
     syncRefreshButton(host);
     expect(button()).toBeNull();
     expect(bar().children).toHaveLength(2);
-    expect(refreshButtonMissing()).toBe(false);
+    expect(isRefreshButtonMissing()).toBe(false);
     mounted(true);
-    expect(refreshButtonMissing()).toBe(true);
+    expect(isRefreshButtonMissing()).toBe(true);
     syncRefreshButton(host);
     expect(title().nextElementSibling).toBe(button());
   });
@@ -191,16 +191,16 @@ describe('before the page has been taken over by the app', () => {
   });
 });
 
-describe('refreshButtonMissing', () => {
+describe('isRefreshButtonMissing', () => {
   it('says so only on the cards page with its bar and no button', () => {
     open('/users/phaivroh/cards');
-    expect(refreshButtonMissing()).toBe(true);
+    expect(isRefreshButtonMissing()).toBe(true);
     syncRefreshButton(rig().host);
-    expect(refreshButtonMissing()).toBe(false);
+    expect(isRefreshButtonMissing()).toBe(false);
     open('/users/phaivroh');
-    expect(refreshButtonMissing()).toBe(false);
+    expect(isRefreshButtonMissing()).toBe(false);
     open('/users/phaivroh/cards', false);
-    expect(refreshButtonMissing()).toBe(false);
+    expect(isRefreshButtonMissing()).toBe(false);
   });
 });
 
