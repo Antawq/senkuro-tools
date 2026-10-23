@@ -1,3 +1,5 @@
+import type { PageWindow } from './page-window';
+
 const APP_ROOT = '#app';
 const CLIENT_KEY = '$urql';
 const OPERATION_KIND = 'OperationDefinition';
@@ -27,8 +29,6 @@ interface Waiting {
   callbacks: ((client: QueryClient) => void)[];
 }
 
-type ClientWindow = Window & typeof globalThis;
-
 export const operationName = (request: QueryRequest): string | undefined =>
   request.query?.definitions?.find((part) => part.kind === OPERATION_KIND)?.name?.value;
 
@@ -43,7 +43,7 @@ export function findClient(doc: Document): QueryClient | null {
   return isClient(inner) ? inner : null;
 }
 
-function watch(win: ClientWindow, waiting: Waiting): void {
+function watch(win: PageWindow, waiting: Waiting): void {
   const nativeFetch = win.fetch.bind(win);
   win.fetch = (...args: Parameters<typeof fetch>) => {
     const pending = nativeFetch(...args);
@@ -63,7 +63,7 @@ function watch(win: ClientWindow, waiting: Waiting): void {
   };
 }
 
-export function whenClient(win: ClientWindow, run: (client: QueryClient) => void): void {
+export function whenClient(win: PageWindow, run: (client: QueryClient) => void): void {
   const host = win as unknown as Record<symbol, Waiting | undefined>;
   let waiting = host[WAITING];
   if (!waiting) {

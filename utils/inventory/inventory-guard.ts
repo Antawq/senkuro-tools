@@ -1,6 +1,7 @@
 import { debugLogger } from '../shared/debug';
 import { LIST_LOAD_EVENT, LIST_LOADED_EVENT, encodeLoaded, type LoadOutcome } from '../shared/list-signal';
 import { claimPage } from '../shared/page-claim';
+import type { PageWindow } from '../shared/page-window';
 import { operationName, whenClient, type QueryClient } from '../shared/urql-client';
 import { recordLists, tapMutations, type MutationResult } from './client-hooks';
 import { createCursorLedger, guardCursors } from './list-cursors';
@@ -11,8 +12,6 @@ import { refreshFamilies, type RefreshEnv } from './list-refresh';
 
 const FORGE_OPERATION = 'forgeCards';
 const TRADE_OPERATIONS = ['acceptCardTrade', 'acceptCardOffer'];
-
-type GuardWindow = Window & typeof globalThis;
 
 interface ForgeAnswer {
   userId?: unknown;
@@ -39,7 +38,7 @@ export function planRefresh(result: MutationResult, families: Family[]): Family[
   return TRADE_OPERATIONS.includes(name) && answer?.success === true ? families : [];
 }
 
-export function installInventoryGuard(win: GuardWindow): void {
+export function installInventoryGuard(win: PageWindow): void {
   if (!claimPage(win, 'inventory-guard')) return;
   const debug = debugLogger(win);
   const record = createListRecord();

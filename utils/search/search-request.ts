@@ -1,6 +1,7 @@
 import type { Sink } from 'wonka';
 
 import { claimPage } from '../shared/page-claim';
+import type { PageWindow } from '../shared/page-window';
 import { operationName, whenClient, type QueryClient, type QueryRequest } from '../shared/urql-client';
 import { tapSource, type SourceResult } from '../shared/urql-source';
 import { SEARCH_EVENT, type SearchSignal } from './search-signal';
@@ -96,7 +97,7 @@ export function widenSearches(client: QueryClient, publish: Publish = () => unde
   return true;
 }
 
-export function installSearchRequest(win: Window & typeof globalThis): void {
+export function installSearchRequest(win: PageWindow): void {
   if (!claimPage(win, 'search-request')) return;
   const publish: Publish = (signal) => win.document.dispatchEvent(new win.CustomEvent(SEARCH_EVENT, { detail: JSON.stringify(signal) }));
   whenClient(win, (client) => void widenSearches(client, publish));

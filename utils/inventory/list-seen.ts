@@ -1,5 +1,6 @@
 import { isGraphqlRequest, isStreamed } from '../shared/graphql-request';
 import { parseJson } from '../shared/json';
+import type { PageWindow } from '../shared/page-window';
 import type { CursorLedger } from './list-cursors';
 import { LIST_OPERATION, type Variables } from './list-families';
 
@@ -29,7 +30,7 @@ async function learnFromAnswer(response: Response, variables: Variables, ledger:
   }
 }
 
-export function learnFromFetch(win: Window & typeof globalThis, ledger: CursorLedger): void {
+export function learnFromFetch(win: PageWindow, ledger: CursorLedger): void {
   const nativeFetch = win.fetch.bind(win);
   win.fetch = (...args: Parameters<typeof fetch>) => {
     const pending = nativeFetch(...args);
