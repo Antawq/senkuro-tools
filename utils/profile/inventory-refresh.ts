@@ -45,13 +45,13 @@ function build(slug: string, host: RefreshHost): HTMLButtonElement {
 
 export function syncRefreshButton(host: RefreshHost): void {
   const slug = findCardsSlug();
-  const title = findCardsTitle();
-  const existing = document.getElementById(REFRESH_BUTTON_ID);
-  const place = slug !== null && title !== null;
-  if (place && existing?.dataset.slug === slug) return;
-  existing?.remove();
+  const cardsTitle = findCardsTitle();
+  const existingButton = document.getElementById(REFRESH_BUTTON_ID);
+  const place = slug !== null && cardsTitle !== null;
+  if (place && existingButton?.dataset.slug === slug) return;
+  existingButton?.remove();
   if (!place || !isAppMounted(document)) return;
-  title.after(build(slug, host));
+  cardsTitle.after(build(slug, host));
 }
 
 export const refreshButtonMissing = (): boolean =>
