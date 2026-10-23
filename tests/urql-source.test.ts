@@ -28,9 +28,9 @@ const hooksWith = () => {
   return {
     seen,
     hooks: {
-      start: () => seen.push('start'),
-      settled: (entry: Result) => seen.push(`settled ${entry.id}`),
-      end: () => seen.push('end'),
+      onStart: () => seen.push('start'),
+      onSettled: (entry: Result) => seen.push(`settled ${entry.id}`),
+      onEnd: () => seen.push('end'),
     },
   };
 };
@@ -83,13 +83,13 @@ describe('tapSource', () => {
   it('keeps the source working when a hook throws', async () => {
     const { source } = sourceOf([result(7)]);
     const tapped = tapSource(source, {
-      start: () => {
+      onStart: () => {
         throw new Error('start');
       },
-      settled: () => {
+      onSettled: () => {
         throw new Error('settled');
       },
-      end: () => {
+      onEnd: () => {
         throw new Error('end');
       },
     });

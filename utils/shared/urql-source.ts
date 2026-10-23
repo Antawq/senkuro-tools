@@ -7,21 +7,21 @@ export interface SourceResult {
 }
 
 export interface TapHooks<T extends SourceResult> {
-  start?: () => void;
-  settled?: (result: T) => void;
-  end?: () => void;
+  onStart?: () => void;
+  onSettled?: (result: T) => void;
+  onEnd?: () => void;
 }
 
 export interface TappedSource<T extends SourceResult> {
   (sink: Sink<T>): void;
   toPromise(): Promise<T>;
   then: PromiseLike<T>['then'];
-  subscribe(callback: (result: T) => void): { unsubscribe(): void };
+  subscribe(onResult: (result: T) => void): { unsubscribe(): void };
 }
 
 export const isSettled = (result: SourceResult): boolean => !result.stale && !result.hasNext;
 
-function guarded(run: (() => void) | undefined): () => void {
+function callGuarded(run: (() => void) | undefined): () => void {
   return () => {
     try {
       run?.();
@@ -35,15 +35,15 @@ export function tapSource<T extends SourceResult>(source: (sink: Sink<T>) => voi
   const piped = pipe(
     source,
     onPush((result: T) => {
-      if (isSettled(result)) guarded(() => hooks.settled?.(result))();
+      if (isSettled(result)) callGuarded(() => hooks.onSettled?.(result))();
     }),
-    onEnd(guarded(hooks.end))
+    onEnd(callGuarded(hooks.onEnd))
   );
   const wrapped = (sink: Sink<T>): void => {
-    guarded(hooks.start)();
+    callGuarded(hooks.onStart)();
     piped(sink);
   };
-  const settled = (): Promise<T> =>
+  const firstSettledResult = (): Promise<T> =>
     pipe(
       wrapped,
       filter((result: T) => isSettled(result)),
@@ -51,8 +51,8 @@ export function tapSource<T extends SourceResult>(source: (sink: Sink<T>) => voi
       toPromise
     );
   return Object.assign(wrapped, {
-    toPromise: settled,
-    then: ((resolve, reject) => settled().then(resolve, reject)) as PromiseLike<T>['then'],
-    subscribe: (callback: (result: T) => void) => subscribe(callback)(wrapped),
+    toPromise: firstSettledResult,
+    then: ((resolve, reject) => firstSettledResult().then(resolve, reject)) as PromiseLike<T>['then'],
+    subscribe: (onResult: (result: T) => void) => subscribe(onResult)(wrapped),
   });
 }

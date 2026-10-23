@@ -73,12 +73,12 @@ function publishSearchPhases(source: unknown, request: QueryRequest, publish: Pu
     publish({ phase: 'done', query, type });
   };
   return tapSource(source as (sink: Sink<SourceResult>) => void, {
-    start: () => {
+    onStart: () => {
       openCount += 1;
       publish({ phase: 'start', query, type });
     },
-    settled: finish,
-    end: finish,
+    onSettled: finish,
+    onEnd: finish,
   });
 }
 

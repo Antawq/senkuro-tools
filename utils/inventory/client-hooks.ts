@@ -46,7 +46,7 @@ export function tapMutations(client: QueryClient, onResult: (result: MutationRes
   try {
     client.executeMutation = (request, options) => {
       const source = original(request, options);
-      return typeof source === 'function' ? tapSource(source as (sink: Sink<MutationResult>) => void, { settled: onResult }) : source;
+      return typeof source === 'function' ? tapSource(source as (sink: Sink<MutationResult>) => void, { onSettled: onResult }) : source;
     };
   } catch {
     return false;
