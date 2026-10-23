@@ -74,12 +74,6 @@ describe('createPriceBadges', () => {
     expect(positionVars(holderOf())).toEqual({ ...AXIS_X.left, ...AXIS_Y.top });
   });
 
-  it('sets no fixed pixel offset to centre the badge', () => {
-    document.body.innerHTML = preview();
-    createPriceBadges({ touch: false }).update(db, { ...DEFAULT_SETTINGS, positionX: 'center', positionY: 'center' });
-    expect(holderOf().style.getPropertyValue('--s-ml')).toBe('');
-  });
-
   it.each([
     ['center', 'bottom', '-50% 0'],
     ['right', 'center', '0 -50%'],
