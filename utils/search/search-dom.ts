@@ -11,7 +11,6 @@ export const TITLE = '.card-title, .card-name';
 export const TAB = '.tabs-tab';
 export const TAB_ACTIVE = '.tabs-tab--active';
 export const OPEN_BUTTON = '.nav-search__btn';
-export const ANY_MODAL = '.modal-content';
 export const EDITABLE = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
 export const MIN_QUERY_LENGTH = 2;
 

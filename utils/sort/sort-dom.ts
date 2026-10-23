@@ -7,7 +7,6 @@ export const OWN_ITEM_ATTRIBUTE = 'data-senkutools-sort-item';
 export const OWN_ITEM = `[${OWN_ITEM_ATTRIBUTE}]`;
 export const TRIGGER = `${FILTERS} > .v-popper > button`;
 export const DIRECTION_ASCENDING = `${FILTERS} > button.cards-cnt__nav-filter--asc`;
-export const OPEN_MODAL = '.modal-content';
 export const WATCHED = `${GRID}, ${FILTERS}, #cards-browse-order`;
 
 export const MODE_ATTRIBUTE = 'data-senkutools-sort';

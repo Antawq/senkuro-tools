@@ -1,6 +1,6 @@
+import { MODAL_CONTENT_SELECTOR } from '../shared/modal-selectors';
 import {
   ACTIVE,
-  ANY_MODAL,
   EDITABLE,
   FIELD,
   MODAL,
@@ -200,7 +200,7 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
       if (isOpenKey(event)) {
         const opener = doc.querySelector<HTMLElement>(OPEN_BUTTON);
         if (event.target instanceof Element && event.target.closest(EDITABLE)) return;
-        if (!opener || doc.querySelector(ANY_MODAL)) return;
+        if (!opener || doc.querySelector(MODAL_CONTENT_SELECTOR)) return;
         take(event);
         opener.click();
         return;

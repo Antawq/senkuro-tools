@@ -1,17 +1,5 @@
-import {
-  FILTERS,
-  ITEM,
-  MENU,
-  MODE_ATTRIBUTE,
-  OPEN_MODAL,
-  OWN_ITEM,
-  OWN_ITEM_ATTRIBUTE,
-  PRICE_MODE,
-  SAVED_LABEL_ATTRIBUTE,
-  TEXT,
-  TRIGGER,
-  isOwnLabel,
-} from './sort-dom';
+import { MODAL_CONTENT_SELECTOR } from '../shared/modal-selectors';
+import { FILTERS, ITEM, MENU, MODE_ATTRIBUTE, OWN_ITEM, OWN_ITEM_ATTRIBUTE, PRICE_MODE, SAVED_LABEL_ATTRIBUTE, TEXT, TRIGGER, isOwnLabel } from './sort-dom';
 
 type LabelState = 'off' | 'price' | 'partial';
 
@@ -33,7 +21,7 @@ function buildItem(menu: Element): HTMLElement | null {
 
 export function decorateMenu(doc: Document, on: boolean): void {
   const menu = doc.querySelector(MENU);
-  if (!menu || doc.querySelector(OPEN_MODAL)) return;
+  if (!menu || doc.querySelector(MODAL_CONTENT_SELECTOR)) return;
   if (!menu.querySelector(OWN_ITEM)) {
     const built = buildItem(menu);
     if (!built) return;
