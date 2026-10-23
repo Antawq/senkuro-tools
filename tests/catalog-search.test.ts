@@ -5,7 +5,7 @@ import { Window } from 'happy-dom';
 import { pipe, subscribe, type Source } from 'wonka';
 
 import { findRouter, installCatalogSearch, redirectQueryToSearch, type CatalogLocation, type PageRouter } from '../utils/catalog/catalog-search';
-import { catalogRequest, emptyCatalog, searchAnswer, sourceOf, type Answer } from './helpers/catalog-requests';
+import { catalogRequest, emptyCatalog, promiseOf, searchAnswer, settle, sourceOf, type Answer } from './helpers/catalog-requests';
 
 const location = (name: string, query: Record<string, unknown>, fields?: string[]): CatalogLocation => ({
   name,
@@ -93,7 +93,7 @@ describe('installCatalogSearch', () => {
     };
     const pageWindow = new Window({ url: 'https://senkuro.me/' });
     pageWindow.document.body.innerHTML = '<div id="app"></div>';
-    const client = { executeQuery: () => sourceOf([emptyCatalog]), executeMutation: () => null, query: () => sourceOf([searchAnswer('naruto')]) };
+    const client = { executeQuery: () => sourceOf([emptyCatalog]), executeMutation: () => null, query: () => promiseOf(searchAnswer('naruto')) };
     pageWindow.fetch = (() => Promise.resolve(new Response('{}'))) as unknown as typeof pageWindow.fetch;
     const mount = (withRouter = true) => {
       (pageWindow.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = {
@@ -136,12 +136,13 @@ describe('installCatalogSearch', () => {
     expect(guards[0]?.(location('manga-slug', {}, []))).toBeUndefined();
   });
 
-  const answersFor = (client: { executeQuery: (request: never) => unknown }): Answer[] => {
+  const answersFor = async (client: { executeQuery: (request: never) => unknown }): Promise<Answer[]> => {
     const seen: Answer[] = [];
     pipe(
       client.executeQuery(catalogRequest('fetchMangas') as never) as Source<Answer>,
       subscribe((answer) => seen.push(answer))
     );
+    await settle();
     return seen;
   };
 
@@ -150,8 +151,8 @@ describe('installCatalogSearch', () => {
     installCatalogSearch(typed);
     mount();
     await respond();
-    expect(answersFor(client)).toHaveLength(2);
-    expect(answersFor(client)).toHaveLength(2);
+    expect(await answersFor(client)).toHaveLength(2);
+    expect(await answersFor(client)).toHaveLength(2);
   });
 
   it('answers with the rows at once once the router has navigated', async () => {
@@ -160,7 +161,7 @@ describe('installCatalogSearch', () => {
     mount();
     await respond();
     navigated.forEach((hook) => hook());
-    expect(answersFor(client)).toHaveLength(1);
+    expect(await answersFor(client)).toHaveLength(1);
   });
 
   it('answers with the rows at once when the page has no router to tell', async () => {
@@ -168,7 +169,7 @@ describe('installCatalogSearch', () => {
     installCatalogSearch(typed);
     mount(false);
     await respond();
-    expect(answersFor(client)).toHaveLength(1);
+    expect(await answersFor(client)).toHaveLength(1);
   });
 
   it('installs once however often it is asked, for a page that was already claimed', async () => {

@@ -1,4 +1,5 @@
-export const CATALOG_SEARCH_PAGE_SIZE = 60;
+export const SEARCH_PAGE_ROWS = 100;
+export const CATALOG_ROW_LIMIT = 300;
 
 type SearchFields = { status: string; type: string; rating: string };
 
@@ -9,26 +10,66 @@ export interface CatalogKind {
   nodeTypename: string;
   searchFields: SearchFields;
   searchDocument: string;
+  lookupRoot: string;
+  lookupSelection: string;
+  sortKeys: Readonly<Record<string, string>>;
+}
+
+interface KindSortOptions {
+  lookupRoot: string;
+  lookupSelection: string;
+  sortKeys: Record<string, string>;
 }
 
 const COVER_SELECTION = '{ id blurhash original { height width url __typename } preview: resize(width: 175, height: 250) { url __typename } __typename }';
 
 const searchDocumentOf = (nodeTypename: string, fields: SearchFields): string =>
-  `query catalogSearch($query: String!, $type: SearchType!) { search(query: $query, type: $type, first: ${CATALOG_SEARCH_PAGE_SIZE}) { edges { node { ` +
+  'query catalogSearch($query: String!, $type: SearchType!, $first: Int, $after: String) { ' +
+  'search(query: $query, type: $type, first: $first, after: $after) { totalCount pageInfo { hasNextPage endCursor } edges { node { ' +
   `... on Search${nodeTypename} { id slug originalName titles { lang content __typename } ${fields.type}: type ${fields.status}: status ${fields.rating}: rating score cover ${COVER_SELECTION} } } } } }`;
 
-const defineKind = (operation: string, searchType: string, root: string, nodeTypename: string, searchFields: SearchFields): CatalogKind => ({
+const defineKind = (
+  operation: string,
+  searchType: string,
+  root: string,
+  nodeTypename: string,
+  searchFields: SearchFields,
+  sort: KindSortOptions
+): CatalogKind => ({
   operation,
   searchType,
   root,
   nodeTypename,
   searchFields,
   searchDocument: searchDocumentOf(nodeTypename, searchFields),
+  ...sort,
 });
 
 const CATALOG_KINDS: readonly CatalogKind[] = [
-  defineKind('fetchMangas', 'MANGA', 'mangas', 'Manga', { status: 'mangaStatus', type: 'mangaType', rating: 'mangaRating' }),
-  defineKind('fetchAnimes', 'ANIME', 'animes', 'Anime', { status: 'animeStatus', type: 'animeType', rating: 'animeRating' }),
+  defineKind(
+    'fetchMangas',
+    'MANGA',
+    'mangas',
+    'Manga',
+    { status: 'mangaStatus', type: 'mangaType', rating: 'mangaRating' },
+    {
+      lookupRoot: 'manga',
+      lookupSelection: 'chapters lastChapterAt',
+      sortKeys: { SCORE: 'score', VIEWS: 'views', CHAPTERS: 'chapters', CREATED_AT: 'createdAt', LAST_CHAPTER_AT: 'lastChapterAt' },
+    }
+  ),
+  defineKind(
+    'fetchAnimes',
+    'ANIME',
+    'animes',
+    'Anime',
+    { status: 'animeStatus', type: 'animeType', rating: 'animeRating' },
+    {
+      lookupRoot: 'anime',
+      lookupSelection: 'episodes lastEpisodeAt',
+      sortKeys: { SCORE: 'score', VIEWS: 'views', EPISODES: 'episodes', CREATED_AT: 'createdAt', LAST_EPISODE_AT: 'lastEpisodeAt' },
+    }
+  ),
 ];
 
 const SEARCH_VARIABLE = 'search';
@@ -80,12 +121,8 @@ function catalogNodeOf(node: Row, kind: CatalogKind): Row {
   };
 }
 
-export function toCatalogData(searchData: unknown, kind: CatalogKind): Row | null {
-  const search = isRow(searchData) ? searchData.search : null;
-  const searchEdges = isRow(search) && Array.isArray(search.edges) ? (search.edges as unknown[]) : [];
-  const edges = searchEdges.flatMap((edge) =>
-    isRow(edge) && isRow(edge.node) ? [{ node: catalogNodeOf(edge.node, kind), __typename: `${kind.nodeTypename}Edge` }] : []
-  );
+export function toCatalogData(rows: readonly Row[], kind: CatalogKind): Row | null {
+  const edges = rows.map((node) => ({ node: catalogNodeOf(node, kind), __typename: `${kind.nodeTypename}Edge` }));
   if (edges.length === 0) return null;
   return { [kind.root]: { edges, pageInfo: { hasNextPage: false, endCursor: null, __typename: 'PageInfo' }, __typename: `${kind.nodeTypename}Connection` } };
 }
