@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { asksOnlyForSearch, catalogKindOf, isEmptyCatalogAnswer, toCatalogData } from '../utils/catalog/catalog-results';
+import { asksOnlyForSearch, CATALOG_SEARCH_PAGE_SIZE, catalogKindOf, isEmptyCatalogAnswer, toCatalogData } from '../utils/catalog/catalog-results';
 
 const NO_FILTERS = {
   after: null,
@@ -27,6 +27,17 @@ describe('catalogKindOf', () => {
 
   it('knows no other operation', () => {
     for (const name of ['search', 'fetchUserCards', 'fetchRanobes', '', undefined]) expect(catalogKindOf(name)).toBeUndefined();
+  });
+
+  it('carries a search document of its own that names the fields the catalog node is built from', () => {
+    const manga = catalogKindOf('fetchMangas')?.searchDocument ?? '';
+    const anime = catalogKindOf('fetchAnimes')?.searchDocument ?? '';
+    expect(manga).toContain('... on SearchManga');
+    expect(manga).toContain('preview: resize(');
+    expect(manga).toContain(`first: ${CATALOG_SEARCH_PAGE_SIZE})`);
+    for (const field of ['mangaType: type', 'mangaStatus: status', 'mangaRating: rating']) expect(manga).toContain(field);
+    expect(anime).toContain('... on SearchAnime');
+    for (const field of ['animeType: type', 'animeStatus: status', 'animeRating: rating']) expect(anime).toContain(field);
   });
 });
 

@@ -1,26 +1,34 @@
+export const CATALOG_SEARCH_PAGE_SIZE = 60;
+
+type SearchFields = { status: string; type: string; rating: string };
+
 export interface CatalogKind {
   operation: string;
   searchType: string;
   root: string;
   nodeTypename: string;
-  searchFields: { status: string; type: string; rating: string };
+  searchFields: SearchFields;
+  searchDocument: string;
 }
 
+const COVER_SELECTION = '{ id blurhash original { height width url __typename } preview: resize(width: 175, height: 250) { url __typename } __typename }';
+
+const searchDocumentOf = (nodeTypename: string, fields: SearchFields): string =>
+  `query catalogSearch($query: String!, $type: SearchType!) { search(query: $query, type: $type, first: ${CATALOG_SEARCH_PAGE_SIZE}) { edges { node { ` +
+  `... on Search${nodeTypename} { id slug originalName titles { lang content __typename } ${fields.type}: type ${fields.status}: status ${fields.rating}: rating score cover ${COVER_SELECTION} } } } } }`;
+
+const defineKind = (operation: string, searchType: string, root: string, nodeTypename: string, searchFields: SearchFields): CatalogKind => ({
+  operation,
+  searchType,
+  root,
+  nodeTypename,
+  searchFields,
+  searchDocument: searchDocumentOf(nodeTypename, searchFields),
+});
+
 const CATALOG_KINDS: readonly CatalogKind[] = [
-  {
-    operation: 'fetchMangas',
-    searchType: 'MANGA',
-    root: 'mangas',
-    nodeTypename: 'Manga',
-    searchFields: { status: 'mangaStatus', type: 'mangaType', rating: 'mangaRating' },
-  },
-  {
-    operation: 'fetchAnimes',
-    searchType: 'ANIME',
-    root: 'animes',
-    nodeTypename: 'Anime',
-    searchFields: { status: 'animeStatus', type: 'animeType', rating: 'animeRating' },
-  },
+  defineKind('fetchMangas', 'MANGA', 'mangas', 'Manga', { status: 'mangaStatus', type: 'mangaType', rating: 'mangaRating' }),
+  defineKind('fetchAnimes', 'ANIME', 'animes', 'Anime', { status: 'animeStatus', type: 'animeType', rating: 'animeRating' }),
 ];
 
 const SEARCH_VARIABLE = 'search';

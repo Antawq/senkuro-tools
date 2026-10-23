@@ -23,6 +23,7 @@ export interface CatalogRedirect {
 
 export interface PageRouter {
   beforeEach: (guard: (destination: CatalogLocation) => CatalogRedirect | undefined) => unknown;
+  afterEach: (hook: () => void) => unknown;
 }
 
 export function redirectQueryToSearch(destination: CatalogLocation): CatalogRedirect | undefined {
@@ -36,13 +37,18 @@ export function redirectQueryToSearch(destination: CatalogLocation): CatalogRedi
 
 export function findRouter(pageDocument: Document): PageRouter | null {
   const router = findVueApp(pageDocument)?.config?.globalProperties?.[ROUTER_PROPERTY] as Partial<PageRouter> | null | undefined;
-  return typeof router?.beforeEach === 'function' ? (router as PageRouter) : null;
+  return typeof router?.beforeEach === 'function' && typeof router.afterEach === 'function' ? (router as PageRouter) : null;
 }
 
 export function installCatalogSearch(pageWindow: PageWindow): void {
   if (!claimPage(pageWindow, 'catalog-search')) return;
   runWhenClientFound(pageWindow, (client) => {
-    installCatalogFallback(client);
-    findRouter(pageWindow.document)?.beforeEach(redirectQueryToSearch);
+    const router = findRouter(pageWindow.document);
+    let navigations = 0;
+    router?.afterEach(() => {
+      navigations += 1;
+    });
+    installCatalogFallback(client, () => router !== null && navigations === 0);
+    router?.beforeEach(redirectQueryToSearch);
   });
 }

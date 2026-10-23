@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { Window } from 'happy-dom';
 
+import { pipe, subscribe, type Source } from 'wonka';
+
 import { findRouter, installCatalogSearch, redirectQueryToSearch, type CatalogLocation, type PageRouter } from '../utils/catalog/catalog-search';
+import { catalogRequest, emptyCatalog, searchAnswer, sourceOf, type Answer } from './helpers/catalog-requests';
 
 const location = (name: string, query: Record<string, unknown>, fields?: string[]): CatalogLocation => ({
   name,
@@ -62,7 +65,7 @@ describe('findRouter', () => {
   };
 
   it('finds the router the site installs on its app', () => {
-    const router: PageRouter = { beforeEach: () => () => undefined };
+    const router: PageRouter = { beforeEach: () => () => undefined, afterEach: () => () => undefined };
     expect(findRouter(pageWith({ config: { globalProperties: { $router: router } } }))).toBe(router);
   });
 
@@ -83,10 +86,14 @@ describe('findRouter', () => {
 describe('installCatalogSearch', () => {
   const rig = () => {
     const guards: Parameters<PageRouter['beforeEach']>[0][] = [];
-    const router: PageRouter = { beforeEach: vi.fn((guard: Parameters<PageRouter['beforeEach']>[0]) => void guards.push(guard)) };
+    const navigated: (() => void)[] = [];
+    const router: PageRouter = {
+      beforeEach: vi.fn((guard: Parameters<PageRouter['beforeEach']>[0]) => void guards.push(guard)),
+      afterEach: vi.fn((hook: () => void) => void navigated.push(hook)),
+    };
     const pageWindow = new Window({ url: 'https://senkuro.me/' });
     pageWindow.document.body.innerHTML = '<div id="app"></div>';
-    const client = { executeQuery: () => null, executeMutation: () => null, query: () => ({ toPromise: () => Promise.resolve({}) }) };
+    const client = { executeQuery: () => sourceOf([emptyCatalog]), executeMutation: () => null, query: () => sourceOf([searchAnswer('naruto')]) };
     pageWindow.fetch = (() => Promise.resolve(new Response('{}'))) as unknown as typeof pageWindow.fetch;
     const mount = (withRouter = true) => {
       (pageWindow.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = {
@@ -98,7 +105,7 @@ describe('installCatalogSearch', () => {
       await pageWindow.fetch('https://api.senkuro.me/graphql');
       await new Promise((resolve) => setTimeout(resolve, 0));
     };
-    return { guards, router, client, mount, respond, typed: pageWindow as unknown as Parameters<typeof installCatalogSearch>[0] };
+    return { guards, navigated, router, client, mount, respond, typed: pageWindow as unknown as Parameters<typeof installCatalogSearch>[0] };
   };
 
   it('puts its guard on the site router once the app is up, and not before', async () => {
@@ -127,6 +134,41 @@ describe('installCatalogSearch', () => {
     await respond();
     expect(guards[0]?.(location('browse-manga', { query: 'naruto' }, []))).toEqual(redirectQueryToSearch(location('browse-manga', { query: 'naruto' }, [])));
     expect(guards[0]?.(location('manga-slug', {}, []))).toBeUndefined();
+  });
+
+  const answersFor = (client: { executeQuery: (request: never) => unknown }): Answer[] => {
+    const seen: Answer[] = [];
+    pipe(
+      client.executeQuery(catalogRequest('fetchMangas') as never) as Source<Answer>,
+      subscribe((answer) => seen.push(answer))
+    );
+    return seen;
+  };
+
+  it('hands the page the empty answer first while the router has not navigated yet', async () => {
+    const { typed, client, mount, respond } = rig();
+    installCatalogSearch(typed);
+    mount();
+    await respond();
+    expect(answersFor(client)).toHaveLength(2);
+    expect(answersFor(client)).toHaveLength(2);
+  });
+
+  it('answers with the rows at once once the router has navigated', async () => {
+    const { typed, client, navigated, mount, respond } = rig();
+    installCatalogSearch(typed);
+    mount();
+    await respond();
+    navigated.forEach((hook) => hook());
+    expect(answersFor(client)).toHaveLength(1);
+  });
+
+  it('answers with the rows at once when the page has no router to tell', async () => {
+    const { typed, client, mount, respond } = rig();
+    installCatalogSearch(typed);
+    mount(false);
+    await respond();
+    expect(answersFor(client)).toHaveLength(1);
   });
 
   it('installs once however often it is asked, for a page that was already claimed', async () => {
