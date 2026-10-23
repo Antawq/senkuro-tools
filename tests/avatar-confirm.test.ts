@@ -382,7 +382,7 @@ describe('loading the confirm window and the coin of the site', () => {
   const sw =
     'precache([{url:"assets/BaseButton-Ab12.js"},{url:"assets/BaseConfirmModal-Dw121HiH.js"},{url:"assets/money-3d-D_1Eg9LH.png"},{url:"assets/other.js"}])';
   const win = (text: string) => ({
-    fetch: vi.fn(() => Promise.resolve({ text: () => Promise.resolve(text) } as Response)),
+    fetch: vi.fn(() => Promise.resolve({ ok: true, text: () => Promise.resolve(text) } as Response)),
     location: { origin: 'https://senkuro.me' } as Location,
   });
 
@@ -429,12 +429,26 @@ describe('loading the confirm window and the coin of the site', () => {
       fetch: vi
         .fn()
         .mockRejectedValueOnce(new Error('offline'))
-        .mockResolvedValue({ text: () => Promise.resolve(sw) }),
+        .mockResolvedValue({ ok: true, text: () => Promise.resolve(sw) }),
       location: { origin: 'https://senkuro.me' } as Location,
     };
     const loader = createSiteAssets(host, () => Promise.resolve({ default: COMPONENT }));
     expect(await loader.coin()).toBeNull();
     expect(await loader.coin()).toBe(COIN_URL);
+  });
+
+  it('reads the list again after the site answered with an error status', async () => {
+    const host = {
+      fetch: vi
+        .fn()
+        .mockResolvedValueOnce({ ok: false, status: 503, text: () => Promise.resolve('precache([])') })
+        .mockResolvedValue({ ok: true, text: () => Promise.resolve(sw) }),
+      location: { origin: 'https://senkuro.me' } as Location,
+    };
+    const loader = createSiteAssets(host, () => Promise.resolve({ default: COMPONENT }));
+    expect(await loader.coin()).toBeNull();
+    expect(await loader.coin()).toBe(COIN_URL);
+    expect(host.fetch).toHaveBeenCalledTimes(2);
   });
 
   it('fails when the chunk has no component', async () => {

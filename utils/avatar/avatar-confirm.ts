@@ -65,7 +65,10 @@ export function createSiteAssets(
   const read = (): Promise<string> => {
     listing ??= win
       .fetch(SERVICE_WORKER)
-      .then((response) => response.text())
+      .then((response) => {
+        if (!response.ok) throw new Error(`${SERVICE_WORKER}: HTTP ${response.status}`);
+        return response.text();
+      })
       .catch((error: unknown) => {
         listing = null;
         throw error;
