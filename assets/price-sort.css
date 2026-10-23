@@ -1,0 +1,12 @@
+.user-cards-grid[data-senkutools-sort-state] {
+  --senkutools-sort-end: 99999;
+  transition: opacity var(--senkuro-hover);
+}
+
+.user-cards-grid[data-senkutools-sort-state] > :not(.user-card) {
+  order: var(--senkutools-sort-end);
+}
+
+.user-cards-grid[data-senkutools-sort-state='loading'] {
+  opacity: 0.6;
+}

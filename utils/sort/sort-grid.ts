@@ -1,0 +1,44 @@
+import { CARD_LINK, PRICE_DECIMALS, effectivePrice, slugFromHref } from '../shared/cards';
+import type { Database } from '../shared/database';
+import { priceOrder } from './price-order';
+import { CARD, GRID, STATE_ATTRIBUTE, type GridState } from './sort-dom';
+
+export interface GridView {
+  grid: HTMLElement;
+  cards: HTMLElement[];
+  pending: boolean;
+  key: string;
+}
+
+const slugOf = (card: HTMLElement | undefined): string | null => slugFromHref(card?.querySelector(CARD_LINK)?.getAttribute('href'));
+
+const keyOf = (cards: HTMLElement[]): string => `${cards.length}|${slugOf(cards[0])}|${slugOf(cards.at(-1))}`;
+
+export function inspectGrid(doc: Document): GridView | null {
+  const grid = doc.querySelector<HTMLElement>(GRID);
+  if (!grid) return null;
+  const cards = [...grid.children].filter((child): child is HTMLElement => child instanceof HTMLElement && child.matches(CARD));
+  return { grid, cards, pending: grid.children.length > cards.length, key: keyOf(cards) };
+}
+
+const priceFor =
+  (db: Database, commission: boolean) =>
+  (slug: string): number | null => {
+    const entry = db[slug];
+    return entry && Number.isFinite(entry.price) ? Number(effectivePrice(entry.price, commission).toFixed(PRICE_DECIMALS)) : null;
+  };
+
+export function orderCards(cards: HTMLElement[], db: Database, commission: boolean, descending: boolean): void {
+  const order = priceOrder(cards.map(slugOf), priceFor(db, commission), descending);
+  cards.forEach((card, index) => {
+    const place = String(order[index]);
+    if (card.style.order !== place) card.style.order = place;
+  });
+}
+
+export const clearOrder = (cards: HTMLElement[]): void => cards.forEach((card) => card.style.removeProperty('order'));
+
+export function markState(grid: HTMLElement, state: GridState | null): void {
+  if (state === null) grid.removeAttribute(STATE_ATTRIBUTE);
+  else if (grid.getAttribute(STATE_ATTRIBUTE) !== state) grid.setAttribute(STATE_ATTRIBUTE, state);
+}

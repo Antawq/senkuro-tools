@@ -1,6 +1,7 @@
 import '@/assets/tokens.css';
 import '@/assets/better-search.css';
 import '@/assets/price-badges.css';
+import '@/assets/price-sort.css';
 import '@/assets/profile-badge.css';
 import '@/assets/site-fixes.css';
 import '@/assets/token-bar.css';
@@ -15,7 +16,9 @@ import { createSearchKeys } from '@/utils/search/search-keys';
 import { SEARCH_EVENT, createSearchSignals } from '@/utils/search/search-signal';
 import { createSearchView } from '@/utils/search/search-view';
 import { addedCards, createRenderLoop } from '@/utils/shared/render-loop';
+import { LIST_LOAD_EVENT, LIST_LOADED_EVENT } from '@/utils/shared/list-signal';
 import { loadSettings, watchSettings } from '@/utils/shared/settings';
+import { createPriceSort, touchesSort } from '@/utils/sort/sort-view';
 import { createTokenBar } from '@/utils/token/token-bar';
 import { createTradeStore, listenForTrades } from '@/utils/trades/trade-capture';
 import { isTradeMutation, updateTradeSummaries } from '@/utils/trades/trade-summary';
@@ -44,18 +47,24 @@ export default defineContentScript({
         cards: (db, cards) => badges.update(db, settings, cards),
         trades: (db) => updateTradeSummaries(db, settings, tradeStore),
         profile: (db) => updateProfileBadge({ db, valuation: settings, redraw: loop.schedule }),
+        sort: (db) => priceSort.sync(db, settings),
       },
       loadDatabase,
       nextFrame
     );
     const badges = createPriceBadges({ touch });
+    const priceSort = createPriceSort(document, {
+      request: () => void document.dispatchEvent(new CustomEvent(LIST_LOAD_EVENT)),
+      later: (run, ms) => void ctx.setTimeout(run, ms),
+      schedule: loop.schedule,
+    });
 
     const observer = new MutationObserver((mutations) => {
       const cards = addedCards(mutations);
       const tradesChanged = mutations.some(isTradeMutation);
       loop.addCards(cards);
       if (tradesChanged) loop.markTrades();
-      if (cards.length > 0 || tradesChanged || profileBadgeMissing()) loop.schedule();
+      if (cards.length > 0 || tradesChanged || profileBadgeMissing() || touchesSort(mutations)) loop.schedule();
     });
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     ctx.onInvalidated(() => observer.disconnect());
@@ -86,6 +95,8 @@ export default defineContentScript({
     ctx.addEventListener(document, 'focusin', searchView.touch, { capture: true });
     ctx.addEventListener(document, 'input', searchView.touch, { capture: true });
     ctx.addEventListener(document, 'click', searchView.click, { capture: true });
+    ctx.addEventListener(document, 'click', priceSort.click, { capture: true });
+    ctx.addEventListener(document, LIST_LOADED_EVENT, priceSort.loaded);
     ctx.addEventListener(document, 'keydown', searchKeys.keydown, { capture: true });
     ctx.addEventListener(document, 'input', searchKeys.input, { capture: true });
 

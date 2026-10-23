@@ -5,6 +5,7 @@ export interface RenderSteps {
   cards(db: Database, cards?: HTMLAnchorElement[]): void;
   trades(db: Database): void;
   profile(db: Database): void;
+  sort(db: Database): void;
 }
 
 export interface RenderLoop {
@@ -46,6 +47,7 @@ export function createRenderLoop(steps: RenderSteps, loadDatabase: () => Promise
       if (cards.length > 0) steps.cards(db, cards);
       if (trades) steps.trades(db);
       steps.profile(db);
+      steps.sort(db);
     } catch (error) {
       console.error('SenkuTools: batch render error', error);
     }
@@ -70,6 +72,7 @@ export function createRenderLoop(steps: RenderSteps, loadDatabase: () => Promise
         steps.cards(db);
         steps.trades(db);
         steps.profile(db);
+        steps.sort(db);
       } catch (error) {
         console.error('SenkuTools: render error', error);
       }

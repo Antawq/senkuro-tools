@@ -13,7 +13,12 @@ const link = (slug: string): HTMLAnchorElement => {
 };
 
 const setup = (load: () => Promise<Database> = () => Promise.resolve(db)) => {
-  const steps = { cards: vi.fn<RenderSteps['cards']>(), trades: vi.fn<RenderSteps['trades']>(), profile: vi.fn<RenderSteps['profile']>() };
+  const steps = {
+    cards: vi.fn<RenderSteps['cards']>(),
+    trades: vi.fn<RenderSteps['trades']>(),
+    profile: vi.fn<RenderSteps['profile']>(),
+    sort: vi.fn<RenderSteps['sort']>(),
+  };
   const frames: (() => void)[] = [];
   const loop = createRenderLoop(steps, load, (run) => frames.push(run));
   const runFrame = async () => {
@@ -73,6 +78,19 @@ describe('createRenderLoop', () => {
     await runFrame();
     expect(steps.cards).toHaveBeenCalledOnce();
     expect(steps.trades).toHaveBeenCalledOnce();
+  });
+
+  it('puts the cards in order on every frame and on a full pass, after the profile', async () => {
+    const { loop, steps, runFrame } = setup();
+    const calls: string[] = [];
+    steps.profile.mockImplementation(() => void calls.push('profile'));
+    steps.sort.mockImplementation(() => void calls.push('sort'));
+    loop.schedule();
+    await runFrame();
+    await loop.renderAll();
+    expect(steps.sort).toHaveBeenCalledTimes(2);
+    expect(steps.sort).toHaveBeenCalledWith(db);
+    expect(calls).toEqual(['profile', 'sort', 'profile', 'sort']);
   });
 
   it('logs a failed database load instead of throwing it', async () => {
