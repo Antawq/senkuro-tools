@@ -1,6 +1,6 @@
 export const MODAL = '.modal-content--search';
-export const HOST = '.vfm';
-export const CLOSING = 'vfm--prevent-none';
+const HOST = '.vfm';
+const CLOSING = 'vfm--prevent-none';
 export const FIELD = 'input.input-el';
 export const LIST = '.nav-search__cnt';
 export const ROW = '[data-index]';

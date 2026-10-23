@@ -5,7 +5,7 @@ import { operationName, whenClient, type QueryClient, type QueryRequest } from '
 import { tapSource, type SourceResult } from '../shared/urql-source';
 import { SEARCH_EVENT, type SearchSignal } from './search-signal';
 
-export const SEARCH_OPERATION = 'search';
+const SEARCH_OPERATION = 'search';
 export const SEARCH_PAGE_SIZE = 30;
 
 const PAGE_ARGUMENT = 'first';
