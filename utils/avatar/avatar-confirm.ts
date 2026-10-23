@@ -57,45 +57,45 @@ export function createSiteAssets(
   pageWindow: Pick<Window, 'fetch' | 'location'>,
   importModule: (url: string) => Promise<{ default?: unknown }> = (url) => import(url) as Promise<{ default?: unknown }>
 ): SiteAssets {
-  let listing: Promise<string> | null = null;
-  let component: Promise<unknown> | null = null;
+  let precacheListing: Promise<string> | null = null;
+  let confirmComponentPromise: Promise<unknown> | null = null;
 
-  const read = (): Promise<string> => {
-    listing ??= pageWindow
+  const fetchPrecacheListing = (): Promise<string> => {
+    precacheListing ??= pageWindow
       .fetch(SERVICE_WORKER)
       .then((response) => {
         if (!response.ok) throw new Error(`${SERVICE_WORKER}: HTTP ${response.status}`);
         return response.text();
       })
       .catch((error: unknown) => {
-        listing = null;
+        precacheListing = null;
         throw error;
       });
-    return listing;
+    return precacheListing;
   };
 
-  const urlOf = async (pattern: RegExp): Promise<string | null> => {
-    const path = pattern.exec(await read())?.[0];
+  const findAssetUrl = async (pattern: RegExp): Promise<string | null> => {
+    const path = pattern.exec(await fetchPrecacheListing())?.[0];
     return path ? new URL(path, pageWindow.location.origin).href : null;
   };
 
-  const load = async (): Promise<unknown> => {
-    const url = await urlOf(CONFIRM_CHUNK);
+  const importConfirmComponent = async (): Promise<unknown> => {
+    const url = await findAssetUrl(CONFIRM_CHUNK);
     if (!url) throw new Error('the confirm window of the site was not found');
-    const loaded = await importModule(url);
-    if (!loaded.default) throw new Error('the confirm window of the site has no component');
-    return loaded.default;
+    const importedModule = await importModule(url);
+    if (!importedModule.default) throw new Error('the confirm window of the site has no component');
+    return importedModule.default;
   };
 
   return {
     component: () => {
-      component ??= load().catch((error: unknown) => {
-        component = null;
+      confirmComponentPromise ??= importConfirmComponent().catch((error: unknown) => {
+        confirmComponentPromise = null;
         throw error;
       });
-      return component;
+      return confirmComponentPromise;
     },
-    coin: () => urlOf(COIN_IMAGE).catch(() => null),
+    coin: () => findAssetUrl(COIN_IMAGE).catch(() => null),
   };
 }
 
