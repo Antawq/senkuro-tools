@@ -12,8 +12,8 @@ export const SEARCH_PAGE_SIZE = 30;
 const PAGE_ARGUMENT = 'first';
 const INT_LITERAL = 'IntValue';
 const DOCUMENT_KEY = '__key';
-const KEY_MIX = 0x5bd1e995;
-const KEY_STRIDE = 31;
+const KEY_HASH_MIX = 0x5bd1e995;
+const KEY_HASH_STRIDE = 31;
 
 type Publish = (signal: SearchSignal) => void;
 
@@ -33,7 +33,7 @@ const patched = new WeakSet<QueryClient>();
 const isPageArgument = (node: AstNode, size: number): boolean =>
   node.kind === 'Argument' && node.name?.value === PAGE_ARGUMENT && node.value?.kind === INT_LITERAL && Number(node.value.value) < size;
 
-function resize(node: AstNode | undefined, size: number): boolean {
+function setPageSizeInQuery(node: AstNode | undefined, size: number): boolean {
   if (!node) return false;
   let changed = false;
   const isSearchField = node.kind === 'Field' && node.name?.value === SEARCH_OPERATION;
@@ -43,23 +43,23 @@ function resize(node: AstNode | undefined, size: number): boolean {
     changed = true;
   }
   const children = [...(node.definitions ?? []), ...(node.selections ?? []), ...(node.selectionSet ? [node.selectionSet] : [])];
-  return children.map((child) => resize(child, size)).some(Boolean) || changed;
+  return children.map((child) => setPageSizeInQuery(child, size)).some(Boolean) || changed;
 }
 
-function widerDocument(document: object, size: number): unknown {
+function widenQueryDocument(document: object, size: number): unknown {
   if (widened.has(document)) return widened.get(document);
   const copy = structuredClone(document) as AstNode & Record<string, unknown>;
   Reflect.deleteProperty(copy, DOCUMENT_KEY);
-  const result = resize(copy, size) ? copy : null;
+  const result = setPageSizeInQuery(copy, size) ? copy : null;
   widened.set(document, result);
   return result;
 }
 
-const keyFor = (key: number, size: number): number => (Math.imul(key ^ KEY_MIX, KEY_STRIDE) + size) | 0;
+const keyFor = (key: number, size: number): number => (Math.imul(key ^ KEY_HASH_MIX, KEY_HASH_STRIDE) + size) | 0;
 
-export function widenSearch(request: QueryRequest, size = SEARCH_PAGE_SIZE): QueryRequest {
+export function widenSearchRequest(request: QueryRequest, size = SEARCH_PAGE_SIZE): QueryRequest {
   if (operationName(request) !== SEARCH_OPERATION || typeof request.key !== 'number' || !request.query) return request;
-  const query = widerDocument(request.query, size);
+  const query = widenQueryDocument(request.query, size);
   return query ? { ...request, key: keyFor(request.key, size), query: query } : request;
 }
 
@@ -82,12 +82,12 @@ function publishSearchPhases(source: unknown, request: QueryRequest, publish: Pu
   });
 }
 
-export function widenSearches(client: QueryClient, publish: Publish = () => undefined, size = SEARCH_PAGE_SIZE): boolean {
+export function installSearchWidening(client: QueryClient, publish: Publish = () => undefined, size = SEARCH_PAGE_SIZE): boolean {
   if (patched.has(client)) return true;
   const original = client.executeQuery.bind(client);
   try {
     client.executeQuery = (request, options) => {
-      const source = original(widenSearch(request, size), options);
+      const source = original(widenSearchRequest(request, size), options);
       return operationName(request) === SEARCH_OPERATION ? publishSearchPhases(source, request, publish) : source;
     };
   } catch {
@@ -100,5 +100,5 @@ export function widenSearches(client: QueryClient, publish: Publish = () => unde
 export function installSearchRequest(win: PageWindow): void {
   if (!claimPage(win, 'search-request')) return;
   const publish: Publish = (signal) => win.document.dispatchEvent(new win.CustomEvent(SEARCH_EVENT, { detail: JSON.stringify(signal) }));
-  whenClient(win, (client) => void widenSearches(client, publish));
+  whenClient(win, (client) => void installSearchWidening(client, publish));
 }

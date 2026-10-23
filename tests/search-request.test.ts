@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { Window } from 'happy-dom';
 import { make } from 'wonka';
 
-import { SEARCH_PAGE_SIZE, installSearchRequest, widenSearch, widenSearches } from '../utils/search/search-request';
+import { SEARCH_PAGE_SIZE, installSearchRequest, widenSearchRequest, installSearchWidening } from '../utils/search/search-request';
 import { SEARCH_EVENT, type SearchSignal } from '../utils/search/search-signal';
 import type { QueryClient, QueryRequest } from '../utils/shared/urql-client';
 
@@ -53,7 +53,7 @@ const keyOf = (asked: QueryRequest) => (asked.query as { __key?: number }).__key
 describe('widenSearch', () => {
   it('raises the page size of the search field only, on a copy that has a key of its own', () => {
     const original = request('search');
-    const wider = widenSearch(original);
+    const wider = widenSearchRequest(original);
     expect(firstOf(wider)).toEqual([String(SEARCH_PAGE_SIZE), '5']);
     expect(firstOf(original)).toEqual(['10', '5']);
     expect(wider.query).not.toBe(original.query);
@@ -65,34 +65,34 @@ describe('widenSearch', () => {
 
   it('gives the same answer for the same request, and different keys for different requests', () => {
     const one = request('search');
-    expect(widenSearch(one)).toEqual(widenSearch(one));
+    expect(widenSearchRequest(one)).toEqual(widenSearchRequest(one));
     const other = request('search', searchDocument(), 8);
-    expect(widenSearch(other).key).not.toBe(widenSearch(one).key);
+    expect(widenSearchRequest(other).key).not.toBe(widenSearchRequest(one).key);
   });
 
   it('widens a document once and reuses the copy, so the client does not print and hash a new one per search', () => {
     const one = request('search');
-    expect(widenSearch(one).query).toBe(widenSearch(one).query);
+    expect(widenSearchRequest(one).query).toBe(widenSearchRequest(one).query);
   });
 
   it('uses the size it is given', () => {
-    expect(firstOf(widenSearch(request('search'), 40))).toEqual(['40', '5']);
+    expect(firstOf(widenSearchRequest(request('search'), 40))).toEqual(['40', '5']);
   });
 
   it('leaves every other operation exactly as it is', () => {
     const other = request('fetchUserCards');
-    expect(widenSearch(other)).toBe(other);
+    expect(widenSearchRequest(other)).toBe(other);
   });
 
   it('leaves a search that already asks for as much, or whose page size it cannot find', () => {
     const big = request('search', searchDocument('50'));
-    expect(widenSearch(big)).toBe(big);
+    expect(widenSearchRequest(big)).toBe(big);
     const renamed = request('search', searchDocument('10', 'lookup'));
-    expect(widenSearch(renamed)).toBe(renamed);
+    expect(widenSearchRequest(renamed)).toBe(renamed);
     const keyless = { ...request('search'), key: undefined };
-    expect(widenSearch(keyless)).toBe(keyless);
+    expect(widenSearchRequest(keyless)).toBe(keyless);
     const empty: QueryRequest = { key: 1 };
-    expect(widenSearch(empty)).toBe(empty);
+    expect(widenSearchRequest(empty)).toBe(empty);
   });
 });
 
@@ -112,15 +112,15 @@ const clientWith = () => {
 describe('widenSearches', () => {
   it('sends the wider search to the site client and keeps the answer', () => {
     const { client, asked } = clientWith();
-    expect(widenSearches(client)).toBe(true);
+    expect(installSearchWidening(client)).toBe(true);
     expect(client.executeQuery(request('search'))).toBe('source');
     expect(firstOf(asked[0] as QueryRequest)).toEqual([String(SEARCH_PAGE_SIZE), '5']);
   });
 
   it('passes other requests through unchanged and patches a client only once', () => {
     const { client, asked } = clientWith();
-    widenSearches(client);
-    widenSearches(client);
+    installSearchWidening(client);
+    installSearchWidening(client);
     const other = request('fetchUserCards');
     client.executeQuery(other);
     client.executeQuery(request('search'));
@@ -131,7 +131,7 @@ describe('widenSearches', () => {
   it('reports a client whose method cannot be replaced', () => {
     const { client } = clientWith();
     Object.freeze(client);
-    expect(widenSearches(client)).toBe(false);
+    expect(installSearchWidening(client)).toBe(false);
   });
 });
 
@@ -168,7 +168,7 @@ describe('search signals', () => {
   const streaming = (results?: { stale?: boolean }[], complete?: boolean) => {
     const signals: SearchSignal[] = [];
     const client = streamingClient(results, complete);
-    widenSearches(client, (signal) => signals.push(signal));
+    installSearchWidening(client, (signal) => signals.push(signal));
     return { client, signals };
   };
 
@@ -206,7 +206,7 @@ describe('search signals', () => {
     const plain = { not: 'a source' };
     const client: QueryClient = { executeQuery: () => plain, executeMutation: () => null, query: () => ({ toPromise: () => Promise.resolve({}) }) };
     const signals: SearchSignal[] = [];
-    widenSearches(client, (signal) => signals.push(signal));
+    installSearchWidening(client, (signal) => signals.push(signal));
     expect(client.executeQuery(request('search'))).toBe(plain);
     expect(signals).toEqual([]);
   });
