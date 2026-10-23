@@ -118,12 +118,25 @@ describe('searching', () => {
     open(['a'], 'naruto');
     view.syncView();
     say('start');
-    await settle(299);
+    await settle(349);
     expect(modal().hasAttribute('data-senkutools-searching')).toBe(false);
     await settle(1);
     expect(modal().hasAttribute('data-senkutools-searching')).toBe(true);
     say('done');
     expect(modal().hasAttribute('data-senkutools-searching')).toBe(false);
+  });
+
+  it('turns on all the same when the clock reads a millisecond short at the timer', async () => {
+    view.dispose();
+    let lagMs = 0;
+    signals = createSearchSignals(() => Date.now() - lagMs);
+    view = createSearchView(document, { runAfter: (run, delayMs) => void setTimeout(run, delayMs), isContextValid: () => isContextAlive, signals });
+    open(['a'], 'naruto');
+    view.syncView();
+    say('start');
+    lagMs = 1;
+    await settle(400);
+    expect(modal().hasAttribute('data-senkutools-searching')).toBe(true);
   });
 
   it('never shows for a search that answers quickly', async () => {

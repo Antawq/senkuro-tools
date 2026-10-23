@@ -22,7 +22,7 @@ const OPTION_ID = 'senkutools-search-option-';
 const TAB_ID = 'senkutools-search-tab-';
 const MIN_WORD_CHARACTERS = 2;
 const SLOW_SEARCH_MS = 300;
-const EXPIRY_MARGIN_MS = 50;
+const TIMER_SLACK_MS = 50;
 const REFOCUS_TRIGGER = '.tabs-tab, .icon-click, .nav-search__cnt-space button';
 const HOVER_MEDIA_QUERY = '(hover: hover)';
 
@@ -158,8 +158,8 @@ export function createSearchView(pageDocument: Document, { runAfter, isContextVa
   signals.subscribe(() => {
     render();
     if (!searchModal || !signals.isSearchPending()) return;
-    runAfter(render, SLOW_SEARCH_MS);
-    runAfter(render, MAX_PENDING_MS + EXPIRY_MARGIN_MS);
+    runAfter(render, SLOW_SEARCH_MS + TIMER_SLACK_MS);
+    runAfter(render, MAX_PENDING_MS + TIMER_SLACK_MS);
   });
 
   const syncView = (): void => {
