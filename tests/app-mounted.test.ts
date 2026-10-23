@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Window } from 'happy-dom';
 
-import { APP_MOUNTED_EVENT, POLL_MS, announceMounted, isAppMounted } from '../utils/shared/app-mounted';
+import { APP_MOUNTED_EVENT, POLL_MS, publishAppMounted, isAppMounted } from '../utils/shared/app-mounted';
 
-type PageWindow = Parameters<typeof announceMounted>[0];
+type PageWindow = Parameters<typeof publishAppMounted>[0];
 
 const onFakeClock = (pageWindow: Window): PageWindow => {
   pageWindow.setTimeout = (run: () => void, ms?: number) => globalThis.setTimeout(run, ms);
@@ -28,12 +28,12 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('announceMounted', () => {
+describe('publishAppMounted', () => {
   it('marks the page and says so once the app has mounted, however late', () => {
     const { pageWindow, mount } = page();
     const heard = vi.fn();
     pageWindow.document.addEventListener(APP_MOUNTED_EVENT, heard);
-    announceMounted(pageWindow);
+    publishAppMounted(pageWindow);
     expect(isAppMounted(pageWindow.document)).toBe(false);
     vi.advanceTimersByTime(POLL_MS * 5);
     expect(heard).not.toHaveBeenCalled();
@@ -48,13 +48,13 @@ describe('announceMounted', () => {
   it('is told at once when the app was mounted already', () => {
     const { pageWindow, mount } = page();
     mount();
-    announceMounted(pageWindow);
+    publishAppMounted(pageWindow);
     expect(isAppMounted(pageWindow.document)).toBe(true);
   });
 
   it('waits for the page to draw its root, which may not be there at the start', () => {
     const pageWindow = onFakeClock(new Window({ url: 'https://senkuro.me/' }));
-    announceMounted(pageWindow);
+    publishAppMounted(pageWindow);
     vi.advanceTimersByTime(POLL_MS * 3);
     expect(isAppMounted(pageWindow.document)).toBe(false);
     pageWindow.document.body.innerHTML = '<div id="app"></div>';
@@ -65,7 +65,7 @@ describe('announceMounted', () => {
 
   it('never gives up, however late the app mounts', () => {
     const { pageWindow, mount } = page();
-    announceMounted(pageWindow);
+    publishAppMounted(pageWindow);
     vi.advanceTimersByTime(POLL_MS * 1000);
     expect(isAppMounted(pageWindow.document)).toBe(false);
     mount();
@@ -77,8 +77,8 @@ describe('announceMounted', () => {
     const { pageWindow, mount } = page();
     const heard = vi.fn();
     pageWindow.document.addEventListener(APP_MOUNTED_EVENT, heard);
-    announceMounted(pageWindow);
-    announceMounted(pageWindow);
+    publishAppMounted(pageWindow);
+    publishAppMounted(pageWindow);
     mount();
     vi.advanceTimersByTime(POLL_MS);
     expect(heard).toHaveBeenCalledOnce();

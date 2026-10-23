@@ -10,7 +10,7 @@ type AppRoot = Element & { __vue_app__?: unknown };
 
 export const isAppMounted = (pageDocument: Document): boolean => pageDocument.documentElement.hasAttribute(APP_MOUNTED_ATTRIBUTE);
 
-export function announceMounted(pageWindow: PageWindow): void {
+export function publishAppMounted(pageWindow: PageWindow): void {
   const look = (): void => {
     if (isAppMounted(pageWindow.document)) return;
     if (pageWindow.document.querySelector<AppRoot>(APP_ROOT)?.__vue_app__ !== undefined) {
