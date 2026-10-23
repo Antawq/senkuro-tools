@@ -68,6 +68,10 @@ describe('better-search stylesheet values', () => {
     expect(snapped).toContain('round(down, var(--better-search-room) - var(--better-search-tail), var(--better-search-row))');
   });
 
+  it('overrides the smooth scrolling the site sets on its scrollbar class, so the list never glides', () => {
+    expect(stylesheet).toMatch(/\.modal-content--search \.nav-search__cnt \{[^}]*scroll-behavior: auto;/);
+  });
+
   it('keeps the whole height of the list on a phone held sideways, where a snapped height would cost a row', () => {
     const sideways = stylesheet.slice(stylesheet.indexOf('@media (max-height: 480px)'));
     expect(sideways).toContain('max-height: var(--better-search-room);');

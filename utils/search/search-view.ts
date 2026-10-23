@@ -121,7 +121,7 @@ export function createSearchView(doc: Document, { later, alive, signals }: Searc
     const signature = signatureOf(rows);
     if (signature === shownSignature) return;
     shownSignature = signature;
-    modal.querySelector<HTMLElement>(LIST)?.scrollTo({ top: 0, behavior: 'instant' });
+    modal.querySelector<HTMLElement>(LIST)?.scrollTo({ top: 0 });
   };
 
   const dispose = (): void => {

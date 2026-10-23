@@ -181,7 +181,7 @@ export function createSearchKeys(doc: Document, { later, alive, signals }: Searc
     steppedBeforeAnswer = !isFresh();
     index = index === null ? 0 : Math.min(Math.max(index + delta, 0), rows.length - 1);
     mark(rows);
-    rows[index]?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+    rows[index]?.scrollIntoView({ block: 'nearest' });
   };
 
   const owns = (target: EventTarget | null, modal: HTMLElement): boolean =>

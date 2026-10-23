@@ -171,13 +171,13 @@ describe('scroll position', () => {
     expect(list().scrollTop).toBe(0);
   });
 
-  it('jumps instead of gliding, so the old position is never seen scrolling away', async () => {
+  it('scrolls the list back to the top when other results arrive', async () => {
     open(['a', 'b', 'c'], 'naruto');
     view.touch();
     const scrollTo = vi.spyOn(list(), 'scrollTo');
     list().innerHTML = rowsOf('x', 'y', 'z');
     await settle();
-    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'instant' });
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0 });
   });
 
   it('is left alone while the same results stay', async () => {

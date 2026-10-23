@@ -627,11 +627,11 @@ describe('arrows pressed before the results of what was typed have arrived', () 
 });
 
 describe('the highlighted row scrolling into view', () => {
-  it('jumps instead of gliding, so a held arrow never lags behind the list', async () => {
+  it('scrolls the nearest way and leaves the speed to the stylesheet', async () => {
     await ready(['a', 'b', 'c']);
     const scrolled = vi.spyOn(Element.prototype, 'scrollIntoView');
     press('ArrowDown');
-    expect(scrolled).toHaveBeenCalledWith({ block: 'nearest', behavior: 'instant' });
+    expect(scrolled).toHaveBeenCalledWith({ block: 'nearest' });
     scrolled.mockRestore();
   });
 });
