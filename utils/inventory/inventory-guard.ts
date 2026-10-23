@@ -63,19 +63,19 @@ export function installInventoryGuard(win: PageWindow): void {
       );
   };
 
-  const answer = (outcome: LoadOutcome) => win.document.dispatchEvent(new win.CustomEvent(LIST_LOADED_EVENT, { detail: encodeLoaded(outcome) }));
+  const publishListLoaded = (outcome: LoadOutcome) => win.document.dispatchEvent(new win.CustomEvent(LIST_LOADED_EVENT, { detail: encodeLoaded(outcome) }));
   const sleep = (ms: number) => (ms > 0 ? new Promise<void>((resolve) => win.setTimeout(resolve, ms)) : Promise.resolve());
 
   win.document.addEventListener(LIST_LOAD_EVENT, () => {
     if (loading) return;
     if (!attached) {
-      answer('partial');
+      publishListLoaded('partial');
       return;
     }
     loading = true;
     void loadRest({ client: attached, latest: () => latest, sleep }).then((outcome) => {
       loading = false;
-      answer(outcome);
+      publishListLoaded(outcome);
     });
   });
 

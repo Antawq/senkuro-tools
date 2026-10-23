@@ -59,7 +59,7 @@ const setup = () => {
   const requests = { count: 0 };
   const timers: (() => void)[] = [];
   const host: SortHost = {
-    request: () => void (requests.count += 1),
+    requestListLoad: () => void (requests.count += 1),
     runAfter: (run) => void timers.push(run),
     schedule: vi.fn<() => void>(),
   };

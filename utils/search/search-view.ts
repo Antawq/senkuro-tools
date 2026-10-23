@@ -85,7 +85,7 @@ export function createSearchView(doc: Document, { runAfter, isContextValid, sign
     else view.CSS.highlights.delete(MATCH_HIGHLIGHT);
   };
 
-  const announce = (searchModal: HTMLElement, rows: HTMLElement[], shown: boolean, managed = true): void => {
+  const writeAria = (searchModal: HTMLElement, rows: HTMLElement[], shown: boolean, managed = true): void => {
     const active = rows.find((row) => row.classList.contains(ACTIVE_ROW_CLASS));
     const field = fieldOf(searchModal);
     if (field) {
@@ -121,7 +121,7 @@ export function createSearchView(doc: Document, { runAfter, isContextValid, sign
     const tooShort = isTooShort(query);
     const stale = tooShort && rows.length > 0;
     flag(openSearchModal, STALE, stale);
-    announce(openSearchModal, rows, rows.length > 0 && !stale);
+    writeAria(openSearchModal, rows, rows.length > 0 && !stale);
     flag(openSearchModal, SEARCHING, !tooShort && signals.waited() >= SLOW_SEARCH_MS);
     paint(openSearchModal, query);
     const signature = signatureOf(rows);
@@ -134,7 +134,7 @@ export function createSearchView(doc: Document, { runAfter, isContextValid, sign
     if (searchModal) {
       flag(searchModal, STALE, false);
       flag(searchModal, SEARCHING, false);
-      announce(searchModal, rowsOf(searchModal), false, false);
+      writeAria(searchModal, rowsOf(searchModal), false, false);
     }
     unpaint();
     observer?.disconnect();

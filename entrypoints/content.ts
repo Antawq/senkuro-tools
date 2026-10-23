@@ -54,7 +54,7 @@ export default defineContentScript({
     );
     const badges = createPriceBadges({ touch });
     const priceSort = createPriceSort(document, {
-      request: () => void document.dispatchEvent(new CustomEvent(LIST_LOAD_EVENT)),
+      requestListLoad: () => void document.dispatchEvent(new CustomEvent(LIST_LOAD_EVENT)),
       runAfter: (run, delayMs) => void ctx.setTimeout(run, delayMs),
       schedule: loop.schedule,
     });

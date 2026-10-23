@@ -63,7 +63,7 @@ export function widenSearch(request: QueryRequest, size = SEARCH_PAGE_SIZE): Que
   return query ? { ...request, key: keyFor(request.key, size), query: query } : request;
 }
 
-function announce(source: unknown, request: QueryRequest, publish: Publish): unknown {
+function publishSearchPhases(source: unknown, request: QueryRequest, publish: Publish): unknown {
   const { query, type } = request.variables ?? {};
   if (typeof source !== 'function' || typeof query !== 'string' || typeof type !== 'string') return source;
   let open = 0;
@@ -88,7 +88,7 @@ export function widenSearches(client: QueryClient, publish: Publish = () => unde
   try {
     client.executeQuery = (request, options) => {
       const source = original(widenSearch(request, size), options);
-      return operationName(request) === SEARCH_OPERATION ? announce(source, request, publish) : source;
+      return operationName(request) === SEARCH_OPERATION ? publishSearchPhases(source, request, publish) : source;
     };
   } catch {
     return false;

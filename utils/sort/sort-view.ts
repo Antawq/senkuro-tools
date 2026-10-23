@@ -8,7 +8,7 @@ import { decorateMenu, isPriceMode, reflectLabel, sortTrigger } from './sort-men
 const STALL_MS = 15000;
 
 export interface SortHost {
-  request: () => void;
+  requestListLoad: () => void;
   runAfter: (run: () => void, delayMs: number) => void;
   schedule: () => void;
 }
@@ -48,7 +48,7 @@ export function createPriceSort(doc: Document, host: SortHost): PriceSort {
     loading = true;
     triedAt = seen;
     watch(seen);
-    host.request();
+    host.requestListLoad();
   }
 
   function resolve(view: GridView): GridState {
