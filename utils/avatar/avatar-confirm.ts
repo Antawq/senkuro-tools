@@ -107,14 +107,14 @@ const createCoin = (pageDocument: Document, url: string): HTMLImageElement => {
   return coin;
 };
 
-const putCoinInCost = (pageDocument: Document, url: string | null): (() => void) => {
+const addCoinToCostMark = (pageDocument: Document, url: string | null): (() => void) => {
   if (!url) return () => undefined;
-  const put = (): void => {
+  const appendMissingCoins = (): void => {
     for (const mark of pageDocument.querySelectorAll(COST_MARK)) {
       if (mark.textContent === String(AVATAR_COST_SENKOINS) && !mark.querySelector('img')) mark.append(createCoin(pageDocument, url));
     }
   };
-  const observer = new MutationObserver(put);
+  const observer = new MutationObserver(appendMissingCoins);
   observer.observe(pageDocument.body, { childList: true, subtree: true });
   return () => observer.disconnect();
 };
@@ -134,12 +134,12 @@ export function installAvatarConfirm({ pageDocument, modals, assets }: AvatarCon
 
   const ask = async (site: SiteModals): Promise<boolean> => {
     const [loaded, coin] = await Promise.all([assets.component(), assets.coin()]);
-    const stop = putCoinInCost(pageDocument, coin);
+    const stopAddingCoin = addCoinToCostMark(pageDocument, coin);
     try {
       const entry = site.showModal(() => Promise.resolve(loaded), createConfirmProps(coin !== null), {});
       return await Promise.race([entry.emitted('confirm'), entry.emitted('close').then(() => false)]);
     } finally {
-      stop();
+      stopAddingCoin();
     }
   };
 
