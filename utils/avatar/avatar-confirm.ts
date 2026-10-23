@@ -40,18 +40,18 @@ interface AvatarConfirmHost {
   assets: SiteAssets;
 }
 
-interface VueHost {
+interface AppRoot {
   __vue_app__?: { _context?: { provides?: Record<symbol, unknown> } };
 }
 
-const isSiteModals = (value: unknown): value is SiteModals => typeof (value as SiteModals | null)?.showModal === 'function';
+const isSiteModals = (candidate: unknown): candidate is SiteModals => typeof (candidate as SiteModals | null)?.showModal === 'function';
 
 export function findSiteModals(pageDocument: Document): SiteModals | null {
-  const provides = (pageDocument.querySelector(APP_ROOT) as VueHost | null)?.__vue_app__?._context?.provides;
+  const provides = (pageDocument.querySelector(APP_ROOT) as AppRoot | null)?.__vue_app__?._context?.provides;
   if (!provides) return null;
-  const key = Object.getOwnPropertySymbols(provides).find((symbol) => symbol.description === MODALS_SYMBOL_DESCRIPTION);
-  const modals = key ? provides[key] : null;
-  return isSiteModals(modals) ? modals : null;
+  const modalsSymbol = Object.getOwnPropertySymbols(provides).find((symbol) => symbol.description === MODALS_SYMBOL_DESCRIPTION);
+  const siteModals = modalsSymbol ? provides[modalsSymbol] : null;
+  return isSiteModals(siteModals) ? siteModals : null;
 }
 
 export function createSiteAssets(
