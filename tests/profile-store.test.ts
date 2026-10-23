@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 
-import { isComplete, readCollection, saveCollection, type Collection } from '../utils/profile/profile-store';
+import { forgetCollection, isComplete, readCollection, saveCollection, type Collection } from '../utils/profile/profile-store';
 import { MS_PER_MINUTE } from '../utils/shared/time';
 
 const collection = (over: Partial<Collection> = {}): Collection => ({
@@ -42,6 +42,24 @@ describe('profile store', () => {
   it('ignores entries it cannot read', async () => {
     await fakeBrowser.storage.local.set({ profileCollections: { a: 5, b: { at: 'now' }, c: { at: Date.now(), userId: 'u', pages: 1, after: 7 } } });
     expect(await Promise.all(['a', 'b', 'c'].map((slug) => readCollection(slug)))).toEqual([null, null, null]);
+  });
+
+  it('forgets one profile, whatever its state, and keeps the others', async () => {
+    await saveCollection('phaivroh', collection({ after: 'c1' }));
+    await saveCollection('chu', collection({ userId: 'u2' }));
+    await forgetCollection('phaivroh');
+    expect(await readCollection('phaivroh')).toBeNull();
+    expect(await readCollection('chu')).toEqual(expect.objectContaining({ userId: 'u2' }));
+    const { profileCollections } = await fakeBrowser.storage.local.get('profileCollections');
+    expect(Object.keys(profileCollections as object)).toEqual(['chu']);
+  });
+
+  it('has nothing to forget for a profile it never stored, and leaves the rest as it was', async () => {
+    await forgetCollection('nobody');
+    expect(await readCollection('nobody')).toBeNull();
+    await saveCollection('chu', collection());
+    await forgetCollection('nobody');
+    expect(await readCollection('chu')).not.toBeNull();
   });
 
   it('tells a finished collection from a paused or an empty one', () => {

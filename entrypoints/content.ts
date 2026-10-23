@@ -9,13 +9,16 @@ import '@/assets/token-bar.css';
 import '@/assets/trade-summary.css';
 import { defineContentScript } from '#imports';
 
+import { APP_MOUNTED_EVENT } from '@/utils/shared/app-mounted';
 import { loadDatabase } from '@/utils/shared/database';
 import { SENKURO_MATCHES } from '@/utils/shared/hosts';
 import { createPriceBadges } from '@/utils/badges/price-badges';
+import { isRefreshButtonMissing, syncRefreshButton, type RefreshHost } from '@/utils/profile/inventory-refresh';
 import { profileBadgeMissing, removeProfileBadge, updateProfileBadge } from '@/utils/profile/profile-dom';
 import { createSearchKeys } from '@/utils/search/search-keys';
 import { SEARCH_EVENT, createSearchSignals } from '@/utils/search/search-signal';
 import { createSearchView } from '@/utils/search/search-view';
+import { forgetCollection } from '@/utils/profile/profile-store';
 import { addedCards, createRenderLoop } from '@/utils/shared/render-loop';
 import { LIST_LOAD_EVENT, LIST_LOADED_EVENT } from '@/utils/shared/list-signal';
 import { loadSettings, watchSettings } from '@/utils/shared/settings';
@@ -26,6 +29,7 @@ import { createTradeStore, listenForTrades } from '@/utils/trades/trade-capture'
 import { isTradeMutation, updateTradeSummaries } from '@/utils/trades/trade-summary';
 
 const LATE_RENDER_DELAYS_MS = [400, 1500];
+const inventoryRefresh: RefreshHost = { forget: forgetCollection, reload: () => window.location.reload() };
 
 const applySummaryFontSize = (size: number) => document.documentElement.style.setProperty('--senkuro-summary-font-size', `${size}px`);
 
@@ -48,7 +52,10 @@ export default defineContentScript({
       {
         cards: (db, cards) => badges.update(db, settings, cards),
         trades: (db) => updateTradeSummaries(db, settings, tradeStore),
-        profile: (db) => updateProfileBadge({ db, valuation: settings, redraw: loop.schedule }),
+        profile: (db) => {
+          updateProfileBadge({ db, valuation: settings, redraw: loop.schedule });
+          syncRefreshButton(inventoryRefresh);
+        },
         sort: (db) => priceSort.sync(db, settings),
       },
       loadDatabase,
@@ -68,7 +75,7 @@ export default defineContentScript({
       shardSwitches.watch(mutations);
       loop.addCards(cards);
       if (tradesChanged) loop.markTrades();
-      if (cards.length > 0 || tradesChanged || profileBadgeMissing() || hasSortMutation(mutations)) loop.schedule();
+      if (cards.length > 0 || tradesChanged || profileBadgeMissing() || isRefreshButtonMissing() || hasSortMutation(mutations)) loop.schedule();
     });
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     ctx.onInvalidated(() => observer.disconnect());
@@ -114,6 +121,8 @@ export default defineContentScript({
       loop.schedule();
       void loop.renderAll();
     });
+
+    ctx.addEventListener(document, APP_MOUNTED_EVENT, loop.schedule);
 
     listenForTrades(tradeStore, () => {
       loop.markTrades();

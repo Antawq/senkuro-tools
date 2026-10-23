@@ -35,6 +35,16 @@ export async function readCollection(slug: string): Promise<Collection | null> {
   return { at: entry.at, userId: entry.userId, cards: unpackCards(entry.cards), after: entry.after, pages: entry.pages };
 }
 
+export const warnStoreFailure = (error: unknown): null => {
+  console.warn('SenkuTools: profile store', error);
+  return null;
+};
+
+export async function forgetCollection(slug: string): Promise<void> {
+  const kept = Object.entries(await COLLECTIONS.getValue()).filter(([key]) => key !== slug);
+  await COLLECTIONS.setValue(Object.fromEntries(kept));
+}
+
 export async function saveCollection(slug: string, collection: Collection): Promise<void> {
   const now = Date.now();
   const kept = Object.entries(await COLLECTIONS.getValue()).filter(([key, entry]) => key !== slug && isFresh(entry, now));

@@ -1,9 +1,9 @@
 import type { Database } from '../shared/database';
 import { element } from '../shared/dom';
-import { chevronIcon, svgIcon } from '../shared/svg';
+import { chevronIcon, refreshIcon } from '../shared/svg';
 import { R_RANK, UNKNOWN_LEGEND, UNKNOWN_MARK, type Valuation } from '../shared/trade-value';
 import { calculateProfileValue, extractProfileSlug, fetchProfileCards, fetchProfileUser, type ProfileValueSummary } from './profile-cards';
-import { isComplete, readCollection, saveCollection, type Collection } from './profile-store';
+import { isComplete, readCollection, saveCollection, warnStoreFailure, type Collection } from './profile-store';
 
 export const WIDGET_ID = 'senkuro-profile-card-value';
 
@@ -16,6 +16,7 @@ const R_HIGHLIGHT = 'senkuro-rank-r';
 const GUTTER_PROPERTY = '--senkuro-gutter';
 const SHIFT_PROPERTY = '--senkuro-popover-shift';
 const EMPTY = '-';
+const POPOVER_ICON_SIZE_PX = 13;
 
 const TEXT = {
   idle: 'Посчитать ценность',
@@ -34,11 +35,6 @@ const TEXT = {
 } as const;
 
 const progressText = (loaded: number): string => `Карт: ${loaded}...`;
-
-const refreshIcon = (): SVGSVGElement =>
-  svgIcon({ viewBox: '0 0 16 16', width: '13', height: '13', stroke: 'currentColor', 'stroke-width': '1.7' }, [
-    ['path', { d: 'M2.5 8a5.5 5.5 0 0 1 9.4-3.9L13.5 6M13.5 2.5V6h-3.5M13.5 8a5.5 5.5 0 0 1-9.4 3.9L2.5 10M2.5 13.5V10H6' }],
-  ]);
 
 const NICKNAME_HEADING = '.client-header header h1, .client-header h1, .client-panel__info h1, h1.caption-size-lg, h1.caption';
 
@@ -82,21 +78,16 @@ export function abortProfileLoading(slug?: string): void {
 const valuationKey = ({ commission, valueBySplit, valueBasis, excludeShards }: Valuation): string =>
   JSON.stringify([commission, valueBySplit, valueBasis, excludeShards]);
 
-const warnStore = (error: unknown): null => {
-  console.warn('SenkuTools: profile store', error);
-  return null;
-};
-
 function remember(slug: string, collection: Collection): void {
   known.set(slug, collection);
-  void saveCollection(slug, collection).catch(warnStore);
+  void saveCollection(slug, collection).catch(warnStoreFailure);
 }
 
 function readStored(slug: string, deps: ProfileBadgeDeps): void {
   if (reading.has(slug)) return;
   reading.add(slug);
   void readCollection(slug)
-    .catch(warnStore)
+    .catch(warnStoreFailure)
     .then((collection) => {
       reading.delete(slug);
       if (!known.has(slug)) known.set(slug, collection);
@@ -225,7 +216,7 @@ function renderSummary(widget: HTMLElement, slug: string, summary: ProfileValueS
   const refresh = element('button', 'senkuro-popover-refresh');
   refresh.type = 'button';
   refresh.title = TEXT.refresh;
-  refresh.append(refreshIcon());
+  refresh.append(refreshIcon(POPOVER_ICON_SIZE_PX));
   refresh.addEventListener('click', (event) => {
     event.stopPropagation();
     widget.classList.remove(ACTIVE);
@@ -260,7 +251,7 @@ const widgetFor = (slug: string): HTMLElement | null => {
 };
 
 async function download(slug: string, signal: AbortSignal, fresh: boolean, onPage: (latest: Collection) => void): Promise<Collection | null> {
-  const stored = fresh ? null : ((await readCollection(slug).catch(warnStore)) ?? known.get(slug) ?? null);
+  const stored = fresh ? null : ((await readCollection(slug).catch(warnStoreFailure)) ?? known.get(slug) ?? null);
   if (stored && isComplete(stored)) {
     known.set(slug, stored);
     return stored;
