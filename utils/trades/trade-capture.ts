@@ -1,4 +1,5 @@
 import { debugLogger } from '../shared/debug';
+import { isGraphqlRequest, isStreamed } from '../shared/graphql-request';
 import { claimPage } from '../shared/page-claim';
 import { parseJson } from '../shared/json';
 import type { CardRef } from '../shared/trade-value';
@@ -153,22 +154,6 @@ export function createTradeStore(): TradeStore {
   };
 }
 
-const STREAMED = /multipart|event-stream/;
-
-const requestUrl = (input: unknown): string => {
-  if (typeof input === 'string') return input;
-  if (input instanceof URL) return input.href;
-  return (input as { url?: string } | null)?.url ?? '';
-};
-
-const isGraphqlRequest = (input: unknown, base: string): boolean => {
-  try {
-    return new URL(requestUrl(input), base).pathname.endsWith('/graphql');
-  } catch {
-    return false;
-  }
-};
-
 export function installCapture(win: CapturingWindow): void {
   if (!claimPage(win, 'trade-capture')) return;
   const debug = debugLogger(win);
@@ -201,8 +186,8 @@ export function installCapture(win: CapturingWindow): void {
     if (!isGraphqlRequest(args[0], win.location.href)) return pending;
     return pending.then(async (response) => {
       const type = response.headers.get('content-type') ?? '';
-      debug('graphql answer', { status: response.status, type, streamed: STREAMED.test(type) });
-      if (!STREAMED.test(type)) await readCopy(response);
+      debug('graphql answer', { status: response.status, type, streamed: isStreamed(response) });
+      if (!isStreamed(response)) await readCopy(response);
       return response;
     });
   };

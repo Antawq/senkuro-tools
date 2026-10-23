@@ -2,7 +2,9 @@ import { debugLogger } from '../shared/debug';
 import { claimPage } from '../shared/page-claim';
 import { operationName, whenClient, type QueryClient } from '../shared/urql-client';
 import { recordLists, tapMutations, type MutationResult } from './client-hooks';
-import { createListRecord, needsRefresh, type Family, type ListRecord, type ReceivedCard } from './list-families';
+import { createCursorLedger, guardCursors } from './list-cursors';
+import { createListRecord, familyIdOf, needsRefresh, type Family, type ListRecord, type ReceivedCard } from './list-families';
+import { learnFromFetch } from './list-seen';
 import { refreshFamilies, type RefreshEnv } from './list-refresh';
 
 const FORGE_OPERATION = 'forgeCards';
@@ -39,6 +41,7 @@ export function installInventoryGuard(win: GuardWindow): void {
   if (!claimPage(win, 'inventory-guard')) return;
   const debug = debugLogger(win);
   const record = createListRecord();
+  const ledger = createCursorLedger();
   const silent = new WeakSet<object>();
   let queue: Promise<unknown> = Promise.resolve();
 
@@ -56,9 +59,12 @@ export function installInventoryGuard(win: GuardWindow): void {
       );
   };
 
+  learnFromFetch(win, ledger);
+
   whenClient(win, (client) => {
     const recording = recordLists(client, (page) => record.record(page), silent);
     const tapping = tapMutations(client, onMutation(client));
-    debug('urql client', recording && tapping ? 'attached' : 'not replaceable');
+    const guarding = guardCursors(client, (variables) => debug('stale cursor dropped', { list: familyIdOf(variables), after: variables.after }), ledger);
+    debug('urql client', recording && tapping && guarding ? 'attached' : 'not replaceable');
   });
 }

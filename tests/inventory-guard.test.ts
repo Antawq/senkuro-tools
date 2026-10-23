@@ -51,10 +51,14 @@ const rig = ({ mounted = true, results = [], slow = false }: Rig = {}) => {
   const win = new Window({ url: 'https://senkuro.me/forge/split' });
   win.document.body.innerHTML = '<div id="app"></div>';
   const queries: { variables: Variables; options: Record<string, unknown> }[] = [];
+  const reached: Variables[] = [];
   const log: string[] = [];
   const pending = [...results];
   const client: QueryClient = {
-    executeQuery: () => null,
+    executeQuery: (asked) => {
+      reached.push(asked.variables ?? {});
+      return null;
+    },
     executeMutation: () =>
       make<MutationResult>((observer) => {
         const next = pending.shift();
@@ -67,10 +71,12 @@ const rig = ({ mounted = true, results = [], slow = false }: Rig = {}) => {
         queries.push({ variables, options });
         log.push(`start ${String(variables.userId)}`);
         if (slow) await new Promise((resolve) => setTimeout(resolve, 15));
-        await (options.fetch as (input: string, init: Init) => Promise<Response>)(GRAPHQL, {
-          method: 'POST',
-          body: JSON.stringify({ operationName: LIST_OPERATION, variables }),
-        });
+        if (typeof options.fetch === 'function') {
+          await (options.fetch as (input: string, init: Init) => Promise<Response>)(GRAPHQL, {
+            method: 'POST',
+            body: JSON.stringify({ operationName: LIST_OPERATION, variables }),
+          });
+        }
         log.push(`end ${String(variables.userId)}`);
         return {};
       },
@@ -85,7 +91,7 @@ const rig = ({ mounted = true, results = [], slow = false }: Rig = {}) => {
   const respond = () => win.fetch(GRAPHQL, { method: 'POST', body: JSON.stringify({ operationName: 'fetchViewer' }) });
   const browse = (variables: Variables) => client.executeQuery(request(LIST_OPERATION, variables));
   const mutate = (name: string) => (client.executeMutation(request(name)) as { toPromise(): Promise<MutationResult> }).toPromise();
-  return { win, queries, log, mount, respond, browse, mutate };
+  return { win, queries, reached, log, mount, respond, browse, mutate };
 };
 
 describe('planRefresh', () => {
@@ -192,6 +198,18 @@ describe('installInventoryGuard', () => {
     await settle();
     await settle();
     expect(log).toEqual(['start USER:1', 'end USER:1', 'start USER:1', 'end USER:1']);
+    await win.happyDOM.close();
+  });
+
+  it('knows the cursors the site was given before its client was found, from the answers on the wire', async () => {
+    const { win, mount, respond, browse, reached } = rig({ mounted: false });
+    const cards = { userId: 'USER:1', modifier: { include: [0] } };
+    await win.fetch(GRAPHQL, { method: 'POST', body: JSON.stringify({ operationName: LIST_OPERATION, variables: cards }) });
+    mount();
+    await respond();
+    browse({ userId: 'USER:1', modifier: { include: [1] }, after: 'c1' });
+    browse({ ...cards, after: 'c1' });
+    expect(reached.map((variables) => variables.after)).toEqual([null, 'c1']);
     await win.happyDOM.close();
   });
 
