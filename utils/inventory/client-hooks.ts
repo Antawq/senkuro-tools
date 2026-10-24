@@ -15,7 +15,7 @@ export interface MutationResult {
   hasNext?: boolean;
 }
 
-interface ListResult extends SourceResult {
+interface ListOperationResult extends SourceResult {
   operation?: { context?: { meta?: { cacheOutcome?: unknown } } };
 }
 
@@ -33,7 +33,7 @@ const isOwn = (options: Record<string, unknown> | undefined): boolean => options
 function tapFirstCacheHit(source: unknown, onCacheHit: () => void): unknown {
   if (typeof source !== 'function') return source;
   let isFirstResult = true;
-  return tapSource(source as (sink: Sink<ListResult>) => void, {
+  return tapSource(source as (sink: Sink<ListOperationResult>) => void, {
     onSettled: (listResult) => {
       if (!isFirstResult) return;
       isFirstResult = false;
