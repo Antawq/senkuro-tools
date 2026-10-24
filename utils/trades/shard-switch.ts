@@ -1,5 +1,6 @@
 import { element } from '../shared/dom';
 import { MODAL_REFRESH_CLASS } from './modal-refresh';
+import { createFrameWatcher, createMutationFilter } from './mutation-watcher';
 
 const MODAL = '.modal-content--trade';
 const PICKER = '.modal-trade__body';
@@ -143,28 +144,6 @@ export function updateShardSwitches(pageDocument: Document = document): void {
   }
 }
 
-const isOwnNode = (node: Node): boolean => node instanceof Element && node.matches(OWN_NODES);
+export const isPickerMutation = createMutationFilter(MODAL, OWN_NODES);
 
-const holdsModal = (node: Node): boolean => node instanceof Element && (node.matches(MODAL) || node.querySelector(MODAL) !== null);
-
-export const isPickerMutation = (mutation: MutationRecord): boolean => {
-  const changed = [...mutation.addedNodes, ...mutation.removedNodes];
-  if (changed.length > 0 && changed.every(isOwnNode)) return false;
-  const target = mutation.target instanceof Element ? mutation.target : mutation.target.parentElement;
-  if (target?.closest(OWN_NODES)) return false;
-  return Boolean(target?.closest(MODAL)) || [...mutation.addedNodes].some(holdsModal);
-};
-
-export function createShardSwitchWatcher({ nextFrame }: ShardSwitchHost) {
-  let isScheduled = false;
-  return {
-    watch(mutations: Iterable<MutationRecord>) {
-      if (isScheduled || ![...mutations].some(isPickerMutation)) return;
-      isScheduled = true;
-      nextFrame(() => {
-        isScheduled = false;
-        updateShardSwitches();
-      });
-    },
-  };
-}
+export const createShardSwitchWatcher = ({ nextFrame }: ShardSwitchHost) => createFrameWatcher(isPickerMutation, () => updateShardSwitches(), nextFrame);

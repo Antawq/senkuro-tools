@@ -19,6 +19,7 @@ import {
   type Verdict,
 } from '../shared/trade-value';
 import { MODAL_REFRESH_CLASS } from './modal-refresh';
+import { createMutationFilter } from './mutation-watcher';
 import type { TradeStore } from './trade-capture';
 import { TRADE_PLACES, readTradePlaces, type Column, type Place, type Role } from './trade-dom';
 import { totalOf } from './trade-match';
@@ -261,14 +262,4 @@ export function updateTradeSummaries(db: Database, settings: SummarySettings, st
   }
 }
 
-const isOwnNode = (node: Node): boolean => node instanceof Element && (node.classList.contains(SUMMARY) || node.classList.contains(MODAL_REFRESH_CLASS));
-
-const holdsPlace = (node: Node): boolean => node instanceof Element && (node.matches(TRADE_PLACES) || node.querySelector(TRADE_PLACES) !== null);
-
-export const isTradeMutation = (mutation: MutationRecord): boolean => {
-  const changed = [...mutation.addedNodes, ...mutation.removedNodes];
-  if (changed.length > 0 && changed.every(isOwnNode)) return false;
-  const target = mutation.target instanceof Element ? mutation.target : mutation.target.parentElement;
-  if (target?.closest(`.${SUMMARY}, .${MODAL_REFRESH_CLASS}`)) return false;
-  return Boolean(target?.closest(TRADE_PLACES)) || [...mutation.addedNodes].some(holdsPlace);
-};
+export const isTradeMutation = createMutationFilter(TRADE_PLACES, `.${SUMMARY}, .${MODAL_REFRESH_CLASS}`);

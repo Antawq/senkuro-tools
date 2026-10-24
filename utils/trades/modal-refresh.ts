@@ -1,5 +1,6 @@
 import { createRefreshButton } from '../shared/refresh-button';
 import type { RefreshOutcome } from '../shared/refresh-signal';
+import { createFrameWatcher, createMutationFilter } from './mutation-watcher';
 
 export const MODAL_REFRESH_CLASS = 'senkutools-modal-refresh';
 
@@ -42,28 +43,6 @@ export function syncModalRefreshButtons(host: ModalRefreshHost, pageDocument: Do
   for (const modal of pageDocument.querySelectorAll(MODAL)) syncModal(modal, host);
 }
 
-const isOwnNode = (node: Node): boolean => node instanceof Element && node.classList.contains(MODAL_REFRESH_CLASS);
+export const isModalMutation = createMutationFilter(MODAL, `.${MODAL_REFRESH_CLASS}`);
 
-const holdsModal = (node: Node): boolean => node instanceof Element && (node.matches(MODAL) || node.querySelector(MODAL) !== null);
-
-export const isModalMutation = (mutation: MutationRecord): boolean => {
-  const changed = [...mutation.addedNodes, ...mutation.removedNodes];
-  if (changed.length > 0 && changed.every(isOwnNode)) return false;
-  const target = mutation.target instanceof Element ? mutation.target : mutation.target.parentElement;
-  if (target?.closest(`.${MODAL_REFRESH_CLASS}`)) return false;
-  return Boolean(target?.closest(MODAL)) || [...mutation.addedNodes].some(holdsModal);
-};
-
-export function createModalRefreshWatcher(host: ModalRefreshHost) {
-  let isScheduled = false;
-  return {
-    watch(mutations: Iterable<MutationRecord>) {
-      if (isScheduled || ![...mutations].some(isModalMutation)) return;
-      isScheduled = true;
-      host.nextFrame(() => {
-        isScheduled = false;
-        syncModalRefreshButtons(host);
-      });
-    },
-  };
-}
+export const createModalRefreshWatcher = (host: ModalRefreshHost) => createFrameWatcher(isModalMutation, () => syncModalRefreshButtons(host), host.nextFrame);
