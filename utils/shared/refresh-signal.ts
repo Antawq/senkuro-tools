@@ -43,10 +43,10 @@ export const isGuardReady = (pageDocument: Document): boolean => pageDocument.do
 export function requestInventoryRefresh(pageDocument: Document, scope: RefreshScope): Promise<RefreshOutcome> {
   return new Promise((resolve) => {
     const handleResult = (event: Event) => {
-      const result = readRefreshResult(event);
-      if (result?.scope !== scope) return;
+      const refreshResult = readRefreshResult(event);
+      if (refreshResult?.scope !== scope) return;
       pageDocument.removeEventListener(REFRESH_RESULT_EVENT, handleResult);
-      resolve(result.outcome);
+      resolve(refreshResult.outcome);
     };
     pageDocument.addEventListener(REFRESH_RESULT_EVENT, handleResult);
     pageDocument.dispatchEvent(new CustomEvent(REFRESH_REQUEST_EVENT, { detail: encodeRefreshRequest(scope) }));
