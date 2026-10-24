@@ -71,6 +71,7 @@ const rateInF = (rank: string | undefined, perRank: number): number | null => {
 };
 
 const rankPosition = (rank: string): number => {
+  if (rank === UNKNOWN_MARK) return RANK_ORDER.length + 1;
   const position = RANK_ORDER.indexOf(rank);
   return position === -1 ? RANK_ORDER.length : position;
 };

@@ -159,11 +159,11 @@ describe('profile-cards', () => {
       expect(summary.cards).toEqual(['1S', '2?']);
     });
 
-    it('keeps an X rank card from the database apart from cards the database does not know', () => {
+    it('keeps an X rank card from the database apart from cards the database does not know and lists ? last', () => {
       const database = { ...mockDb, 'boss-x': { price: 9, name: 'Босс', rank: 'X' } };
       const cards: UserCard[] = [
-        { slug: 'boss-x', quantity: 1, shard: false },
         { slug: 'brand-new-s', quantity: 2, shard: false },
+        { slug: 'boss-x', quantity: 1, shard: false },
       ];
       expect(calculateProfileValue(cards, database, plain).cards).toEqual(['1X', '2?']);
     });
