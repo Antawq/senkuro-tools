@@ -78,10 +78,12 @@ const setup = ({
   return { env, queries, order, flight, sleeps, record, setItems: (next: number[]) => (list = next) };
 };
 
+const ROUTE = '/users/u/cards';
+
 const page = (variables: Variables, options: Record<string, unknown> = {}): PageRequest => ({ document: 'doc', variables, options });
 
 const recordPages = (record: ReturnType<typeof createListRecord>, pages: PageRequest[]) => {
-  pages.forEach((entry) => record.record(entry));
+  pages.forEach((entry) => record.record(entry, ROUTE));
   return record.families()[0] as Family;
 };
 
@@ -163,7 +165,7 @@ describe('refreshFamilies', () => {
     const first = page({ userId: 'A' });
     const second = page({ userId: 'B' });
     const third = page({ userId: 'C' });
-    [first, second, third].forEach((entry) => record.record(entry));
+    [first, second, third].forEach((entry) => record.record(entry, ROUTE));
     const report = await refreshFamilies(env, record.families());
     expect(report).toEqual({ requests: 2, failed: true });
     expect(queries.map((query) => query.variables.userId)).toEqual(['A', 'B']);
@@ -189,7 +191,7 @@ describe('refreshFamilies', () => {
   it('does nothing for no families and for a family with no pages', async () => {
     const { env, queries } = setup();
     expect(await refreshFamilies(env, [])).toEqual({ requests: 0, failed: false });
-    expect(await refreshFamilies(env, [{ id: 'x', filters: {}, pages: [] }])).toEqual({ requests: 0, failed: false });
+    expect(await refreshFamilies(env, [{ id: 'x', filters: {}, pages: [], route: ROUTE }])).toEqual({ requests: 0, failed: false });
     expect(queries).toHaveLength(0);
   });
 });

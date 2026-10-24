@@ -15,6 +15,8 @@ import {
   type Variables,
 } from '../utils/inventory/list-families';
 
+const ROUTE = '/users/u/cards';
+
 const page = (variables: Variables): PageRequest => ({ document: 'doc', variables, options: {} });
 
 const card = (rank: string, { modifier = 0, animated = false, explicit = false }: { modifier?: number; animated?: boolean; explicit?: boolean } = {}) => ({
@@ -111,7 +113,7 @@ describe('judge', () => {
 });
 
 describe('needsRefresh', () => {
-  const family = (filters: Variables) => ({ id: familyIdOf(filters), filters, pages: [] });
+  const family = (filters: Variables) => ({ id: familyIdOf(filters), filters, pages: [], route: ROUTE });
 
   it('refreshes a list that excludes at least one received card', () => {
     expect(needsRefresh(family(splitPicker), [card('F'), card('C')])).toBe(true);
@@ -174,10 +176,10 @@ describe('linked', () => {
 describe('createListRecord', () => {
   it('groups pages into families by their filters and keeps scroll order', () => {
     const record = createListRecord();
-    record.record(page({ ...splitPicker, after: null }));
-    record.record(page({ ...splitPicker, after: 'c1' }));
-    record.record(page({ ...profileGrid }));
-    record.record(page({ ...splitPicker, after: 'c2' }));
+    record.record(page({ ...splitPicker, after: null }), ROUTE);
+    record.record(page({ ...splitPicker, after: 'c1' }), ROUTE);
+    record.record(page({ ...profileGrid }), ROUTE);
+    record.record(page({ ...splitPicker, after: 'c2' }), ROUTE);
     const [picker, profile] = record.families();
     expect(picker?.pages.map((p) => p.variables.after)).toEqual([null, 'c1', 'c2']);
     expect(picker?.filters).not.toHaveProperty('after');
@@ -186,10 +188,10 @@ describe('createListRecord', () => {
 
   it('records a page once however many times it runs', () => {
     const record = createListRecord();
-    record.record(page({ ...splitPicker, after: null }));
-    record.record(page({ ...splitPicker, after: null }));
-    record.record(page({ ...splitPicker, after: 'c1' }));
-    record.record(page({ ...splitPicker, after: 'c1' }));
+    record.record(page({ ...splitPicker, after: null }), ROUTE);
+    record.record(page({ ...splitPicker, after: null }), ROUTE);
+    record.record(page({ ...splitPicker, after: 'c1' }), ROUTE);
+    record.record(page({ ...splitPicker, after: 'c1' }), ROUTE);
     expect(record.families()[0]?.pages).toHaveLength(2);
   });
 
@@ -197,8 +199,8 @@ describe('createListRecord', () => {
     const record = createListRecord();
     const first = page({ ...profileGrid });
     const second = page({ ...profileGrid, after: 'c1' });
-    record.record(first);
-    record.record(second);
+    record.record(first, ROUTE);
+    record.record(second, ROUTE);
     const [family] = record.families();
     record.insertAfter(family!, first, [page({ ...profileGrid, after: 'x1' }), page({ ...profileGrid, after: 'x2' })]);
     expect(family?.pages.map((p) => p.variables.after)).toEqual([undefined, 'x1', 'x2', 'c1']);
@@ -206,8 +208,8 @@ describe('createListRecord', () => {
 
   it('adds the first page when only later pages were seen, as when the page was loaded before the client was found', () => {
     const record = createListRecord();
-    record.record({ document: 'doc', variables: { ...profileGrid, after: 'c1' }, options: { suspense: true } });
-    record.record({ document: 'doc', variables: { ...profileGrid, after: 'c2' }, options: { suspense: true } });
+    record.record({ document: 'doc', variables: { ...profileGrid, after: 'c1' }, options: { suspense: true } }, ROUTE);
+    record.record({ document: 'doc', variables: { ...profileGrid, after: 'c2' }, options: { suspense: true } }, ROUTE);
     const [family] = record.families();
     expect(family?.pages.map((p) => p.variables.after)).toEqual([undefined, 'c1', 'c2']);
     expect(family?.pages[0]).toEqual({ document: 'doc', variables: profileGrid, options: { suspense: true } });
@@ -215,9 +217,9 @@ describe('createListRecord', () => {
 
   it('keeps a single first page whichever way it is spelled or whenever it is recorded', () => {
     const record = createListRecord();
-    record.record(page({ ...splitPicker, after: 'c1' }));
-    record.record(page({ ...splitPicker, after: null }));
-    record.record(page({ ...splitPicker, after: undefined }));
+    record.record(page({ ...splitPicker, after: 'c1' }), ROUTE);
+    record.record(page({ ...splitPicker, after: null }), ROUTE);
+    record.record(page({ ...splitPicker, after: undefined }), ROUTE);
     const [family] = record.families();
     expect(family?.pages).toHaveLength(2);
     expect(family?.pages.filter((p) => p.variables.after == null)).toHaveLength(1);
@@ -225,15 +227,15 @@ describe('createListRecord', () => {
 
   it('does not invent a first page for a list that already has one', () => {
     const record = createListRecord();
-    record.record(page({ ...profileGrid }));
-    record.record(page({ ...profileGrid, after: 'c1' }));
+    record.record(page({ ...profileGrid }), ROUTE);
+    record.record(page({ ...profileGrid, after: 'c1' }), ROUTE);
     expect(record.families()[0]?.pages).toHaveLength(2);
   });
 
   it('does not insert a page it already knows', () => {
     const record = createListRecord();
     const first = page({ ...profileGrid });
-    record.record(first);
+    record.record(first, ROUTE);
     const [family] = record.families();
     record.insertAfter(family!, first, [page({ ...profileGrid, after: 'x1' })]);
     record.insertAfter(family!, first, [page({ ...profileGrid, after: 'x1' })]);
@@ -248,21 +250,12 @@ describe('the route of a family', () => {
     record.record(page({ ...profileGrid, after: 'c1' }), '/users/b/cards');
     expect(record.families().map((family) => family.route)).toEqual(['/users/b/cards']);
   });
-
-  it('has no route until a request names one', () => {
-    const record = createListRecord();
-    record.record(page(profileGrid));
-    expect(record.families()[0]?.route).toBeUndefined();
-    record.record(page({ ...profileGrid, after: 'c1' }), '/users/a/cards');
-    record.record(page({ ...profileGrid, after: 'c2' }));
-    expect(record.families()[0]?.route).toBe('/users/a/cards');
-  });
 });
 
 describe('what a family is for', () => {
   const familyOf = (variables: Variables) => {
     const record = createListRecord();
-    record.record(page(variables));
+    record.record(page(variables), ROUTE);
     return record.families()[0]!;
   };
 

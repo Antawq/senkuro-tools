@@ -140,12 +140,14 @@ const rig = ({ answer = {}, mounted = true, results = [], slow = false, outcomes
   return { win, queries, reached, log, loaded, refreshed, ask, requestRefresh, sendRefreshDetail, mount, respond, browse, mutate };
 };
 
+const ROUTE = '/users/u/cards';
+
 describe('planRefresh', () => {
   const families = () => {
     const record = createListRecord();
-    record.record({ document: 'd', variables: splitPicker('USER:1'), options: {} });
-    record.record({ document: 'd', variables: profileGrid('USER:1'), options: {} });
-    record.record({ document: 'd', variables: splitPicker('USER:2'), options: {} });
+    record.record({ document: 'd', variables: splitPicker('USER:1'), options: {} }, ROUTE);
+    record.record({ document: 'd', variables: profileGrid('USER:1'), options: {} }, ROUTE);
+    record.record({ document: 'd', variables: splitPicker('USER:2'), options: {} }, ROUTE);
     return record.families();
   };
 

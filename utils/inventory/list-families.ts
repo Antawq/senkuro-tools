@@ -18,7 +18,7 @@ export interface Family {
   id: string;
   filters: Variables;
   pages: PageRequest[];
-  route?: string;
+  route: string;
 }
 
 export interface ReceivedCard {
@@ -118,7 +118,7 @@ export const linked = (current: RawPage, nextCursor: unknown, next: RawPage): bo
   current.endCursor === nextCursor || next.ids.size === 0 || shares(current.ids, next.ids);
 
 export interface ListRecord {
-  record(page: PageRequest, route?: string): void;
+  record(page: PageRequest, route: string): void;
   families(): Family[];
   insertAfter(family: Family, anchor: PageRequest, pages: PageRequest[]): void;
 }
@@ -130,9 +130,9 @@ export function createListRecord(): ListRecord {
   return {
     record(page, route) {
       const id = familyIdOf(page.variables);
-      const family = known.get(id) ?? { id, filters: withoutCursor(page.variables), pages: [] };
+      const family = known.get(id) ?? { id, filters: withoutCursor(page.variables), pages: [], route };
       known.set(id, family);
-      if (route !== undefined) family.route = route;
+      family.route = route;
       if (!knows(family, page)) family.pages.push(page);
       if (!family.pages.some((known) => !hasCursor(known.variables))) family.pages.unshift({ ...page, variables: family.filters });
     },
