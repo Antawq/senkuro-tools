@@ -218,6 +218,16 @@ describe('createPriceBadges', () => {
       expect((document.querySelector('.senkuro-copy-btn') as HTMLElement).dataset.charName).toBe('Соран');
     });
 
+    it('takes the copy button away when it is switched off while the prices are off', () => {
+      document.body.innerHTML = preview();
+      const badges = createPriceBadges({ touch: false });
+      badges.update(db, { ...pricesOff, copyBtn: true });
+      expect(document.querySelector('.senkuro-copy-btn')).not.toBeNull();
+      badges.reset();
+      badges.update(db, pricesOff);
+      expect(document.querySelector('.senkuro-copy-btn')).toBeNull();
+    });
+
     it('takes the prices off and puts them back when the setting changes, as the page does it', () => {
       document.body.innerHTML = preview();
       const badges = createPriceBadges({ touch: false });
