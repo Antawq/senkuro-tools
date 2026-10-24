@@ -366,6 +366,17 @@ describe('stopping', () => {
     expect(view.rewrite(request(gridVariables({ after: cursorOf(1, 2) }))).variables).toEqual(gridVariables({ after: null }));
   });
 
+  it('serves a view that is started again as another private list than the first, so the old cached pages are never linked to', async () => {
+    const { view, redrives, crawls, rows } = await served();
+    view.stop();
+    view.start();
+    crawls[1]?.finish(listOf(SLUGS));
+    await settle();
+    view.receiveOrder({ viewId: rows.at(-1)?.viewId ?? -1, revision: 1, descending: DESCENDING, ascending: ASCENDING });
+    expect(redrives.at(-1)?.variables).toEqual(gridVariables({ orderField: privateFieldOf(2), after: null }));
+    expect(view.answer(gridVariables({ orderField: privateFieldOf(1) })).data.userCards.edges).toEqual([]);
+  });
+
   it('can start again', async () => {
     const { view, crawls } = await served();
     view.stop();
@@ -434,8 +445,9 @@ describe('what the site does to the inventory meanwhile', () => {
     crawls[1]?.finish(listOf(['n', 'm', 'k']));
     await settle();
     view.receiveOrder({ viewId: rows.at(-1)?.viewId ?? -1, revision: 1, descending: [0, 1, 2], ascending: [2, 1, 0] });
-    expect(redrives.at(-1)?.variables).toEqual(gridVariables({ orderField: privateFieldOf(1), after: null }));
-    expect(slugsOf(view.answer(gridVariables({ orderField: privateFieldOf(1) })))).toEqual(['n', 'm']);
+    expect(redrives.at(-1)?.variables).toEqual(gridVariables({ orderField: privateFieldOf(2), after: null }));
+    expect(slugsOf(view.answer(gridVariables({ orderField: privateFieldOf(2) })))).toEqual(['n', 'm']);
+    expect(view.answer(gridVariables({ orderField: privateFieldOf(1) })).data.userCards.edges).toEqual([]);
   });
 
   it('does the same after an accepted trade or offer, a restored forge, an opened pack and a claimed drop', async () => {

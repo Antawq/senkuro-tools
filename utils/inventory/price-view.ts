@@ -130,6 +130,7 @@ export function createPriceView(host: ViewHost): PriceView {
   let current: ListPage | null = null;
   let view: View | null = null;
   let lastId = 0;
+  let lastVersion = 0;
 
   const isServing = (): boolean => isOn && view?.phase === 'ready';
 
@@ -272,7 +273,8 @@ export function createPriceView(host: ViewHost): PriceView {
       if (!isPermutation(order.descending, view.rows.length) || !isPermutation(order.ascending, view.rows.length)) return;
       view.orders = { descending: order.descending, ascending: order.ascending };
       view.revision = order.revision;
-      view.version += 1;
+      lastVersion += 1;
+      view.version = lastVersion;
       view.phase = 'ready';
       host.debug('price view ready', { viewId: view.id, version: view.version });
       host.publishState({ name: 'ready', loaded: view.rows.length, total: view.rows.length });
