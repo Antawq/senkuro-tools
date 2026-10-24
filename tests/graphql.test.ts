@@ -55,6 +55,12 @@ describe('execute', () => {
     expect(JSON.parse(init.body as string)).toEqual({ query: 'query Q { ok }', operationName: 'Q', variables: { a: 1 } });
   });
 
+  it('posts to the endpoint of the transport when it names one', async () => {
+    const { transport, calls } = transportOf([reply({ data: { ok: true } })]);
+    await execute(null, 'query Q { ok }', 'Q', {}, { ...transport, endpoint: 'https://api.senkuro.me/graphql' });
+    expect(calls.map((call) => call.url)).toEqual(['https://api.senkuro.me/graphql']);
+  });
+
   it('sends no cookies, no referrer and never follows a redirect', async () => {
     const { result, calls } = run([reply({ data: {} })]);
     await result;

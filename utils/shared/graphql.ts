@@ -37,6 +37,7 @@ export interface Transport {
   fetch: typeof fetch;
   sleep: (ms: number) => Promise<void>;
   random: () => number;
+  endpoint?: string;
 }
 
 const browserTransport: Transport = {
@@ -99,7 +100,7 @@ export async function execute<T>(
     if (signal?.aborted) throw new ApiError('network');
     let response: Response;
     try {
-      response = await transport.fetch(API_ENDPOINT, {
+      response = await transport.fetch(transport.endpoint ?? API_ENDPOINT, {
         method: 'POST',
         headers,
         body,
