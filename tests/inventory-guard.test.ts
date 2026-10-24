@@ -6,7 +6,7 @@ import type { Source } from 'wonka';
 
 import type { MutationResult } from '../utils/inventory/client-hooks';
 import { LIST_OPERATION, OWN_QUERY_OPTION, createListRecord, type Variables } from '../utils/inventory/list-families';
-import { installInventoryGuard, planRefresh } from '../utils/inventory/inventory-guard';
+import { AUTO_REFRESH_MAX_PAGES, installInventoryGuard, planRefresh } from '../utils/inventory/inventory-guard';
 import { REFRESH_POLICY } from '../utils/inventory/list-refresh';
 import { LIST_LOAD_EVENT, LIST_LOADED_EVENT, readLoaded, type LoadOutcome } from '../utils/shared/list-signal';
 import {
@@ -406,6 +406,16 @@ describe('installInventoryGuard', () => {
       await settle();
       await settle();
       expect(queries).toHaveLength(2);
+      await win.happyDOM.close();
+    });
+
+    it('refreshes only the first page of a list that is longer than the limit', async () => {
+      const { win, respond, browse, queries } = rig({ outcomes: ['hit'] });
+      await respond();
+      for (let page = 1; page <= AUTO_REFRESH_MAX_PAGES; page++) browse(cardsGrid('USER:1', `c${page}`));
+      browse(cardsGrid('USER:1'));
+      await settle();
+      expect(queries.map((query) => query.variables.after)).toEqual([undefined]);
       await win.happyDOM.close();
     });
 

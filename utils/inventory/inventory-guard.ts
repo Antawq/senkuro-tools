@@ -32,6 +32,7 @@ import { refreshFamilies, type RefreshEnv, type RefreshReport } from './list-ref
 
 const FORGE_OPERATION = 'forgeCards';
 const TRADE_OPERATIONS = ['acceptCardTrade', 'acceptCardOffer'];
+export const AUTO_REFRESH_MAX_PAGES = 25;
 
 interface ForgeAnswer {
   userId?: unknown;
@@ -115,9 +116,10 @@ export function installInventoryGuard(win: PageWindow): void {
     const family = record.families().find((known) => known.id === id);
     if (!client || !family || pendingFamilies.has(id)) return;
     pendingFamilies.add(id);
-    void enqueueRefresh(client, [family])
+    const pages = family.pages.length > AUTO_REFRESH_MAX_PAGES ? family.pages.slice(0, 1) : family.pages;
+    void enqueueRefresh(client, [{ ...family, pages }])
       .then(
-        (report) => debug('list refreshed after a cache hit', { pages: family.pages.length, ...report }),
+        (report) => debug('list refreshed after a cache hit', { pages: pages.length, ...report }),
         () => undefined
       )
       .finally(() => pendingFamilies.delete(id));
