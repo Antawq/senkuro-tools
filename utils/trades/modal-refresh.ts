@@ -28,13 +28,13 @@ const createModalRefreshButton = (host: ModalRefreshHost): HTMLButtonElement =>
 function syncModal(modal: Element, host: ModalRefreshHost): void {
   const toolbar = modal.querySelector(TOOLBAR);
   if (!toolbar) return;
-  const own = findOwnButton(toolbar);
+  const ownButton = findOwnButton(toolbar);
   if (!host.isReady() || !isUserCardsStep(modal)) {
-    own?.remove();
+    ownButton?.remove();
     return;
   }
-  if (own && toolbar.lastElementChild === own) return;
-  toolbar.append(own ?? createModalRefreshButton(host));
+  if (ownButton && toolbar.lastElementChild === ownButton) return;
+  toolbar.append(ownButton ?? createModalRefreshButton(host));
 }
 
 export function syncModalRefreshButtons(host: ModalRefreshHost, pageDocument: Document = document): void {
