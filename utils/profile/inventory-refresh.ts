@@ -1,7 +1,6 @@
 import { isAppMounted } from '../shared/app-mounted';
-import { element } from '../shared/dom';
+import { createRefreshButton } from '../shared/refresh-button';
 import type { RefreshOutcome } from '../shared/refresh-signal';
-import { refreshIcon } from '../shared/svg';
 import { extractProfileSlug } from './profile-cards';
 import { warnStoreFailure } from './profile-store';
 
@@ -11,8 +10,6 @@ const CARDS_PATH = /^\/users\/[^/?#]+\/cards\/?$/;
 const FILTERS = '.user-card__filters';
 const HEADER = 'header.back';
 const TITLE = 'h2';
-const SITE_BUTTON = 'button button--secondary button--icon button-size--md';
-const ICON_SIZE_PX = 20;
 
 export interface RefreshHost {
   isReady: () => boolean;
@@ -35,23 +32,10 @@ async function refreshProfile(slug: string, host: RefreshHost): Promise<RefreshO
   return outcome;
 }
 
-function createRefreshButton(slug: string, host: RefreshHost): HTMLButtonElement {
-  const button = element('button', SITE_BUTTON);
-  button.type = 'button';
+function createProfileRefreshButton(slug: string, host: RefreshHost): HTMLButtonElement {
+  const button = createRefreshButton(async () => (await refreshProfile(slug, host)) !== 'nothing');
   button.id = REFRESH_BUTTON_ID;
   button.dataset.senkutoolsSlug = slug;
-  const icon = refreshIcon(ICON_SIZE_PX);
-  icon.setAttribute('aria-hidden', 'true');
-  button.append(icon);
-  button.addEventListener('click', () => {
-    button.disabled = true;
-    button.setAttribute('aria-busy', 'true');
-    void refreshProfile(slug, host).then((outcome) => {
-      if (outcome === 'nothing') return;
-      button.disabled = false;
-      button.removeAttribute('aria-busy');
-    });
-  });
   return button;
 }
 
@@ -63,7 +47,7 @@ export function syncRefreshButton(host: RefreshHost): void {
   if (canPlaceButton && existingButton?.dataset.senkutoolsSlug === slug) return;
   existingButton?.remove();
   if (!canPlaceButton || !isAppMounted(document)) return;
-  cardsTitle.after(createRefreshButton(slug, host));
+  cardsTitle.after(createProfileRefreshButton(slug, host));
 }
 
 export const isRefreshButtonMissing = (): boolean =>

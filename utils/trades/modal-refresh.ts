@@ -1,6 +1,5 @@
-import { element } from '../shared/dom';
+import { createRefreshButton } from '../shared/refresh-button';
 import type { RefreshOutcome } from '../shared/refresh-signal';
-import { refreshIcon } from '../shared/svg';
 
 export const MODAL_REFRESH_CLASS = 'senkutools-modal-refresh';
 
@@ -9,8 +8,6 @@ const HEADER = '.modal-trade__header';
 const TOOLBAR = '.modal-trade__header-form';
 const LIST = '.modal-trade__body-result';
 const CATALOG_STEP = 'из общего каталога';
-const SITE_BUTTON = 'button button--secondary button--icon button-size--md';
-const ICON_SIZE_PX = 20;
 
 export interface ModalRefreshHost {
   isReady: () => boolean;
@@ -23,22 +20,11 @@ const findOwnButton = (toolbar: Element): HTMLButtonElement | null => toolbar.qu
 const listsUserCards = (modal: Element): boolean =>
   modal.querySelector(LIST) !== null && !(modal.querySelector(HEADER)?.textContent ?? '').includes(CATALOG_STEP);
 
-function createModalRefreshButton(host: ModalRefreshHost): HTMLButtonElement {
-  const button = element('button', `${SITE_BUTTON} ${MODAL_REFRESH_CLASS}`);
-  button.type = 'button';
-  const icon = refreshIcon(ICON_SIZE_PX);
-  icon.setAttribute('aria-hidden', 'true');
-  button.append(icon);
-  button.addEventListener('click', () => {
-    button.disabled = true;
-    button.setAttribute('aria-busy', 'true');
-    void host.refresh().then(() => {
-      button.disabled = false;
-      button.removeAttribute('aria-busy');
-    });
-  });
-  return button;
-}
+const createModalRefreshButton = (host: ModalRefreshHost): HTMLButtonElement =>
+  createRefreshButton(async () => {
+    await host.refresh();
+    return true;
+  }, MODAL_REFRESH_CLASS);
 
 function syncModal(modal: Element, host: ModalRefreshHost): void {
   const toolbar = modal.querySelector(TOOLBAR);
