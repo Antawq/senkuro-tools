@@ -227,7 +227,7 @@ describe('pressing it', () => {
 
   it('asks the page to refresh its lists in place and keeps the button busy until the page has answered', async () => {
     const { host, calls, answerRefresh } = press();
-    expect(findRefreshButton()?.disabled).toBe(true);
+    expect(findRefreshButton()?.getAttribute('aria-disabled')).toBe('true');
     expect(findRefreshButton()?.getAttribute('aria-busy')).toBe('true');
     expect(calls).toEqual(['refresh']);
     await settle();
@@ -245,7 +245,7 @@ describe('pressing it', () => {
     await settle();
     expect(calls).toEqual(['refresh', 'forget phaivroh', 'redraw']);
     expect(host.reload).not.toHaveBeenCalled();
-    expect(findRefreshButton()?.disabled).toBe(false);
+    expect(findRefreshButton()?.hasAttribute('aria-disabled')).toBe(false);
     expect(findRefreshButton()?.hasAttribute('aria-busy')).toBe(false);
   });
 
@@ -257,7 +257,7 @@ describe('pressing it', () => {
     finishForgetting();
     await settle();
     expect(calls).toEqual(['refresh', 'forget phaivroh', 'reload']);
-    expect(findRefreshButton()?.disabled).toBe(true);
+    expect(findRefreshButton()?.getAttribute('aria-disabled')).toBe('true');
   });
 
   it('reloads without asking when the page guard is not ready', async () => {
@@ -281,7 +281,7 @@ describe('pressing it', () => {
     expect(host.forget).not.toHaveBeenCalled();
     expect(host.reload).not.toHaveBeenCalled();
     expect(host.redraw).not.toHaveBeenCalled();
-    expect(findRefreshButton()?.disabled).toBe(false);
+    expect(findRefreshButton()?.hasAttribute('aria-disabled')).toBe(false);
   });
 
   it('runs once however many times it is pressed', async () => {
@@ -300,7 +300,7 @@ describe('pressing it', () => {
   it('stays busy through the sync that the page makes while it works', async () => {
     const { host, answerRefresh } = press();
     syncRefreshButton(host);
-    expect(findRefreshButton()?.disabled).toBe(true);
+    expect(findRefreshButton()?.getAttribute('aria-disabled')).toBe('true');
     answerRefresh('failed');
     await settle();
   });

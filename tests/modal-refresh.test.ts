@@ -174,11 +174,11 @@ describe('pressing the button', () => {
   it('asks the page to refresh the lists of the window and keeps the button busy until it has answered', async () => {
     const { host, answer } = press();
     expect(host.refresh).toHaveBeenCalledTimes(1);
-    expect(findButton()?.disabled).toBe(true);
+    expect(findButton()?.getAttribute('aria-disabled')).toBe('true');
     expect(findButton()?.getAttribute('aria-busy')).toBe('true');
     answer('done');
     await settle();
-    expect(findButton()?.disabled).toBe(false);
+    expect(findButton()?.hasAttribute('aria-disabled')).toBe(false);
     expect(findButton()?.hasAttribute('aria-busy')).toBe(false);
   });
 
@@ -187,7 +187,7 @@ describe('pressing the button', () => {
       const { answer } = press();
       answer(outcome);
       await settle();
-      expect(findButton()?.disabled).toBe(false);
+      expect(findButton()?.hasAttribute('aria-disabled')).toBe(false);
     }
   });
 
@@ -204,7 +204,7 @@ describe('pressing the button', () => {
   it('stays busy through the sync the page makes while it works', () => {
     const { host } = press();
     syncModalRefreshButtons(host);
-    expect(findButton()?.disabled).toBe(true);
+    expect(findButton()?.getAttribute('aria-disabled')).toBe('true');
   });
 });
 
