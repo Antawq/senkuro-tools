@@ -9,18 +9,22 @@ const modalHtml = ({
   title = 'Твои карточки',
   hint = HINT,
   hasList = true,
-  extra = '',
-}: { title?: string; hint?: string; hasList?: boolean; extra?: string } = {}) => `
+  hasToolbar = true,
+}: { title?: string; hint?: string; hasList?: boolean; hasToolbar?: boolean } = {}) => `
   <div class="modal-content modal-content--trade">
     <header class="modal-trade__header">
       <div class="modal-trade__header-headline"><h4 class="caption">${title}</h4><div class="modal-trade__header-hint">${hint}</div></div>
-      ${extra}<button class="button button--secondary button--icon button-size--md" type="button" id="close"><svg></svg></button>
+      <button class="button button--secondary button--icon button-size--md" type="button" id="close"><svg></svg></button>
     </header>
-    <div class="modal-trade__body">${hasList ? '<div class="modal-trade__body-result"><div class="card-collect-preview"></div></div>' : ''}</div>
+    <div class="modal-trade__body">
+      ${hasToolbar ? '<div class="modal-trade__header-form"><div class="v-popper"><button id="sort" type="button">Сортировка</button></div><button id="direction" type="button">Сначала</button><div class="v-popper" id="filters"></div></div>' : ''}
+      ${hasList ? '<div class="modal-trade__body-result"><div class="card-collect-preview"></div></div>' : ''}
+    </div>
   </div>`;
 
 const findButton = () => document.querySelector<HTMLButtonElement>(`.${MODAL_REFRESH_CLASS}`);
-const findClose = () => document.getElementById('close') as HTMLElement;
+const findToolbar = () => document.querySelector('.modal-trade__header-form') as HTMLElement;
+const findHeader = () => document.querySelector('.modal-trade__header') as HTMLElement;
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 interface Rig {
@@ -52,26 +56,32 @@ beforeEach(() => {
 });
 
 describe('syncModalRefreshButtons', () => {
-  it('puts an icon button right before the close button of a window that lists cards, built from the site button classes', () => {
+  it('puts an icon button at the end of the list toolbar of a window that lists cards, built from the site button classes', () => {
     document.body.innerHTML = modalHtml();
     syncModalRefreshButtons(createRig().host);
     const added = findButton();
     expect(added).not.toBeNull();
-    expect(added?.nextElementSibling).toBe(findClose());
+    expect(findToolbar().lastElementChild).toBe(added);
+    expect([...findToolbar().children].map((child) => child.tagName)).toEqual(['DIV', 'BUTTON', 'DIV', 'BUTTON']);
     expect(added?.className).toBe(`button button--secondary button--icon button-size--md ${MODAL_REFRESH_CLASS}`);
     expect(added?.type).toBe('button');
-    expect(added?.getAttribute('aria-label')).toBe('Обновить список карт');
-    expect(added?.title).toBe('Обновить список карт');
     expect(added?.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
   });
 
-  it('adds nothing to the header but the button, so the texts the other modules read stay the same', () => {
+  it('carries no text: the icon is enough, as on the close button of the site', () => {
     document.body.innerHTML = modalHtml();
-    const header = document.querySelector('.modal-trade__header') as HTMLElement;
-    const before = header.textContent;
     syncModalRefreshButtons(createRig().host);
-    expect(header.textContent).toBe(before);
-    expect([...header.children].map((child) => child.tagName)).toEqual(['DIV', 'BUTTON', 'BUTTON']);
+    const added = findButton();
+    expect(added?.textContent).toBe('');
+    expect(added?.hasAttribute('title')).toBe(false);
+    expect(added?.hasAttribute('aria-label')).toBe(false);
+  });
+
+  it('leaves the header exactly as the site drew it, so its height and the texts the other modules read stay the same', () => {
+    document.body.innerHTML = modalHtml();
+    const before = findHeader().outerHTML;
+    syncModalRefreshButtons(createRig().host);
+    expect(findHeader().outerHTML).toBe(before);
   });
 
   it('is there once however often it runs', () => {
@@ -85,19 +95,18 @@ describe('syncModalRefreshButtons', () => {
     expect(findButton()).toBe(first);
   });
 
-  it('puts the button back before the close button when something moved it', () => {
+  it('puts the button back at the end of the toolbar when the site added something after it', () => {
     document.body.innerHTML = modalHtml();
     const { host } = createRig();
     syncModalRefreshButtons(host);
-    const header = document.querySelector('.modal-trade__header') as HTMLElement;
     const own = findButton() as HTMLElement;
-    header.prepend(own);
+    findToolbar().append(document.createElement('span'));
     syncModalRefreshButtons(host);
     expect(findButton()).toBe(own);
-    expect(own.nextElementSibling).toBe(findClose());
+    expect(findToolbar().lastElementChild).toBe(own);
   });
 
-  it('is made again after the site drew the header anew', () => {
+  it('is made again after the site drew the toolbar anew', () => {
     document.body.innerHTML = modalHtml();
     const { host } = createRig();
     syncModalRefreshButtons(host);
@@ -120,13 +129,12 @@ describe('syncModalRefreshButtons', () => {
     expect(findButton()).toBeNull();
   });
 
-  it('is not in a window that draws no list, nor in one with no close button to stand before', () => {
+  it('is not in a window that draws no list, nor in one with no toolbar to stand in', () => {
     const { host } = createRig();
     document.body.innerHTML = modalHtml({ hasList: false });
     syncModalRefreshButtons(host);
     expect(findButton()).toBeNull();
-    document.body.innerHTML = modalHtml();
-    findClose().remove();
+    document.body.innerHTML = modalHtml({ hasToolbar: false });
     syncModalRefreshButtons(host);
     expect(findButton()).toBeNull();
   });
@@ -220,9 +228,8 @@ describe('isModalMutation', () => {
     document.body.innerHTML = modalHtml();
     syncModalRefreshButtons(createRig().host);
     const own = findButton() as Element;
-    const header = document.querySelector('.modal-trade__header') as Element;
-    expect(isModalMutation(record(header, [own]))).toBe(false);
-    expect(isModalMutation(record(header, [], [own]))).toBe(false);
+    expect(isModalMutation(record(findToolbar(), [own]))).toBe(false);
+    expect(isModalMutation(record(findToolbar(), [], [own]))).toBe(false);
     expect(isModalMutation(record(own, [document.createElement('span')]))).toBe(false);
   });
 
@@ -261,9 +268,8 @@ describe('createModalRefreshWatcher', () => {
     const watcher = createModalRefreshWatcher(host);
     insideWindow();
     syncModalRefreshButtons(host);
-    const header = document.querySelector('.modal-trade__header') as Node;
     const own = findButton() as Node;
-    watcher.watch([{ target: header, addedNodes: [own], removedNodes: [] } as unknown as MutationRecord]);
+    watcher.watch([{ target: findToolbar(), addedNodes: [own], removedNodes: [] } as unknown as MutationRecord]);
     watcher.watch([{ target: document.body, addedNodes: [document.createElement('p')], removedNodes: [] } as unknown as MutationRecord]);
     expect(frames).toHaveLength(0);
   });

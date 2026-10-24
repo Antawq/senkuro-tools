@@ -13,7 +13,6 @@ const HEADER = 'header.back';
 const TITLE = 'h2';
 const SITE_BUTTON = 'button button--secondary button--icon button-size--md';
 const ICON_SIZE_PX = 20;
-const LABEL = 'Обновить инвентарь';
 
 export interface RefreshHost {
   isReady: () => boolean;
@@ -41,8 +40,6 @@ function createRefreshButton(slug: string, host: RefreshHost): HTMLButtonElement
   button.type = 'button';
   button.id = REFRESH_BUTTON_ID;
   button.dataset.senkutoolsSlug = slug;
-  button.title = LABEL;
-  button.setAttribute('aria-label', LABEL);
   const icon = refreshIcon(ICON_SIZE_PX);
   icon.setAttribute('aria-hidden', 'true');
   button.append(icon);

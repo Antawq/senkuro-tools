@@ -6,11 +6,11 @@ export const MODAL_REFRESH_CLASS = 'senkutools-modal-refresh';
 
 const MODAL = '.modal-content--trade';
 const HEADER = '.modal-trade__header';
+const TOOLBAR = '.modal-trade__header-form';
 const LIST = '.modal-trade__body-result';
 const CATALOG_STEP = 'из общего каталога';
 const SITE_BUTTON = 'button button--secondary button--icon button-size--md';
 const ICON_SIZE_PX = 20;
-const LABEL = 'Обновить список карт';
 
 export interface ModalRefreshHost {
   isReady: () => boolean;
@@ -18,20 +18,14 @@ export interface ModalRefreshHost {
   nextFrame: (run: () => void) => void;
 }
 
-const findCloseButton = (header: Element): HTMLElement | null =>
-  [...header.children].find(
-    (child): child is HTMLElement => child instanceof HTMLElement && child.tagName === 'BUTTON' && !child.classList.contains(MODAL_REFRESH_CLASS)
-  ) ?? null;
+const findOwnButton = (toolbar: Element): HTMLButtonElement | null => toolbar.querySelector<HTMLButtonElement>(`:scope > .${MODAL_REFRESH_CLASS}`);
 
-const findOwnButton = (header: Element): HTMLButtonElement | null => header.querySelector<HTMLButtonElement>(`:scope > .${MODAL_REFRESH_CLASS}`);
-
-const listsUserCards = (modal: Element, header: Element): boolean => modal.querySelector(LIST) !== null && !(header.textContent ?? '').includes(CATALOG_STEP);
+const listsUserCards = (modal: Element): boolean =>
+  modal.querySelector(LIST) !== null && !(modal.querySelector(HEADER)?.textContent ?? '').includes(CATALOG_STEP);
 
 function createModalRefreshButton(host: ModalRefreshHost): HTMLButtonElement {
   const button = element('button', `${SITE_BUTTON} ${MODAL_REFRESH_CLASS}`);
   button.type = 'button';
-  button.title = LABEL;
-  button.setAttribute('aria-label', LABEL);
   const icon = refreshIcon(ICON_SIZE_PX);
   icon.setAttribute('aria-hidden', 'true');
   button.append(icon);
@@ -47,16 +41,15 @@ function createModalRefreshButton(host: ModalRefreshHost): HTMLButtonElement {
 }
 
 function syncModal(modal: Element, host: ModalRefreshHost): void {
-  const header = modal.querySelector(HEADER);
-  if (!header) return;
-  const own = findOwnButton(header);
-  const closeButton = findCloseButton(header);
-  if (!closeButton || !host.isReady() || !listsUserCards(modal, header)) {
+  const toolbar = modal.querySelector(TOOLBAR);
+  if (!toolbar) return;
+  const own = findOwnButton(toolbar);
+  if (!host.isReady() || !listsUserCards(modal)) {
     own?.remove();
     return;
   }
-  if (own?.nextElementSibling === closeButton) return;
-  closeButton.before(own ?? createModalRefreshButton(host));
+  if (own && toolbar.lastElementChild === own) return;
+  toolbar.append(own ?? createModalRefreshButton(host));
 }
 
 export function syncModalRefreshButtons(host: ModalRefreshHost, pageDocument: Document = document): void {

@@ -65,7 +65,7 @@ afterEach(() => {
 });
 
 describe('the button', () => {
-  it('is put right after the title of the cards page, built from the site button classes and named for readers', () => {
+  it('is put right after the title of the cards page, built from the site button classes and carrying no text, only the icon', () => {
     openPage('/users/phaivroh/cards');
     syncRefreshButton(createRig().host);
     const added = findRefreshButton();
@@ -74,8 +74,9 @@ describe('the button', () => {
     expect(findFilterBar().children).toHaveLength(2);
     expect(added?.className).toBe('button button--secondary button--icon button-size--md');
     expect(added?.type).toBe('button');
-    expect(added?.getAttribute('aria-label')).toBe('Обновить инвентарь');
-    expect(added?.title).toBe('Обновить инвентарь');
+    expect(added?.textContent).toBe('');
+    expect(added?.hasAttribute('aria-label')).toBe(false);
+    expect(added?.hasAttribute('title')).toBe(false);
     expect(added?.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
     expect(added?.dataset.senkutoolsSlug).toBe('phaivroh');
   });
