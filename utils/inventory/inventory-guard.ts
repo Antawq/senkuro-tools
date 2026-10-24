@@ -108,20 +108,20 @@ export function installInventoryGuard(win: PageWindow): void {
     return report.failed ? 'failed' : 'done';
   };
 
-  const pendingFamilies = new Set<string>();
+  const pendingFamilyIds = new Set<string>();
 
   const refreshOnCacheHit = (page: PageRequest) => {
     const client = attachedClient;
     const id = familyIdOf(page.variables);
     const family = record.families().find((known) => known.id === id);
-    if (!client || !family || family.pages.length > AUTO_REFRESH_MAX_PAGES || pendingFamilies.has(id)) return;
-    pendingFamilies.add(id);
+    if (!client || !family || family.pages.length > AUTO_REFRESH_MAX_PAGES || pendingFamilyIds.has(id)) return;
+    pendingFamilyIds.add(id);
     void enqueueRefresh(client, [family])
       .then(
         (report) => debug('list refreshed after a cache hit', { pages: family.pages.length, ...report }),
         () => undefined
       )
-      .finally(() => pendingFamilies.delete(id));
+      .finally(() => pendingFamilyIds.delete(id));
   };
 
   const publishRefreshResult = (scope: RefreshScope, outcome: RefreshOutcome) =>
