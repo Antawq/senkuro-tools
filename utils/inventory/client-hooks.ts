@@ -2,7 +2,7 @@ import type { Sink } from 'wonka';
 
 import { operationName, type QueryClient, type QueryRequest } from '../shared/urql-client';
 import { tapSource, type SourceResult } from '../shared/urql-source';
-import { LIST_OPERATION, OWN_QUERY_OPTION, type PageRequest, type Variables } from './list-families';
+import { hasCursor, LIST_OPERATION, OWN_QUERY_OPTION, type PageRequest } from './list-families';
 
 const POLICY_OPTION = 'requestPolicy';
 const CACHE_HIT = 'hit';
@@ -30,8 +30,6 @@ const isSilent = (options: Record<string, unknown> | undefined, silent: WeakSet<
 
 const isOwn = (options: Record<string, unknown> | undefined): boolean => options?.[OWN_QUERY_OPTION] === true;
 
-const isFirstPage = (variables: Variables): boolean => variables.after == null;
-
 function tapFirstCacheHit(source: unknown, onCacheHit: () => void): unknown {
   if (typeof source !== 'function') return source;
   let isFirstResult = true;
@@ -58,7 +56,7 @@ export function recordLists(
       const page = { document: request.query, variables: request.variables, options: withoutOwnOptions(options) };
       onPage(page);
       const source = original(request, options);
-      return onCacheHit && !isOwn(options) && isFirstPage(page.variables) ? tapFirstCacheHit(source, () => onCacheHit(page)) : source;
+      return onCacheHit && !isOwn(options) && !hasCursor(page.variables) ? tapFirstCacheHit(source, () => onCacheHit(page)) : source;
     };
   } catch {
     return false;

@@ -58,7 +58,7 @@ const withoutCursor = (variables: Variables): Variables => Object.fromEntries(Ob
 
 export const familyIdOf = (variables: Variables): string => stable(withoutCursor(variables));
 
-const hasCursor = (variables: Variables): boolean => variables[CURSOR_KEY] != null;
+export const hasCursor = (variables: Variables): boolean => variables[CURSOR_KEY] != null;
 
 export const pageIdOf = (variables: Variables): string => stable(hasCursor(variables) ? variables : withoutCursor(variables));
 
