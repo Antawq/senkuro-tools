@@ -12,7 +12,16 @@ const TOKEN_WARNING =
   'ВНИМАНИЕ!\nТокен дает полный доступ к вашему аккаунту Senkuro. \nНикогда не передавайте его третьим лицам! \nВы уверены, что хотите отобразить токен?';
 
 type ToggleKey =
-  'commission' | 'copyBtn' | 'showToken' | 'valueBySplit' | 'excludeShards' | 'showSummaryF' | 'showSummaryBank' | 'showSummaryCards' | 'showSummaryVerdict';
+  | 'showBadges'
+  | 'commission'
+  | 'copyBtn'
+  | 'showToken'
+  | 'valueBySplit'
+  | 'excludeShards'
+  | 'showSummaryF'
+  | 'showSummaryBank'
+  | 'showSummaryCards'
+  | 'showSummaryVerdict';
 type SliderKey = 'copyBtnSize' | 'opacity' | 'fontSize' | 'summaryFontSize';
 type ChoiceKey = 'positionX' | 'positionY' | 'badgeStyle' | 'valueBasis' | 'effectRed' | 'effectPurple' | 'effectYellow' | 'effectGreen' | 'effectWhite';
 
@@ -72,6 +81,7 @@ function choice<K extends ChoiceKey>(id: string, key: K): Binding | null {
 }
 
 const bindings = [
+  toggle('showBadgesToggle', 'showBadges'),
   toggle('commissionToggle', 'commission'),
   toggle('copyBtnToggle', 'copyBtn'),
   toggle('showTokenToggle', 'showToken', TOKEN_WARNING),
