@@ -59,6 +59,10 @@ const page = { data: { userCards: { pageInfo: { endCursor: 'c1', hasNextPage: fa
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 30));
 
+const until = async (done: () => boolean) => {
+  for (let pass = 0; pass < 200 && !done(); pass++) await settle();
+};
+
 type Init = NonNullable<Parameters<Window['fetch']>[1]>;
 
 interface Rig {
@@ -426,7 +430,7 @@ describe('installInventoryGuard', () => {
       await respond();
       for (let page = 1; page < AUTO_REFRESH_MAX_PAGES; page++) browse(cardsGrid('USER:1', `c${page}`));
       browse(cardsGrid('USER:1'));
-      for (let pass = 0; pass < 200 && queries.length < AUTO_REFRESH_MAX_PAGES; pass++) await settle();
+      await until(() => queries.length >= AUTO_REFRESH_MAX_PAGES);
       expect(queries).toHaveLength(AUTO_REFRESH_MAX_PAGES);
       await win.happyDOM.close();
     });
@@ -467,8 +471,7 @@ describe('installInventoryGuard', () => {
       browse(profileGrid('USER:1'));
       browse({ ...profileGrid('USER:1'), after: 'c1' });
       ask();
-      await settle();
-      await settle();
+      await until(() => loaded.length > 0);
       expect(loaded).toEqual(['complete']);
       expect(queries.slice(0, 2).map((query) => query.variables.after)).toEqual([undefined, 'c1']);
       expect(queries.slice(0, 2).every((query) => query.options.requestPolicy === REFRESH_POLICY)).toBe(true);
@@ -538,13 +541,12 @@ describe('installInventoryGuard', () => {
       browse(profileGrid('USER:1'));
       ask();
       ask();
-      await settle();
+      await until(() => loaded.length > 0);
       await settle();
       expect(loaded).toEqual(['complete']);
       expect(ownOf(queries)).toHaveLength(1);
       ask();
-      await settle();
-      await settle();
+      await until(() => loaded.length > 1);
       expect(loaded).toEqual(['complete', 'complete']);
       await win.happyDOM.close();
     });
