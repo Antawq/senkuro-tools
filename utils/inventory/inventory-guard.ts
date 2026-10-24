@@ -114,12 +114,11 @@ export function installInventoryGuard(win: PageWindow): void {
     const client = attachedClient;
     const id = familyIdOf(page.variables);
     const family = record.families().find((known) => known.id === id);
-    if (!client || !family || pendingFamilies.has(id)) return;
+    if (!client || !family || family.pages.length > AUTO_REFRESH_MAX_PAGES || pendingFamilies.has(id)) return;
     pendingFamilies.add(id);
-    const pages = family.pages.length > AUTO_REFRESH_MAX_PAGES ? family.pages.slice(0, 1) : family.pages;
-    void enqueueRefresh(client, [{ ...family, pages }])
+    void enqueueRefresh(client, [family])
       .then(
-        (report) => debug('list refreshed after a cache hit', { pages: pages.length, ...report }),
+        (report) => debug('list refreshed after a cache hit', { pages: family.pages.length, ...report }),
         () => undefined
       )
       .finally(() => pendingFamilies.delete(id));

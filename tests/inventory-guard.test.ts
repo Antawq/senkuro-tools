@@ -409,13 +409,23 @@ describe('installInventoryGuard', () => {
       await win.happyDOM.close();
     });
 
-    it('refreshes only the first page of a list that is longer than the limit', async () => {
+    it('leaves a list longer than the limit alone', async () => {
       const { win, respond, browse, queries } = rig({ outcomes: ['hit'] });
       await respond();
       for (let page = 1; page <= AUTO_REFRESH_MAX_PAGES; page++) browse(cardsGrid('USER:1', `c${page}`));
       browse(cardsGrid('USER:1'));
       await settle();
-      expect(queries.map((query) => query.variables.after)).toEqual([undefined]);
+      expect(queries).toHaveLength(0);
+      await win.happyDOM.close();
+    });
+
+    it('refreshes every page of a list that is exactly at the limit', async () => {
+      const { win, respond, browse, queries } = rig({ outcomes: ['hit'] });
+      await respond();
+      for (let page = 1; page < AUTO_REFRESH_MAX_PAGES; page++) browse(cardsGrid('USER:1', `c${page}`));
+      browse(cardsGrid('USER:1'));
+      for (let pass = 0; pass < 200 && queries.length < AUTO_REFRESH_MAX_PAGES; pass++) await settle();
+      expect(queries).toHaveLength(AUTO_REFRESH_MAX_PAGES);
       await win.happyDOM.close();
     });
 
