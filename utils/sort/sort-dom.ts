@@ -14,7 +14,7 @@ export const STATE_ATTRIBUTE = 'data-senkutools-sort-state';
 export const SAVED_LABEL_ATTRIBUTE = 'data-senkutools-sort-label';
 export const PRICE_MODE = 'price';
 
-export type GridState = 'loading' | 'ready' | 'partial';
+export type GridState = 'loading' | 'partial';
 
 export const SORT_TEXT = {
   menuItem: 'Цене',
@@ -23,4 +23,9 @@ export const SORT_TEXT = {
   partialHint: 'Отсортированы только загруженные карты',
 } as const;
 
-export const isOwnLabel = (text: string | null | undefined): boolean => text === SORT_TEXT.label || text === SORT_TEXT.partialLabel;
+const LOADING_LABEL = /^По цене \d+%$/;
+
+export const loadingLabelOf = (percent: number | null): string => (percent === null ? SORT_TEXT.label : `${SORT_TEXT.label} ${percent}%`);
+
+export const isOwnLabel = (text: string | null | undefined): boolean =>
+  text === SORT_TEXT.label || text === SORT_TEXT.partialLabel || LOADING_LABEL.test(text ?? '');

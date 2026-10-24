@@ -20,7 +20,7 @@ import { SEARCH_EVENT } from '@/utils/shared/search-event';
 import { createSearchSignals } from '@/utils/search/search-signal';
 import { createSearchView } from '@/utils/search/search-view';
 import { addedCards, createRenderLoop } from '@/utils/shared/render-loop';
-import { LIST_LOAD_EVENT, LIST_LOADED_EVENT } from '@/utils/shared/list-signal';
+import { PRICE_ORDER_EVENT, PRICE_ROWS_EVENT, PRICE_STATE_EVENT, PRICE_VIEW_EVENT, encodePriceOrder, encodePriceSwitch } from '@/utils/shared/price-signal';
 import { isGuardReady, requestInventoryRefresh } from '@/utils/shared/refresh-signal';
 import { loadSettings, watchSettings } from '@/utils/shared/settings';
 import { createPriceSort, hasSortMutation } from '@/utils/sort/sort-view';
@@ -71,7 +71,8 @@ export default defineContentScript({
     );
     const badges = createPriceBadges({ touch });
     const priceSort = createPriceSort(document, {
-      requestListLoad: () => void document.dispatchEvent(new CustomEvent(LIST_LOAD_EVENT)),
+      setView: (isOn) => void document.dispatchEvent(new CustomEvent(PRICE_VIEW_EVENT, { detail: encodePriceSwitch(isOn) })),
+      sendOrder: (order) => void document.dispatchEvent(new CustomEvent(PRICE_ORDER_EVENT, { detail: encodePriceOrder(order) })),
       runAfter: (run, delayMs) => void ctx.setTimeout(run, delayMs),
       schedule: loop.schedule,
     });
@@ -125,7 +126,8 @@ export default defineContentScript({
     ctx.addEventListener(document, 'input', searchView.syncView, { capture: true });
     ctx.addEventListener(document, 'click', searchView.handleClick, { capture: true });
     ctx.addEventListener(document, 'click', priceSort.handleClick, { capture: true });
-    ctx.addEventListener(document, LIST_LOADED_EVENT, priceSort.handleLoaded);
+    ctx.addEventListener(document, PRICE_STATE_EVENT, priceSort.handleState);
+    ctx.addEventListener(document, PRICE_ROWS_EVENT, priceSort.handleRows);
     ctx.addEventListener(document, 'keydown', searchKeys.handleKeydown, { capture: true });
     ctx.addEventListener(document, 'input', searchKeys.handleInput, { capture: true });
 

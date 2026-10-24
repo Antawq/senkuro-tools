@@ -11,9 +11,10 @@ import {
   SORT_TEXT,
   TRIGGER,
   isOwnLabel,
+  loadingLabelOf,
 } from './sort-dom';
 
-type LabelState = 'off' | 'price' | 'partial';
+type LabelState = 'off' | 'loading' | 'price' | 'partial';
 
 const SORT_LABEL = /^По /;
 
@@ -54,7 +55,7 @@ function restoreLabel(filters: Element, labelElement: Element): void {
   if (saved && isOwnLabel(labelElement.textContent)) labelElement.textContent = saved;
 }
 
-export function reflectLabel(pageDocument: Document, state: LabelState): void {
+export function reflectLabel(pageDocument: Document, state: LabelState, percent: number | null = null): void {
   const filters = pageDocument.querySelector(FILTERS);
   const trigger = findSortTrigger(pageDocument);
   const labelElement = trigger?.querySelector('span');
@@ -66,7 +67,7 @@ export function reflectLabel(pageDocument: Document, state: LabelState): void {
   }
   const current = labelElement.textContent ?? '';
   if (current && !isOwnLabel(current)) filters.setAttribute(SAVED_LABEL_ATTRIBUTE, current);
-  const wanted = state === 'price' ? SORT_TEXT.label : SORT_TEXT.partialLabel;
+  const wanted = { loading: loadingLabelOf(percent), price: SORT_TEXT.label, partial: SORT_TEXT.partialLabel }[state];
   if (current !== wanted) labelElement.textContent = wanted;
   if (state === 'partial') trigger.setAttribute('title', SORT_TEXT.partialHint);
   else trigger.removeAttribute('title');

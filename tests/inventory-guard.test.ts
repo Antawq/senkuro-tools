@@ -3,12 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { Window } from 'happy-dom';
 import { make, pipe, subscribe } from 'wonka';
 import type { Source } from 'wonka';
+import { parse } from '@0no-co/graphql.web';
 
 import type { MutationResult } from '../utils/inventory/client-hooks';
 import { LIST_OPERATION, OWN_QUERY_OPTION, createListRecord, type Variables } from '../utils/inventory/list-families';
 import { AUTO_REFRESH_MAX_PAGES, installInventoryGuard, planRefresh } from '../utils/inventory/inventory-guard';
 import { REFRESH_POLICY } from '../utils/inventory/list-refresh';
-import { LIST_LOAD_EVENT, LIST_LOADED_EVENT, readLoaded, type LoadOutcome } from '../utils/shared/list-signal';
+import { privateFieldOf, cursorOf } from '../utils/inventory/price-private';
 import {
   GUARD_ATTRIBUTE,
   GUARD_READY,
@@ -19,6 +20,18 @@ import {
   type RefreshResult,
   type RefreshScope,
 } from '../utils/shared/refresh-signal';
+import {
+  PRICE_ORDER_EVENT,
+  PRICE_ROWS_EVENT,
+  PRICE_STATE_EVENT,
+  PRICE_VIEW_EVENT,
+  encodePriceOrder,
+  encodePriceSwitch,
+  readPriceRows,
+  readPriceState,
+  type PriceRows,
+  type PriceState,
+} from '../utils/shared/price-signal';
 import type { QueryClient, QueryRequest } from '../utils/shared/urql-client';
 
 const GRAPHQL = 'https://api.senkuro.me/graphql';
@@ -71,9 +84,11 @@ interface Rig {
   results?: MutationResult[];
   slow?: boolean;
   outcomes?: string[];
+  onFetch?: (body: string) => unknown;
+  withRedrive?: boolean;
 }
 
-const rig = ({ answer = {}, mounted = true, results = [], slow = false, outcomes }: Rig = {}) => {
+const rig = ({ answer = {}, mounted = true, results = [], slow = false, outcomes, onFetch, withRedrive = false }: Rig = {}) => {
   const win = new Window({ url: 'https://senkuro.me/forge/split' });
   win.document.body.innerHTML = '<div id="app"></div>';
   const queries: { variables: Variables; options: Record<string, unknown> }[] = [];
@@ -114,7 +129,29 @@ const rig = ({ answer = {}, mounted = true, results = [], slow = false, outcomes
       },
     }),
   };
-  win.fetch = (() => Promise.resolve(new Response(JSON.stringify(page)))) as unknown as typeof win.fetch;
+  const fetched: string[] = [];
+  const fetchedUrls: string[] = [];
+  win.fetch = ((url: RequestInfo | URL, init?: RequestInit) => {
+    const body = typeof init?.body === 'string' ? init.body : '';
+    fetched.push(body);
+    fetchedUrls.push(typeof url === 'string' ? url : url instanceof URL ? url.href : url.url);
+    return Promise.resolve(new Response(JSON.stringify(onFetch ? onFetch(body) : page)));
+  }) as unknown as typeof win.fetch;
+  const reexecuted: { requested: QueryRequest; options: Record<string, unknown> }[] = [];
+  if (withRedrive) {
+    client.createRequestOperation = (_kind, requested, options = {}) => ({ requested, options, context: { url: GRAPHQL } });
+    client.reexecuteOperation = (operation) => void reexecuted.push(operation as { requested: QueryRequest; options: Record<string, unknown> });
+  }
+  const states: PriceState[] = [];
+  const rows: PriceRows[] = [];
+  win.document.addEventListener(PRICE_STATE_EVENT, (event) => {
+    const state = readPriceState(event as unknown as Event);
+    if (state) states.push(state);
+  });
+  win.document.addEventListener(PRICE_ROWS_EVENT, (event) => {
+    const sent = readPriceRows(event as unknown as Event);
+    if (sent) rows.push(sent);
+  });
   const mount = () => {
     (win.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = { _context: { provides: { $urql: { value: client } } } };
   };
@@ -131,9 +168,6 @@ const rig = ({ answer = {}, mounted = true, results = [], slow = false, outcomes
     return source;
   };
   const mutate = (name: string) => (client.executeMutation(request(name)) as { toPromise(): Promise<MutationResult> }).toPromise();
-  const loaded: (LoadOutcome | null)[] = [];
-  win.document.addEventListener(LIST_LOADED_EVENT, (event) => loaded.push(readLoaded(event as unknown as Event)));
-  const ask = () => win.document.dispatchEvent(new win.CustomEvent(LIST_LOAD_EVENT));
   const refreshed: RefreshResult[] = [];
   win.document.addEventListener(REFRESH_RESULT_EVENT, (event) => {
     const result = readRefreshResult(event as unknown as Event);
@@ -141,7 +175,31 @@ const rig = ({ answer = {}, mounted = true, results = [], slow = false, outcomes
   });
   const sendRefreshDetail = (detail: string) => win.document.dispatchEvent(new win.CustomEvent(REFRESH_REQUEST_EVENT, { detail } as never));
   const requestRefresh = (scope: RefreshScope) => sendRefreshDetail(encodeRefreshRequest(scope));
-  return { win, queries, reached, log, loaded, refreshed, ask, requestRefresh, sendRefreshDetail, mount, respond, browse, mutate };
+  const send = (name: string, detail: string) => win.document.dispatchEvent(new win.CustomEvent(name, { detail: detail as unknown as object }));
+  const switchView = (isOn: boolean) => send(PRICE_VIEW_EVENT, encodePriceSwitch(isOn));
+  const order = (sent: { viewId: number; revision: number; descending: number[]; ascending: number[] }) => send(PRICE_ORDER_EVENT, encodePriceOrder(sent));
+  const browseList = (asked: QueryRequest) => client.executeQuery(asked);
+  return {
+    win,
+    queries,
+    reached,
+    log,
+    fetched,
+    fetchedUrls,
+    reexecuted,
+    states,
+    rows,
+    refreshed,
+    requestRefresh,
+    sendRefreshDetail,
+    switchView,
+    order,
+    browseList,
+    mount,
+    respond,
+    browse,
+    mutate,
+  };
 };
 
 const ROUTE = '/users/u/cards';
@@ -445,109 +503,132 @@ describe('installInventoryGuard', () => {
     });
   });
 
-  describe('loading the rest of a list on request', () => {
-    const page = (hasNextPage: boolean, endCursor: string | null) => ({ data: { userCards: { pageInfo: { hasNextPage, endCursor } } } });
-    const everything = page(false, null);
-    const afterRefresh = (answers: unknown[]) => (index: number) => answers[index - 1];
-    const ownOf = (queries: { variables: Variables; options: Record<string, unknown> }[]) =>
-      queries.filter((query) => query.options[OWN_QUERY_OPTION] === true);
+  describe('the price view', () => {
+    const DOCUMENT = parse(
+      'query fetchUserCards($after: String, $userId: ID!, $orderField: UserCardOrderField, $orderDirection: OrderDirection) { userCards(first: 2, after: $after, userId: $userId, orderBy: { field: $orderField, direction: $orderDirection }) { edges { node { modifier card { id slug } } } pageInfo { hasNextPage endCursor } } }'
+    );
+    const grid = { userId: 'USER:1', orderField: 'CREATED_AT', orderDirection: 'DESC', modifier: { include: [0] }, after: null };
+    const listRequest = (variables: Variables = grid, key = 7): QueryRequest => ({ key, variables, query: DOCUMENT as unknown as QueryRequest['query'] });
+    const edge = (slug: string) => ({
+      __typename: 'UserCardEdge',
+      node: { __typename: 'UserCard', modifier: 0, locked: false, card: { __typename: 'Card', id: `id-${slug}`, slug } },
+    });
+    const crawlPages = (body: string) => {
+      const { operationName, variables } = JSON.parse(body) as { operationName: string; variables: { after: string | null } };
+      if (operationName !== 'senkutoolsPriceRows') return page;
+      const isFirst = variables.after === null;
+      const edges = isFirst ? [edge('a'), edge('b'), edge('c')] : [edge('d')];
+      return {
+        data: {
+          userCards: {
+            __typename: 'UserCardConnection',
+            totalCount: 4,
+            edges,
+            pageInfo: { __typename: 'PageInfo', hasNextPage: isFirst, endCursor: isFirst ? 'c3' : null },
+          },
+        },
+      };
+    };
+    const reversed = { viewId: 1, revision: 1, descending: [3, 2, 1, 0], ascending: [0, 1, 2, 3] };
 
-    it('refreshes the list the site asked for last, then reads it and says it is complete', async () => {
-      const { win, respond, browse, ask, loaded, queries } = rig({ answer: everything });
+    it('says it is unavailable when no list was asked for, or the client cannot ask again', async () => {
+      const first = rig({ withRedrive: true });
+      await first.respond();
+      first.switchView(true);
+      expect(first.states).toEqual([{ name: 'unavailable', loaded: 0, total: null }]);
+      const second = rig({ onFetch: crawlPages });
+      await second.respond();
+      second.browseList(listRequest());
+      second.switchView(true);
+      expect(second.states).toEqual([{ name: 'unavailable', loaded: 0, total: null }]);
+      await first.win.happyDOM.close();
+      await second.win.happyDOM.close();
+    });
+
+    it('crawls the list with its own requests to the api the site uses, hands over the slugs, and serves the sorted list once the order is back', async () => {
+      const { win, respond, browseList, switchView, order, rows, states, fetched, fetchedUrls, reexecuted } = rig({ onFetch: crawlPages, withRedrive: true });
       await respond();
-      browse(profileGrid('USER:1'));
-      ask();
+      browseList(listRequest());
+      switchView(true);
       await settle();
-      expect(loaded).toEqual(['complete']);
-      expect(queries.map((query) => query.variables)).toEqual([profileGrid('USER:1'), profileGrid('USER:1')]);
-      expect(queries.map((query) => query.options.requestPolicy)).toEqual([REFRESH_POLICY, 'cache-first']);
-      expect(queries.map((query) => query.options[OWN_QUERY_OPTION])).toEqual([undefined, true]);
-      await win.happyDOM.close();
-    });
-
-    it('refreshes every page the site loaded before it pages on', async () => {
-      const { win, respond, browse, ask, loaded, queries } = rig({ answer: everything });
-      await respond();
-      browse(profileGrid('USER:1'));
-      browse({ ...profileGrid('USER:1'), after: 'c1' });
-      ask();
-      await until(() => loaded.length > 0);
-      expect(loaded).toEqual(['complete']);
-      expect(queries.slice(0, 2).map((query) => query.variables.after)).toEqual([undefined, 'c1']);
-      expect(queries.slice(0, 2).every((query) => query.options.requestPolicy === REFRESH_POLICY)).toBe(true);
-      expect(ownOf(queries)).toHaveLength(1);
-      await win.happyDOM.close();
-    });
-
-    it('pages on from the end cursor until the last page, then says it is complete', async () => {
-      const answers = [page(true, 'c1'), page(true, 'c2'), everything];
-      const { win, respond, browse, ask, loaded, queries } = rig({ answer: afterRefresh(answers) });
-      await respond();
-      browse(profileGrid('USER:1'));
-      ask();
       await settle();
-      expect(loaded).toEqual(['complete']);
-      const own = ownOf(queries);
-      expect(own.map((query) => query.variables.after)).toEqual([undefined, 'c1', 'c2']);
-      expect(own.map((query) => query.options.requestPolicy)).toEqual(['cache-first', 'network-only', 'network-only']);
-      await win.happyDOM.close();
-    });
-
-    it('still loads the rest when the refresh of the list failed', async () => {
-      const { win, respond, browse, ask, loaded, queries } = rig({ answer: (index: number) => (index === 0 ? { error: new Error('429') } : everything) });
-      await respond();
-      browse(profileGrid('USER:1'));
-      ask();
-      await settle();
-      expect(loaded).toEqual(['complete']);
-      expect(ownOf(queries)).toHaveLength(1);
-      await win.happyDOM.close();
-    });
-
-    it('answers no at once when the app is not up yet', async () => {
-      const { win, ask, loaded } = rig({ mounted: false });
-      ask();
-      expect(loaded).toEqual(['partial']);
-      await win.happyDOM.close();
-    });
-
-    it('answers no when no list was asked for yet', async () => {
-      const { win, respond, ask, loaded } = rig({ answer: everything });
-      await respond();
-      ask();
-      await settle();
-      expect(loaded).toEqual(['partial']);
-      await win.happyDOM.close();
-    });
-
-    it('takes a new request the moment it has answered', async () => {
-      const { win, respond, browse, ask, loaded } = rig({ answer: everything });
-      await respond();
-      browse(profileGrid('USER:1'));
-      let shouldAskAgain = true;
-      win.document.addEventListener(LIST_LOADED_EVENT, () => {
-        if (shouldAskAgain) ask();
-        shouldAskAgain = false;
+      expect(fetched.slice(1).map((body) => (JSON.parse(body) as { operationName: string }).operationName)).toEqual([
+        'senkutoolsPriceRows',
+        'senkutoolsPriceRows',
+      ]);
+      expect(fetchedUrls.slice(1)).toEqual([GRAPHQL, GRAPHQL]);
+      expect(rows).toEqual([{ viewId: 1, slugs: ['a', 'b', 'c', 'd'] }]);
+      expect(states.at(-1)?.name).toBe('loading');
+      order(reversed);
+      expect(states.at(-1)).toEqual({ name: 'ready', loaded: 4, total: 4 });
+      expect(reexecuted).toHaveLength(1);
+      expect(reexecuted[0]?.requested.key).toBe(7);
+      expect(reexecuted[0]?.requested.variables).toEqual({ ...grid, orderField: privateFieldOf(1) });
+      expect(reexecuted[0]?.options.requestPolicy).toBe('network-only');
+      const before = fetched.length;
+      const response = await win.fetch(GRAPHQL, {
+        method: 'POST',
+        body: JSON.stringify({ operationName: LIST_OPERATION, variables: { ...grid, orderField: privateFieldOf(1) } }),
       });
-      ask();
-      await settle();
-      expect(loaded).toEqual(['complete', 'complete']);
+      const answer = (await response.json()) as unknown as {
+        data: { userCards: { edges: { node: { card: { slug: string } } }[]; pageInfo: { endCursor: string } } };
+      };
+      expect(answer.data.userCards.edges.map((row) => row.node.card.slug)).toEqual(['d', 'c']);
+      expect(answer.data.userCards.pageInfo.endCursor).toBe(cursorOf(1, 2));
+      expect(fetched).toHaveLength(before);
       await win.happyDOM.close();
     });
 
-    it('does not start a second load while one is running, and takes the next one once it has answered', async () => {
-      const { win, respond, browse, ask, loaded, queries } = rig({ answer: everything, slow: true });
+    it('rewrites what the grid asks for into the sorted list, and gives the real list back when it stops', async () => {
+      const { win, respond, browseList, switchView, order, reexecuted, reached } = rig({ onFetch: crawlPages, withRedrive: true });
       await respond();
-      browse(profileGrid('USER:1'));
-      ask();
-      ask();
-      await until(() => loaded.length > 0);
+      browseList(listRequest());
+      switchView(true);
       await settle();
-      expect(loaded).toEqual(['complete']);
-      expect(ownOf(queries)).toHaveLength(1);
-      ask();
-      await until(() => loaded.length > 1);
-      expect(loaded).toEqual(['complete', 'complete']);
+      await settle();
+      order(reversed);
+      browseList(listRequest({ ...grid, after: 'UgECAA_YJe18' }));
+      expect(reached.at(-1)).toEqual({ ...grid, orderField: privateFieldOf(1), after: null });
+      browseList(listRequest({ ...grid, after: cursorOf(1, 2) }, 9));
+      switchView(false);
+      expect(reexecuted).toHaveLength(2);
+      expect(reexecuted[1]?.requested.variables).toEqual({ ...grid, after: null });
+      expect(reexecuted[1]?.requested.key).toBe(9);
+      browseList(listRequest({ ...grid, after: cursorOf(1, 2) }));
+      expect(reached.at(-1)).toEqual({ ...grid, after: null });
+      await win.happyDOM.close();
+    });
+
+    it('does not record what it serves as a list of the site, so a later refresh never asks the server for it', async () => {
+      const { win, respond, browseList, switchView, order, mutate, queries, reexecuted } = rig({
+        onFetch: crawlPages,
+        withRedrive: true,
+        results: [withOperation(accepted('acceptCardTrade'), 'acceptCardTrade')],
+      });
+      await respond();
+      browseList(listRequest());
+      switchView(true);
+      await settle();
+      await settle();
+      order(reversed);
+      browseList(listRequest({ ...grid, orderField: privateFieldOf(1) }));
+      await mutate('acceptCardTrade');
+      await settle();
+      expect(queries.map((query) => query.variables)).toEqual([grid]);
+      expect(reexecuted).toHaveLength(2);
+      await win.happyDOM.close();
+    });
+
+    it('answers an empty page for the private name when nothing is served, and never lets it reach the network', async () => {
+      const { win, respond, fetched } = rig({ withRedrive: true });
+      await respond();
+      const before = fetched.length;
+      const response = await win.fetch(GRAPHQL, {
+        method: 'POST',
+        body: JSON.stringify({ operationName: LIST_OPERATION, variables: { ...grid, orderField: privateFieldOf(4) } }),
+      });
+      expect(((await response.json()) as unknown as { data: { userCards: { edges: unknown[] } } }).data.userCards.edges).toEqual([]);
+      expect(fetched).toHaveLength(before);
       await win.happyDOM.close();
     });
   });
