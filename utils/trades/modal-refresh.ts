@@ -16,7 +16,7 @@ export interface ModalRefreshHost {
 
 const findOwnButton = (toolbar: Element): HTMLButtonElement | null => toolbar.querySelector<HTMLButtonElement>(`:scope > .${MODAL_REFRESH_CLASS}`);
 
-const listsUserCards = (modal: Element): boolean =>
+const isUserCardsStep = (modal: Element): boolean =>
   modal.querySelector(RESULTS) !== null && !(modal.querySelector(HEADER)?.textContent ?? '').includes(CATALOG_STEP);
 
 const createModalRefreshButton = (host: ModalRefreshHost): HTMLButtonElement =>
@@ -29,7 +29,7 @@ function syncModal(modal: Element, host: ModalRefreshHost): void {
   const toolbar = modal.querySelector(TOOLBAR);
   if (!toolbar) return;
   const own = findOwnButton(toolbar);
-  if (!host.isReady() || !listsUserCards(modal)) {
+  if (!host.isReady() || !isUserCardsStep(modal)) {
     own?.remove();
     return;
   }
