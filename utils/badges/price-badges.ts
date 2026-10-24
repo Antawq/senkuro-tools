@@ -153,11 +153,16 @@ export function createPriceBadges({ touch }: { touch: boolean }): PriceBadges {
 
   function show(holders: Holders, entry: CardEntry, settings: Settings, shades: Shades): void {
     const { target } = holders;
+    const hasCopyButton = settings.copyBtn && !isSmall(holders);
+    if (!settings.showBadges && !hasCopyButton) {
+      clearHolders(holders);
+      return;
+    }
     makePositioned(target);
     clearHolders(holders, target);
-    paint(holders, entry.price, settings, shades);
+    if (settings.showBadges) paint(holders, entry.price, settings, shades);
     const spot = place(holders, settings);
-    if (settings.copyBtn && !isSmall(holders)) syncCopyButton(target, { name: entry.name || UNKNOWN_NAME, size: settings.copyBtnSize, ...spot, touch });
+    if (hasCopyButton) syncCopyButton(target, { name: entry.name || UNKNOWN_NAME, size: settings.copyBtnSize, ...spot, touch });
     else removeCopyButton(target);
   }
 

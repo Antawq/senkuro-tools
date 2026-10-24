@@ -198,4 +198,37 @@ describe('createPriceBadges', () => {
     expect(document.querySelector('#c1')?.getAttribute('data-senkuro-price')).toBe('1.00');
     expect(document.querySelector('#c2')?.hasAttribute('data-senkuro-price')).toBe(false);
   });
+
+  describe('with the prices switched off', () => {
+    const pricesOff = { ...DEFAULT_SETTINGS, showBadges: false };
+
+    it('draws no price and leaves the card element as the site made it', () => {
+      document.body.innerHTML = preview();
+      createPriceBadges({ touch: false }).update(db, pricesOff);
+      expect(document.querySelector('[data-senkuro-price]')).toBeNull();
+      expect(document.querySelector('.senkuro-copy-btn')).toBeNull();
+      expect(holderOf().hasAttribute('style')).toBe(false);
+      expect(holderOf().dataset.badgePos).toBeUndefined();
+    });
+
+    it('still gives the copy button when it is switched on', () => {
+      document.body.innerHTML = preview();
+      createPriceBadges({ touch: false }).update(db, { ...pricesOff, copyBtn: true });
+      expect(document.querySelector('[data-senkuro-price]')).toBeNull();
+      expect((document.querySelector('.senkuro-copy-btn') as HTMLElement).dataset.charName).toBe('Соран');
+    });
+
+    it('takes the prices off and puts them back when the setting changes, as the page does it', () => {
+      document.body.innerHTML = preview();
+      const badges = createPriceBadges({ touch: false });
+      badges.update(db, DEFAULT_SETTINGS);
+      expect(holderOf().getAttribute('data-senkuro-price')).toBe('1.00');
+      badges.reset();
+      badges.update(db, pricesOff);
+      expect(document.querySelector('[data-senkuro-price]')).toBeNull();
+      badges.reset();
+      badges.update(db, DEFAULT_SETTINGS);
+      expect(holderOf().getAttribute('data-senkuro-price')).toBe('1.00');
+    });
+  });
 });

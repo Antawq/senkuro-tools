@@ -19,6 +19,14 @@ describe('settings', () => {
     expect(settings.fontSize).toBe(DEFAULT_SETTINGS.fontSize);
   });
 
+  it('shows the prices on cards for everyone who never chose, and keeps the choice of whoever switched them off', async () => {
+    expect((await loadSettings()).showBadges).toBe(true);
+    await saveSetting('showBadges', false);
+    expect((await loadSettings()).showBadges).toBe(false);
+    await resetSettings();
+    expect((await loadSettings()).showBadges).toBe(true);
+  });
+
   it.each([
     ['top-left', 'left', 'top'],
     ['center-left', 'left', 'center'],

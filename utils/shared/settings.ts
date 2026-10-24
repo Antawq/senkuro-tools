@@ -7,6 +7,7 @@ export type ValueBasis = 'bank' | 'cards';
 type PriceEffect = '' | 'price-effect-rgb' | 'price-effect-tilt' | 'price-effect-bg' | 'price-effect-pulse';
 
 export interface Settings {
+  showBadges: boolean;
   commission: boolean;
   copyBtn: boolean;
   copyBtnSize: number;
@@ -34,6 +35,7 @@ export interface Settings {
 export type SettingKey = keyof Settings;
 
 export const DEFAULT_SETTINGS: Readonly<Settings> = {
+  showBadges: true,
   commission: true,
   copyBtn: false,
   copyBtnSize: 18,
