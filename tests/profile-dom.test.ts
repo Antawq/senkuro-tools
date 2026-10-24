@@ -4,6 +4,7 @@ import { fakeBrowser } from 'wxt/testing/fake-browser';
 import {
   abortProfileLoading,
   findNicknameTarget,
+  forgetProfileBadge,
   isTradeOpen,
   profileBadgeMissing,
   removeProfileBadge,
@@ -111,6 +112,40 @@ describe('profile-dom', () => {
         </div>
       `;
       expect(findNicknameTarget()).not.toBeNull();
+    });
+  });
+
+  describe('forgetProfileBadge', () => {
+    const drawn = async () => {
+      window.history.pushState({}, '', '/users/phaivroh');
+      document.body.innerHTML = header;
+      await store([['soran-f', 1, 0]]);
+      await draw();
+      await until(() => value() !== undefined);
+    };
+
+    it('drops the stored collection and what the page remembers, so the chip asks to count again', async () => {
+      await drawn();
+      expect(value()).toBeDefined();
+      await forgetProfileBadge('phaivroh');
+      expect((await fakeBrowser.storage.local.get('profileCollections')).profileCollections).toEqual({});
+      await draw();
+      await until(() => widget()?.textContent?.includes('Посчитать ценность') === true);
+      expect(widget()?.textContent).toContain('Посчитать ценность');
+      expect(value()).toBeUndefined();
+    });
+
+    it('stops a count that is running for that profile', async () => {
+      window.history.pushState({}, '', '/users/phaivroh');
+      document.body.innerHTML = header;
+      fetchMock.mockImplementation((_input, init) => hangsUntilAborted(init));
+      await draw();
+      (widget() as HTMLElement).click();
+      await settle();
+      const [, init] = fetchMock.mock.calls[0] ?? [];
+      expect(init?.signal?.aborted).toBe(false);
+      await forgetProfileBadge('phaivroh');
+      expect(init?.signal?.aborted).toBe(true);
     });
   });
 

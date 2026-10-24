@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { APP_MOUNTED_ATTRIBUTE } from '../utils/shared/app-mounted';
+import type { RefreshOutcome } from '../utils/shared/refresh-signal';
 import { REFRESH_BUTTON_ID, isRefreshButtonMissing, syncRefreshButton, type RefreshHost } from '../utils/profile/inventory-refresh';
 
 const CARDS_HEADER_HTML =
@@ -21,15 +22,24 @@ const findCardsTitle = () => document.querySelector('h2') as HTMLElement;
 interface Rig {
   host: RefreshHost;
   calls: string[];
+  answerRefresh: (outcome: RefreshOutcome) => void;
   finishForgetting: () => void;
   failForgetting: (error: unknown) => void;
 }
 
-const createRig = (): Rig => {
+const createRig = ({ isReady = true }: { isReady?: boolean } = {}): Rig => {
   const calls: string[] = [];
+  let answer: (outcome: RefreshOutcome) => void = () => undefined;
   let finish: () => void = () => undefined;
   let fail: (error: unknown) => void = () => undefined;
   const host: RefreshHost = {
+    isReady: () => isReady,
+    refresh: vi.fn(() => {
+      calls.push('refresh');
+      return new Promise<RefreshOutcome>((resolve) => {
+        answer = resolve;
+      });
+    }),
     forget: vi.fn((slug: string) => {
       calls.push(`forget ${slug}`);
       return new Promise<void>((resolve, reject) => {
@@ -38,8 +48,9 @@ const createRig = (): Rig => {
       });
     }),
     reload: vi.fn(() => void calls.push('reload')),
+    redraw: vi.fn(() => void calls.push('redraw')),
   };
-  return { host, calls, finishForgetting: () => finish(), failForgetting: (error) => fail(error) };
+  return { host, calls, answerRefresh: (outcome) => answer(outcome), finishForgetting: () => finish(), failForgetting: (error) => fail(error) };
 };
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -205,66 +216,114 @@ describe('isRefreshButtonMissing', () => {
 });
 
 describe('pressing it', () => {
-  it('disables the button at once, forgets what the extension stored for that profile, and only then reloads', async () => {
+  const press = () => {
     openPage('/users/phaivroh/cards');
-    const { host, calls, finishForgetting } = createRig();
+    const rig = createRig();
+    syncRefreshButton(rig.host);
+    findRefreshButton()?.click();
+    return rig;
+  };
+
+  it('asks the page to refresh its lists in place and keeps the button busy until the page has answered', async () => {
+    const { host, calls, answerRefresh } = press();
+    expect(findRefreshButton()?.disabled).toBe(true);
+    expect(findRefreshButton()?.getAttribute('aria-busy')).toBe('true');
+    expect(calls).toEqual(['refresh']);
+    await settle();
+    expect(host.forget).not.toHaveBeenCalled();
+    answerRefresh('done');
+    await settle();
+    expect(calls).toEqual(['refresh', 'forget phaivroh']);
+  });
+
+  it('forgets what the extension stored for that profile, redraws the chip and gives the button back, without reloading', async () => {
+    const { host, calls, answerRefresh, finishForgetting } = press();
+    answerRefresh('done');
+    await settle();
+    finishForgetting();
+    await settle();
+    expect(calls).toEqual(['refresh', 'forget phaivroh', 'redraw']);
+    expect(host.reload).not.toHaveBeenCalled();
+    expect(findRefreshButton()?.disabled).toBe(false);
+    expect(findRefreshButton()?.hasAttribute('aria-busy')).toBe(false);
+  });
+
+  it('reloads the page instead when the page has no list of the profile to refresh', async () => {
+    const { host, calls, answerRefresh, finishForgetting } = press();
+    answerRefresh('nothing');
+    await settle();
+    expect(host.reload).not.toHaveBeenCalled();
+    finishForgetting();
+    await settle();
+    expect(calls).toEqual(['refresh', 'forget phaivroh', 'reload']);
+    expect(findRefreshButton()?.disabled).toBe(true);
+  });
+
+  it('reloads without asking when the page guard is not ready', async () => {
+    openPage('/users/phaivroh/cards');
+    const { host, calls, finishForgetting } = createRig({ isReady: false });
     syncRefreshButton(host);
     findRefreshButton()?.click();
-    expect(findRefreshButton()?.disabled).toBe(true);
     expect(calls).toEqual(['forget phaivroh']);
     await settle();
     expect(host.reload).not.toHaveBeenCalled();
     finishForgetting();
     await settle();
     expect(calls).toEqual(['forget phaivroh', 'reload']);
+    expect(host.refresh).not.toHaveBeenCalled();
+  });
+
+  it('only gives the button back when the refresh failed, so the chip keeps what it had', async () => {
+    const { host, answerRefresh } = press();
+    answerRefresh('failed');
+    await settle();
+    expect(host.forget).not.toHaveBeenCalled();
+    expect(host.reload).not.toHaveBeenCalled();
+    expect(host.redraw).not.toHaveBeenCalled();
+    expect(findRefreshButton()?.disabled).toBe(false);
   });
 
   it('runs once however many times it is pressed', async () => {
-    openPage('/users/phaivroh/cards');
-    const { host, finishForgetting } = createRig();
-    syncRefreshButton(host);
+    const { host, answerRefresh, finishForgetting } = press();
     const pressed = findRefreshButton();
     pressed?.click();
-    pressed?.click();
     pressed?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    answerRefresh('done');
+    await settle();
     finishForgetting();
     await settle();
+    expect(host.refresh).toHaveBeenCalledTimes(1);
     expect(host.forget).toHaveBeenCalledTimes(1);
-    expect(host.reload).toHaveBeenCalledTimes(1);
   });
 
   it('stays busy through the sync that the page makes while it works', async () => {
-    openPage('/users/phaivroh/cards');
-    const { host, finishForgetting } = createRig();
-    syncRefreshButton(host);
-    findRefreshButton()?.click();
+    const { host, answerRefresh } = press();
     syncRefreshButton(host);
     expect(findRefreshButton()?.disabled).toBe(true);
-    finishForgetting();
+    answerRefresh('failed');
     await settle();
   });
 
-  it('reloads anyway, and says why it could not forget, when the store fails', async () => {
+  it('says why it could not forget when the store fails, and carries on', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    openPage('/users/phaivroh/cards');
-    const { host, calls, failForgetting } = createRig();
-    syncRefreshButton(host);
-    findRefreshButton()?.click();
+    const { calls, answerRefresh, failForgetting } = press();
+    answerRefresh('done');
+    await settle();
     failForgetting(new Error('storage gone'));
     await settle();
-    expect(calls).toEqual(['forget phaivroh', 'reload']);
+    expect(calls).toEqual(['refresh', 'forget phaivroh', 'redraw']);
     expect(warn).toHaveBeenCalledOnce();
   });
 
   it('keeps the profile it was made for when the address changes before the click lands', async () => {
     openPage('/users/phaivroh/cards');
-    const { host, finishForgetting } = createRig();
+    const { host, answerRefresh } = createRig();
     syncRefreshButton(host);
     const pressed = findRefreshButton();
     window.history.pushState({}, '', '/users/chu/cards');
     pressed?.click();
-    expect(host.forget).toHaveBeenCalledWith('phaivroh');
-    finishForgetting();
+    answerRefresh('done');
     await settle();
+    expect(host.forget).toHaveBeenCalledWith('phaivroh');
   });
 });

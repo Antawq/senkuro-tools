@@ -14,14 +14,14 @@ import { loadDatabase } from '@/utils/shared/database';
 import { SENKURO_MATCHES } from '@/utils/shared/hosts';
 import { createPriceBadges } from '@/utils/badges/price-badges';
 import { isRefreshButtonMissing, syncRefreshButton, type RefreshHost } from '@/utils/profile/inventory-refresh';
-import { profileBadgeMissing, removeProfileBadge, updateProfileBadge } from '@/utils/profile/profile-dom';
+import { forgetProfileBadge, profileBadgeMissing, removeProfileBadge, updateProfileBadge } from '@/utils/profile/profile-dom';
 import { createSearchKeys } from '@/utils/search/search-keys';
 import { SEARCH_EVENT } from '@/utils/shared/search-event';
 import { createSearchSignals } from '@/utils/search/search-signal';
 import { createSearchView } from '@/utils/search/search-view';
-import { forgetCollection } from '@/utils/profile/profile-store';
 import { addedCards, createRenderLoop } from '@/utils/shared/render-loop';
 import { LIST_LOAD_EVENT, LIST_LOADED_EVENT } from '@/utils/shared/list-signal';
+import { isGuardReady, requestInventoryRefresh } from '@/utils/shared/refresh-signal';
 import { loadSettings, watchSettings } from '@/utils/shared/settings';
 import { createPriceSort, hasSortMutation } from '@/utils/sort/sort-view';
 import { createTokenBar } from '@/utils/token/token-bar';
@@ -30,7 +30,6 @@ import { createTradeStore, listenForTrades } from '@/utils/trades/trade-capture'
 import { isTradeMutation, updateTradeSummaries } from '@/utils/trades/trade-summary';
 
 const LATE_RENDER_DELAYS_MS = [400, 1500];
-const inventoryRefresh: RefreshHost = { forget: forgetCollection, reload: () => window.location.reload() };
 
 const applySummaryFontSize = (size: number) => document.documentElement.style.setProperty('--senkuro-summary-font-size', `${size}px`);
 
@@ -48,6 +47,13 @@ export default defineContentScript({
       if (ctx.isInvalid) return;
       if ('requestAnimationFrame' in window) ctx.requestAnimationFrame(run);
       else ctx.setTimeout(run, 0);
+    };
+    const inventoryRefresh: RefreshHost = {
+      isReady: () => isGuardReady(document),
+      refresh: () => requestInventoryRefresh(document, 'grid'),
+      forget: forgetProfileBadge,
+      reload: () => window.location.reload(),
+      redraw: () => loop.schedule(),
     };
     const loop = createRenderLoop(
       {

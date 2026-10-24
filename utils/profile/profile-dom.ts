@@ -3,7 +3,7 @@ import { element } from '../shared/dom';
 import { chevronIcon, refreshIcon } from '../shared/svg';
 import { R_RANK, UNKNOWN_LEGEND, UNKNOWN_MARK, type Valuation } from '../shared/trade-value';
 import { calculateProfileValue, extractProfileSlug, fetchProfileCards, fetchProfileUser, type ProfileValueSummary } from './profile-cards';
-import { isComplete, readCollection, saveCollection, warnStoreFailure, type Collection } from './profile-store';
+import { forgetCollection, isComplete, readCollection, saveCollection, warnStoreFailure, type Collection } from './profile-store';
 
 export const WIDGET_ID = 'senkuro-profile-card-value';
 
@@ -73,6 +73,12 @@ export function abortProfileLoading(slug?: string): void {
     }
     inProgress.clear();
   }
+}
+
+export async function forgetProfileBadge(slug: string): Promise<void> {
+  abortProfileLoading(slug);
+  await forgetCollection(slug);
+  known.delete(slug);
 }
 
 const valuationKey = ({ commission, valueBySplit, valueBasis, excludeShards }: Valuation): string =>
