@@ -52,6 +52,7 @@ const rig = ({ isReady = true }: { isReady?: boolean } = {}) => {
   const states: PriceState[] = [];
   const rows: PriceRows[] = [];
   const redrives: { page: ListPage; variables: Variables }[] = [];
+  const refreshes: { page: ListPage; variables: Variables }[] = [];
   const crawls: Crawl[] = [];
   const host: ViewHost = {
     isReady: () => isReady,
@@ -60,11 +61,12 @@ const rig = ({ isReady = true }: { isReady?: boolean } = {}) => {
         crawls.push({ page, report, signal, finish, fail: () => reject(new Error('crawl failed')) });
       }),
     redrive: (page, variables) => void redrives.push({ page, variables }),
+    refreshPage: (page, variables) => void refreshes.push({ page, variables }),
     publishState: (state) => void states.push(state),
     publishRows: (sent) => void rows.push(sent),
     debug: () => undefined,
   };
-  return { view: createPriceView(host), states, rows, redrives, crawls };
+  return { view: createPriceView(host), states, rows, redrives, refreshes, crawls };
 };
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -505,6 +507,84 @@ describe('what the site does to the inventory meanwhile', () => {
     view.handleMutation(locked([{ cardId: 'id-c', modifier: 0 }]));
     expect(crawls).toHaveLength(1);
     expect(redrives).toHaveLength(1);
+  });
+
+  describe('the pages already served', () => {
+    const privateGrid = (extra: Variables = {}): Variables => gridVariables({ orderField: privateFieldOf(1), ...extra });
+
+    it('are written again, only the one that holds a locked card, with its cursor and direction, so the grid shows the lock', async () => {
+      const { view, refreshes } = await served();
+      view.answer(privateGrid());
+      view.answer(privateGrid({ after: cursorOf(1, 2) }));
+      view.handleMutation(locked([{ cardId: 'id-e', modifier: 0 }]));
+      expect(refreshes).toHaveLength(1);
+      expect(refreshes[0]?.variables).toEqual(privateGrid({ orderDirection: 'DESC', after: cursorOf(1, 2) }));
+      expect(refreshes[0]?.page.request.key).toBe(7);
+    });
+
+    it('start from the first page with no cursor, and keep the direction they were served in', async () => {
+      const { view, refreshes } = await served();
+      view.answer(privateGrid());
+      view.answer(privateGrid({ orderDirection: 'ASC', after: cursorOf(1, 2) }));
+      view.handleMutation(locked([{ cardId: 'id-c', modifier: 0 }]));
+      view.handleMutation(locked([{ cardId: 'id-e', modifier: 0 }], false));
+      expect(refreshes.map((entry) => entry.variables)).toEqual([
+        privateGrid({ orderDirection: 'DESC', after: null }),
+        privateGrid({ orderDirection: 'ASC', after: cursorOf(1, 2) }),
+      ]);
+    });
+
+    it('are not written for a card on a page that was not served, nor for a card of another user', async () => {
+      const { view, refreshes } = await served();
+      view.answer(privateGrid());
+      view.handleMutation(locked([{ cardId: 'id-d', modifier: 0 }]));
+      view.handleMutation(locked([{ cardId: 'id-c', modifier: 0 }], true, 'USER:2'));
+      expect(refreshes).toHaveLength(0);
+    });
+
+    it('are written once for a card that sits on served pages of both directions, and once for two cards on one page', async () => {
+      const { view, refreshes } = await served();
+      view.answer(privateGrid());
+      view.answer(privateGrid({ orderDirection: 'ASC', after: cursorOf(1, 2) }));
+      view.handleMutation(locked([{ cardId: 'id-a', modifier: 0 }]));
+      expect(refreshes).toHaveLength(1);
+      view.handleMutation(
+        locked(
+          [
+            { cardId: 'id-c', modifier: 0 },
+            { cardId: 'id-a', modifier: 0 },
+          ],
+          false
+        )
+      );
+      expect(refreshes).toHaveLength(2);
+    });
+
+    it('are forgotten when the list is replaced, and counted again once they are served again', async () => {
+      const { view, refreshes, rows } = await served();
+      view.answer(privateGrid());
+      view.receiveOrder({ viewId: rows[0]?.viewId ?? -1, revision: 2, descending: DESCENDING, ascending: ASCENDING });
+      view.handleMutation(locked([{ cardId: 'id-c', modifier: 0 }]));
+      expect(refreshes).toHaveLength(0);
+      view.answer(privateGrid({ orderField: privateFieldOf(2) }));
+      view.handleMutation(locked([{ cardId: 'id-c', modifier: 0 }], false));
+      expect(refreshes.map((entry) => entry.variables)).toEqual([privateGrid({ orderField: privateFieldOf(2), orderDirection: 'DESC', after: null })]);
+    });
+
+    it('are not written for a lock that came while the view is not serving anything', async () => {
+      const { view, refreshes } = await crawled();
+      view.handleMutation(locked([{ cardId: 'id-c', modifier: 0 }]));
+      expect(refreshes).toHaveLength(0);
+    });
+  });
+
+  it('leaves a request for a private list alone, its cursor included, whether the view serves or not', async () => {
+    const serving = await served();
+    const crawling = await crawled();
+    for (const { view } of [serving, crawling]) {
+      const asked = request(gridVariables({ orderField: privateFieldOf(1), after: cursorOf(1, 2) }));
+      expect(view.rewrite(asked)).toBe(asked);
+    }
   });
 
   it('crawls again for a lock that came while the list was still being crawled, because the crawl may have read the old state', () => {

@@ -35,6 +35,7 @@ export interface ViewHost {
   isReady: () => boolean;
   crawl: (page: ListPage, report: (loaded: number, total: number | null) => void, signal: AbortSignal) => Promise<ViewList | null>;
   redrive: (page: ListPage, variables: Variables) => void;
+  refreshPage: (page: ListPage, variables: Variables) => void;
   publishState: (state: PriceState) => void;
   publishRows: (rows: PriceRows) => void;
   debug: (...details: unknown[]) => void;
@@ -79,6 +80,7 @@ interface View {
   orders: Orders | null;
   revision: number;
   version: number;
+  servedPages: Set<string>;
   controller: AbortController;
 }
 
@@ -112,6 +114,10 @@ function isPermutation(order: number[], size: number): boolean {
     return isNew;
   });
 }
+
+const pageKeyOf = (direction: string, offset: number): string => `${direction}:${offset}`;
+
+const directionOf = (variables: Variables): 'ASC' | 'DESC' => (variables.orderDirection === 'ASC' ? 'ASC' : 'DESC');
 
 const readLockInput = (mutation: MutationResult): LockInput | null => {
   const input = mutation.operation?.variables?.input;
@@ -173,6 +179,7 @@ export function createPriceView(host: ViewHost): PriceView {
       orders: null,
       revision: 0,
       version: 0,
+      servedPages: new Set(),
       controller: new AbortController(),
     };
     view = started;
@@ -197,11 +204,37 @@ export function createPriceView(host: ViewHost): PriceView {
     if (wasServing) redriveReal(page);
   }
 
-  function patchLocks(input: LockInput): void {
-    if (!view || input.userId !== view.userId || !Array.isArray(input.cards) || typeof input.locked !== 'boolean') return;
-    for (const row of view.rows) {
-      if (input.cards.some((card) => card.cardId === row.node.card?.id && modifierOf(card.modifier) === modifierOf(row.node.modifier)))
-        row.node.locked = input.locked;
+  function patchLocks(input: LockInput): Set<number> {
+    const patched = new Set<number>();
+    const cards = input.cards;
+    if (!view || input.userId !== view.userId || !Array.isArray(cards) || typeof input.locked !== 'boolean') return patched;
+    view.rows.forEach((row, index) => {
+      if (!cards.some((card) => card.cardId === row.node.card?.id && modifierOf(card.modifier) === modifierOf(row.node.modifier))) return;
+      row.node.locked = input.locked;
+      patched.add(index);
+    });
+    return patched;
+  }
+
+  function holdsRow(pageKey: string, index: number): boolean {
+    const [direction, offset] = pageKey.split(':');
+    const orders = view?.orders;
+    if (!view || !orders) return false;
+    const order = direction === 'ASC' ? orders.ascending : orders.descending;
+    return order.slice(Number(offset), Number(offset) + view.pageSize).includes(index);
+  }
+
+  function refreshServed(patched: Set<number>): void {
+    if (!view || !current) return;
+    const pageKeys = new Set<string>();
+    for (const index of patched) {
+      const holder = [...view.servedPages].find((pageKey) => holdsRow(pageKey, index));
+      if (holder) pageKeys.add(holder);
+    }
+    for (const pageKey of pageKeys) {
+      const [direction, offset] = pageKey.split(':');
+      const after = Number(offset) === 0 ? null : cursorOf(view.version, Number(offset));
+      host.refreshPage(current, privateVariablesOf({ ...variablesOf(current), orderDirection: direction, after }, view.version));
     }
   }
 
@@ -218,7 +251,7 @@ export function createPriceView(host: ViewHost): PriceView {
 
     rewrite(request) {
       const variables = request.variables;
-      if (!variables) return request;
+      if (!variables || isPrivateVariables(variables)) return request;
       if (isServing() && view && viewKeyOf(variables) === view.key) return { ...request, variables: privateVariablesOf(variables, view.version) };
       return hasPrivateCursor(variables.after) ? { ...request, variables: realVariablesOf(variables) } : request;
     },
@@ -234,7 +267,9 @@ export function createPriceView(host: ViewHost): PriceView {
       }
       const cursor = readCursor(variables.after);
       const offset = cursor?.version === served.version ? cursor.offset : 0;
-      const order = variables.orderDirection === 'ASC' ? served.orders.ascending : served.orders.descending;
+      const direction = directionOf(variables);
+      served.servedPages.add(pageKeyOf(direction, offset));
+      const order = direction === 'ASC' ? served.orders.ascending : served.orders.descending;
       const edges = order.slice(offset, offset + served.pageSize).flatMap((index) => served.rows[index] ?? []);
       const end = offset + edges.length;
       const hasNextPage = end < order.length;
@@ -275,6 +310,7 @@ export function createPriceView(host: ViewHost): PriceView {
       view.revision = order.revision;
       lastVersion += 1;
       view.version = lastVersion;
+      view.servedPages = new Set();
       view.phase = 'ready';
       host.debug('price view ready', { viewId: view.id, version: view.version });
       host.publishState({ name: 'ready', loaded: view.rows.length, total: view.rows.length });
@@ -287,7 +323,7 @@ export function createPriceView(host: ViewHost): PriceView {
       if (name === LOCK_MUTATION) {
         const input = readLockInput(mutation);
         if (view.phase === 'crawling') invalidate();
-        else if (input) patchLocks(input);
+        else if (input) refreshServed(patchLocks(input));
       } else if (ACCEPTING_MUTATIONS.includes(name) || REBUILDING_MUTATIONS.includes(name)) invalidate();
     },
   };

@@ -37,7 +37,7 @@ import {
   type ReceivedCard,
 } from './list-families';
 import { learnFromFetch } from './list-seen';
-import { refreshFamilies, type RefreshEnv, type RefreshReport } from './list-refresh';
+import { REFRESH_POLICY, refreshFamilies, type RefreshEnv, type RefreshReport } from './list-refresh';
 import { crawlList } from './price-crawl';
 import { crawlDocumentOf } from './price-document';
 import { answerPrivateRequests } from './price-fetch';
@@ -131,6 +131,12 @@ export function installInventoryGuard(win: PageWindow): void {
       const client = attachedClient;
       if (!client?.createRequestOperation || !client.reexecuteOperation) return;
       client.reexecuteOperation(client.createRequestOperation('query', { ...page.request, variables }, { ...page.options, requestPolicy: REDRIVE_POLICY }));
+    },
+    refreshPage: (page, variables) => {
+      void attachedClient
+        ?.query(page.request.query, variables, { ...page.options, requestPolicy: REFRESH_POLICY })
+        .toPromise()
+        .catch(() => undefined);
     },
     publishState: (state) => publish(PRICE_STATE_EVENT, encodePriceState(state)),
     publishRows: (rows) => publish(PRICE_ROWS_EVENT, encodePriceRows(rows)),

@@ -619,6 +619,36 @@ describe('installInventoryGuard', () => {
       await win.happyDOM.close();
     });
 
+    it('writes the served page of a locked card again through the client, from the network, answered by the page itself', async () => {
+      const lockMutation: MutationResult = {
+        operation: request('bulkUpdateUserCardLock', { input: { userId: 'USER:1', cards: [{ cardId: 'id-b', modifier: 0 }], locked: true } }),
+        data: { bulkUpdateUserCardLock: { success: true } },
+      };
+      const { win, respond, browseList, switchView, order, mutate, queries, fetched } = rig({
+        onFetch: crawlPages,
+        withRedrive: true,
+        results: [lockMutation],
+      });
+      await respond();
+      browseList(listRequest());
+      switchView(true);
+      await settle();
+      await settle();
+      order(reversed);
+      await win.fetch(GRAPHQL, {
+        method: 'POST',
+        body: JSON.stringify({ operationName: LIST_OPERATION, variables: { ...grid, orderField: privateFieldOf(1), after: cursorOf(1, 2) } }),
+      });
+      const before = fetched.length;
+      await mutate('bulkUpdateUserCardLock');
+      await settle();
+      expect(queries).toHaveLength(1);
+      expect(queries[0]?.variables).toEqual({ ...grid, orderField: privateFieldOf(1), orderDirection: 'DESC', after: cursorOf(1, 2) });
+      expect(queries[0]?.options.requestPolicy).toBe('network-only');
+      expect(fetched).toHaveLength(before);
+      await win.happyDOM.close();
+    });
+
     it('answers an empty page for the private name when nothing is served, and never lets it reach the network', async () => {
       const { win, respond, fetched } = rig({ withRedrive: true });
       await respond();
