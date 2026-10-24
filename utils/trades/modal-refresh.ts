@@ -1,14 +1,12 @@
 import { createRefreshButton } from '../shared/refresh-button';
 import type { RefreshOutcome } from '../shared/refresh-signal';
 import { createFrameWatcher, createMutationFilter } from './mutation-watcher';
+import { CATALOG_STEP, HEADER, MODAL, RESULTS_CLASS } from './trade-modal';
 
 export const MODAL_REFRESH_CLASS = 'senkutools-modal-refresh';
 
-const MODAL = '.modal-content--trade';
-const HEADER = '.modal-trade__header';
 const TOOLBAR = '.modal-trade__header-form';
-const LIST = '.modal-trade__body-result';
-const CATALOG_STEP = 'из общего каталога';
+const RESULTS = `.${RESULTS_CLASS}`;
 
 export interface ModalRefreshHost {
   isReady: () => boolean;
@@ -19,7 +17,7 @@ export interface ModalRefreshHost {
 const findOwnButton = (toolbar: Element): HTMLButtonElement | null => toolbar.querySelector<HTMLButtonElement>(`:scope > .${MODAL_REFRESH_CLASS}`);
 
 const listsUserCards = (modal: Element): boolean =>
-  modal.querySelector(LIST) !== null && !(modal.querySelector(HEADER)?.textContent ?? '').includes(CATALOG_STEP);
+  modal.querySelector(RESULTS) !== null && !(modal.querySelector(HEADER)?.textContent ?? '').includes(CATALOG_STEP);
 
 const createModalRefreshButton = (host: ModalRefreshHost): HTMLButtonElement =>
   createRefreshButton(async () => {

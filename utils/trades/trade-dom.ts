@@ -3,8 +3,8 @@ import { debugLogger } from '../shared/debug';
 import type { CardRef, Side } from '../shared/trade-value';
 import { REPLAY_EVENT, type Trade, type TradeStore } from './trade-capture';
 import { matchOffer, matchTrade, matchTradeByCounts, shows } from './trade-match';
+import { MODAL } from './trade-modal';
 
-const MODAL = '.modal-content--trade';
 const CARD_LIST = '.modal-content--review';
 const HISTORY = '.card-trade';
 const OFFER = '.offer-card';

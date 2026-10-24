@@ -1,13 +1,11 @@
 import { element } from '../shared/dom';
 import { MODAL_REFRESH_CLASS } from './modal-refresh';
 import { createFrameWatcher, createMutationFilter } from './mutation-watcher';
+import { CATALOG_STEP, HEADER, MODAL, RESULTS_CLASS } from './trade-modal';
 
-const MODAL = '.modal-content--trade';
 const PICKER = '.modal-trade__body';
-const RESULTS_CLASS = 'modal-trade__body-result';
 const SHARD_ROW = '.card-collect-preview--shard';
-const HEADER = '.modal-trade__header';
-const WINDOWS_WITHOUT_SHARDS = ['для переплавки', 'для раскола', 'из общего каталога'];
+const WINDOWS_WITHOUT_SHARDS = ['для переплавки', 'для раскола', CATALOG_STEP];
 
 const SWITCH = 'senkutools-shard-switch';
 const SWITCH_BUTTON = `${SWITCH}__button`;
