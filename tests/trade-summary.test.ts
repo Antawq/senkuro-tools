@@ -47,7 +47,6 @@ const skyTrade: Trade = {
   source: { id: 'u1', name: 'Phaivroh | WL' },
   destination: { id: 'u2', name: 'Молюсь на Sky | WS' },
   createdAt: null,
-  status: null,
   offer: previews(phaivroh),
   request: previews(sky),
 };
@@ -807,55 +806,6 @@ describe('trade time', () => {
     store.add({ items: [timed] });
     updateTradeSummaries(db, settings, store);
     expect(timeOf(el)?.textContent).toBe(sentText);
-  });
-});
-
-describe('card that left in another trade', () => {
-  const local = (date: Date) => date.toISOString().slice(0, -1);
-  const rejected = { ...skyTrade, status: 'REJECTED', createdAt: local(new Date(2026, 9, 15, 12, 9)) };
-  const accepted: Trade = {
-    kind: 'trade',
-    id: 't9',
-    status: 'ACCEPTED',
-    createdAt: local(new Date(2026, 9, 15, 13, 31)),
-    source: { id: 'u1', name: 'Phaivroh | WL' },
-    destination: { id: 'u3', name: 'Laminat' },
-    offer: previews([['atiss', 1]]),
-    request: previews([['kan', 1]]),
-  };
-  const departureOf = (el: HTMLElement) => el.querySelector('.senkuro-trade-summary__departure')?.textContent ?? null;
-
-  it('names the card, who gave it to whom and when under a rejected history entry', () => {
-    store.add({ viewerId: 'u2', items: [rejected, accepted] });
-    const el = historyItem(true);
-    updateTradeSummaries(db, settings, store);
-    expect(departureOf(el)).toBe('Карта «Атисс» ушла от Phaivroh | WL к Laminat в обмене от 15.10.26, 13:31');
-    expect((el.querySelector('.senkuro-trade-summary__departure') as HTMLElement).closest('.senkuro-trade-summary__details')).toBeNull();
-  });
-
-  it('says nothing when no accepted trade took a card of the rejected one', () => {
-    store.add({ viewerId: 'u2', items: [rejected, { ...accepted, offer: previews([['gran', 1]]) }] });
-    const el = historyItem(true);
-    updateTradeSummaries(db, settings, store);
-    expect(summaryOf(el)).not.toBeNull();
-    expect(departureOf(el)).toBeNull();
-  });
-
-  it('adds the line once the accepted trade comes with a later page of the history', () => {
-    store.add({ viewerId: 'u2', items: [rejected] });
-    const el = historyItem(true);
-    updateTradeSummaries(db, settings, store);
-    expect(departureOf(el)).toBeNull();
-    store.add({ items: [accepted] });
-    updateTradeSummaries(db, settings, store);
-    expect(departureOf(el)).toContain('«Атисс»');
-  });
-
-  it('says nothing under a trade that was not rejected', () => {
-    store.add({ viewerId: 'u2', items: [{ ...rejected, status: 'PENDING' }, accepted] });
-    const el = historyItem(true);
-    updateTradeSummaries(db, settings, store);
-    expect(departureOf(el)).toBeNull();
   });
 });
 

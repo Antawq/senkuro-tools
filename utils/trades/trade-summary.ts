@@ -1,4 +1,3 @@
-import { visibleName } from '../shared/copy-button';
 import type { Database } from '../shared/database';
 import { element } from '../shared/dom';
 import { chevronIcon } from '../shared/svg';
@@ -21,7 +20,6 @@ import {
   type Verdict,
 } from '../shared/trade-value';
 import type { TradeStore } from './trade-capture';
-import type { Departure } from './trade-departure';
 import { TRADE_PLACES, readTradePlaces, type Column, type Place, type Role } from './trade-dom';
 import { totalOf } from './trade-match';
 
@@ -34,7 +32,6 @@ const UNKNOWN = `${SUMMARY}__unknown`;
 const TOGGLE_LABEL = 'Подробности';
 const EMPTY_CELL = '-';
 const SENT_LABEL = 'Отправлен';
-const DEPARTED_WORDS = { card: ['Карта', 'ушла'], shards: ['Осколки', 'ушли'] } as const;
 
 type RowKey = 'value' | 'bank' | 'count';
 
@@ -195,35 +192,25 @@ function mount({ host, placement, variant }: Place, order: number): HTMLElement 
 interface View {
   caption: string | undefined;
   sentAt: Date | null;
-  departure: string | null;
   sides: SideView[];
   settings: SummarySettings;
   verdict: Verdict | null;
   rVerdict: Verdict | null;
 }
 
-function describeDeparture({ card, from, to, at }: Departure, db: Database): string {
-  const [noun, verb] = DEPARTED_WORDS[card.shard ? 'shards' : 'card'];
-  const name = card.slug ? db[card.slug]?.name : undefined;
-  const time = parseApiTime(at);
-  const subject = name ? `${noun} «${visibleName(name)}»` : noun;
-  return `${subject} ${verb} от ${from.name} к ${to.name} ${time ? `в обмене от ${formatTradeTime(time)}` : 'в другом обмене'}`;
-}
-
-function viewOf({ caption, sentAt, departure }: Place, columns: Column[], db: Database, settings: SummarySettings): View {
+function viewOf({ caption, sentAt }: Place, columns: Column[], db: Database, settings: SummarySettings): View {
   const sides = columns.map((column) => describe(column, db, settings));
   const give = sides.find((side) => side.role === 'give')?.value;
   const get = sides.find((side) => side.role === 'get')?.value;
-  const base = { caption, sentAt: parseApiTime(sentAt), departure: departure ? describeDeparture(departure, db) : null, sides, settings };
+  const base = { caption, sentAt: parseApiTime(sentAt), sides, settings };
   if (!settings.showSummaryVerdict || !give || !get) return { ...base, verdict: null, rVerdict: null };
   return { ...base, verdict: compareSides(give, get), rVerdict: compareR(give, get) };
 }
 
-const signatureOf = ({ caption, sentAt, departure, sides, settings, verdict, rVerdict }: View): string =>
+const signatureOf = ({ caption, sentAt, sides, settings, verdict, rVerdict }: View): string =>
   JSON.stringify([
     caption,
     sentAt,
-    departure,
     sides.map(({ label, f, bank, count, unknown, r, value }) => [label, f, bank, count, unknown, r, value.complete]),
     verdict,
     rVerdict,
@@ -247,12 +234,8 @@ function detailsOf(body: HTMLElement): HTMLElement {
   return details;
 }
 
-function partsOf({ caption, sentAt, departure, verdict, rVerdict }: View, summary: HTMLElement, body: HTMLElement | null): HTMLElement[] {
-  const lead = [
-    ...(caption ? [element('div', `${SUMMARY}__label`, caption)] : []),
-    ...(sentAt ? [sentLine(sentAt)] : []),
-    ...(departure ? [element('div', `${SUMMARY}__departure`, departure)] : []),
-  ];
+function partsOf({ caption, sentAt, verdict, rVerdict }: View, summary: HTMLElement, body: HTMLElement | null): HTMLElement[] {
+  const lead = [...(caption ? [element('div', `${SUMMARY}__label`, caption)] : []), ...(sentAt ? [sentLine(sentAt)] : [])];
   const details = body ? [detailsOf(body)] : [];
   if (!verdict) return [...lead, ...details];
   const main = verdictLine(verdict);

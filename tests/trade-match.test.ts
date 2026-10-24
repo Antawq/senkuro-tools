@@ -11,7 +11,6 @@ const trade = (id: string, offer: CardRef[], request: CardRef[], source = 'Он'
   source: { id: 's', name: source },
   destination: { id: 'd', name: destination },
   createdAt: null,
-  status: null,
   offer,
   request,
 });
@@ -39,13 +38,6 @@ describe('matchTrade', () => {
     const sides: [Side, Side] = [side(four.slice(0, 3), 1), side([])];
     expect(matchTrade([at('t1', '2026-10-17T10:00:00'), at('t2', '2026-10-17T10:00:00')], ['Он', null], sides)?.createdAt).toBe('2026-10-17T10:00:00');
     expect(matchTrade([at('t1', '2026-10-17T10:00:00'), at('t2', '2026-10-18T09:00:00')], ['Он', null], sides)).toMatchObject({ id: 't1', createdAt: null });
-  });
-
-  it('keeps the status of identical trades only when they agree on it', () => {
-    const with_ = (id: string, status: string): Trade => ({ ...trade(id, four, []), status });
-    const sides: [Side, Side] = [side(four.slice(0, 3), 1), side([])];
-    expect(matchTrade([with_('t1', 'REJECTED'), with_('t2', 'REJECTED')], ['Он', null], sides)?.status).toBe('REJECTED');
-    expect(matchTrade([with_('t1', 'REJECTED'), with_('t2', 'ACCEPTED')], ['Он', null], sides)?.status).toBeNull();
   });
 
   it('checks the names and the quantities', () => {

@@ -93,7 +93,6 @@ const user = (id: string, name: string) => ({ __typename: 'User', id, slug: id, 
 const trade = {
   __typename: 'CardTrade',
   id: 't1',
-  status: 'PENDING',
   createdAt: '2026-10-17T18:31:05.923657',
   source: user('u1', 'Phaivroh | WL'),
   destination: user('u2', 'Smile'),

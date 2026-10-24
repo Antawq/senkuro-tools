@@ -241,8 +241,7 @@
   color: var(--text-tertiary);
 }
 
-.senkuro-trade-summary__time,
-.senkuro-trade-summary__departure {
+.senkuro-trade-summary__time {
   color: var(--text-secondary, var(--text-primary));
   font-variant-numeric: tabular-nums;
 }
