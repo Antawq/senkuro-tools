@@ -61,8 +61,8 @@ export const searchPage = (slugs: string[], totalCount = slugs.length, endCursor
 
 export const searchAnswer = (...slugs: string[]): Answer => searchPage(slugs);
 
-export const sortKeysAnswer = (keys: Record<string, Record<string, unknown>>): Answer => ({
-  data: Object.fromEntries(Object.entries(keys).map(([slug, fields], index) => [`a${index}`, { id: slug, slug, ...fields }])),
+export const factsAnswer = (facts: Record<string, Record<string, unknown>>): Answer => ({
+  data: Object.fromEntries(Object.entries(facts).map(([slug, fields], index) => [`a${index}`, { id: slug, slug, ...fields }])),
 });
 
 export const rowsOf = (answer: Answer | undefined, root = 'mangas') =>

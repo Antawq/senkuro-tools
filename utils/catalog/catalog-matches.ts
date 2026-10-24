@@ -1,21 +1,29 @@
 import type { QueryClient } from '../shared/urql-client';
+import { factVariablesOf, factsDocumentOf, readFacts } from './catalog-facts';
+import { rowPasses, type CatalogFilters } from './catalog-filters';
 import { CATALOG_ROW_LIMIT, SEARCH_PAGE_ROWS, type CatalogKind } from './catalog-results';
-import { readSortKeys, sortKeyVariablesOf, sortKeysDocumentOf, sortRows, type SortOrder } from './catalog-sort';
+import { sortRows, type SortOrder } from './catalog-sort';
 
 type Row = Record<string, unknown>;
 type QueryOptions = Record<string, unknown> | undefined;
 
 const CACHE_FIRST = { requestPolicy: 'cache-first' };
 
-const sortKeysDocuments = new Map<string, string>();
+const factsDocuments = new Map<string, string>();
+
+export interface MatchQuery {
+  text: string;
+  order: SortOrder | null;
+  filters: CatalogFilters;
+}
 
 const isRow = (value: unknown): value is Row => typeof value === 'object' && value !== null && !Array.isArray(value);
 
-const sortKeysDocumentFor = (kind: CatalogKind): string => {
-  let document = sortKeysDocuments.get(kind.operation);
+const factsDocumentFor = (kind: CatalogKind): string => {
+  let document = factsDocuments.get(kind.operation);
   if (document === undefined) {
-    document = sortKeysDocumentOf(kind, CATALOG_ROW_LIMIT);
-    sortKeysDocuments.set(kind.operation, document);
+    document = factsDocumentOf(kind, CATALOG_ROW_LIMIT);
+    factsDocuments.set(kind.operation, document);
   }
   return document;
 };
@@ -46,22 +54,23 @@ async function* searchPages(client: QueryClient, kind: CatalogKind, text: string
 export async function* streamCatalogMatches(
   client: QueryClient,
   kind: CatalogKind,
-  text: string,
-  order: SortOrder | null,
+  { text, order, filters }: MatchQuery,
   options: QueryOptions
 ): AsyncGenerator<Row[]> {
+  const needsFacts = order !== null || filters.length > 0;
   const matches: Row[] = [];
   for await (const page of searchPages(client, kind, text, options)) {
     matches.push(...page);
     matches.length = Math.min(matches.length, CATALOG_ROW_LIMIT);
-    if (!order) yield [...matches];
+    if (!needsFacts) yield [...matches];
   }
   if (matches.length === 0) {
     yield [];
     return;
   }
-  if (!order) return;
+  if (!needsFacts) return;
   const slugs = matches.map((match) => String(match.slug));
-  const keys = await ask(client, sortKeysDocumentFor(kind), sortKeyVariablesOf(slugs, CATALOG_ROW_LIMIT), options);
-  yield sortRows(matches, readSortKeys(keys.data), order);
+  const facts = readFacts((await ask(client, factsDocumentFor(kind), factVariablesOf(slugs, CATALOG_ROW_LIMIT), options)).data);
+  const kept = matches.filter((match) => rowPasses(facts.get(String(match.slug)), filters));
+  yield order ? sortRows(kept, facts, order) : kept;
 }

@@ -3,8 +3,9 @@ import type { Source } from 'wonka';
 
 import { operationName, type QueryClient, type QueryRequest } from '../shared/urql-client';
 import { isSettled, type SourceResult } from '../shared/urql-source';
+import { searchRequestOf } from './catalog-filters';
 import { streamCatalogMatches } from './catalog-matches';
-import { asksOnlyForSearch, catalogKindOf, isEmptyCatalogAnswer, toCatalogData } from './catalog-results';
+import { catalogKindOf, isEmptyCatalogAnswer, toCatalogData } from './catalog-results';
 import { sortOrderOf } from './catalog-sort';
 
 const sourceOfStream = <T>(stream: AsyncIterable<T>): Source<T> =>
@@ -33,8 +34,8 @@ export function installCatalogFallback(client: QueryClient, isHydrating: () => b
   Reflect.set(client, 'executeQuery', (request: QueryRequest, options?: Record<string, unknown>) => {
     const source = original(request, options);
     const kind = catalogKindOf(operationName(request));
-    const text = kind ? asksOnlyForSearch(request.variables) : null;
-    if (!kind || !text || typeof source !== 'function') return source;
+    const search = kind ? searchRequestOf(request.variables, kind) : null;
+    if (!kind || !search || typeof source !== 'function') return source;
     const isHydration = isHydrating();
     const order = sortOrderOf(request.variables, kind);
 
@@ -43,7 +44,7 @@ export function installCatalogFallback(client: QueryClient, isHydrating: () => b
       switchMap((answer) => {
         if (!isSettled(answer) || !isEmptyCatalogAnswer(answer, kind)) return fromValue(answer);
         const rows = pipe(
-          sourceOfStream(streamCatalogMatches(client, kind, text.toLowerCase(), order, options)),
+          sourceOfStream(streamCatalogMatches(client, kind, { text: search.text.toLowerCase(), order, filters: search.filters }, options)),
           map((matches) => {
             const data = toCatalogData(matches, kind);
             return data ? { ...answer, data, error: undefined, stale: false, hasNext: false } : answer;

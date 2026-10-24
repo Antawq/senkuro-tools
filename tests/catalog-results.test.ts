@@ -1,23 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { asksOnlyForSearch, catalogKindOf, isEmptyCatalogAnswer, toCatalogData } from '../utils/catalog/catalog-results';
-
-const NO_FILTERS = {
-  after: null,
-  bookmarkCollections: { exclude: [], include: [] },
-  chapters: {},
-  format: { exclude: [], include: [] },
-  label: { exclude: [], include: [] },
-  orderDirection: 'DESC',
-  orderField: 'POPULARITY_SCORE',
-  originCountry: { exclude: [], include: [] },
-  rating: { exclude: [], include: [] },
-  releasedOn: {},
-  source: { exclude: [], include: [] },
-  status: { exclude: [], include: [] },
-  translitionStatus: { exclude: [], include: [] },
-  type: { exclude: [], include: [] },
-};
+import { catalogKindOf, isEmptyCatalogAnswer, toCatalogData } from '../utils/catalog/catalog-results';
 
 describe('catalogKindOf', () => {
   it('knows the manga and the anime catalog by the operation the page sends', () => {
@@ -44,6 +27,42 @@ describe('catalogKindOf', () => {
     expect(catalogKindOf('fetchAnimes')?.lookupRoot).toBe('anime');
   });
 
+  it('names the filters the catalog offers and the fact of the lookup each one is read from, with the count of chapters or of episodes by catalog', () => {
+    const manga = catalogKindOf('fetchMangas')?.filters ?? {};
+    const anime = catalogKindOf('fetchAnimes')?.filters ?? {};
+    expect(Object.keys(manga).sort()).toEqual([
+      'chapters',
+      'completedOn',
+      'format',
+      'label',
+      'originCountry',
+      'rating',
+      'releasedOn',
+      'source',
+      'status',
+      'translitionStatus',
+      'type',
+    ]);
+    expect(Object.keys(anime).sort()).toEqual([
+      'completedOn',
+      'episodes',
+      'format',
+      'label',
+      'originCountry',
+      'rating',
+      'releasedOn',
+      'source',
+      'status',
+      'translitionStatus',
+      'type',
+    ]);
+    expect(manga.format).toEqual({ fact: 'formats', rule: 'all' });
+    expect(manga.label).toEqual({ fact: 'labels', rule: 'label' });
+    expect(manga.chapters).toEqual({ fact: 'chapters', rule: 'count' });
+    expect(anime.episodes).toEqual({ fact: 'episodes', rule: 'count' });
+    expect(anime.releasedOn).toEqual({ fact: 'releasedOn', rule: 'date' });
+  });
+
   it('knows no other operation', () => {
     for (const name of ['search', 'fetchUserCards', 'fetchRanobes', '', undefined]) expect(catalogKindOf(name)).toBeUndefined();
   });
@@ -58,28 +77,6 @@ describe('catalogKindOf', () => {
     for (const field of ['mangaType: type', 'mangaStatus: status', 'mangaRating: rating']) expect(manga).toContain(field);
     expect(anime).toContain('... on SearchAnime');
     for (const field of ['animeType: type', 'animeStatus: status', 'animeRating: rating']) expect(anime).toContain(field);
-  });
-});
-
-describe('asksOnlyForSearch', () => {
-  it('gives the text when the search is the only thing asked for, whatever the order', () => {
-    expect(asksOnlyForSearch({ ...NO_FILTERS, search: 'НАРУТО' })).toBe('НАРУТО');
-    expect(asksOnlyForSearch({ ...NO_FILTERS, orderField: 'SCORE', orderDirection: 'ASC', search: ' one piece ' })).toBe('one piece');
-  });
-
-  it('gives nothing without a text to search', () => {
-    for (const search of [undefined, null, '', '   ', 5, ['a']]) expect(asksOnlyForSearch({ ...NO_FILTERS, search })).toBeNull();
-    expect(asksOnlyForSearch(undefined)).toBeNull();
-  });
-
-  it('gives nothing when another filter is set, so a filtered catalog stays filtered', () => {
-    expect(asksOnlyForSearch({ ...NO_FILTERS, search: 'x', status: { include: ['ONGOING'], exclude: [] } })).toBeNull();
-    expect(asksOnlyForSearch({ ...NO_FILTERS, search: 'x', releasedOn: { start: '2020-01-01' } })).toBeNull();
-    expect(asksOnlyForSearch({ ...NO_FILTERS, search: 'x', label: { include: ['id'], exclude: [] } })).toBeNull();
-  });
-
-  it('gives nothing for a later page, which the search would only repeat', () => {
-    expect(asksOnlyForSearch({ ...NO_FILTERS, after: 'cursor', search: 'x' })).toBeNull();
   });
 });
 

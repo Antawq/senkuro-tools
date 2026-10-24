@@ -12,7 +12,7 @@ import {
   searchAnswer,
   searchPage,
   settle,
-  sortKeysAnswer,
+  factsAnswer,
   sourceOf,
   type Answer,
   type QueryCall,
@@ -22,7 +22,7 @@ const rig = (
   catalogAnswers: Answer[] = [emptyCatalog],
   searchAnswers: Answer[] = [searchAnswer('naruto', 'boruto')],
   isHydrating = () => false,
-  sortKeys: Answer = { data: {} }
+  facts: Answer = { data: {} }
 ) => {
   const calls: QueryCall[] = [];
   const client = {
@@ -30,7 +30,7 @@ const rig = (
     executeMutation: () => null,
     query: (document: string, variables: Record<string, unknown>, options?: Record<string, unknown>) => {
       calls.push({ document, variables, options });
-      return promiseOf(document.includes('catalogSortKeys') ? sortKeys : (searchAnswers[0] ?? {}));
+      return promiseOf(document.includes('catalogRowFacts') ? facts : (searchAnswers[0] ?? {}));
     },
   } as unknown as QueryClient;
   installCatalogFallback(client, isHydrating);
@@ -43,9 +43,9 @@ const rig = (
     await settle();
     return seen;
   };
-  const searches = () => calls.filter((call) => !call.document.includes('catalogSortKeys'));
-  const sortRequests = () => calls.filter((call) => call.document.includes('catalogSortKeys'));
-  return { calls, searches, sortRequests, run };
+  const searches = () => calls.filter((call) => !call.document.includes('catalogRowFacts'));
+  const factRequests = () => calls.filter((call) => call.document.includes('catalogRowFacts'));
+  return { calls, searches, factRequests, run };
 };
 
 describe('installCatalogFallback', () => {
@@ -111,9 +111,15 @@ describe('installCatalogFallback', () => {
     expect(seen).toHaveLength(2);
   });
 
-  it('leaves a catalog with another filter, another page or no text as it is', async () => {
+  it('leaves a catalog with a filter it cannot apply, another page or no text as it is', async () => {
     const { calls, run } = rig();
-    for (const variables of [{ status: { include: ['ONGOING'], exclude: [] } }, { after: 'cursor' }, { search: '' }, { search: undefined }]) {
+    for (const variables of [
+      { character: { include: ['ID'], exclude: [] } },
+      { studio: { include: ['ID'], exclude: [] } },
+      { after: 'cursor' },
+      { search: '' },
+      { search: undefined },
+    ]) {
       expect(await run(catalogRequest('fetchMangas', variables))).toEqual([emptyCatalog]);
     }
     expect(calls).toHaveLength(0);
@@ -172,35 +178,95 @@ describe('installCatalogFallback', () => {
   });
 
   describe('the sort the page asks for', () => {
-    const keys = sortKeysAnswer({
+    const facts = factsAnswer({
       naruto: { score: 5, createdAt: '2020-01-01T00:00:00.000000' },
       boruto: { score: 9, createdAt: '2021-01-01T00:00:00.000000' },
     });
     const slugsOf = (seen: Answer[]) => rowsOf(seen[0]).map((edge) => edge.node.slug);
 
     it('puts the rows in the order of the field the page chose, asking for the values in one request', async () => {
-      const { sortRequests, run } = rig([emptyCatalog], [searchAnswer('naruto', 'boruto')], () => false, keys);
+      const { factRequests, run } = rig([emptyCatalog], [searchAnswer('naruto', 'boruto')], () => false, facts);
       const seen = await run(catalogRequest('fetchMangas', { orderField: 'SCORE', orderDirection: 'DESC' }));
       expect(slugsOf(seen)).toEqual(['boruto', 'naruto']);
-      expect(sortRequests()).toHaveLength(1);
-      expect(sortRequests()[0]?.options).toMatchObject({ requestPolicy: 'cache-first' });
+      expect(factRequests()).toHaveLength(1);
+      expect(factRequests()[0]?.options).toMatchObject({ requestPolicy: 'cache-first' });
     });
 
     it('turns the order around for the direction button', async () => {
-      const { run } = rig([emptyCatalog], [searchAnswer('naruto', 'boruto')], () => false, keys);
+      const { run } = rig([emptyCatalog], [searchAnswer('naruto', 'boruto')], () => false, facts);
       expect(slugsOf(await run(catalogRequest('fetchMangas', { orderField: 'SCORE', orderDirection: 'ASC' })))).toEqual(['naruto', 'boruto']);
     });
 
     it('keeps the order of the search for the popularity sort, which the API gives no field for, and asks for no values', async () => {
-      const { sortRequests, run } = rig([emptyCatalog], [searchAnswer('naruto', 'boruto')], () => false, keys);
+      const { factRequests, run } = rig([emptyCatalog], [searchAnswer('naruto', 'boruto')], () => false, facts);
       const seen = await run(catalogRequest('fetchMangas', { orderField: 'POPULARITY_SCORE', orderDirection: 'ASC' }));
       expect(slugsOf(seen)).toEqual(['naruto', 'boruto']);
-      expect(sortRequests()).toHaveLength(0);
+      expect(factRequests()).toHaveLength(0);
     });
 
     it('keeps the order of the search when the values cannot be had', async () => {
       const { run } = rig([emptyCatalog], [searchAnswer('naruto', 'boruto')], () => false, { error: new Error('boom') });
       expect(slugsOf(await run(catalogRequest('fetchMangas', { orderField: 'SCORE' })))).toEqual(['naruto', 'boruto']);
+    });
+  });
+
+  describe('the filters the page asks for', () => {
+    const labels = (...slugs: string[]) => slugs.map((slug) => ({ slug }));
+    const facts = factsAnswer({
+      naruto: { labels: labels('male_protagonist', 'shounen'), status: 'FINISHED', score: 5, createdAt: '2020-01-01T00:00:00.000000' },
+      boruto: { labels: labels('male_protagonist'), status: 'ONGOING', score: 9, createdAt: '2021-01-01T00:00:00.000000' },
+      bleach: { labels: labels('shounen'), status: 'FINISHED', score: 7, createdAt: '2019-01-01T00:00:00.000000' },
+    });
+    const search = [searchAnswer('naruto', 'boruto', 'bleach')];
+    const male = { label: { include: ['male_protagonist'], exclude: [] } };
+    const slugsOf = (seen: Answer[]) => rowsOf(seen[0]).map((edge) => edge.node.slug);
+
+    it('gives the page only the rows of the search that pass, which the catalog could not find for a text it cannot match', async () => {
+      const { run } = rig([emptyCatalog], search, () => false, facts);
+      expect(slugsOf(await run(catalogRequest('fetchMangas', male)))).toEqual(['naruto', 'boruto']);
+    });
+
+    it('asks for the values of the rows in one request that stays the same when only the filter changes', async () => {
+      const { factRequests, searches, run } = rig([emptyCatalog], search, () => false, facts);
+      await run(catalogRequest('fetchMangas', male));
+      await run(catalogRequest('fetchMangas', { label: { include: ['shounen'], exclude: [] } }));
+      expect(searches()).toHaveLength(2);
+      expect(factRequests()).toHaveLength(2);
+      expect(factRequests()[0]?.options).toMatchObject({ requestPolicy: 'cache-first' });
+      expect(factRequests()[1]?.variables).toEqual(factRequests()[0]?.variables);
+    });
+
+    it('applies the filters and the sort together', async () => {
+      const { run } = rig([emptyCatalog], search, () => false, facts);
+      const seen = await run(catalogRequest('fetchMangas', { status: { include: ['FINISHED'], exclude: [] }, orderField: 'SCORE', orderDirection: 'DESC' }));
+      expect(slugsOf(seen)).toEqual(['bleach', 'naruto']);
+    });
+
+    it('gives the catalog answer back when no row passes', async () => {
+      const { run } = rig([emptyCatalog], search, () => false, facts);
+      expect(await run(catalogRequest('fetchMangas', { label: { include: ['horror'], exclude: [] } }))).toEqual([emptyCatalog]);
+    });
+
+    it('leaves the catalog answer alone when it has rows, filters or not', async () => {
+      const own: Answer = { data: { mangas: { edges: [{ node: { slug: 'x' } }] } } };
+      const { calls, run } = rig([own], search, () => false, facts);
+      expect(await run(catalogRequest('fetchMangas', male))).toEqual([own]);
+      expect(calls).toHaveLength(0);
+    });
+
+    it('does the same for the anime catalog, with its own count of episodes', async () => {
+      const animeFacts = factsAnswer({ naruto: { episodes: 220 }, boruto: { episodes: 293 }, bleach: { episodes: 366 } });
+      const { run } = rig([{ data: { animes: { edges: [] } } }], search, () => false, animeFacts);
+      const seen = await run(catalogRequest('fetchAnimes', { episodes: { start: 250, end: 400 } }));
+      expect(rowsOf(seen[0], 'animes').map((edge) => edge.node.slug)).toEqual(['boruto', 'bleach']);
+    });
+
+    it('hands the page the empty answer first, then the rows that pass, while the page hydrates the server markup', async () => {
+      const { run } = rig([emptyCatalog], search, () => true, facts);
+      const seen = await run(catalogRequest('fetchMangas', male));
+      expect(seen).toHaveLength(2);
+      expect(rowsOf(seen[0])).toHaveLength(0);
+      expect(rowsOf(seen[1]).map((edge) => edge.node.slug)).toEqual(['naruto', 'boruto']);
     });
   });
 });

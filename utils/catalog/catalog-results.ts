@@ -3,6 +3,11 @@ export const CATALOG_ROW_LIMIT = 300;
 
 type SearchFields = { status: string; type: string; rating: string };
 
+export interface FilterSpec {
+  fact: string;
+  rule: 'one' | 'all' | 'label' | 'count' | 'date';
+}
+
 export interface CatalogKind {
   operation: string;
   searchType: string;
@@ -13,12 +18,14 @@ export interface CatalogKind {
   lookupRoot: string;
   lookupSelection: string;
   sortKeys: Readonly<Record<string, string>>;
+  filters: Readonly<Record<string, FilterSpec>>;
 }
 
-interface KindSortOptions {
+interface KindRowOptions {
   lookupRoot: string;
   lookupSelection: string;
   sortKeys: Record<string, string>;
+  filters: Record<string, FilterSpec>;
 }
 
 const COVER_SELECTION = '{ id blurhash original { height width url __typename } preview: resize(width: 175, height: 250) { url __typename } __typename }';
@@ -34,7 +41,7 @@ const defineKind = (
   root: string,
   nodeTypename: string,
   searchFields: SearchFields,
-  sort: KindSortOptions
+  row: KindRowOptions
 ): CatalogKind => ({
   operation,
   searchType,
@@ -42,8 +49,23 @@ const defineKind = (
   nodeTypename,
   searchFields,
   searchDocument: searchDocumentOf(nodeTypename, searchFields),
-  ...sort,
+  ...row,
 });
+
+const FILTERED_FACTS = 'type formats status source rating originCountry releasedOn completedOn translitionStatus labels { slug }';
+
+const sharedFilters: Record<string, FilterSpec> = {
+  type: { fact: 'type', rule: 'one' },
+  format: { fact: 'formats', rule: 'all' },
+  status: { fact: 'status', rule: 'one' },
+  source: { fact: 'source', rule: 'one' },
+  rating: { fact: 'rating', rule: 'one' },
+  originCountry: { fact: 'originCountry', rule: 'one' },
+  translitionStatus: { fact: 'translitionStatus', rule: 'one' },
+  releasedOn: { fact: 'releasedOn', rule: 'date' },
+  completedOn: { fact: 'completedOn', rule: 'date' },
+  label: { fact: 'labels', rule: 'label' },
+};
 
 const CATALOG_KINDS: readonly CatalogKind[] = [
   defineKind(
@@ -54,8 +76,9 @@ const CATALOG_KINDS: readonly CatalogKind[] = [
     { status: 'mangaStatus', type: 'mangaType', rating: 'mangaRating' },
     {
       lookupRoot: 'manga',
-      lookupSelection: 'chapters lastChapterAt',
+      lookupSelection: `chapters lastChapterAt ${FILTERED_FACTS}`,
       sortKeys: { SCORE: 'score', VIEWS: 'views', CHAPTERS: 'chapters', CREATED_AT: 'createdAt', LAST_CHAPTER_AT: 'lastChapterAt' },
+      filters: { ...sharedFilters, chapters: { fact: 'chapters', rule: 'count' } },
     }
   ),
   defineKind(
@@ -66,14 +89,13 @@ const CATALOG_KINDS: readonly CatalogKind[] = [
     { status: 'animeStatus', type: 'animeType', rating: 'animeRating' },
     {
       lookupRoot: 'anime',
-      lookupSelection: 'episodes lastEpisodeAt',
+      lookupSelection: `episodes lastEpisodeAt ${FILTERED_FACTS}`,
       sortKeys: { SCORE: 'score', VIEWS: 'views', EPISODES: 'episodes', CREATED_AT: 'createdAt', LAST_EPISODE_AT: 'lastEpisodeAt' },
+      filters: { ...sharedFilters, episodes: { fact: 'episodes', rule: 'count' } },
     }
   ),
 ];
 
-const SEARCH_VARIABLE = 'search';
-const SORT_VARIABLES: ReadonlySet<string> = new Set(['orderField', 'orderDirection']);
 const TITLE_TYPENAME = 'I18nTitle';
 const ORIGINAL_NAME_LANGUAGE = 'JA';
 
@@ -81,20 +103,7 @@ type Row = Record<string, unknown>;
 
 const isRow = (value: unknown): value is Row => typeof value === 'object' && value !== null && !Array.isArray(value);
 
-const isEmptyValue = (value: unknown): boolean => {
-  if (value === null || value === undefined || value === '') return true;
-  if (Array.isArray(value)) return value.length === 0;
-  return isRow(value) && Object.values(value).every(isEmptyValue);
-};
-
 export const catalogKindOf = (operation: string | undefined): CatalogKind | undefined => CATALOG_KINDS.find((kind) => kind.operation === operation);
-
-export function asksOnlyForSearch(variables: Row | undefined): string | null {
-  const text = variables?.[SEARCH_VARIABLE];
-  if (!variables || typeof text !== 'string' || text.trim() === '') return null;
-  const hasOtherFilter = Object.entries(variables).some(([name, value]) => name !== SEARCH_VARIABLE && !SORT_VARIABLES.has(name) && !isEmptyValue(value));
-  return hasOtherFilter ? null : text.trim();
-}
 
 export function isEmptyCatalogAnswer(answer: { data?: unknown; error?: unknown }, kind: CatalogKind): boolean {
   if (answer.error !== undefined && answer.error !== null) return true;

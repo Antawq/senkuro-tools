@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { catalogKindOf } from '../utils/catalog/catalog-results';
-import { readSortKeys, sortKeyVariablesOf, sortKeysDocumentOf, sortOrderOf, sortRows } from '../utils/catalog/catalog-sort';
+import { sortOrderOf, sortRows } from '../utils/catalog/catalog-sort';
 
 const manga = catalogKindOf('fetchMangas')!;
 const anime = catalogKindOf('fetchAnimes')!;
@@ -90,33 +90,5 @@ describe('sortRows', () => {
     const keys = keysOf({ a: { score: 5 }, b: { score: 5 }, c: { score: 5 } });
     expect(slugsOf(sortRows(rows, keys, descending))).toEqual(['a', 'b', 'c']);
     expect(slugsOf(rows)).toEqual(['a', 'b', 'c']);
-  });
-});
-
-describe('the lookup of the sort values', () => {
-  it('builds one request with a variable and an alias for each slot, with the fields the manga sorts read', () => {
-    const document = sortKeysDocumentOf(manga, 2);
-    expect(document).toBe(
-      'query catalogSortKeys($s0: String!, $s1: String!) { ' +
-        'a0: manga(slug: $s0) { id slug score views createdAt chapters lastChapterAt } ' +
-        'a1: manga(slug: $s1) { id slug score views createdAt chapters lastChapterAt } }'
-    );
-  });
-
-  it('asks the anime lookup for the fields the anime sorts read', () => {
-    expect(sortKeysDocumentOf(anime, 1)).toContain('a0: anime(slug: $s0) { id slug score views createdAt episodes lastEpisodeAt }');
-  });
-
-  it('fills every slot, so one document serves any number of rows, by repeating the last slug', () => {
-    expect(sortKeyVariablesOf(['a', 'b'], 4)).toEqual({ s0: 'a', s1: 'b', s2: 'b', s3: 'b' });
-    expect(sortKeyVariablesOf(['a'], 2)).toEqual({ s0: 'a', s1: 'a' });
-  });
-
-  it('reads the values by slug, skipping lookups that came back empty', () => {
-    const keys = readSortKeys({ a0: { slug: 'a', score: 1 }, a1: null, a2: { slug: 'b', score: 2 }, a3: { score: 3 } });
-    expect([...keys.keys()]).toEqual(['a', 'b']);
-    expect(keys.get('b')?.score).toBe(2);
-    expect(readSortKeys(null).size).toBe(0);
-    expect(readSortKeys(undefined).size).toBe(0);
   });
 });
