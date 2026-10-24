@@ -422,28 +422,60 @@ describe('installInventoryGuard', () => {
   describe('loading the rest of a list on request', () => {
     const page = (hasNextPage: boolean, endCursor: string | null) => ({ data: { userCards: { pageInfo: { hasNextPage, endCursor } } } });
     const everything = page(false, null);
+    const afterRefresh = (answers: unknown[]) => (index: number) => answers[index - 1];
+    const ownOf = (queries: { variables: Variables; options: Record<string, unknown> }[]) =>
+      queries.filter((query) => query.options[OWN_QUERY_OPTION] === true);
 
-    it('reads the list the site asked for last and says it is complete', async () => {
+    it('refreshes the list the site asked for last, then reads it and says it is complete', async () => {
       const { win, respond, browse, ask, loaded, queries } = rig({ answer: everything });
       await respond();
       browse(profileGrid('USER:1'));
       ask();
       await settle();
       expect(loaded).toEqual(['complete']);
-      expect(queries.map((query) => query.variables)).toEqual([profileGrid('USER:1')]);
+      expect(queries.map((query) => query.variables)).toEqual([profileGrid('USER:1'), profileGrid('USER:1')]);
+      expect(queries.map((query) => query.options.requestPolicy)).toEqual([REFRESH_POLICY, 'cache-first']);
+      expect(queries.map((query) => query.options[OWN_QUERY_OPTION])).toEqual([undefined, true]);
+      await win.happyDOM.close();
+    });
+
+    it('refreshes every page the site loaded before it pages on', async () => {
+      const { win, respond, browse, ask, loaded, queries } = rig({ answer: everything });
+      await respond();
+      browse(profileGrid('USER:1'));
+      browse({ ...profileGrid('USER:1'), after: 'c1' });
+      ask();
+      await settle();
+      await settle();
+      expect(loaded).toEqual(['complete']);
+      expect(queries.slice(0, 2).map((query) => query.variables.after)).toEqual([undefined, 'c1']);
+      expect(queries.slice(0, 2).every((query) => query.options.requestPolicy === REFRESH_POLICY)).toBe(true);
+      expect(ownOf(queries)).toHaveLength(1);
       await win.happyDOM.close();
     });
 
     it('pages on from the end cursor until the last page, then says it is complete', async () => {
       const answers = [page(true, 'c1'), page(true, 'c2'), everything];
-      const { win, respond, browse, ask, loaded, queries } = rig({ answer: (index: number) => answers[index] });
+      const { win, respond, browse, ask, loaded, queries } = rig({ answer: afterRefresh(answers) });
       await respond();
       browse(profileGrid('USER:1'));
       ask();
       await settle();
       expect(loaded).toEqual(['complete']);
-      expect(queries.map((query) => query.variables.after)).toEqual([undefined, 'c1', 'c2']);
-      expect(queries.map((query) => query.options.requestPolicy)).toEqual(['cache-first', 'network-only', 'network-only']);
+      const own = ownOf(queries);
+      expect(own.map((query) => query.variables.after)).toEqual([undefined, 'c1', 'c2']);
+      expect(own.map((query) => query.options.requestPolicy)).toEqual(['cache-first', 'network-only', 'network-only']);
+      await win.happyDOM.close();
+    });
+
+    it('still loads the rest when the refresh of the list failed', async () => {
+      const { win, respond, browse, ask, loaded, queries } = rig({ answer: (index: number) => (index === 0 ? { error: new Error('429') } : everything) });
+      await respond();
+      browse(profileGrid('USER:1'));
+      ask();
+      await settle();
+      expect(loaded).toEqual(['complete']);
+      expect(ownOf(queries)).toHaveLength(1);
       await win.happyDOM.close();
     });
 
@@ -487,7 +519,7 @@ describe('installInventoryGuard', () => {
       await settle();
       await settle();
       expect(loaded).toEqual(['complete']);
-      expect(queries).toHaveLength(1);
+      expect(ownOf(queries)).toHaveLength(1);
       ask();
       await settle();
       await settle();

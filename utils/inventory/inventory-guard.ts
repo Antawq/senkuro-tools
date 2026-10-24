@@ -136,17 +136,26 @@ export function installInventoryGuard(win: PageWindow): void {
 
   const publishListLoaded = (outcome: LoadOutcome) => win.document.dispatchEvent(new win.CustomEvent(LIST_LOADED_EVENT, { detail: encodeLoaded(outcome) }));
 
+  const refreshLatestList = (client: QueryClient): Promise<unknown> => {
+    const id = latestPage ? familyIdOf(latestPage.variables) : null;
+    const family = record.families().find((known) => known.id === id);
+    return family ? enqueueRefresh(client, [family]).catch(() => undefined) : Promise.resolve();
+  };
+
   win.document.addEventListener(LIST_LOAD_EVENT, () => {
     if (isLoading) return;
-    if (!attachedClient) {
+    const client = attachedClient;
+    if (!client) {
       publishListLoaded('partial');
       return;
     }
     isLoading = true;
-    void loadRest({ client: attachedClient, latestPage: () => latestPage, sleep }).then((outcome) => {
-      isLoading = false;
-      publishListLoaded(outcome);
-    });
+    void refreshLatestList(client)
+      .then(() => loadRest({ client, latestPage: () => latestPage, sleep }))
+      .then((outcome) => {
+        isLoading = false;
+        publishListLoaded(outcome);
+      });
   });
 
   learnFromFetch(win, ledger);
