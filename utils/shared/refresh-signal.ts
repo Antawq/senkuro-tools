@@ -1,3 +1,5 @@
+import { parseJson } from './json';
+
 export const REFRESH_REQUEST_EVENT = 'senkutools:inventory-refresh';
 export const REFRESH_RESULT_EVENT = 'senkutools:inventory-refresh-result';
 export const GUARD_ATTRIBUTE = 'data-senkutools-guard';
@@ -17,12 +19,8 @@ const OUTCOMES: readonly unknown[] = ['done', 'nothing', 'failed'];
 function readDetail(event: Event): Record<string, unknown> | null {
   const detail = (event as CustomEvent<unknown>).detail;
   if (typeof detail !== 'string') return null;
-  try {
-    const parsed: unknown = JSON.parse(detail);
-    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
+  const parsed = parseJson(detail);
+  return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null;
 }
 
 export const encodeRefreshRequest = (scope: RefreshScope): string => JSON.stringify({ scope });
