@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { FAST_PAGES, THROTTLED_DELAY_MS, delayForPage } from '../utils/shared/paging';
 import type { QueryClient } from '../utils/shared/urql-client';
 import { createListRecord, type Family, type PageRequest, type Variables } from '../utils/inventory/list-families';
 import { MAX_FILL_ROUNDS, REFRESH_POLICY, refreshFamilies, type RefreshEnv } from '../utils/inventory/list-refresh';
@@ -68,8 +69,13 @@ const setup = ({
     executeQuery: () => null,
     executeMutation: () => null,
   } as unknown as QueryClient;
-  const env: RefreshEnv = { client, fetch: fetcher, silent, record };
-  return { env, queries, order, flight, record, setItems: (next: number[]) => (list = next) };
+  const sleeps: number[] = [];
+  const sleep = (delayMs: number) => {
+    sleeps.push(delayMs);
+    return Promise.resolve();
+  };
+  const env: RefreshEnv = { client, fetch: fetcher, silent, record, sleep };
+  return { env, queries, order, flight, sleeps, record, setItems: (next: number[]) => (list = next) };
 };
 
 const page = (variables: Variables, options: Record<string, unknown> = {}): PageRequest => ({ document: 'doc', variables, options });
@@ -92,6 +98,19 @@ describe('refreshFamilies', () => {
     expect(queries.map((query) => query.variables.after)).toEqual([undefined, '9', '7']);
     expect(queries.every((query) => query.options.requestPolicy === REFRESH_POLICY && query.options.suspense === true)).toBe(true);
     expect(flight.max).toBe(3);
+  });
+
+  it('sends the first pages together and the rest one at a time, paced like the loader', async () => {
+    const empty = () => ({ data: { userCards: { pageInfo: { endCursor: null, hasNextPage: false }, edges: [] } } });
+    const { env, queries, flight, sleeps, record } = setup({ answer: empty });
+    const pages = [page({ userId: 'A' }), ...Array.from({ length: FAST_PAGES + 2 }, (_unused, index) => page({ userId: 'A', after: `c${index}` }))];
+    const family = recordPages(record, pages);
+    const report = await refreshFamilies(env, [family]);
+    expect(report).toEqual({ requests: FAST_PAGES + 3, failed: false });
+    expect(queries.map((query) => query.variables.after)).toEqual([undefined, ...pages.slice(1).map((entry) => entry.variables.after)]);
+    expect(flight.max).toBe(FAST_PAGES);
+    expect(sleeps).toEqual([delayForPage(FAST_PAGES), delayForPage(FAST_PAGES + 1), delayForPage(FAST_PAGES + 2)]);
+    expect(sleeps.every((delayMs) => delayMs === THROTTLED_DELAY_MS)).toBe(true);
   });
 
   it('marks its replays silent so the recorder never sees them', async () => {

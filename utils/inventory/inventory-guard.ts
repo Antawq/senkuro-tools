@@ -49,7 +49,9 @@ export function installInventoryGuard(win: PageWindow): void {
   let attachedClient: QueryClient | null = null;
   let isLoading = false;
 
-  const environment = (client: QueryClient): RefreshEnv => ({ client, fetch: (input, init) => win.fetch(input, init), silent, record });
+  const sleep = (ms: number) => (ms > 0 ? new Promise<void>((resolve) => win.setTimeout(resolve, ms)) : Promise.resolve());
+
+  const environment = (client: QueryClient): RefreshEnv => ({ client, fetch: (input, init) => win.fetch(input, init), silent, record, sleep });
 
   const onMutation = (client: QueryClient) => (result: MutationResult) => {
     const plan = planRefresh(result, record.families());
@@ -64,7 +66,6 @@ export function installInventoryGuard(win: PageWindow): void {
   };
 
   const publishListLoaded = (outcome: LoadOutcome) => win.document.dispatchEvent(new win.CustomEvent(LIST_LOADED_EVENT, { detail: encodeLoaded(outcome) }));
-  const sleep = (ms: number) => (ms > 0 ? new Promise<void>((resolve) => win.setTimeout(resolve, ms)) : Promise.resolve());
 
   win.document.addEventListener(LIST_LOAD_EVENT, () => {
     if (isLoading) return;

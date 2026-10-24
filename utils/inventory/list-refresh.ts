@@ -1,4 +1,5 @@
 import { parseJson } from '../shared/json';
+import { FAST_PAGES, delayForPage } from '../shared/paging';
 import type { QueryClient } from '../shared/urql-client';
 import { linked, readRawPage, type Family, type ListRecord, type PageRequest, type RawPage } from './list-families';
 
@@ -12,6 +13,7 @@ export interface RefreshEnv {
   fetch: Fetch;
   silent: WeakSet<object>;
   record: ListRecord;
+  sleep: (delayMs: number) => Promise<void>;
 }
 
 export interface RefreshReport {
@@ -57,9 +59,18 @@ async function fillBoundary(run: Run, family: Family, boundary: Boundary): Promi
   return added;
 }
 
+async function fetchPages(run: Run, pages: PageRequest[]): Promise<(RawPage | null)[]> {
+  const raws = await Promise.all(pages.slice(0, FAST_PAGES).map((page) => fetchPage(run, page)));
+  for (const [index, page] of pages.slice(FAST_PAGES).entries()) {
+    await run.sleep(delayForPage(FAST_PAGES + index));
+    raws.push(await fetchPage(run, page));
+  }
+  return raws;
+}
+
 async function refreshFamily(run: Run, family: Family): Promise<void> {
   const pages = [...family.pages];
-  const raws = await Promise.all(pages.map((page) => fetchPage(run, page)));
+  const raws = await fetchPages(run, pages);
   const filled = await Promise.all(
     pages.map((page, index) => {
       const next = pages[index + 1];
