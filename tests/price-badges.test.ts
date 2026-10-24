@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createPriceBadges } from '../utils/badges/price-badges';
 import { visibleName } from '../utils/shared/copy-button';
@@ -22,6 +22,7 @@ const render = (html: string) => {
 };
 
 beforeEach(() => document.body.replaceChildren());
+afterEach(() => vi.restoreAllMocks());
 
 const AXIS_X = {
   left: { '--s-left': '5px', '--s-align': 'left' },
@@ -189,6 +190,32 @@ describe('createPriceBadges', () => {
     expect(Number.parseFloat(holder?.style.getPropertyValue('--s-size') ?? '')).toBeLessThan(DEFAULT_SETTINGS.fontSize);
   });
 
+  it('measures every card of a batch before it paints any of them, so a batch costs one layout and not one per card', () => {
+    document.body.innerHTML = preview().repeat(3);
+    const read = vi.fn();
+    const reading = (value: unknown) => ({
+      get: () => {
+        read();
+        return value;
+      },
+    });
+    for (const root of document.querySelectorAll<HTMLElement>('.card-collect-preview')) {
+      const face = root.querySelector('.card-collect-preview__flip-container') as HTMLElement;
+      const link = root.querySelector('.card-collect-preview__front a.card-collect') as HTMLElement;
+      Object.defineProperties(link, { offsetWidth: reading(100) });
+      Object.defineProperties(face, { offsetParent: reading(root), offsetTop: reading(0), offsetHeight: reading(150) });
+      Object.defineProperties(root, { offsetHeight: reading(150) });
+    }
+    const setAttribute = vi.spyOn(Element.prototype, 'setAttribute');
+    createPriceBadges({ touch: false }).update(db, DEFAULT_SETTINGS);
+    const paints = [...setAttribute.mock.calls.entries()].flatMap(([index, [name]]) =>
+      name === 'data-senkuro-price' ? [setAttribute.mock.invocationCallOrder[index] ?? 0] : []
+    );
+    expect(paints).toHaveLength(3);
+    expect(read).toHaveBeenCalled();
+    expect(Math.min(...paints)).toBeGreaterThan(Math.max(...read.mock.invocationCallOrder));
+  });
+
   it('prices only the provided batch of cards when specified', () => {
     document.body.innerHTML = `
       <div id="c1" class="card-collect-preview"><div class="card-collect-preview__front"><a class="card-collect" href="/cards/soran"></a></div></div>
@@ -216,6 +243,26 @@ describe('createPriceBadges', () => {
       createPriceBadges({ touch: false }).update(db, { ...pricesOff, copyBtn: true });
       expect(document.querySelector('[data-senkuro-price]')).toBeNull();
       expect((document.querySelector('.senkuro-copy-btn') as HTMLElement).dataset.charName).toBe('Соран');
+    });
+
+    it('reads no layout when it has nothing to draw, and does when the copy button is on', () => {
+      document.body.innerHTML = preview().repeat(2);
+      const read = vi.fn();
+      for (const link of document.querySelectorAll<HTMLElement>('a.card-collect')) {
+        Object.defineProperty(link, 'offsetWidth', {
+          get: () => {
+            read();
+            return 100;
+          },
+        });
+      }
+      const computed = vi.spyOn(window, 'getComputedStyle');
+      createPriceBadges({ touch: false }).update(db, pricesOff);
+      expect(read).not.toHaveBeenCalled();
+      expect(computed).not.toHaveBeenCalled();
+      document.body.querySelectorAll('[data-price-badge-added]').forEach((link) => link.removeAttribute('data-price-badge-added'));
+      createPriceBadges({ touch: false }).update(db, { ...pricesOff, copyBtn: true });
+      expect(read).toHaveBeenCalled();
     });
 
     it('takes the copy button away when it is switched off while the prices are off', () => {

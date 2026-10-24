@@ -87,10 +87,21 @@ interface Spot {
   gap: FaceGap;
 }
 
-function holdersOf(card: HTMLAnchorElement): Holders {
+interface Measured {
+  holders: Holders;
+  slug: string;
+  entry: CardEntry;
+  isUndrawn: boolean;
+  isUnpositioned: boolean;
+  isCovered: boolean;
+  gap: FaceGap;
+}
+
+function holdersOf(card: HTMLAnchorElement, shouldMeasure: boolean): Holders {
   const front = card.closest<HTMLElement>('.card-collect-preview__front');
   const preview = card.closest<HTMLElement>('.card-collect-preview');
-  return { card, front, preview, target: preview ?? card, width: card.offsetWidth || card.getBoundingClientRect().width };
+  const width = shouldMeasure ? card.offsetWidth || card.getBoundingClientRect().width : 0;
+  return { card, front, preview, target: preview ?? card, width };
 }
 
 const isSmall = ({ width }: Holders): boolean => width > 0 && width < SMALL_CARD_WIDTH;
@@ -128,11 +139,11 @@ function paint(holders: Holders, price: number, settings: Settings, shades: Shad
   }
 }
 
-function place({ target, preview }: Holders, settings: Settings): Spot {
+function place({ target }: Holders, settings: Settings, { isCovered, gap }: Pick<Measured, 'isCovered' | 'gap'>): Spot {
   const spot: Spot = {
-    positionX: coveredInStack(target) ? VISIBLE_EDGE : settings.positionX,
+    positionX: isCovered ? VISIBLE_EDGE : settings.positionX,
     positionY: settings.positionY,
-    gap: preview ? faceGap(preview) : NO_GAP,
+    gap,
   };
   const key = `${spot.positionX}-${spot.positionY}${gapKey(spot.gap)}`;
   if (target.dataset.badgePos !== key) {
@@ -145,37 +156,36 @@ function place({ target, preview }: Holders, settings: Settings): Spot {
 export function createPriceBadges({ touch }: { touch: boolean }): PriceBadges {
   const positioned = new WeakSet<HTMLElement>();
 
-  function makePositioned(target: HTMLElement): void {
-    if (positioned.has(target)) return;
-    if (getComputedStyle(target).position === 'static') target.style.position = 'relative';
+  function measure(card: HTMLAnchorElement, db: Database, settings: Settings): Measured | null {
+    if (!card.isConnected || card.closest(BACK_FACE)) return null;
+    const slug = slugFromHref(card.getAttribute('href'));
+    if (!slug || card.dataset.priceBadgeAdded === slug) return null;
+    const entry = db[slug];
+    if (!entry || !Number.isFinite(entry.price)) return null;
+    const holders = holdersOf(card, settings.showBadges || settings.copyBtn);
+    const { target } = holders;
+    const isUndrawn = isTooNarrow(holders) || (!settings.showBadges && (!settings.copyBtn || isSmall(holders)));
+    const isUnpositioned = !isUndrawn && !positioned.has(target) && getComputedStyle(target).position === 'static';
+    return { holders, slug, entry, isUndrawn, isUnpositioned, isCovered: !isUndrawn && coveredInStack(target), gap: NO_GAP };
+  }
+
+  function position({ holders: { target }, isUnpositioned }: Measured): void {
+    if (isUnpositioned) target.style.position = 'relative';
     positioned.add(target);
   }
 
-  function show(holders: Holders, entry: CardEntry, settings: Settings, shades: Shades): void {
+  function show(measured: Measured, settings: Settings, shades: Shades): void {
+    const { holders, entry, slug, isUndrawn } = measured;
     const { target } = holders;
-    const hasCopyButton = settings.copyBtn && !isSmall(holders);
-    if (!settings.showBadges && !hasCopyButton) {
-      clearHolders(holders);
-      return;
+    if (isUndrawn) clearHolders(holders);
+    else {
+      clearHolders(holders, target);
+      if (settings.showBadges) paint(holders, entry.price, settings, shades);
+      const spot = place(holders, settings, measured);
+      if (settings.copyBtn && !isSmall(holders)) syncCopyButton(target, { name: entry.name || UNKNOWN_NAME, size: settings.copyBtnSize, ...spot, touch });
+      else removeCopyButton(target);
     }
-    makePositioned(target);
-    clearHolders(holders, target);
-    if (settings.showBadges) paint(holders, entry.price, settings, shades);
-    const spot = place(holders, settings);
-    if (hasCopyButton) syncCopyButton(target, { name: entry.name || UNKNOWN_NAME, size: settings.copyBtnSize, ...spot, touch });
-    else removeCopyButton(target);
-  }
-
-  function render(card: HTMLAnchorElement, db: Database, settings: Settings, shades: Shades): void {
-    if (!card.isConnected || card.closest(BACK_FACE)) return;
-    const slug = slugFromHref(card.getAttribute('href'));
-    if (!slug || card.dataset.priceBadgeAdded === slug) return;
-    const entry = db[slug];
-    if (!entry || !Number.isFinite(entry.price)) return;
-    const holders = holdersOf(card);
-    if (isTooNarrow(holders)) clearHolders(holders);
-    else show(holders, entry, settings, shades);
-    card.dataset.priceBadgeAdded = slug;
+    holders.card.dataset.priceBadgeAdded = slug;
   }
 
   const reset = () => {
@@ -187,7 +197,11 @@ export function createPriceBadges({ touch }: { touch: boolean }): PriceBadges {
     update(db, settings, cards?: Iterable<HTMLAnchorElement>) {
       const shades = shadesOf(settings.opacity);
       const list = cards ?? document.querySelectorAll<HTMLAnchorElement>(CARD_LINK);
-      for (const card of list) render(card, db, settings, shades);
+      const batch = [...new Set(list)].flatMap((card) => measure(card, db, settings) ?? []);
+      const drawn = batch.filter(({ isUndrawn }) => !isUndrawn);
+      drawn.forEach(position);
+      for (const item of drawn) if (item.holders.preview) item.gap = faceGap(item.holders.preview);
+      for (const item of batch) show(item, settings, shades);
     },
     reset,
     resetPage() {
