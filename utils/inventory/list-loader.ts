@@ -1,7 +1,7 @@
 import type { LoadOutcome } from '../shared/list-signal';
 import { delayForPage } from '../shared/paging';
 import type { QueryClient } from '../shared/urql-client';
-import { familyIdOf, type PageRequest } from './list-families';
+import { OWN_QUERY_OPTION, familyIdOf, type PageRequest } from './list-families';
 
 export const MAX_LOAD_PAGES = 300;
 
@@ -26,7 +26,8 @@ interface ListResult {
 
 async function fetchPageInfo(host: LoadHost, page: PageRequest, after: unknown, policy: string): Promise<PageInfo | null> {
   const variables = after === undefined ? page.variables : { ...page.variables, after };
-  const queryResult = (await host.client.query(page.document, variables, { ...page.options, requestPolicy: policy }).toPromise()) as ListResult | undefined;
+  const options = { ...page.options, requestPolicy: policy, [OWN_QUERY_OPTION]: true };
+  const queryResult = (await host.client.query(page.document, variables, options).toPromise()) as ListResult | undefined;
   return queryResult?.error ? null : (queryResult?.data?.userCards?.pageInfo ?? null);
 }
 

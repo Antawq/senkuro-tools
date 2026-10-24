@@ -1,4 +1,5 @@
 export const LIST_OPERATION = 'fetchUserCards';
+export const OWN_QUERY_OPTION = 'senkutoolsOwn';
 
 const CURSOR_KEY = 'after';
 const NEWEST_FIRST_FIELD = 'CREATED_AT';

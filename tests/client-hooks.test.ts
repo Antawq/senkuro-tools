@@ -4,7 +4,7 @@ import { filter, make, onPush, pipe, subscribe, take, toPromise } from 'wonka';
 import type { Source } from 'wonka';
 
 import { recordLists, tapMutations, type MutationResult } from '../utils/inventory/client-hooks';
-import { LIST_OPERATION, type PageRequest } from '../utils/inventory/list-families';
+import { LIST_OPERATION, OWN_QUERY_OPTION, type PageRequest } from '../utils/inventory/list-families';
 import type { QueryClient, QueryRequest } from '../utils/shared/urql-client';
 
 const request = (name: string, variables: Record<string, unknown> = {}): QueryRequest => ({
@@ -184,5 +184,95 @@ describe('tapMutations', () => {
     const frozen = clientWith().client;
     Object.freeze(frozen);
     expect(tap(frozen).patched).toBe(false);
+  });
+});
+
+describe('recordLists and the first page of a list shown from the cache', () => {
+  const listResult = (cacheOutcome: string, overrides: Record<string, unknown> = {}) => ({
+    data: {},
+    stale: false,
+    hasNext: false,
+    operation: { context: { meta: { cacheOutcome } } },
+    ...overrides,
+  });
+
+  const clientAnswering = (results: Record<string, unknown>[]) => {
+    const client: QueryClient = {
+      executeQuery: () =>
+        make<Record<string, unknown>>((observer) => {
+          results.forEach((result) => observer.next(result));
+          observer.complete();
+          return () => undefined;
+        }),
+      executeMutation: () => null,
+      query: () => ({ toPromise: () => Promise.resolve({}) }),
+    };
+    return client;
+  };
+
+  const watch = (results: Record<string, unknown>[], variables: Record<string, unknown>, options?: Record<string, unknown>, operation = LIST_OPERATION) => {
+    const client = clientAnswering(results);
+    const hits: PageRequest[] = [];
+    const pages: PageRequest[] = [];
+    recordLists(
+      client,
+      (page) => pages.push(page),
+      new WeakSet(),
+      (page) => hits.push(page)
+    );
+    const seen: unknown[] = [];
+    pipe(
+      client.executeQuery(request(operation, variables), options) as Source<unknown>,
+      subscribe((result) => seen.push(result))
+    );
+    return { hits, pages, seen };
+  };
+
+  it('reports the first page the cache answered completely, once however many results follow, and still gives the site every result', () => {
+    const { hits, seen } = watch([listResult('hit'), listResult('hit'), listResult('hit')], { userId: 'USER:1' });
+    expect(hits.map((page) => page.variables)).toEqual([{ userId: 'USER:1' }]);
+    expect(seen).toHaveLength(3);
+  });
+
+  it('ignores a first page the network answered or the cache answered only in part', () => {
+    expect(watch([listResult('miss')], { userId: 'USER:1' }).hits).toEqual([]);
+    expect(watch([listResult('partial')], { userId: 'USER:1' }).hits).toEqual([]);
+    expect(watch([{ data: {}, stale: false, hasNext: false }], { userId: 'USER:1' }).hits).toEqual([]);
+  });
+
+  it('judges only the first result of a request, so a later result never starts anything', () => {
+    expect(watch([listResult('miss'), listResult('hit')], { userId: 'USER:1' }).hits).toEqual([]);
+    expect(watch([listResult('hit', { stale: true }), listResult('miss')], { userId: 'USER:1' }).hits).toEqual([]);
+  });
+
+  it('ignores a later page, a request of another operation and a request with no variables to name a list', () => {
+    expect(watch([listResult('hit')], { userId: 'USER:1', after: 'c1' }).hits).toEqual([]);
+    expect(watch([listResult('hit')], { userId: 'USER:1' }, undefined, 'fetchViewer').hits).toEqual([]);
+  });
+
+  it('ignores the queries the extension makes for itself and records them without the marker', () => {
+    const { hits, pages } = watch([listResult('hit')], { userId: 'USER:1' }, { [OWN_QUERY_OPTION]: true, requestPolicy: 'network-only', suspense: true });
+    expect(hits).toEqual([]);
+    expect(pages.map((page) => page.options)).toEqual([{ suspense: true }]);
+  });
+
+  it('hands back the stream untouched when nobody asked for cache hits, and whatever is not a stream as it is', () => {
+    const client = clientAnswering([listResult('hit')]);
+    const plain = client.executeQuery(request(LIST_OPERATION, { userId: 'USER:1' }));
+    recordLists(client, () => undefined, new WeakSet());
+    expect(typeof client.executeQuery(request(LIST_OPERATION, { userId: 'USER:1' }))).toBe('function');
+    expect(typeof plain).toBe('function');
+    const notStream = { not: 'a source' };
+    const other = clientAnswering([]);
+    other.executeQuery = () => notStream;
+    const hits: PageRequest[] = [];
+    recordLists(
+      other,
+      () => undefined,
+      new WeakSet(),
+      (page) => hits.push(page)
+    );
+    expect(other.executeQuery(request(LIST_OPERATION, { userId: 'USER:1' }))).toBe(notStream);
+    expect(hits).toEqual([]);
   });
 });

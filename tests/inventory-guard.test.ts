@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import { Window } from 'happy-dom';
-import { make } from 'wonka';
+import { make, pipe, subscribe } from 'wonka';
+import type { Source } from 'wonka';
 
 import type { MutationResult } from '../utils/inventory/client-hooks';
-import { LIST_OPERATION, createListRecord, type Variables } from '../utils/inventory/list-families';
+import { LIST_OPERATION, OWN_QUERY_OPTION, createListRecord, type Variables } from '../utils/inventory/list-families';
 import { installInventoryGuard, planRefresh } from '../utils/inventory/inventory-guard';
 import { REFRESH_POLICY } from '../utils/inventory/list-refresh';
 import { LIST_LOAD_EVENT, LIST_LOADED_EVENT, readLoaded, type LoadOutcome } from '../utils/shared/list-signal';
@@ -65,9 +66,10 @@ interface Rig {
   mounted?: boolean;
   results?: MutationResult[];
   slow?: boolean;
+  outcomes?: string[];
 }
 
-const rig = ({ answer = {}, mounted = true, results = [], slow = false }: Rig = {}) => {
+const rig = ({ answer = {}, mounted = true, results = [], slow = false, outcomes }: Rig = {}) => {
   const win = new Window({ url: 'https://senkuro.me/forge/split' });
   win.document.body.innerHTML = '<div id="app"></div>';
   const queries: { variables: Variables; options: Record<string, unknown> }[] = [];
@@ -77,7 +79,12 @@ const rig = ({ answer = {}, mounted = true, results = [], slow = false }: Rig = 
   const client: QueryClient = {
     executeQuery: (asked) => {
       reached.push(asked.variables ?? {});
-      return null;
+      if (!outcomes) return null;
+      return make<Record<string, unknown>>((observer) => {
+        outcomes.forEach((cacheOutcome) => observer.next({ data: {}, stale: false, hasNext: false, operation: { context: { meta: { cacheOutcome } } } }));
+        observer.complete();
+        return () => undefined;
+      });
     },
     executeMutation: () =>
       make<MutationResult>((observer) => {
@@ -110,7 +117,15 @@ const rig = ({ answer = {}, mounted = true, results = [], slow = false }: Rig = 
   if (mounted) mount();
   installInventoryGuard(win as unknown as Parameters<typeof installInventoryGuard>[0]);
   const respond = () => win.fetch(GRAPHQL, { method: 'POST', body: JSON.stringify({ operationName: 'fetchViewer' }) });
-  const browse = (variables: Variables) => client.executeQuery(request(LIST_OPERATION, variables));
+  const browse = (variables: Variables, options?: Record<string, unknown>) => {
+    const source = client.executeQuery(request(LIST_OPERATION, variables), options);
+    if (typeof source === 'function')
+      pipe(
+        source as Source<unknown>,
+        subscribe(() => undefined)
+      );
+    return source;
+  };
   const mutate = (name: string) => (client.executeMutation(request(name)) as { toPromise(): Promise<MutationResult> }).toPromise();
   const loaded: (LoadOutcome | null)[] = [];
   win.document.addEventListener(LIST_LOADED_EVENT, (event) => loaded.push(readLoaded(event as unknown as Event)));
@@ -341,6 +356,64 @@ describe('installInventoryGuard', () => {
       sendRefreshDetail(JSON.stringify({ scope: 'all' }));
       await settle();
       expect(refreshed).toEqual([]);
+      expect(queries).toHaveLength(0);
+      await win.happyDOM.close();
+    });
+  });
+
+  describe('refreshing a list the site showed from its cache', () => {
+    it('refreshes every recorded page of a list when the site shows its first page from the cache', async () => {
+      const { win, respond, browse, queries } = rig({ outcomes: ['hit'] });
+      await respond();
+      browse(cardsGrid('USER:1', 'c1'));
+      browse(cardsGrid('USER:1'));
+      await settle();
+      expect(queries.map((query) => query.variables.after)).toEqual([undefined, 'c1']);
+      expect(queries.every((query) => query.options.requestPolicy === REFRESH_POLICY)).toBe(true);
+      await win.happyDOM.close();
+    });
+
+    it('leaves a first page the network answered alone', async () => {
+      const { win, respond, browse, queries } = rig({ outcomes: ['miss'] });
+      await respond();
+      browse(cardsGrid('USER:1'));
+      await settle();
+      expect(queries).toHaveLength(0);
+      await win.happyDOM.close();
+    });
+
+    it('refreshes only the list that came from the cache', async () => {
+      const { win, respond, browse, queries } = rig({ outcomes: ['hit'] });
+      await respond();
+      browse(cardsGrid('USER:2'));
+      await settle();
+      queries.length = 0;
+      browse(cardsGrid('USER:1'));
+      await settle();
+      expect(queries.map((query) => query.variables.userId)).toEqual(['USER:1']);
+      await win.happyDOM.close();
+    });
+
+    it('does not queue a second refresh of a list while one is waiting, nor for the results that follow the first', async () => {
+      const { win, respond, browse, queries } = rig({ outcomes: ['hit', 'hit', 'hit'], slow: true });
+      await respond();
+      browse(cardsGrid('USER:1'));
+      browse(cardsGrid('USER:1'));
+      await settle();
+      await settle();
+      expect(queries).toHaveLength(1);
+      browse(cardsGrid('USER:1'));
+      await settle();
+      await settle();
+      expect(queries).toHaveLength(2);
+      await win.happyDOM.close();
+    });
+
+    it('ignores the lists the extension reads for itself', async () => {
+      const { win, respond, browse, queries } = rig({ outcomes: ['hit'] });
+      await respond();
+      browse(cardsGrid('USER:1'), { [OWN_QUERY_OPTION]: true });
+      await settle();
       expect(queries).toHaveLength(0);
       await win.happyDOM.close();
     });

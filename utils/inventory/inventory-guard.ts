@@ -107,6 +107,22 @@ export function installInventoryGuard(win: PageWindow): void {
     return report.failed ? 'failed' : 'done';
   };
 
+  const pendingFamilies = new Set<string>();
+
+  const refreshOnCacheHit = (page: PageRequest) => {
+    const client = attachedClient;
+    const id = familyIdOf(page.variables);
+    const family = record.families().find((known) => known.id === id);
+    if (!client || !family || pendingFamilies.has(id)) return;
+    pendingFamilies.add(id);
+    void enqueueRefresh(client, [family])
+      .then(
+        (report) => debug('list refreshed after a cache hit', { pages: family.pages.length, ...report }),
+        () => undefined
+      )
+      .finally(() => pendingFamilies.delete(id));
+  };
+
   const publishRefreshResult = (scope: RefreshScope, outcome: RefreshOutcome) =>
     win.document.dispatchEvent(new win.CustomEvent(REFRESH_RESULT_EVENT, { detail: encodeRefreshResult({ scope, outcome }) }));
 
@@ -143,7 +159,8 @@ export function installInventoryGuard(win: PageWindow): void {
         latestPage = page;
         record.record(page, win.location.pathname);
       },
-      silent
+      silent,
+      refreshOnCacheHit
     );
     const isTapping = tapMutations(client, onMutation(client));
     const isGuarding = guardCursors(client, (variables) => debug('stale cursor dropped', { list: familyIdOf(variables), after: variables.after }), ledger);
