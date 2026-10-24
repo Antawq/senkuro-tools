@@ -7,6 +7,11 @@ import { hasCursor, LIST_OPERATION, OWN_QUERY_OPTION, type PageRequest } from '.
 const POLICY_OPTION = 'requestPolicy';
 const CACHE_HIT = 'hit';
 
+export interface PriceRewriter {
+  watch: (request: QueryRequest, options: Record<string, unknown> | undefined) => void;
+  rewrite: (request: QueryRequest) => QueryRequest;
+}
+
 export interface MutationResult {
   operation?: QueryRequest;
   data?: Record<string, unknown> | null;
@@ -20,6 +25,7 @@ interface ListOperationResult extends SourceResult {
 }
 
 const recording = new WeakSet<QueryClient>();
+const rewriting = new WeakSet<QueryClient>();
 const tapping = new WeakSet<QueryClient>();
 
 const withoutOwnOptions = (options: Record<string, unknown> | undefined): Record<string, unknown> =>
@@ -62,6 +68,22 @@ export function recordLists(
     return false;
   }
   recording.add(client);
+  return true;
+}
+
+export function rewriteLists(client: QueryClient, view: PriceRewriter): boolean {
+  if (rewriting.has(client)) return true;
+  const original = client.executeQuery.bind(client);
+  try {
+    client.executeQuery = (request, options) => {
+      if (operationName(request) !== LIST_OPERATION) return original(request, options);
+      view.watch(request, options);
+      return original(view.rewrite(request), options);
+    };
+  } catch {
+    return false;
+  }
+  rewriting.add(client);
   return true;
 }
 

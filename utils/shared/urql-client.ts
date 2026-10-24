@@ -18,6 +18,8 @@ export interface QueryClient {
   executeQuery(request: QueryRequest, options?: Record<string, unknown>): unknown;
   executeMutation(request: QueryRequest, options?: Record<string, unknown>): unknown;
   query(queryDocument: unknown, variables: Variables, options?: Record<string, unknown>): { toPromise(): Promise<unknown> };
+  createRequestOperation?(kind: string, request: QueryRequest, options?: Record<string, unknown>): unknown;
+  reexecuteOperation?(operation: unknown): void;
 }
 
 interface Waiting {

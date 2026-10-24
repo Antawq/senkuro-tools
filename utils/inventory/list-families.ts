@@ -52,15 +52,15 @@ const sortKeys = (_key: string, value: unknown): unknown =>
     ? Object.fromEntries(Object.entries(value).sort(([left], [right]) => left.localeCompare(right)))
     : value;
 
-const stable = (value: unknown): string => JSON.stringify(value, sortKeys);
+export const stableJson = (value: unknown): string => JSON.stringify(value, sortKeys);
 
 const withoutCursor = (variables: Variables): Variables => Object.fromEntries(Object.entries(variables).filter(([key]) => key !== CURSOR_KEY));
 
-export const familyIdOf = (variables: Variables): string => stable(withoutCursor(variables));
+export const familyIdOf = (variables: Variables): string => stableJson(withoutCursor(variables));
 
 export const hasCursor = (variables: Variables): boolean => variables[CURSOR_KEY] != null;
 
-export const pageIdOf = (variables: Variables): string => stable(hasCursor(variables) ? variables : withoutCursor(variables));
+export const pageIdOf = (variables: Variables): string => stableJson(hasCursor(variables) ? variables : withoutCursor(variables));
 
 export const isNewestFirst = (filters: Variables): boolean =>
   (filters.orderField == null || filters.orderField === NEWEST_FIRST_FIELD) &&
