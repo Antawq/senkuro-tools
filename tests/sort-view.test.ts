@@ -419,6 +419,14 @@ describe('the view once the list is sorted', () => {
     expect(grid()?.hasAttribute('data-senkutools-sort-state')).toBe(false);
   });
 
+  it('sends no order for the rows of the list it left, even when the prices change while the new list loads', () => {
+    const { sort, state, orders } = ready();
+    state('loading', 0, null);
+    sort.sync({ ...database, mid: { price: 999, name: 'Mid', rank: 'D' } }, settings);
+    sort.sync(database, { commission: true });
+    expect(orders).toHaveLength(1);
+  });
+
   it('ignores rows that come when it is not waiting for them', () => {
     const { rows, orders } = ready();
     rows(5, ['mid']);
