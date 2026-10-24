@@ -785,14 +785,14 @@ describe('isTradeMutation', () => {
     expect(recordsOf(() => (hint.data = 'Получишь 2 • Отдашь 1')).some(isTradeMutation)).toBe(true);
   });
 
-  it('ignores the refresh button the extension adds to the header of a trade window', () => {
-    modal('Прими решение обмена', reviewFooter);
-    const header = document.querySelector('.modal-trade__header, header') as Element;
+  it('ignores the refresh button the extension adds to the list toolbar of a trade window', () => {
+    modal('Выбери до 50 карт, которые готов отдать взамен', '<div class="modal-trade__body"><div class="modal-trade__header-form"></div></div>');
+    const toolbar = document.querySelector('.modal-trade__header-form') as Element;
     expect(
       recordsOf(() => {
         const own = document.createElement('button');
         own.className = MODAL_REFRESH_CLASS;
-        header.append(own);
+        toolbar.append(own);
       }).some(isTradeMutation)
     ).toBe(false);
   });
