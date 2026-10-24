@@ -10,7 +10,6 @@ const trade = (id: string, offer: CardRef[], request: CardRef[], source = 'Он'
   id,
   source: { id: 's', name: source },
   destination: { id: 'd', name: destination },
-  createdAt: null,
   offer,
   request,
 });
@@ -31,13 +30,6 @@ describe('matchTrade', () => {
 
   it('takes either of two identical trades', () => {
     expect(matchTrade([trade('t1', four, []), trade('t2', four, [])], ['Он', null], [side(four.slice(0, 3), 1), side([])])?.id).toBe('t1');
-  });
-
-  it('keeps the time of identical trades only when they were sent together', () => {
-    const at = (id: string, createdAt: string): Trade => ({ ...trade(id, four, []), createdAt });
-    const sides: [Side, Side] = [side(four.slice(0, 3), 1), side([])];
-    expect(matchTrade([at('t1', '2026-10-17T10:00:00'), at('t2', '2026-10-17T10:00:00')], ['Он', null], sides)?.createdAt).toBe('2026-10-17T10:00:00');
-    expect(matchTrade([at('t1', '2026-10-17T10:00:00'), at('t2', '2026-10-18T09:00:00')], ['Он', null], sides)).toMatchObject({ id: 't1', createdAt: null });
   });
 
   it('checks the names and the quantities', () => {

@@ -241,11 +241,6 @@
   color: var(--text-tertiary);
 }
 
-.senkuro-trade-summary__time {
-  color: var(--text-secondary, var(--text-primary));
-  font-variant-numeric: tabular-nums;
-}
-
 .senkuro-trade-summary__verdict {
   --senkuro-pill-fill: var(--senkuro-neutral-fill);
   --senkuro-pill-text: var(--text-secondary, var(--text-primary));

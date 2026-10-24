@@ -46,7 +46,6 @@ const skyTrade: Trade = {
   id: 't1',
   source: { id: 'u1', name: 'Phaivroh | WL' },
   destination: { id: 'u2', name: 'Молюсь на Sky | WS' },
-  createdAt: null,
   offer: previews(phaivroh),
   request: previews(sky),
 };
@@ -744,68 +743,6 @@ describe('trade lists outside the modal', () => {
     document.body.append(el);
     updateTradeSummaries(db, settings, store);
     expect(summaryOf(el)).toEqual({ sides: skySides, verdict: 'Потеря -67.6F (-78%)', grayVerdict: false });
-  });
-});
-
-describe('trade time', () => {
-  const sent = new Date(2026, 9, 17, 23, 31, 5);
-  const sentAt = `${sent.toISOString().slice(0, -1)}657`;
-  const sentText = 'Отправлен 17.10.26, 23:31';
-  const timed = { ...skyTrade, createdAt: sentAt };
-  const timeOf = (el: HTMLElement) => el.querySelector('.senkuro-trade-summary__time');
-  const notification = () => {
-    const el = document.createElement('div');
-    el.className = 'card-notif';
-    el.innerHTML = `
-      <div class="card-notif__source-title">Phaivroh | WL</div>
-      <div class="card-notif__info"><div class="card-notif__info-hint">Получишь 4 • Отдашь 5</div></div>`;
-    document.body.append(el);
-    return el;
-  };
-
-  it('tells when an incoming trade was sent', () => {
-    store.add({ viewerId: 'u2', items: [timed] });
-    const el = modal(
-      'Прими решение обмена',
-      reviewBody(panel('Phaivroh | WL', 4, cardsOf(phaivroh)), panel('Молюсь на Sky | WS', 5, cardsOf(sky))) + reviewFooter
-    );
-    updateTradeSummaries(db, settings, store);
-    expect(timeOf(el)?.textContent).toBe(sentText);
-    expect(timeOf(el)?.getAttribute('datetime')).toBe(sent.toISOString());
-  });
-
-  it('tells when a history entry was sent and keeps the time out of the folding table', () => {
-    store.add({ viewerId: 'u2', items: [timed] });
-    const el = historyItem(true);
-    updateTradeSummaries(db, settings, store);
-    expect(timeOf(el)?.textContent).toBe(sentText);
-    expect(timeOf(el)?.closest('.senkuro-trade-summary__details')).toBeNull();
-  });
-
-  it('leaves the time out when identical trades were sent at different times', () => {
-    store.add({ viewerId: 'u2', items: [timed, { ...timed, id: 't2', createdAt: '2026-10-16T08:00:00.000001' }] });
-    const el = historyItem(true);
-    updateTradeSummaries(db, settings, store);
-    expect(summaryOf(el)).toEqual({ sides: skySides, verdict: 'Потеря -67.6F (-78%)', grayVerdict: false });
-    expect(timeOf(el)).toBeNull();
-  });
-
-  it('leaves the time to a notification, which shows its own date', () => {
-    store.add({ items: [timed] });
-    const el = notification();
-    updateTradeSummaries(db, settings, store);
-    expect(summaryOf(el)).not.toBeNull();
-    expect(timeOf(el)).toBeNull();
-  });
-
-  it('adds the time to a summary already drawn once the time arrives', () => {
-    store.add({ viewerId: 'u2', items: [skyTrade] });
-    const el = historyItem(true);
-    updateTradeSummaries(db, settings, store);
-    expect(timeOf(el)).toBeNull();
-    store.add({ items: [timed] });
-    updateTradeSummaries(db, settings, store);
-    expect(timeOf(el)?.textContent).toBe(sentText);
   });
 });
 

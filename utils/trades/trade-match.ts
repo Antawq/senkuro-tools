@@ -25,13 +25,8 @@ const single = <T extends Trade | Offer>(hits: T[]): T | null => {
   return hits.length > 0 && contents.size === 1 ? (hits[0] ?? null) : null;
 };
 
-const singleTrade = (hits: Trade[]): Trade | null => {
-  const trade = single(hits);
-  return trade && hits.some((hit) => hit.createdAt !== trade.createdAt) ? { ...trade, createdAt: null } : trade;
-};
-
 export const matchTrade = (trades: Trade[], [sourceName, destinationName]: [string, string | null], [offerSide, requestSide]: [Side, Side]): Trade | null =>
-  singleTrade(
+  single(
     trades.filter(
       (trade) =>
         trade.source.name === sourceName &&
@@ -42,7 +37,7 @@ export const matchTrade = (trades: Trade[], [sourceName, destinationName]: [stri
   );
 
 export const matchTradeByCounts = (trades: Trade[], sourceName: string, offerCount: number, requestCount: number): Trade | null =>
-  singleTrade(trades.filter((trade) => trade.source.name === sourceName && trade.offer.length === offerCount && trade.request.length === requestCount));
+  single(trades.filter((trade) => trade.source.name === sourceName && trade.offer.length === offerCount && trade.request.length === requestCount));
 
 export const matchOffer = (offers: Offer[], authorName: string, top: Side, middle: Side): Offer | null =>
   single(

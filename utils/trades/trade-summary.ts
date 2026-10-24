@@ -1,7 +1,6 @@
 import type { Database } from '../shared/database';
 import { element } from '../shared/dom';
 import { chevronIcon } from '../shared/svg';
-import { formatTradeTime, parseApiTime } from '../shared/time';
 import {
   F_UNIT,
   R_RANK,
@@ -31,7 +30,6 @@ const STAGGER_LIMIT = 6;
 const UNKNOWN = `${SUMMARY}__unknown`;
 const TOGGLE_LABEL = 'Подробности';
 const EMPTY_CELL = '-';
-const SENT_LABEL = 'Отправлен';
 
 type RowKey = 'value' | 'bank' | 'count';
 
@@ -191,26 +189,23 @@ function mount({ host, placement, variant }: Place, order: number): HTMLElement 
 
 interface View {
   caption: string | undefined;
-  sentAt: Date | null;
   sides: SideView[];
   settings: SummarySettings;
   verdict: Verdict | null;
   rVerdict: Verdict | null;
 }
 
-function viewOf({ caption, sentAt }: Place, columns: Column[], db: Database, settings: SummarySettings): View {
+function viewOf(caption: string | undefined, columns: Column[], db: Database, settings: SummarySettings): View {
   const sides = columns.map((column) => describe(column, db, settings));
   const give = sides.find((side) => side.role === 'give')?.value;
   const get = sides.find((side) => side.role === 'get')?.value;
-  const base = { caption, sentAt: parseApiTime(sentAt), sides, settings };
-  if (!settings.showSummaryVerdict || !give || !get) return { ...base, verdict: null, rVerdict: null };
-  return { ...base, verdict: compareSides(give, get), rVerdict: compareR(give, get) };
+  if (!settings.showSummaryVerdict || !give || !get) return { caption, sides, settings, verdict: null, rVerdict: null };
+  return { caption, sides, settings, verdict: compareSides(give, get), rVerdict: compareR(give, get) };
 }
 
-const signatureOf = ({ caption, sentAt, sides, settings, verdict, rVerdict }: View): string =>
+const signatureOf = ({ caption, sides, settings, verdict, rVerdict }: View): string =>
   JSON.stringify([
     caption,
-    sentAt,
     sides.map(({ label, f, bank, count, unknown, r, value }) => [label, f, bank, count, unknown, r, value.complete]),
     verdict,
     rVerdict,
@@ -222,20 +217,14 @@ const signatureOf = ({ caption, sentAt, sides, settings, verdict, rVerdict }: Vi
 const verdictLine = (verdict: Verdict, ...extra: string[]): HTMLElement =>
   element('div', [`${SUMMARY}__verdict`, verdictState(verdict), ...extra].join(' '), verdict.text);
 
-function sentLine(sentAt: Date): HTMLElement {
-  const time = element('time', `${SUMMARY}__time`, `${SENT_LABEL} ${formatTradeTime(sentAt)}`);
-  time.dateTime = sentAt.toISOString();
-  return time;
-}
-
 function detailsOf(body: HTMLElement): HTMLElement {
   const details = element('div', `${SUMMARY}__details`);
   details.append(body);
   return details;
 }
 
-function partsOf({ caption, sentAt, verdict, rVerdict }: View, summary: HTMLElement, body: HTMLElement | null): HTMLElement[] {
-  const lead = [...(caption ? [element('div', `${SUMMARY}__label`, caption)] : []), ...(sentAt ? [sentLine(sentAt)] : [])];
+function partsOf({ caption, verdict, rVerdict }: View, summary: HTMLElement, body: HTMLElement | null): HTMLElement[] {
+  const lead = caption ? [element('div', `${SUMMARY}__label`, caption)] : [];
   const details = body ? [detailsOf(body)] : [];
   if (!verdict) return [...lead, ...details];
   const main = verdictLine(verdict);
@@ -262,12 +251,12 @@ export function updateTradeSummaries(db: Database, settings: SummarySettings, st
   let mounted = 0;
   const nextOrder = () => mounted++;
   for (const place of readTradePlaces(store)) {
-    const { host, columns } = place;
+    const { host, caption, columns } = place;
     if (!columns || columns.every((column) => totalOf(column) === 0)) {
       host.querySelector(`:scope > .${SUMMARY}`)?.classList.add(CLOSED);
       continue;
     }
-    render(place, viewOf(place, columns, db, settings), nextOrder);
+    render(place, viewOf(caption, columns, db, settings), nextOrder);
   }
 }
 

@@ -17,7 +17,6 @@ export interface Trade {
   id: string;
   source: Person;
   destination: Person;
-  createdAt: string | null;
   offer: CardRef[];
   request: CardRef[];
 }
@@ -67,7 +66,6 @@ interface GraphNode {
   destination?: GraphUser;
   user?: GraphUser;
   viewerDidAuthor?: boolean;
-  createdAt?: unknown;
   viewer?: { user?: { id?: unknown } };
 }
 
@@ -87,8 +85,6 @@ const previews = (list: unknown): CardRef[] | null => (Array.isArray(list) ? (li
 
 const person = (user: GraphUser | undefined): Person => ({ id: user?.id ?? null, name: user?.name ?? '' });
 
-const text = (value: unknown): string | null => (typeof value === 'string' ? value : null);
-
 function kindOf(node: GraphNode): CapturedItem['kind'] | null {
   if (node.__typename === 'CardTrade') return 'trade';
   if (node.__typename === 'CardOffer') return 'offer';
@@ -102,10 +98,7 @@ function describe(node: GraphNode): CapturedItem | null {
   const request = previews(node.request);
   if (!node.id || !offer || !request) return null;
   const kind = kindOf(node);
-  if (kind === 'trade') {
-    const [source, destination] = [person(node.source), person(node.destination)];
-    return { kind, id: node.id, source, destination, createdAt: text(node.createdAt), offer, request };
-  }
+  if (kind === 'trade') return { kind, id: node.id, source: person(node.source), destination: person(node.destination), offer, request };
   if (kind === 'offer') return { kind, id: node.id, author: person(node.user), viewerDidAuthor: Boolean(node.viewerDidAuthor), offer, request };
   return null;
 }
