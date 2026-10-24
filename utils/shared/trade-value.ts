@@ -53,7 +53,7 @@ export interface Valuation {
 
 export const R_RANK = 'R';
 export const SHARD_MARK = 'o';
-export const UNKNOWN_MARK = 'X';
+export const UNKNOWN_MARK = '?';
 export const UNKNOWN_LEGEND = `${UNKNOWN_MARK} - нет цены в базе`;
 export const F_UNIT = 'F';
 

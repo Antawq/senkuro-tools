@@ -149,17 +149,26 @@ describe('profile-cards', () => {
       expect(summary.cards).toEqual(['3R']);
     });
 
-    it('lists cards the database does not know under X, so the rows add up to the totals', () => {
+    it('lists cards the database does not know under ?, so the rows add up to the totals', () => {
       const cards: UserCard[] = [
         { slug: 'luffy-s', quantity: 1, shard: false },
         { slug: 'brand-new-s', quantity: 2, shard: false },
       ];
       const summary = calculateProfileValue(cards, mockDb, plain);
       expect(summary.totalCards).toBe(3);
-      expect(summary.cards).toEqual(['1S', '2X']);
+      expect(summary.cards).toEqual(['1S', '2?']);
     });
 
-    it('lists shards by rank, an R shard the database does not know by its slug and other unknown shards under oX', () => {
+    it('keeps an X rank card from the database apart from cards the database does not know', () => {
+      const database = { ...mockDb, 'boss-x': { price: 9, name: 'Босс', rank: 'X' } };
+      const cards: UserCard[] = [
+        { slug: 'boss-x', quantity: 1, shard: false },
+        { slug: 'brand-new-s', quantity: 2, shard: false },
+      ];
+      expect(calculateProfileValue(cards, database, plain).cards).toEqual(['1X', '2?']);
+    });
+
+    it('lists shards by rank, an R shard the database does not know by its slug and other unknown shards under o?', () => {
       const cards: UserCard[] = [
         { slug: 'nami-d', quantity: 2, shard: true },
         { slug: 'new-hero-r', quantity: 4, shard: true },
@@ -167,7 +176,7 @@ describe('profile-cards', () => {
       ];
       const summary = calculateProfileValue(cards, mockDb, plain);
       expect(summary.totalShards).toBe(8);
-      expect(summary.shards).toEqual(['4oR', '2oD', '2oX']);
+      expect(summary.shards).toEqual(['4oR', '2oD', '2o?']);
     });
   });
 });

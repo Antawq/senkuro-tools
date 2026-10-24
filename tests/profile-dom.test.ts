@@ -216,7 +216,7 @@ describe('profile-dom', () => {
       expect(popover?.querySelector('.senkuro-popover-meta')?.textContent).toBe('Всего: 3 карт · 2 осколков');
     });
 
-    it('lists cards and shards the database does not know under X, so the cards row adds up to the totals', async () => {
+    it('lists cards and shards the database does not know under ?, so the cards row adds up to the totals', async () => {
       window.history.pushState({}, '', '/users/phaivroh');
       document.body.innerHTML = header;
       await store([
@@ -227,10 +227,10 @@ describe('profile-dom', () => {
       await draw();
       const popover = widget()?.querySelector('.senkuro-profile-f-popover');
       const [, cards] = [...(popover?.querySelectorAll('.senkuro-row-val') ?? [])].map((cell) => cell.textContent);
-      expect(cards).toBe('1S 2X 2oX');
+      expect(cards).toBe('1S 2? 2o?');
       expect([...(popover?.querySelectorAll('span[title]') ?? [])].map((item) => [item.textContent, item.getAttribute('title')])).toEqual([
-        ['2X', 'X - нет цены в базе'],
-        ['2oX', 'X - нет цены в базе'],
+        ['2?', '? - нет цены в базе'],
+        ['2o?', '? - нет цены в базе'],
       ]);
       expect(popover?.querySelector('.senkuro-popover-meta')?.textContent).toBe('Всего: 3 карт · 2 осколков');
     });

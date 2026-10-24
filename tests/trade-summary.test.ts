@@ -177,7 +177,7 @@ describe('updateTradeSummaries', () => {
     const drawn = [card('s-card', 2), card('s-card'), card('s-card')];
     el.insertAdjacentHTML('beforeend', reviewBody(panel('Я', 5, drawn), panel('Он', 1, [card('a-card')])) + reviewFooter);
     updateTradeSummaries(db, settings, store);
-    expect(summaryOf(el)?.sides[0]).toBe('Отдаёшь 972F Банк 4S 2X Карты 4S 2X');
+    expect(summaryOf(el)?.sides[0]).toBe('Отдаёшь 972F Банк 4S 2? Карты 4S 2?');
   });
 
   it('asks the page for the trades again once when an incoming trade has no data', () => {
@@ -188,7 +188,7 @@ describe('updateTradeSummaries', () => {
     updateTradeSummaries(db, settings, store);
     document.removeEventListener(REPLAY_EVENT, asked);
     expect(asked).toHaveBeenCalledOnce();
-    expect(summaryOf(el)?.sides[0]).toContain('5X');
+    expect(summaryOf(el)?.sides[0]).toContain('5?');
   });
 
   it('takes a whole side from the card list the site opens on click', () => {
@@ -201,21 +201,21 @@ describe('updateTradeSummaries', () => {
     list.innerHTML = `<div class="modal-trade__review"><div class="modal-trade__review-header"><div class="modal-trade__review-text">Которые ты просишь у Phaivroh | WL</div></div><div class="modal-trade__review-slider">${cardsOf(phaivroh).join('')}</div></div>`;
     document.body.append(list);
     updateTradeSummaries(db, settings, store);
-    expect(summaryOf(el)?.sides).toEqual([skySides[0], 'Отдаёшь 63F Банк 1.6B 2.2C 2X Карты 1B 2C 2X']);
+    expect(summaryOf(el)?.sides).toEqual([skySides[0], 'Отдаёшь 63F Банк 1.6B 2.2C 2? Карты 1B 2C 2?']);
   });
 
-  it('marks the cards an incoming trade does not draw as gray X and explains the mark', () => {
+  it('marks the cards an incoming trade does not draw as gray ? and explains the mark', () => {
     const offers = [card('s-card'), card('s-card'), card('f-card')];
     const el = modal('Прими решение обмена', reviewBody(panel('Отправитель', 6, offers), panel('Я', 1, [card('s-card')])) + reviewFooter);
     updateTradeSummaries(db, settings, store);
     expect(summaryOf(el)).toEqual({
-      sides: ['Получаешь 487F Банк 2S 1F 3X Карты 2S 1F 3X', 'Отдаёшь 243F Банк 1S Карты 1S'],
+      sides: ['Получаешь 487F Банк 2S 1F 3? Карты 2S 1F 3?', 'Отдаёшь 243F Банк 1S Карты 1S'],
       verdict: 'Выгода +244F (+100%)',
       grayVerdict: false,
     });
     expect((el.querySelector('.senkuro-trade-summary__cell strong.senkuro-trade-summary__unknown') as HTMLElement).textContent).toBe('487F');
     expect((el.querySelector('.senkuro-trade-summary__verdict') as HTMLElement).classList.contains('senkuro-trade-summary__verdict--gain')).toBe(true);
-    expect((el.querySelector('.senkuro-trade-summary__panel > .senkuro-trade-summary__unknown') as HTMLElement).textContent).toBe('X - нет цены в базе');
+    expect((el.querySelector('.senkuro-trade-summary__panel > .senkuro-trade-summary__unknown') as HTMLElement).textContent).toBe('? - нет цены в базе');
   });
 
   it('colours a loss red when cards without a price sit next to priced ones', () => {
@@ -232,19 +232,19 @@ describe('updateTradeSummaries', () => {
     expect(el.querySelector('.senkuro-trade-summary__verdict--loss')).toBeNull();
   });
 
-  it('leaves the X legend out when every card has a price', () => {
+  it('leaves the ? legend out when every card has a price', () => {
     const el = modal('Выбери до 50 карт', constructorFooter([card('a-card', 2)], [card('s-card')]));
     updateTradeSummaries(db, settings, store);
     expect(el.querySelector('.senkuro-trade-summary__panel > .senkuro-trade-summary__unknown')).toBeNull();
   });
 
-  it('leaves the X legend out when neither row that shows X is on', () => {
+  it('leaves the ? legend out when neither row that shows ? is on', () => {
     const el = modal('Прими решение обмена', reviewBody(panel('Отправитель', 4, [card('s-card')]), panel('Я', 1, [card('s-card')])) + reviewFooter);
     updateTradeSummaries(db, { ...settings, showSummaryBank: false, showSummaryCards: false }, store);
     expect(el.querySelector('.senkuro-trade-summary__panel > .senkuro-trade-summary__unknown')).toBeNull();
   });
 
-  it('takes the whole incoming trade from the site responses instead of gray X', () => {
+  it('takes the whole incoming trade from the site responses instead of gray ?', () => {
     store.add({ viewerId: 'u2', items: [skyTrade] });
     const el = modal(
       'Прими решение обмена',
@@ -258,17 +258,17 @@ describe('updateTradeSummaries', () => {
     const el = modal('', constructorFooter([card('s-card', 5, true), card('a-card')], [card('missing')]));
     updateTradeSummaries(db, settings, store);
     expect(summaryOf(el)).toEqual({
-      sides: ['Получаешь 218.7F Банк 1.2A 5oS Карты 1A 5oS', 'Отдаёшь 0F Банк 1X Карты 1X'],
+      sides: ['Получаешь 218.7F Банк 1.2A 5oS Карты 1A 5oS', 'Отдаёшь 0F Банк 1? Карты 1?'],
       verdict: 'Выгода +218.7F',
       grayVerdict: true,
     });
     expect(el.querySelector('.senkuro-trade-summary__verdict--shards')).toBeNull();
   });
 
-  it('marks shards of a card missing from the database as gray oX', () => {
+  it('marks shards of a card missing from the database as gray o?', () => {
     const el = modal('', constructorFooter([card('missing', 3, true), card('missing')], [card('f-card')]));
     updateTradeSummaries(db, settings, store);
-    expect(summaryOf(el)?.sides[0]).toContain('Карты 1X 3oX');
+    expect(summaryOf(el)?.sides[0]).toContain('Карты 1? 3o?');
     expect(summaryOf(el)?.grayVerdict).toBe(true);
   });
 
