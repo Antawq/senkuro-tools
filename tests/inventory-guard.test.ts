@@ -8,6 +8,16 @@ import { LIST_OPERATION, createListRecord, type Variables } from '../utils/inven
 import { installInventoryGuard, planRefresh } from '../utils/inventory/inventory-guard';
 import { REFRESH_POLICY } from '../utils/inventory/list-refresh';
 import { LIST_LOAD_EVENT, LIST_LOADED_EVENT, readLoaded, type LoadOutcome } from '../utils/shared/list-signal';
+import {
+  GUARD_ATTRIBUTE,
+  GUARD_READY,
+  REFRESH_REQUEST_EVENT,
+  REFRESH_RESULT_EVENT,
+  encodeRefreshRequest,
+  readRefreshResult,
+  type RefreshResult,
+  type RefreshScope,
+} from '../utils/shared/refresh-signal';
 import type { QueryClient, QueryRequest } from '../utils/shared/urql-client';
 
 const GRAPHQL = 'https://api.senkuro.me/graphql';
@@ -21,6 +31,14 @@ const splitPicker = (userId: string, after?: string): Variables => ({
 });
 
 const profileGrid = (userId: string): Variables => ({ userId });
+
+const cardsGrid = (userId: string, after?: string): Variables => ({
+  userId,
+  ...(after ? { after } : {}),
+  modifier: { include: [0] },
+  orderField: 'CREATED_AT',
+  orderDirection: 'DESC',
+});
 
 const request = (name: string, variables: Variables = {}): QueryRequest => ({
   key: 1,
@@ -97,7 +115,14 @@ const rig = ({ answer = {}, mounted = true, results = [], slow = false }: Rig = 
   const loaded: (LoadOutcome | null)[] = [];
   win.document.addEventListener(LIST_LOADED_EVENT, (event) => loaded.push(readLoaded(event as unknown as Event)));
   const ask = () => win.document.dispatchEvent(new win.CustomEvent(LIST_LOAD_EVENT));
-  return { win, queries, reached, log, loaded, ask, mount, respond, browse, mutate };
+  const refreshed: RefreshResult[] = [];
+  win.document.addEventListener(REFRESH_RESULT_EVENT, (event) => {
+    const result = readRefreshResult(event as unknown as Event);
+    if (result) refreshed.push(result);
+  });
+  const sendRefreshDetail = (detail: string) => win.document.dispatchEvent(new win.CustomEvent(REFRESH_REQUEST_EVENT, { detail } as never));
+  const requestRefresh = (scope: RefreshScope) => sendRefreshDetail(encodeRefreshRequest(scope));
+  return { win, queries, reached, log, loaded, refreshed, ask, requestRefresh, sendRefreshDetail, mount, respond, browse, mutate };
 };
 
 describe('planRefresh', () => {
@@ -217,6 +242,108 @@ describe('installInventoryGuard', () => {
     browse({ ...cards, after: 'c1' });
     expect(reached.map((variables) => variables.after)).toEqual([null, 'c1']);
     await win.happyDOM.close();
+  });
+
+  describe('refreshing the open lists on request', () => {
+    it('marks the document ready once it has found the client, and not before', async () => {
+      const { win, mount, respond } = rig({ mounted: false });
+      expect(win.document.documentElement.getAttribute(GUARD_ATTRIBUTE)).toBeNull();
+      await respond();
+      expect(win.document.documentElement.getAttribute(GUARD_ATTRIBUTE)).toBeNull();
+      mount();
+      await respond();
+      expect(win.document.documentElement.getAttribute(GUARD_ATTRIBUTE)).toBe(GUARD_READY);
+      await win.happyDOM.close();
+    });
+
+    it('replays every page of the grid lists of this route and leaves the pickers alone', async () => {
+      const { win, respond, browse, requestRefresh, refreshed, queries } = rig();
+      await respond();
+      browse(cardsGrid('USER:1'));
+      browse(cardsGrid('USER:1', 'c1'));
+      browse(splitPicker('USER:1'));
+      requestRefresh('grid');
+      await settle();
+      expect(queries.map((query) => query.variables)).toEqual([cardsGrid('USER:1'), cardsGrid('USER:1', 'c1')]);
+      expect(queries.every((query) => query.options.requestPolicy === REFRESH_POLICY)).toBe(true);
+      expect(refreshed).toEqual([{ scope: 'grid', outcome: 'done' }]);
+      await win.happyDOM.close();
+    });
+
+    it('replays the picker lists of this route and leaves the grid alone', async () => {
+      const { win, respond, browse, requestRefresh, refreshed, queries } = rig();
+      await respond();
+      browse(cardsGrid('USER:1'));
+      browse(splitPicker('USER:1'));
+      browse(splitPicker('USER:2'));
+      requestRefresh('picker');
+      await settle();
+      await settle();
+      expect(queries.map((query) => query.variables.userId)).toEqual(['USER:1', 'USER:2']);
+      expect(refreshed).toEqual([{ scope: 'picker', outcome: 'done' }]);
+      await win.happyDOM.close();
+    });
+
+    it('says there is nothing to refresh when the route holds no list of that kind', async () => {
+      const { win, respond, browse, requestRefresh, refreshed, queries } = rig();
+      await respond();
+      browse(splitPicker('USER:1'));
+      requestRefresh('grid');
+      browse(cardsGrid('USER:1'));
+      win.happyDOM.setURL('https://senkuro.me/users/other/cards');
+      requestRefresh('grid');
+      await settle();
+      expect(refreshed).toEqual([
+        { scope: 'grid', outcome: 'nothing' },
+        { scope: 'grid', outcome: 'nothing' },
+      ]);
+      expect(queries).toHaveLength(0);
+      await win.happyDOM.close();
+    });
+
+    it('says there is nothing to refresh before the client was found', async () => {
+      const { win, requestRefresh, refreshed } = rig({ mounted: false });
+      requestRefresh('picker');
+      await settle();
+      expect(refreshed).toEqual([{ scope: 'picker', outcome: 'nothing' }]);
+      await win.happyDOM.close();
+    });
+
+    it('says the refresh failed when a page could not be fetched', async () => {
+      const { win, respond, browse, requestRefresh, refreshed } = rig({ answer: { error: new Error('429') } });
+      await respond();
+      browse(cardsGrid('USER:1'));
+      requestRefresh('grid');
+      await settle();
+      expect(refreshed).toEqual([{ scope: 'grid', outcome: 'failed' }]);
+      await win.happyDOM.close();
+    });
+
+    it('queues a request behind the refresh that is running', async () => {
+      const { win, respond, browse, requestRefresh, refreshed, log } = rig({ slow: true });
+      await respond();
+      browse(cardsGrid('USER:1'));
+      requestRefresh('grid');
+      requestRefresh('grid');
+      await settle();
+      await settle();
+      await settle();
+      expect(log).toEqual(['start USER:1', 'end USER:1', 'start USER:1', 'end USER:1']);
+      expect(refreshed).toHaveLength(2);
+      await win.happyDOM.close();
+    });
+
+    it('ignores a request it cannot read', async () => {
+      const { win, respond, browse, sendRefreshDetail, refreshed, queries } = rig();
+      await respond();
+      browse(cardsGrid('USER:1'));
+      sendRefreshDetail('junk');
+      sendRefreshDetail(JSON.stringify({ scope: 'all' }));
+      await settle();
+      expect(refreshed).toEqual([]);
+      expect(queries).toHaveLength(0);
+      await win.happyDOM.close();
+    });
   });
 
   describe('loading the rest of a list on request', () => {

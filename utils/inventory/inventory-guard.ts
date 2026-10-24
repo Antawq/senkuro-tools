@@ -2,13 +2,33 @@ import { debugLogger } from '../shared/debug';
 import { LIST_LOAD_EVENT, LIST_LOADED_EVENT, encodeLoaded, type LoadOutcome } from '../shared/list-signal';
 import { claimPage } from '../shared/page-claim';
 import type { PageWindow } from '../shared/page-window';
+import {
+  GUARD_ATTRIBUTE,
+  GUARD_READY,
+  REFRESH_REQUEST_EVENT,
+  REFRESH_RESULT_EVENT,
+  encodeRefreshResult,
+  readRefreshRequest,
+  type RefreshOutcome,
+  type RefreshScope,
+} from '../shared/refresh-signal';
 import { operationName, runWhenClientFound, type QueryClient } from '../shared/urql-client';
 import { recordLists, tapMutations, type MutationResult } from './client-hooks';
 import { createCursorLedger, guardCursors } from './list-cursors';
-import { createListRecord, familyIdOf, needsRefresh, type Family, type ListRecord, type PageRequest, type ReceivedCard } from './list-families';
+import {
+  createListRecord,
+  familyIdOf,
+  isGridFamily,
+  isPickerFamily,
+  needsRefresh,
+  type Family,
+  type ListRecord,
+  type PageRequest,
+  type ReceivedCard,
+} from './list-families';
 import { loadRest } from './list-loader';
 import { learnFromFetch } from './list-seen';
-import { refreshFamilies, type RefreshEnv } from './list-refresh';
+import { refreshFamilies, type RefreshEnv, type RefreshReport } from './list-refresh';
 
 const FORGE_OPERATION = 'forgeCards';
 const TRADE_OPERATIONS = ['acceptCardTrade', 'acceptCardOffer'];
@@ -53,17 +73,50 @@ export function installInventoryGuard(win: PageWindow): void {
 
   const environment = (client: QueryClient): RefreshEnv => ({ client, fetch: (input, init) => win.fetch(input, init), silent, record, sleep });
 
+  const enqueueRefresh = (client: QueryClient, families: Family[]): Promise<RefreshReport> => {
+    const report = queue.then(() => refreshFamilies(environment(client), families));
+    queue = report.then(
+      () => undefined,
+      () => undefined
+    );
+    return report;
+  };
+
   const onMutation = (client: QueryClient) => (result: MutationResult) => {
     const plan = planRefresh(result, record.families());
     debug('inventory change', { recorded: pageCounts(record), refreshing: plan.length });
     if (plan.length === 0) return;
-    queue = queue
-      .then(() => refreshFamilies(environment(client), plan))
-      .then(
-        (report) => debug('lists refreshed', report),
-        () => undefined
-      );
+    enqueueRefresh(client, plan).then(
+      (report) => debug('lists refreshed', report),
+      () => undefined
+    );
   };
+
+  const familiesOf = (scope: RefreshScope): Family[] => {
+    const route = win.location.pathname;
+    const isInScope = scope === 'grid' ? isGridFamily : isPickerFamily;
+    return record.families().filter((family) => isInScope(family) && family.route === route);
+  };
+
+  const refreshOnRequest = async (scope: RefreshScope): Promise<RefreshOutcome> => {
+    const client = attachedClient;
+    const families = client ? familiesOf(scope) : [];
+    if (!client || families.length === 0) return 'nothing';
+    const report = await enqueueRefresh(client, families);
+    debug('lists refreshed on request', { scope, ...report });
+    return report.failed ? 'failed' : 'done';
+  };
+
+  const publishRefreshResult = (scope: RefreshScope, outcome: RefreshOutcome) =>
+    win.document.dispatchEvent(new win.CustomEvent(REFRESH_RESULT_EVENT, { detail: encodeRefreshResult({ scope, outcome }) }));
+
+  win.document.addEventListener(REFRESH_REQUEST_EVENT, (event) => {
+    const scope = readRefreshRequest(event);
+    if (!scope) return;
+    void refreshOnRequest(scope)
+      .catch((): RefreshOutcome => 'failed')
+      .then((outcome) => publishRefreshResult(scope, outcome));
+  });
 
   const publishListLoaded = (outcome: LoadOutcome) => win.document.dispatchEvent(new win.CustomEvent(LIST_LOADED_EVENT, { detail: encodeLoaded(outcome) }));
 
@@ -88,12 +141,14 @@ export function installInventoryGuard(win: PageWindow): void {
       client,
       (page) => {
         latestPage = page;
-        record.record(page);
+        record.record(page, win.location.pathname);
       },
       silent
     );
     const isTapping = tapMutations(client, onMutation(client));
     const isGuarding = guardCursors(client, (variables) => debug('stale cursor dropped', { list: familyIdOf(variables), after: variables.after }), ledger);
-    debug('urql client', isRecording && isTapping && isGuarding ? 'attached' : 'not replaceable');
+    const isAttached = isRecording && isTapping && isGuarding;
+    if (isAttached) win.document.documentElement.setAttribute(GUARD_ATTRIBUTE, GUARD_READY);
+    debug('urql client', isAttached ? 'attached' : 'not replaceable');
   });
 }

@@ -17,6 +17,7 @@ export interface Family {
   id: string;
   filters: Variables;
   pages: PageRequest[];
+  route?: string;
 }
 
 export interface ReceivedCard {
@@ -92,6 +93,10 @@ export function judge(filters: Variables, entry: ReceivedCard): Verdict {
 export const needsRefresh = (family: Family, received: ReceivedCard[]): boolean =>
   !isNewestFirst(family.filters) || received.some((entry) => judge(family.filters, entry) !== 'match');
 
+export const isGridFamily = (family: Family): boolean => Array.isArray(asFilter(family.filters.modifier)?.include);
+
+export const isPickerFamily = (family: Family): boolean => Array.isArray(asFilter(family.filters.modifier)?.exclude);
+
 const idOf = (edge: RawEdge): string | null => {
   const id = edge.node?.card?.id;
   const modifier = edge.node?.modifier;
@@ -112,7 +117,7 @@ export const linked = (current: RawPage, nextCursor: unknown, next: RawPage): bo
   current.endCursor === nextCursor || next.ids.size === 0 || shares(current.ids, next.ids);
 
 export interface ListRecord {
-  record(page: PageRequest): void;
+  record(page: PageRequest, route?: string): void;
   families(): Family[];
   insertAfter(family: Family, anchor: PageRequest, pages: PageRequest[]): void;
 }
@@ -122,10 +127,11 @@ const knows = (family: Family, page: PageRequest): boolean => family.pages.some(
 export function createListRecord(): ListRecord {
   const known = new Map<string, Family>();
   return {
-    record(page) {
+    record(page, route) {
       const id = familyIdOf(page.variables);
       const family = known.get(id) ?? { id, filters: withoutCursor(page.variables), pages: [] };
       known.set(id, family);
+      if (route !== undefined) family.route = route;
       if (!knows(family, page)) family.pages.push(page);
       if (!family.pages.some((known) => !hasCursor(known.variables))) family.pages.unshift({ ...page, variables: family.filters });
     },

@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   createListRecord,
   familyIdOf,
+  isGridFamily,
   isNewestFirst,
+  isPickerFamily,
   judge,
   linked,
   needsRefresh,
@@ -236,5 +238,51 @@ describe('createListRecord', () => {
     record.insertAfter(family!, first, [page({ ...profileGrid, after: 'x1' })]);
     record.insertAfter(family!, first, [page({ ...profileGrid, after: 'x1' })]);
     expect(family?.pages).toHaveLength(2);
+  });
+});
+
+describe('the route of a family', () => {
+  it('keeps the route of the latest request of the family', () => {
+    const record = createListRecord();
+    record.record(page(profileGrid), '/users/a/cards');
+    record.record(page({ ...profileGrid, after: 'c1' }), '/users/b/cards');
+    expect(record.families().map((family) => family.route)).toEqual(['/users/b/cards']);
+  });
+
+  it('has no route until a request names one', () => {
+    const record = createListRecord();
+    record.record(page(profileGrid));
+    expect(record.families()[0]?.route).toBeUndefined();
+    record.record(page({ ...profileGrid, after: 'c1' }), '/users/a/cards');
+    record.record(page({ ...profileGrid, after: 'c2' }));
+    expect(record.families()[0]?.route).toBe('/users/a/cards');
+  });
+});
+
+describe('what a family is for', () => {
+  const familyOf = (variables: Variables) => {
+    const record = createListRecord();
+    record.record(page(variables));
+    return record.families()[0]!;
+  };
+
+  it('takes a list that includes modifiers for the grid of a profile', () => {
+    const grid = familyOf({ userId: 'USER:1', modifier: { include: [0] }, orderField: 'CREATED_AT', orderDirection: 'DESC' });
+    expect(isGridFamily(grid)).toBe(true);
+    expect(isPickerFamily(grid)).toBe(false);
+  });
+
+  it('takes a list that excludes modifiers for a picker of a modal', () => {
+    for (const variables of [{ userId: 'USER:1', modifier: { exclude: [] } }, splitPicker]) {
+      const picker = familyOf(variables);
+      expect(isPickerFamily(picker)).toBe(true);
+      expect(isGridFamily(picker)).toBe(false);
+    }
+  });
+
+  it('takes a list with no modifier variable for neither', () => {
+    const other = familyOf(profileGrid);
+    expect(isGridFamily(other)).toBe(false);
+    expect(isPickerFamily(other)).toBe(false);
   });
 });
