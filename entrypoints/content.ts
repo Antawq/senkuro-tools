@@ -25,6 +25,7 @@ import { isGuardReady, requestInventoryRefresh } from '@/utils/shared/refresh-si
 import { loadSettings, watchSettings } from '@/utils/shared/settings';
 import { createPriceSort, hasSortMutation } from '@/utils/sort/sort-view';
 import { createTokenBar } from '@/utils/token/token-bar';
+import { createModalRefreshWatcher } from '@/utils/trades/modal-refresh';
 import { createShardSwitchWatcher } from '@/utils/trades/shard-switch';
 import { createTradeStore, listenForTrades } from '@/utils/trades/trade-capture';
 import { isTradeMutation, updateTradeSummaries } from '@/utils/trades/trade-summary';
@@ -75,11 +76,17 @@ export default defineContentScript({
       schedule: loop.schedule,
     });
     const shardSwitches = createShardSwitchWatcher({ nextFrame });
+    const modalRefresh = createModalRefreshWatcher({
+      isReady: () => isGuardReady(document),
+      refresh: () => requestInventoryRefresh(document, 'picker'),
+      nextFrame,
+    });
 
     const observer = new MutationObserver((mutations) => {
       const cards = addedCards(mutations);
       const tradesChanged = mutations.some(isTradeMutation);
       shardSwitches.watch(mutations);
+      modalRefresh.watch(mutations);
       loop.addCards(cards);
       if (tradesChanged) loop.markTrades();
       if (cards.length > 0 || tradesChanged || profileBadgeMissing() || isRefreshButtonMissing() || hasSortMutation(mutations)) loop.schedule();

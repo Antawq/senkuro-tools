@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Database } from '../utils/shared/database';
 import { DEFAULT_SETTINGS } from '../utils/shared/settings';
 import { REPLAY_EVENT, createTradeStore, type Trade, type TradeStore } from '../utils/trades/trade-capture';
+import { MODAL_REFRESH_CLASS } from '../utils/trades/modal-refresh';
 import { isTradeMutation, updateTradeSummaries } from '../utils/trades/trade-summary';
 
 const db: Database = {
@@ -782,6 +783,18 @@ describe('isTradeMutation', () => {
     document.body.append(el);
     const hint = (el.querySelector('.card-notif__info-hint') as HTMLElement).firstChild as Text;
     expect(recordsOf(() => (hint.data = 'Получишь 2 • Отдашь 1')).some(isTradeMutation)).toBe(true);
+  });
+
+  it('ignores the refresh button the extension adds to the header of a trade window', () => {
+    modal('Прими решение обмена', reviewFooter);
+    const header = document.querySelector('.modal-trade__header, header') as Element;
+    expect(
+      recordsOf(() => {
+        const own = document.createElement('button');
+        own.className = MODAL_REFRESH_CLASS;
+        header.append(own);
+      }).some(isTradeMutation)
+    ).toBe(false);
   });
 
   it('ignores cards drawn anywhere else', () => {

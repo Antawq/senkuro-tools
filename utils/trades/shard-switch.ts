@@ -1,4 +1,5 @@
 import { element } from '../shared/dom';
+import { MODAL_REFRESH_CLASS } from './modal-refresh';
 
 const MODAL = '.modal-content--trade';
 const PICKER = '.modal-trade__body';
@@ -10,7 +11,7 @@ const WINDOWS_WITHOUT_SHARDS = ['для переплавки', 'для раск�
 const SWITCH = 'senkutools-shard-switch';
 const SWITCH_BUTTON = `${SWITCH}__button`;
 const EMPTY_NOTE = `${SWITCH}__empty`;
-const OWN_NODES = `.${SWITCH}, .${EMPTY_NOTE}`;
+const OWN_NODES = `.${SWITCH}, .${EMPTY_NOTE}, .${MODAL_REFRESH_CLASS}`;
 const ROW = 'card-collect-preview';
 const PAGING_MARGIN_PX = 250;
 const PARKED_ATTRIBUTE = 'data-senkutools-paging-parked';

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { MODAL_REFRESH_CLASS } from '../utils/trades/modal-refresh';
 import { createShardSwitchWatcher, isPickerMutation, updateShardSwitches } from '../utils/trades/shard-switch';
 
 const stylesheet = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../assets/shard-switch.css'), 'utf8');
@@ -329,6 +330,15 @@ describe('isPickerMutation', () => {
     document.body.innerHTML = tradeModal(row('shard'));
     updateShardSwitches();
     const own = switchOf() as Element;
+    expect(isPickerMutation(record(picker(), [own]))).toBe(false);
+    expect(isPickerMutation(record(picker(), [], [own]))).toBe(false);
+    expect(isPickerMutation(record(own, [document.createElement('span')]))).toBe(false);
+  });
+
+  it('is false for the refresh button of the window being added or removed', () => {
+    document.body.innerHTML = tradeModal(row('shard'));
+    const own = document.createElement('button');
+    own.className = MODAL_REFRESH_CLASS;
     expect(isPickerMutation(record(picker(), [own]))).toBe(false);
     expect(isPickerMutation(record(picker(), [], [own]))).toBe(false);
     expect(isPickerMutation(record(own, [document.createElement('span')]))).toBe(false);
