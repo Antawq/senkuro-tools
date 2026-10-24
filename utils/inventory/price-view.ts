@@ -57,7 +57,7 @@ export interface PriceView {
   start: () => void;
   stop: () => void;
   receiveOrder: (order: PriceOrder) => void;
-  handleMutation: (result: MutationResult) => void;
+  handleMutation: (mutation: MutationResult) => void;
 }
 
 interface Orders {
@@ -113,14 +113,14 @@ function isPermutation(order: number[], size: number): boolean {
   });
 }
 
-const readLockInput = (result: MutationResult): LockInput | null => {
-  const input = result.operation?.variables?.input;
+const readLockInput = (mutation: MutationResult): LockInput | null => {
+  const input = mutation.operation?.variables?.input;
   return input && typeof input === 'object' ? input : null;
 };
 
-function isSuccessful(result: MutationResult, name: string): boolean {
-  if (result.error || !result.data) return false;
-  const payload = result.data[name] as { success?: unknown } | null | undefined;
+function isSuccessful(mutation: MutationResult, name: string): boolean {
+  if (mutation.error || !mutation.data) return false;
+  const payload = mutation.data[name] as { success?: unknown } | null | undefined;
   return FLAGGED_MUTATIONS.includes(name) ? payload?.success === true : Boolean(payload);
 }
 
@@ -279,11 +279,11 @@ export function createPriceView(host: ViewHost): PriceView {
       if (current) host.redrive(current, privateVariablesOf(variablesOf(current), view.version));
     },
 
-    handleMutation(result) {
-      const name = result.operation ? operationName(result.operation) : undefined;
-      if (!isOn || !view || !name || !isSuccessful(result, name)) return;
+    handleMutation(mutation) {
+      const name = mutation.operation ? operationName(mutation.operation) : undefined;
+      if (!isOn || !view || !name || !isSuccessful(mutation, name)) return;
       if (name === LOCK_MUTATION) {
-        const input = readLockInput(result);
+        const input = readLockInput(mutation);
         if (view.phase === 'crawling') invalidate();
         else if (input) patchLocks(input);
       } else if (ACCEPTING_MUTATIONS.includes(name) || REBUILDING_MUTATIONS.includes(name)) invalidate();

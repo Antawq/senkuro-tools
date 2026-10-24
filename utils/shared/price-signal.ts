@@ -33,11 +33,12 @@ const readDetail = (event: Event): Record<string, unknown> | null => {
   return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
 };
 
-const isCount = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+const isCount = (candidate: unknown): candidate is number => typeof candidate === 'number' && Number.isSafeInteger(candidate) && candidate >= 0;
 
-const isCountList = (value: unknown): value is number[] => Array.isArray(value) && value.every(isCount);
+const isCountList = (candidate: unknown): candidate is number[] => Array.isArray(candidate) && candidate.every(isCount);
 
-const isSlugList = (value: unknown): value is (string | null)[] => Array.isArray(value) && value.every((slug) => slug === null || typeof slug === 'string');
+const isSlugList = (candidate: unknown): candidate is (string | null)[] =>
+  Array.isArray(candidate) && candidate.every((slug) => slug === null || typeof slug === 'string');
 
 export const encodePriceSwitch = (isOn: boolean): string => JSON.stringify({ isOn });
 

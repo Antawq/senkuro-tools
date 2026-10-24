@@ -439,7 +439,7 @@ describe('what the site does to the inventory meanwhile', () => {
   });
 
   it('does the same after an accepted trade or offer, a restored forge, an opened pack and a claimed drop', async () => {
-    for (const result of [
+    for (const mutation of [
       accepted('acceptCardTrade'),
       accepted('acceptCardOffer'),
       { operation: request({}, 'restoreForge'), data: { restoreForge: { userId: 'USER:1' } } },
@@ -447,7 +447,7 @@ describe('what the site does to the inventory meanwhile', () => {
       { operation: request({}, 'claimCardDrop'), data: { claimCardDrop: { card: {} } } },
     ]) {
       const { view, crawls } = await served();
-      view.handleMutation(result);
+      view.handleMutation(mutation);
       expect(crawls).toHaveLength(2);
     }
   });

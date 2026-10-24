@@ -49,7 +49,7 @@ export const modifierOf = (modifier: unknown): number => (typeof modifier === 'n
 
 const keyOf = (row: Row): string | null => (typeof row.node.card?.id === 'string' ? `${row.node.card.id}:${modifierOf(row.node.modifier)}` : null);
 
-const typeNameOf = (value: unknown, fallback: string): string => (typeof value === 'string' && value !== '' ? value : fallback);
+const typeNameOf = (candidate: unknown, fallback: string): string => (typeof candidate === 'string' && candidate !== '' ? candidate : fallback);
 
 export async function crawlList({ text, variables, transport, signal, onProgress }: CrawlRequest): Promise<CrawledList> {
   const rows: Row[] = [];
@@ -58,8 +58,8 @@ export async function crawlList({ text, variables, transport, signal, onProgress
   let connectionType = DEFAULT_CONNECTION_TYPE;
   let pageInfoType = DEFAULT_PAGE_INFO_TYPE;
   for (let page = 0; page < MAX_CRAWL_PAGES; page++) {
-    const data: PageData = await execute<PageData>(null, text, CRAWL_OPERATION, { ...variables, after }, transport, signal);
-    const connection = data.userCards;
+    const answer: PageData = await execute<PageData>(null, text, CRAWL_OPERATION, { ...variables, after }, transport, signal);
+    const connection = answer.userCards;
     if (!connection || !Array.isArray(connection.edges)) throw new ApiError('decode');
     connectionType = typeNameOf(connection.__typename, connectionType);
     pageInfoType = typeNameOf(connection.pageInfo?.__typename, pageInfoType);
