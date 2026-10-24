@@ -147,6 +147,22 @@ describe('profile-dom', () => {
       await forgetProfileBadge('phaivroh');
       expect(init?.signal?.aborted).toBe(true);
     });
+
+    it('does not store the pages of a count it stopped', async () => {
+      window.history.pushState({}, '', '/users/phaivroh');
+      document.body.innerHTML = header;
+      let cardsAsked = 0;
+      fetchMock.mockImplementation((_input: unknown, init?: RequestInit) => {
+        if (operationOf(init) === 'User') return Promise.resolve(reply({ user: { id: 'u1', name: 'phaivroh' } }));
+        return ++cardsAsked === 1 ? Promise.resolve(cardsPage(['luffy-s'], 'c1')) : hangsUntilAborted(init);
+      });
+      await draw();
+      (widget() as HTMLElement).click();
+      await until(() => cardsAsked === 2);
+      await forgetProfileBadge('phaivroh');
+      for (let pass = 0; pass < 10; pass++) await settle();
+      expect((await fakeBrowser.storage.local.get('profileCollections')).profileCollections ?? {}).toEqual({});
+    });
   });
 
   describe('updateProfileBadge', () => {

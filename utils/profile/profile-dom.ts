@@ -17,6 +17,7 @@ const GUTTER_PROPERTY = '--senkuro-gutter';
 const SHIFT_PROPERTY = '--senkuro-popover-shift';
 const EMPTY = '-';
 const POPOVER_ICON_SIZE_PX = 13;
+const FORGET_REASON = 'forgotten';
 
 const TEXT = {
   idle: 'Посчитать ценность',
@@ -63,20 +64,20 @@ let closingBound = false;
 
 export const isTradeOpen = (): boolean => Boolean(document.querySelector('.modal-content--trade, .modal-trade'));
 
-export function abortProfileLoading(slug?: string): void {
+export function abortProfileLoading(slug?: string, reason?: string): void {
   if (slug) {
-    inProgress.get(slug)?.abort();
+    inProgress.get(slug)?.abort(reason);
     inProgress.delete(slug);
   } else {
     for (const controller of inProgress.values()) {
-      controller.abort();
+      controller.abort(reason);
     }
     inProgress.clear();
   }
 }
 
 export async function forgetProfileBadge(slug: string): Promise<void> {
-  abortProfileLoading(slug);
+  abortProfileLoading(slug, FORGET_REASON);
   await forgetCollection(slug);
   known.delete(slug);
 }
@@ -300,7 +301,7 @@ function load(slug: string, deps: ProfileBadgeDeps, fresh = false): void {
       renderSummary(widget, slug, calculateProfileValue(collection.cards, deps.db, deps.valuation), deps);
       widget.dataset.valuation = valuationKey(deps.valuation);
     } catch (error) {
-      if (progress.latest) remember(slug, progress.latest);
+      if (progress.latest && controller.signal.reason !== FORGET_REASON) remember(slug, progress.latest);
       if (controller.signal.aborted) return;
       console.error('SenkuTools: failed to fetch profile cards', error);
       const widget = widgetFor(slug);
