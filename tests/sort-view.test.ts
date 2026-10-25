@@ -222,6 +222,16 @@ describe('choosing the price', () => {
     expect(views).toEqual([true, false]);
   });
 
+  it('ends the view when the cards page itself is gone, so a crawl does not run on in another page', () => {
+    render({ hasMenu: true });
+    const { sort, views } = setup();
+    enablePriceMode();
+    sort.sync(database, settings);
+    render({ hasFilters: false });
+    sort.sync(database, settings);
+    expect(views).toEqual([true, false]);
+  });
+
   it('leaves the button text to the site when the site already changed it', () => {
     render({ hasMenu: true });
     const { sort } = setup();

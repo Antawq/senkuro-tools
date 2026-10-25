@@ -123,7 +123,7 @@ export function createPriceSort(pageDocument: Document, host: SortHost): PriceSo
       const current = { database, commission };
       inputs = current;
       const filters = pageDocument.querySelector(FILTERS);
-      if (!filters) return;
+      if (!filters) return endView();
       const isPriceSelected = isPriceMode(filters);
       decorateMenu(pageDocument, isPriceSelected);
       const view = inspectGrid(pageDocument);
