@@ -1,6 +1,6 @@
 export const LIST_OPERATION = 'fetchUserCards';
 
-const CURSOR_KEY = 'after';
+export const CURSOR_KEY = 'after';
 const NEWEST_FIRST_FIELD = 'CREATED_AT';
 const NEWEST_FIRST_DIRECTION = 'DESC';
 const UNJUDGEABLE_FILTERS = ['quantity', 'label', 'color', 'author', 'character', 'entity', 'locked', 'audio', 'wants', 'bookmark'];

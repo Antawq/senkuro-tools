@@ -1,9 +1,8 @@
-import { stableJson, type Variables } from './list-families';
+import { CURSOR_KEY, stableJson, type Variables } from './list-families';
 
 const FIELD_PREFIX = 'SENKUTOOLS_PRICE';
 const CURSOR_PREFIX = 'senkutools:price:';
 const CURSOR_SEPARATOR = ':';
-const AFTER_KEY = 'after';
 const DIRECTION_KEY = 'orderDirection';
 const WHOLE_NUMBER = /^\d+$/;
 
@@ -32,17 +31,18 @@ export function readCursor(after: unknown): PrivateCursor | null {
 }
 
 export const viewKeyOf = (variables: Variables): string =>
-  stableJson(Object.fromEntries(Object.entries(variables).filter(([name]) => name !== AFTER_KEY && name !== DIRECTION_KEY)));
+  stableJson(Object.fromEntries(Object.entries(variables).filter(([name]) => name !== CURSOR_KEY && name !== DIRECTION_KEY)));
 
 export const variableNamesOf = (variables: Variables): string =>
   Object.keys(variables)
-    .filter((name) => name !== AFTER_KEY)
+    .filter((name) => name !== CURSOR_KEY)
     .sort()
     .join();
 
 export function privateVariablesOf(variables: Variables, version: number): Variables {
-  const cursor = readCursor(variables[AFTER_KEY]);
-  return { ...variables, orderField: privateFieldOf(version), [AFTER_KEY]: cursor?.version === version ? variables[AFTER_KEY] : null };
+  const cursor = readCursor(variables[CURSOR_KEY]);
+  return { ...variables, orderField: privateFieldOf(version), [CURSOR_KEY]: cursor?.version === version ? variables[CURSOR_KEY] : null };
 }
 
-export const realVariablesOf = (variables: Variables): Variables => (hasPrivateCursor(variables[AFTER_KEY]) ? { ...variables, [AFTER_KEY]: null } : variables);
+export const realVariablesOf = (variables: Variables): Variables =>
+  hasPrivateCursor(variables[CURSOR_KEY]) ? { ...variables, [CURSOR_KEY]: null } : variables;
