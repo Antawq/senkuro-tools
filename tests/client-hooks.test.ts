@@ -4,7 +4,7 @@ import { filter, make, onPush, pipe, subscribe, take, toPromise } from 'wonka';
 import type { Source } from 'wonka';
 
 import { recordLists, tapMutations, type MutationResult } from '../utils/inventory/client-hooks';
-import { LIST_OPERATION, OWN_QUERY_OPTION, type PageRequest } from '../utils/inventory/list-families';
+import { LIST_OPERATION, type PageRequest } from '../utils/inventory/list-families';
 import type { QueryClient, QueryRequest } from '../utils/shared/urql-client';
 
 const request = (name: string, variables: Record<string, unknown> = {}): QueryRequest => ({
@@ -250,9 +250,8 @@ describe('recordLists and the first page of a list shown from the cache', () => 
     expect(watch([listResult('hit')], { userId: 'USER:1' }, undefined, 'fetchViewer').hits).toEqual([]);
   });
 
-  it('ignores the queries the extension makes for itself and records them without the marker', () => {
-    const { hits, pages } = watch([listResult('hit')], { userId: 'USER:1' }, { [OWN_QUERY_OPTION]: true, requestPolicy: 'network-only', suspense: true });
-    expect(hits).toEqual([]);
+  it('records a page without its request policy, so a replay sets its own', () => {
+    const { pages } = watch([listResult('hit')], { userId: 'USER:1' }, { requestPolicy: 'network-only', suspense: true });
     expect(pages.map((page) => page.options)).toEqual([{ suspense: true }]);
   });
 

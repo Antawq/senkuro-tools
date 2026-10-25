@@ -2,7 +2,7 @@ import type { Sink } from 'wonka';
 
 import { operationName, type QueryClient, type QueryRequest } from '../shared/urql-client';
 import { tapSource, type SourceResult } from '../shared/urql-source';
-import { hasCursor, LIST_OPERATION, OWN_QUERY_OPTION, type PageRequest } from './list-families';
+import { hasCursor, LIST_OPERATION, type PageRequest } from './list-families';
 
 const POLICY_OPTION = 'requestPolicy';
 const CACHE_HIT = 'hit';
@@ -28,13 +28,11 @@ const recording = new WeakSet<QueryClient>();
 const rewriting = new WeakSet<QueryClient>();
 const tapping = new WeakSet<QueryClient>();
 
-const withoutOwnOptions = (options: Record<string, unknown> | undefined): Record<string, unknown> =>
-  Object.fromEntries(Object.entries(options ?? {}).filter(([name]) => name !== POLICY_OPTION && name !== OWN_QUERY_OPTION));
+const withoutPolicy = (options: Record<string, unknown> | undefined): Record<string, unknown> =>
+  Object.fromEntries(Object.entries(options ?? {}).filter(([name]) => name !== POLICY_OPTION));
 
 const isSilent = (options: Record<string, unknown> | undefined, silent: WeakSet<object>): boolean =>
   typeof options?.fetch === 'function' && silent.has(options.fetch);
-
-const isOwn = (options: Record<string, unknown> | undefined): boolean => options?.[OWN_QUERY_OPTION] === true;
 
 function tapFirstCacheHit(source: unknown, onCacheHit: () => void): unknown {
   if (typeof source !== 'function') return source;
@@ -59,10 +57,10 @@ export function recordLists(
   try {
     client.executeQuery = (request, options) => {
       if (operationName(request) !== LIST_OPERATION || !request.variables || isSilent(options, silent)) return original(request, options);
-      const page = { document: request.query, variables: request.variables, options: withoutOwnOptions(options) };
+      const page = { document: request.query, variables: request.variables, options: withoutPolicy(options) };
       onPage(page);
       const source = original(request, options);
-      return onCacheHit && !isOwn(options) && !hasCursor(page.variables) ? tapFirstCacheHit(source, () => onCacheHit(page)) : source;
+      return onCacheHit && !hasCursor(page.variables) ? tapFirstCacheHit(source, () => onCacheHit(page)) : source;
     };
   } catch {
     return false;

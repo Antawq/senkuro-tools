@@ -6,7 +6,7 @@ import type { Source } from 'wonka';
 import { parse } from '@0no-co/graphql.web';
 
 import type { MutationResult } from '../utils/inventory/client-hooks';
-import { LIST_OPERATION, OWN_QUERY_OPTION, createListRecord, type Variables } from '../utils/inventory/list-families';
+import { LIST_OPERATION, createListRecord, type Variables } from '../utils/inventory/list-families';
 import { AUTO_REFRESH_MAX_PAGES, installInventoryGuard, planRefresh } from '../utils/inventory/inventory-guard';
 import { REFRESH_POLICY } from '../utils/inventory/list-refresh';
 import { privateFieldOf, cursorOf } from '../utils/inventory/price-private';
@@ -493,10 +493,10 @@ describe('installInventoryGuard', () => {
       await win.happyDOM.close();
     });
 
-    it('ignores the lists the extension reads for itself', async () => {
+    it('leaves the private list of the price view alone, so a replay never asks the server for it', async () => {
       const { win, respond, browse, queries } = rig({ outcomes: ['hit'] });
       await respond();
-      browse(cardsGrid('USER:1'), { [OWN_QUERY_OPTION]: true });
+      browse({ ...cardsGrid('USER:1'), orderField: privateFieldOf(1) });
       await settle();
       expect(queries).toHaveLength(0);
       await win.happyDOM.close();
