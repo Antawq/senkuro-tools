@@ -21,6 +21,13 @@ Click the extension icon to open the settings.
 - Avatar price warning
 - Token bar (off by default)
 
+```mermaid
+flowchart LR
+  D[bundled prices] --> C[SenkuTools] --> U([tags, totals, sort])
+  S[popup settings] --> C
+  R[site data] --> C
+```
+
 ## Install
 
 Download from the [latest release](https://github.com/Antawq/senkuro-tools/releases/latest).
