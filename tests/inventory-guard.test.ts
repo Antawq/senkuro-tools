@@ -544,6 +544,20 @@ describe('installInventoryGuard', () => {
       await win.happyDOM.close();
     });
 
+    it('gives the real list back with the cursor the guard repaired, not the foreign one it dropped', async () => {
+      const { win, respond, browseList, switchView, order, reexecuted, reached } = rig({ onFetch: crawlPages, withRedrive: true });
+      await respond();
+      await win.fetch(GRAPHQL, { method: 'POST', body: JSON.stringify({ operationName: LIST_OPERATION, variables: grid }) });
+      browseList(listRequest({ ...grid, modifier: { include: [1] }, after: 'c1' }));
+      expect(reached.at(-1)?.after).toBeNull();
+      switchView(true);
+      await settle();
+      order(reversed);
+      switchView(false);
+      expect(reexecuted.at(-1)?.requested.variables?.after ?? null).toBeNull();
+      await win.happyDOM.close();
+    });
+
     it('says it is unavailable when no list was asked for, or the client cannot ask again', async () => {
       const first = rig({ withRedrive: true });
       await first.respond();
