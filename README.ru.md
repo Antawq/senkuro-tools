@@ -4,7 +4,7 @@
 
 [English](README.md) | Русский
 
-[![Release](https://img.shields.io/github/v/release/Antawq/senkuro-tools)](https://github.com/Antawq/senkuro-tools/releases/latest) [![Last commit](https://img.shields.io/github/last-commit/Antawq/senkuro-tools)](https://github.com/Antawq/senkuro-tools/commits/main) [![Issues](https://img.shields.io/github/issues/Antawq/senkuro-tools)](https://github.com/Antawq/senkuro-tools/issues) ![Manifest V3](https://img.shields.io/badge/manifest-v3-4285f4) ![Firefox 142+](https://img.shields.io/badge/firefox-142%2B-ff7139) [![WXT](https://img.shields.io/github/package-json/dependency-version/Antawq/senkuro-tools/dev/wxt?label=WXT&color=67d55e)](https://wxt.dev)
+[![Release](https://img.shields.io/github/v/release/Antawq/senkuro-tools)](https://github.com/Antawq/senkuro-tools/releases/latest) [![Last commit](https://img.shields.io/github/last-commit/Antawq/senkuro-tools)](https://github.com/Antawq/senkuro-tools/commits/main) [![Issues](https://img.shields.io/github/issues/Antawq/senkuro-tools)](https://github.com/Antawq/senkuro-tools/issues) [![Telegram](https://img.shields.io/endpoint?url=https%3A%2F%2Ftg.sumanjay.workers.dev%2FSenkuTools&label=Telegram&color=26A5E4)](https://t.me/SenkuTools) ![Manifest V3](https://img.shields.io/badge/manifest-v3-4285f4) ![Firefox 142+](https://img.shields.io/badge/firefox-142%2B-ff7139) [![WXT](https://img.shields.io/github/package-json/dependency-version/Antawq/senkuro-tools/dev/wxt?label=WXT&color=67d55e)](https://wxt.dev)
 
 ## Возможности
 
