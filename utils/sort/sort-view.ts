@@ -1,3 +1,4 @@
+import { PERCENT } from '../shared/cards';
 import type { Database } from '../shared/database';
 import { readPriceRows, readPriceState, type PriceOrder, type PriceRows } from '../shared/price-signal';
 import type { Settings } from '../shared/settings';
@@ -7,7 +8,6 @@ import { DIRECTION_ASCENDING, FILTERS, MENU, MENU_ITEM, MODE_ATTRIBUTE, OWN_ITEM
 import { decorateMenu, findSortTrigger, isPriceMode, reflectLabel } from './sort-menu';
 
 const STALL_MS = 15000;
-const PERCENT = 100;
 
 type Phase = 'idle' | 'loading' | 'ready' | 'partial';
 
