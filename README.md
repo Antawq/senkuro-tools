@@ -52,4 +52,4 @@ Download from the [latest release](https://github.com/Antawq/senkuro-tools/relea
 
 ## Support
 
-[@SenkuTools](https://t.me/SenkuTools) on Telegram or an [issue](https://github.com/Antawq/senkuro-tools/issues). Author: phaivroh ([.com](https://senkuro.com/users/phaivroh), [.me](https://senkuro.me/users/phaivroh)). Thanks to Anta ([.com](https://senkuro.com/users/chu), [.me](https://senkuro.me/users/chu)).
+[@SenkuTools](https://t.me/SenkuTools) on Telegram or an [issue](https://github.com/Antawq/senkuro-tools/issues). Authors: phaivroh ([.com](https://senkuro.com/users/phaivroh), [.me](https://senkuro.me/users/phaivroh)). Anta: ([.com](https://senkuro.com/users/chu), [.me](https://senkuro.me/users/chu)).
