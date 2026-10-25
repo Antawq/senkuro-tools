@@ -222,7 +222,7 @@ export function installInventoryGuard(win: PageWindow): void {
     );
     const isTapping = tapMutations(client, onMutation(client));
     const isGuarding = guardCursors(client, (variables) => debug('stale cursor dropped', { list: familyIdOf(variables), after: variables.after }), ledger);
-    const isRewriting = rewriteLists(client, priceView);
+    const isRewriting = rewriteLists(client, priceView, silent);
     const isAttached = isRecording && isTapping && isGuarding && isRewriting;
     if (isAttached) win.document.documentElement.setAttribute(GUARD_ATTRIBUTE, GUARD_READY);
     debug('urql client', isAttached ? 'attached' : 'not replaceable');

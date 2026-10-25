@@ -114,6 +114,7 @@ const rig = ({ answer = {}, mounted = true, results = [], slow = false, outcomes
       }),
     query: (_document, variables, options = {}) => ({
       toPromise: async () => {
+        client.executeQuery(request(LIST_OPERATION, variables), options);
         queries.push({ variables, options });
         const index = queries.length - 1;
         log.push(`start ${String(variables.userId)}`);
@@ -158,8 +159,8 @@ const rig = ({ answer = {}, mounted = true, results = [], slow = false, outcomes
   if (mounted) mount();
   installInventoryGuard(win as unknown as Parameters<typeof installInventoryGuard>[0]);
   const respond = () => win.fetch(GRAPHQL, { method: 'POST', body: JSON.stringify({ operationName: 'fetchViewer' }) });
-  const browse = (variables: Variables, options?: Record<string, unknown>) => {
-    const source = client.executeQuery(request(LIST_OPERATION, variables), options);
+  const browse = (variables: Variables, options?: Record<string, unknown>, asked: QueryRequest = request(LIST_OPERATION, variables)) => {
+    const source = client.executeQuery(asked, options);
     if (typeof source === 'function')
       pipe(
         source as Source<unknown>,
@@ -530,6 +531,18 @@ describe('installInventoryGuard', () => {
       };
     };
     const reversed = { viewId: 1, revision: 1, descending: [3, 2, 1, 0], ascending: [0, 1, 2, 3] };
+
+    it('keeps the replays of the guard from becoming the list the view crawls', async () => {
+      const { win, respond, browse, switchView, states, rows } = rig({ onFetch: crawlPages, withRedrive: true, outcomes: ['hit'] });
+      await respond();
+      browse(grid, undefined, listRequest());
+      await settle();
+      switchView(true);
+      await settle();
+      expect(states.at(-1)?.name).not.toBe('unavailable');
+      expect(rows).toEqual([{ viewId: 1, slugs: ['a', 'b', 'c', 'd'] }]);
+      await win.happyDOM.close();
+    });
 
     it('says it is unavailable when no list was asked for, or the client cannot ask again', async () => {
       const first = rig({ withRedrive: true });

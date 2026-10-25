@@ -69,13 +69,13 @@ export function recordLists(
   return true;
 }
 
-export function rewriteLists(client: QueryClient, view: PriceRewriter): boolean {
+export function rewriteLists(client: QueryClient, view: PriceRewriter, silent: WeakSet<object>): boolean {
   if (rewriting.has(client)) return true;
   const original = client.executeQuery.bind(client);
   try {
     client.executeQuery = (request, options) => {
       if (operationName(request) !== LIST_OPERATION) return original(request, options);
-      view.watch(request, options);
+      if (!isSilent(options, silent)) view.watch(request, options);
       return original(view.rewrite(request), options);
     };
   } catch {
