@@ -4,7 +4,7 @@ Prices on cards, trade totals and account tools for senkuro.me, shiruho.com and 
 
 English | [Русский](README.ru.md)
 
-[![Release](https://img.shields.io/github/v/release/Antawq/senkuro-tools)](https://github.com/Antawq/senkuro-tools/releases/latest) [![Last commit](https://img.shields.io/github/last-commit/Antawq/senkuro-tools)](https://github.com/Antawq/senkuro-tools/commits/main) ![Manifest V3](https://img.shields.io/badge/manifest-v3-4285f4) ![Firefox 142+](https://img.shields.io/badge/firefox-142%2B-ff7139) [![WXT](https://img.shields.io/github/package-json/dependency-version/Antawq/senkuro-tools/dev/wxt?label=WXT&color=67d55e)](https://wxt.dev)
+[![Release](https://img.shields.io/github/v/release/Antawq/senkuro-tools)](https://github.com/Antawq/senkuro-tools/releases/latest) [![Last commit](https://img.shields.io/github/last-commit/Antawq/senkuro-tools)](https://github.com/Antawq/senkuro-tools/commits/main) [![Issues](https://img.shields.io/github/issues/Antawq/senkuro-tools)](https://github.com/Antawq/senkuro-tools/issues) ![Manifest V3](https://img.shields.io/badge/manifest-v3-4285f4) ![Firefox 142+](https://img.shields.io/badge/firefox-142%2B-ff7139) [![WXT](https://img.shields.io/github/package-json/dependency-version/Antawq/senkuro-tools/dev/wxt?label=WXT&color=67d55e)](https://wxt.dev)
 
 ## Features
 
