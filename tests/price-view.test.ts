@@ -115,6 +115,21 @@ describe('starting', () => {
     expect(notReady.crawls).toHaveLength(0);
   });
 
+  it('crawls the grid and never a picker the page asked for after it, since only the grid is served', () => {
+    const picker = { userId: 'USER:1', modifier: { exclude: [1] }, rank: { include: [], exclude: ['F'] } };
+    const withGrid = rig();
+    withGrid.view.watch(request(gridVariables(), 'fetchUserCards', 1), {});
+    withGrid.view.watch(request(picker, 'fetchUserCards', 2), {});
+    withGrid.view.start();
+    expect(withGrid.crawls).toHaveLength(1);
+    expect(withGrid.crawls[0]?.page.request.key).toBe(1);
+    const onlyPicker = rig();
+    onlyPicker.view.watch(request(picker, 'fetchUserCards', 3), {});
+    onlyPicker.view.start();
+    expect(onlyPicker.crawls).toHaveLength(0);
+    expect(onlyPicker.states).toEqual([{ name: 'unavailable', loaded: 0, total: null }]);
+  });
+
   it('crawls the list the site asked for last and says it is loading, and how far it is', () => {
     const { view, states, crawls } = rig();
     view.watch(request(gridVariables({ rank: { include: ['S'] } }), 'fetchUserCards', 1), {});

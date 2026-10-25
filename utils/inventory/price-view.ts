@@ -1,7 +1,7 @@
 import { operationName, type QueryRequest } from '../shared/urql-client';
 import type { PriceOrder, PriceRows, PriceState } from '../shared/price-signal';
 import type { MutationResult } from './client-hooks';
-import type { Variables } from './list-families';
+import { isGridVariables, type Variables } from './list-families';
 import { modifierOf, slugOf, type CrawledList, type Row } from './price-crawl';
 import {
   cursorOf,
@@ -243,7 +243,7 @@ export function createPriceView(host: ViewHost): PriceView {
       const variables = request.variables;
       if (!variables || isPrivateVariables(variables)) return;
       const page: ListPage = { request, options: options ?? {} };
-      latest = page;
+      if (isGridVariables(variables)) latest = page;
       if (!isOn || !view) return;
       if (viewKeyOf(variables) === view.key) current = page;
       else if (variableNamesOf(variables) === view.names && variables.userId === view.userId) begin(page);
