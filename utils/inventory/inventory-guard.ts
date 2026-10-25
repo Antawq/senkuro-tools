@@ -47,7 +47,6 @@ import { createPriceView, type ListPage } from './price-view';
 const FORGE_OPERATION = 'forgeCards';
 const TRADE_OPERATIONS = ['acceptCardTrade', 'acceptCardOffer'];
 export const AUTO_REFRESH_MAX_PAGES = 25;
-const REDRIVE_POLICY = 'network-only';
 
 interface ForgeAnswer {
   userId?: unknown;
@@ -130,7 +129,7 @@ export function installInventoryGuard(win: PageWindow): void {
     redrive: (page, variables) => {
       const client = attachedClient;
       if (!client?.createRequestOperation || !client.reexecuteOperation) return;
-      client.reexecuteOperation(client.createRequestOperation('query', { ...page.request, variables }, { ...page.options, requestPolicy: REDRIVE_POLICY }));
+      client.reexecuteOperation(client.createRequestOperation('query', { ...page.request, variables }, { ...page.options, requestPolicy: REFRESH_POLICY }));
     },
     refreshPage: (page, variables) => {
       void attachedClient
