@@ -109,10 +109,10 @@ export function installInventoryGuard(win: PageWindow): void {
   const priceView = createPriceView({
     isReady: () => typeof attachedClient?.createRequestOperation === 'function' && typeof attachedClient.reexecuteOperation === 'function',
     crawl: (page, report, signal) => {
-      const document = crawlDocumentOf(page.request.query);
+      const crawlDocument = crawlDocumentOf(page.request.query);
       const url = apiUrlOf(attachedClient, page);
-      if (!document || !url) {
-        debug('price view cannot crawl', { hasDocument: document !== null, hasUrl: url !== null });
+      if (!crawlDocument || !url) {
+        debug('price view cannot crawl', { hasDocument: crawlDocument !== null, hasUrl: url !== null });
         return Promise.resolve(null);
       }
       const transport: Transport = {
@@ -121,9 +121,9 @@ export function installInventoryGuard(win: PageWindow): void {
         random: Math.random,
         endpoint: url,
       };
-      return crawlList({ text: document.text, variables: page.request.variables ?? {}, transport, signal, onProgress: report }).then((crawled) => ({
+      return crawlList({ text: crawlDocument.text, variables: page.request.variables ?? {}, transport, signal, onProgress: report }).then((crawled) => ({
         ...crawled,
-        pageSize: document.pageSize,
+        pageSize: crawlDocument.pageSize,
       }));
     },
     redrive: (page, variables) => {
