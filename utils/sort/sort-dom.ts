@@ -23,9 +23,11 @@ export const SORT_TEXT = {
   partialHint: 'Отсортированы только загруженные карты',
 } as const;
 
-const LOADING_LABEL = /^По цене \d+%$/;
+const PROGRESS = /^\d+%$/;
 
 export const loadingLabelOf = (percent: number | null): string => (percent === null ? SORT_TEXT.label : `${SORT_TEXT.label} ${percent}%`);
 
+const isProgressLabel = (text: string): boolean => text.startsWith(`${SORT_TEXT.label} `) && PROGRESS.test(text.slice(SORT_TEXT.label.length + 1));
+
 export const isOwnLabel = (text: string | null | undefined): boolean =>
-  text === SORT_TEXT.label || text === SORT_TEXT.partialLabel || LOADING_LABEL.test(text ?? '');
+  text === SORT_TEXT.label || text === SORT_TEXT.partialLabel || isProgressLabel(text ?? '');
