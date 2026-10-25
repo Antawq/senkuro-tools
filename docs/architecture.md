@@ -27,7 +27,7 @@ flowchart TB
   ST -->|"storage change"| ISO
   DB -->|"runtime.getURL fetch"| ISO
   ISO -->|"runtime message, token back (cookies API)"| BG
-  ISO -->|"senkutools events, strings only"| MAIN
+  ISO -->|"senkutools events: price-view, price-order, inventory-refresh, trades-replay, strings only"| MAIN
   MAIN -->|"senkutools events: trades, search, price, refresh, app-mounted, strings only"| ISO
   ISO -->|"draws into the DOM, watches it with MutationObserver"| PAGE
   MAIN -->|"wraps fetch, executeQuery and executeMutation, adds a router guard, opens the confirm modal"| PAGE
@@ -108,7 +108,7 @@ sequenceDiagram
   S->>H: opens the catalog with the text in query
   H->>S: beforeEach guard: query becomes the search filter
   S->>H: the catalog asks for titles through executeQuery
-  H->>A: empty: asks search, up to 300 rows, and catalogRowFacts
+  H->>A: empty answer: asks search, up to 300 rows, and catalogRowFacts
   H->>S: hands back rows in the catalog format
 ```
 

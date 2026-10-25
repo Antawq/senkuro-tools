@@ -27,10 +27,10 @@ flowchart TB
   ST -->|"изменение хранилища"| ISO
   DB -->|"runtime.getURL и fetch"| ISO
   ISO -->|"сообщение runtime, токен обратно (cookies API)"| BG
-  ISO -->|"события senkutools, только строки"| MAIN
+  ISO -->|"события senkutools: price-view, price-order, inventory-refresh, trades-replay, только строки"| MAIN
   MAIN -->|"события senkutools: trades, search, price, refresh, app-mounted, только строки"| ISO
   ISO -->|"рисует в DOM, следит за ним через MutationObserver"| PAGE
-  MAIN -->|"оборачивает fetch, executeQuery и executeMutation, ставит охранника роутера, открывает окно подтверждения"| PAGE
+  MAIN -->|"оборачивает fetch, executeQuery и executeMutation, ставит хук роутера, открывает окно подтверждения"| PAGE
   PAGE -->|"GraphQL по HTTP"| API
   ISO -->|"анонимный GraphQL для значка профиля"| API
   MAIN -->|"анонимный обход для сортировки по цене, читает /sw.js"| API
@@ -50,7 +50,7 @@ sequenceDiagram
   G->>A: обходит список по 100 карт, без токена
   G->>C: senkutools:price-rows и price-state, прогресс
   C->>G: senkutools:price-order, порядок по ценам из расширения
-  G->>S: отвечает сетке закрытым отсортированным списком, по странице
+  G->>S: отвечает сетке служебным отсортированным списком, по странице
   G->>C: senkutools:price-state готово
 ```
 
@@ -106,9 +106,9 @@ sequenceDiagram
   participant A as API сайта
   U->>S: Enter в поиске сайта, вкладка Манга или Аниме
   S->>H: открывает каталог с текстом в query
-  H->>S: охранник beforeEach: query становится фильтром поиска
+  H->>S: хук beforeEach: query становится фильтром поиска
   S->>H: каталог запрашивает тайтлы через executeQuery
-  H->>A: пусто: просит search до 300 строк и catalogRowFacts
+  H->>A: пустой ответ: просит search до 300 строк и catalogRowFacts
   H->>S: отдаёт строки в формате каталога
 ```
 
