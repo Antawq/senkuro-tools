@@ -3,14 +3,12 @@ import type { Sink } from 'wonka';
 import { operationName, type QueryClient, type QueryRequest } from '../shared/urql-client';
 import { tapSource, type SourceResult } from '../shared/urql-source';
 import { hasCursor, LIST_OPERATION, type PageRequest } from './list-families';
+import type { PriceView } from './price-view';
 
 const POLICY_OPTION = 'requestPolicy';
 const CACHE_HIT = 'hit';
 
-export interface PriceRewriter {
-  watch: (request: QueryRequest, options: Record<string, unknown> | undefined) => void;
-  rewrite: (request: QueryRequest) => QueryRequest;
-}
+export type PriceRewriter = Pick<PriceView, 'watch' | 'rewrite'>;
 
 export interface MutationResult {
   operation?: QueryRequest;
