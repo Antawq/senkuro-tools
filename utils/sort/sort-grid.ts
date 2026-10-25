@@ -6,19 +6,15 @@ import { CARD, GRID, STATE_ATTRIBUTE, type GridState } from './sort-dom';
 export interface GridView {
   grid: HTMLElement;
   cards: HTMLElement[];
-  hasMoreCards: boolean;
-  gridKey: string;
 }
 
 const slugOf = (card: HTMLElement | undefined): string | null => slugFromHref(card?.querySelector(CARD_LINK)?.getAttribute('href'));
-
-const keyOf = (cards: HTMLElement[]): string => `${cards.length}|${slugOf(cards[0])}|${slugOf(cards.at(-1))}`;
 
 export function inspectGrid(pageDocument: Document): GridView | null {
   const grid = pageDocument.querySelector<HTMLElement>(GRID);
   if (!grid) return null;
   const cards = [...grid.children].filter((child): child is HTMLElement => child instanceof HTMLElement && child.matches(CARD));
-  return { grid, cards, hasMoreCards: grid.children.length > cards.length, gridKey: keyOf(cards) };
+  return { grid, cards };
 }
 
 export function orderCards(cards: HTMLElement[], database: Database, commission: boolean, isDescending: boolean): void {
