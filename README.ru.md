@@ -52,4 +52,4 @@ flowchart LR
 
 ## Связь
 
-[@SenkuTools](https://t.me/SenkuTools) в Telegram или [issue](https://github.com/Antawq/senkuro-tools/issues). Автор: phaivroh ([.com](https://senkuro.com/users/phaivroh), [.me](https://senkuro.me/users/phaivroh)). Благодарность: Anta ([.com](https://senkuro.com/users/chu), [.me](https://senkuro.me/users/chu)).
+[@SenkuTools](https://t.me/SenkuTools) в Telegram или [issue](https://github.com/Antawq/senkuro-tools/issues). Авторы: phaivroh ([.com](https://senkuro.com/users/phaivroh), [.me](https://senkuro.me/users/phaivroh)). Anta ([.com](https://senkuro.com/users/chu), [.me](https://senkuro.me/users/chu)).
