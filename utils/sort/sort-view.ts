@@ -50,10 +50,10 @@ export function createPriceSort(pageDocument: Document, host: SortHost): PriceSo
   let inputs: PriceInputs | null = null;
   let sentWith: PriceInputs | null = null;
 
-  const watchStall = (seenEvents: number): void =>
+  const watchStall = (seenEventCount: number): void =>
     host.runAfter(() => {
       if (phase !== 'loading') return;
-      if (eventCount !== seenEvents) return watchStall(eventCount);
+      if (eventCount !== seenEventCount) return watchStall(eventCount);
       fallBack();
     }, STALL_MS);
 
