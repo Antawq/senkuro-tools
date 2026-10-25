@@ -4,7 +4,7 @@
 
 [English](README.md) | Русский
 
-![Manifest V3](https://img.shields.io/badge/manifest-v3-4285f4) ![Firefox 142+](https://img.shields.io/badge/firefox-142%2B-ff7139) ![WXT](https://img.shields.io/badge/built%20with-WXT-67d55e)
+[![Release](https://img.shields.io/github/v/release/Antawq/senkuro-tools)](https://github.com/Antawq/senkuro-tools/releases/latest) ![Manifest V3](https://img.shields.io/badge/manifest-v3-4285f4) ![Firefox 142+](https://img.shields.io/badge/firefox-142%2B-ff7139) [![WXT](https://img.shields.io/github/package-json/dependency-version/Antawq/senkuro-tools/dev/wxt?label=WXT&color=67d55e)](https://wxt.dev)
 
 ## Возможности
 
