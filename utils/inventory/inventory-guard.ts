@@ -117,7 +117,7 @@ export function installInventoryGuard(win: PageWindow): void {
       }
       const transport: Transport = {
         fetch: (input, init) => win.fetch(input, init),
-        sleep: (delayMs) => new Promise((resolve) => win.setTimeout(resolve, delayMs)),
+        sleep,
         random: Math.random,
         endpoint: url,
       };
