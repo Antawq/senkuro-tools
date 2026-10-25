@@ -8,18 +8,18 @@ English | [Русский](README.ru.md)
 
 ## Features
 
-Click the extension icon to open the settings. Labels in backticks are the extension's Russian interface.
+Click the extension icon to open the settings.
 
-- **Prices on cards.** The bank price on every card, from the bundled database. `Показывать цены банка на картах` hides it.
-- **Trade totals.** A table with value in F (the lowest rank), cards per rank and a verdict, `Выгода` or `Потеря`.
-- **Profile value.** The chip `Посчитать ценность` counts a collection in F.
-- **Sort by price.** The last item of the card sort menu, `Цене`. About 40 seconds for 10,000 cards.
-- **Fresh lists.** Cached card lists reload in the background. Refresh buttons sit on the cards page and in the forge, trade and offer windows.
-- **Cards and shards.** A `Все | Карты | Осколки` switch in the trade, offer and merge pickers.
-- **Search.** The catalog takes Russian queries. The site search shows 30 results per tab.
-- **Copy a card's name.** A button on each card, off by default.
-- **Avatar price warning.** A confirm window with the 5000 senkoin price before an upload.
-- **Token bar.** `Показывать токен аккаунта` adds a bar with a button that copies the account token. Off by default.
+- Prices on cards
+- Trade totals
+- Profile value
+- Sort by price
+- Fresh card lists
+- Cards and shards switch
+- Better site search
+- Copy a card's name (off by default)
+- Avatar price warning
+- Token bar (off by default)
 
 ## Install
 
@@ -31,7 +31,11 @@ Download from the [latest release](https://github.com/Antawq/senkuro-tools/relea
 
 ## Privacy
 
-No analytics. The extension talks only to the supported sites and their APIs. Prices ship inside it. The token is read only while the token bar is on and is never sent anywhere. Permissions: `storage`, `clipboardWrite`, `cookies` (the `access_token` cookie, for the token bar) and the six site hosts.
+- No analytics.
+- Talks only to the supported sites and their APIs.
+- Prices are bundled, not fetched.
+- The token is read only while the token bar is on and is never sent anywhere.
+- Permissions: `storage`, `clipboardWrite`, `cookies` (the `access_token` cookie, for the token bar) and the six site hosts.
 
 ## Development
 
