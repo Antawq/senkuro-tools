@@ -4,6 +4,7 @@ import { streamCatalogMatches, type MatchQuery } from '../utils/catalog/catalog-
 import { CATALOG_ROW_LIMIT, SEARCH_PAGE_ROWS, catalogKindOf } from '../utils/catalog/catalog-results';
 import { searchRequestOf } from '../utils/catalog/catalog-filters';
 import { sortOrderOf } from '../utils/catalog/catalog-sort';
+import type { CatalogRow } from '../utils/catalog/catalog-row';
 import type { QueryClient } from '../utils/shared/urql-client';
 import { factsAnswer, promiseOf, searchPage, type Answer, type QueryCall } from './helpers/catalog-requests';
 
@@ -28,19 +29,17 @@ const rig = (pages: Record<string, Answer>, facts: Answer = { data: {} }) => {
 const slugsOf = (rows: { slug?: unknown }[]) => rows.map((row) => row.slug);
 const numbered = (from: number, count: number) => Array.from({ length: count }, (_, index) => `m${from + index}`);
 
-type Row = Record<string, unknown>;
-
 const query = (text: string, order: MatchQuery['order'] = null, filters: MatchQuery['filters'] = []): MatchQuery => ({ text, order, filters });
 
 const filtersOf = (variables: Record<string, unknown>): MatchQuery['filters'] => searchRequestOf({ search: 'x', ...variables }, manga)?.filters ?? [];
 
-const collect = async (stream: AsyncGenerator<Row[]>): Promise<Row[][]> => {
-  const emissions: Row[][] = [];
+const collect = async (stream: AsyncGenerator<CatalogRow[]>): Promise<CatalogRow[][]> => {
+  const emissions: CatalogRow[][] = [];
   for await (const rows of stream) emissions.push(rows);
   return emissions;
 };
 
-const loadCatalogMatches = async (...parameters: Parameters<typeof streamCatalogMatches>): Promise<Row[]> =>
+const loadCatalogMatches = async (...parameters: Parameters<typeof streamCatalogMatches>): Promise<CatalogRow[]> =>
   (await collect(streamCatalogMatches(...parameters))).at(-1) ?? [];
 
 describe('streamCatalogMatches', () => {

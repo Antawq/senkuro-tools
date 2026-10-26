@@ -1,3 +1,5 @@
+import { isCatalogRow, type CatalogRow } from './catalog-row';
+
 export const SEARCH_PAGE_ROWS = 100;
 export const CATALOG_ROW_LIMIT = 300;
 
@@ -99,19 +101,15 @@ const CATALOG_KINDS: readonly CatalogKind[] = [
 const TITLE_TYPENAME = 'I18nTitle';
 const ORIGINAL_NAME_LANGUAGE = 'JA';
 
-type Row = Record<string, unknown>;
-
-const isRow = (value: unknown): value is Row => typeof value === 'object' && value !== null && !Array.isArray(value);
-
 export const catalogKindOf = (operation: string | undefined): CatalogKind | undefined => CATALOG_KINDS.find((kind) => kind.operation === operation);
 
 export function isEmptyCatalogAnswer(answer: { data?: unknown; error?: unknown }, kind: CatalogKind): boolean {
   if (answer.error !== undefined && answer.error !== null) return true;
-  const edges = isRow(answer.data) && isRow(answer.data[kind.root]) ? (answer.data[kind.root] as Row).edges : undefined;
+  const edges = isCatalogRow(answer.data) && isCatalogRow(answer.data[kind.root]) ? (answer.data[kind.root] as CatalogRow).edges : undefined;
   return !Array.isArray(edges) || edges.length === 0;
 }
 
-function catalogNodeOf(node: Row, kind: CatalogKind): Row {
+function catalogNodeOf(node: CatalogRow, kind: CatalogKind): CatalogRow {
   const originalName = node.originalName;
   return {
     id: node.id,
@@ -130,7 +128,7 @@ function catalogNodeOf(node: Row, kind: CatalogKind): Row {
   };
 }
 
-export function toCatalogData(rows: readonly Row[], kind: CatalogKind): Row | null {
+export function toCatalogData(rows: readonly CatalogRow[], kind: CatalogKind): CatalogRow | null {
   const edges = rows.map((node) => ({ node: catalogNodeOf(node, kind), __typename: `${kind.nodeTypename}Edge` }));
   if (edges.length === 0) return null;
   return { [kind.root]: { edges, pageInfo: { hasNextPage: false, endCursor: null, __typename: 'PageInfo' }, __typename: `${kind.nodeTypename}Connection` } };

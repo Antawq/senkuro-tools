@@ -1,7 +1,6 @@
 import type { FactsBySlug } from './catalog-facts';
 import type { CatalogKind } from './catalog-results';
-
-type Row = Record<string, unknown>;
+import type { CatalogRow } from './catalog-row';
 
 export interface SortOrder {
   key: string;
@@ -14,7 +13,7 @@ const ASCENDING = 'ASC';
 const TIE_BREAK_KEY = 'createdAt';
 const TIMESTAMP_FRACTION_DIGITS = 6;
 
-export function sortOrderOf(variables: Row | undefined, kind: CatalogKind): SortOrder | null {
+export function sortOrderOf(variables: CatalogRow | undefined, kind: CatalogKind): SortOrder | null {
   const field = variables?.[ORDER_FIELD_VARIABLE];
   const key = typeof field === 'string' ? kind.sortKeys[field] : undefined;
   if (!key) return null;
@@ -34,10 +33,10 @@ const compareValues = (first: unknown, second: unknown): number => {
 
 const isMissing = (value: unknown): boolean => value === null || value === undefined;
 
-export function sortRows(rows: readonly Row[], factsBySlug: FactsBySlug, order: SortOrder): Row[] {
+export function sortRows(rows: readonly CatalogRow[], factsBySlug: FactsBySlug, order: SortOrder): CatalogRow[] {
   const direction = order.isDescending ? -1 : 1;
-  const valueOf = (row: Row, key: string): unknown => factsBySlug.get(String(row.slug))?.[key];
-  const compareKey = (first: Row, second: Row, key: string): number => {
+  const valueOf = (row: CatalogRow, key: string): unknown => factsBySlug.get(String(row.slug))?.[key];
+  const compareKey = (first: CatalogRow, second: CatalogRow, key: string): number => {
     const firstValue = valueOf(first, key);
     const secondValue = valueOf(second, key);
     if (isMissing(firstValue) || isMissing(secondValue)) return Number(isMissing(firstValue)) - Number(isMissing(secondValue));

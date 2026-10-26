@@ -3,8 +3,8 @@ import { factVariablesOf, factsDocumentOf, readFacts } from './catalog-facts';
 import { rowPasses, type CatalogFilters } from './catalog-filters';
 import { CATALOG_ROW_LIMIT, SEARCH_PAGE_ROWS, type CatalogKind } from './catalog-results';
 import { sortRows, type SortOrder } from './catalog-sort';
+import { isCatalogRow, type CatalogRow } from './catalog-row';
 
-type Row = Record<string, unknown>;
 type QueryOptions = Record<string, unknown> | undefined;
 
 const CACHE_FIRST = { requestPolicy: 'cache-first' };
@@ -17,8 +17,6 @@ export interface MatchQuery {
   filters: CatalogFilters;
 }
 
-const isRow = (value: unknown): value is Row => typeof value === 'object' && value !== null && !Array.isArray(value);
-
 const factsDocumentFor = (kind: CatalogKind): string => {
   let document = factsDocuments.get(kind.operation);
   if (document === undefined) {
@@ -28,24 +26,26 @@ const factsDocumentFor = (kind: CatalogKind): string => {
   return document;
 };
 
-async function ask(client: QueryClient, document: string, variables: Record<string, unknown>, options: QueryOptions): Promise<Row> {
+async function ask(client: QueryClient, document: string, variables: Record<string, unknown>, options: QueryOptions): Promise<CatalogRow> {
   const answer = await client.query(document, variables, { ...options, ...CACHE_FIRST }).toPromise();
-  return isRow(answer) ? answer : {};
+  return isCatalogRow(answer) ? answer : {};
 }
 
-async function* searchPages(client: QueryClient, kind: CatalogKind, text: string, options: QueryOptions): AsyncGenerator<Row[]> {
+async function* searchPages(client: QueryClient, kind: CatalogKind, text: string, options: QueryOptions): AsyncGenerator<CatalogRow[]> {
   let after: string | null = null;
   let totalCount = CATALOG_ROW_LIMIT;
   let loadedCount = 0;
   while (loadedCount < Math.min(totalCount, CATALOG_ROW_LIMIT)) {
     const answer = await ask(client, kind.searchDocument, { query: text, type: kind.searchType, first: SEARCH_PAGE_ROWS, after }, options);
-    const search = isRow(answer.data) ? answer.data.search : null;
-    if (!isRow(search) || !Array.isArray(search.edges)) return;
-    const rows = search.edges.flatMap((edge: unknown) => (isRow(edge) && isRow(edge.node) && typeof edge.node.slug === 'string' ? [edge.node] : []));
+    const search = isCatalogRow(answer.data) ? answer.data.search : null;
+    if (!isCatalogRow(search) || !Array.isArray(search.edges)) return;
+    const rows = search.edges.flatMap((edge: unknown) =>
+      isCatalogRow(edge) && isCatalogRow(edge.node) && typeof edge.node.slug === 'string' ? [edge.node] : []
+    );
     loadedCount += rows.length;
     if (rows.length > 0) yield rows;
     if (typeof search.totalCount === 'number') totalCount = search.totalCount;
-    const pageInfo = isRow(search.pageInfo) ? search.pageInfo : {};
+    const pageInfo = isCatalogRow(search.pageInfo) ? search.pageInfo : {};
     if (pageInfo.hasNextPage !== true || typeof pageInfo.endCursor !== 'string' || search.edges.length === 0) return;
     after = pageInfo.endCursor;
   }
@@ -56,9 +56,9 @@ export async function* streamCatalogMatches(
   kind: CatalogKind,
   { text, order, filters }: MatchQuery,
   options: QueryOptions
-): AsyncGenerator<Row[]> {
+): AsyncGenerator<CatalogRow[]> {
   const needsFacts = order !== null || filters.length > 0;
-  const matches: Row[] = [];
+  const matches: CatalogRow[] = [];
   for await (const page of searchPages(client, kind, text, options)) {
     matches.push(...page);
     matches.length = Math.min(matches.length, CATALOG_ROW_LIMIT);

@@ -1,6 +1,5 @@
 import type { CatalogKind, FilterSpec } from './catalog-results';
-
-type Row = Record<string, unknown>;
+import { isCatalogRow, type CatalogRow } from './catalog-row';
 
 interface MembersRule {
   kind: 'one' | 'all';
@@ -48,12 +47,10 @@ const ALL_MODE = 'ALL';
 const WHOLE_NUMBER = /^-?\d+$/;
 const CALENDAR_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-const isRow = (value: unknown): value is Row => typeof value === 'object' && value !== null && !Array.isArray(value);
-
 const isEmptyValue = (value: unknown): boolean => {
   if (value === null || value === undefined || value === '') return true;
   if (Array.isArray(value)) return value.length === 0;
-  return isRow(value) && Object.values(value).every(isEmptyValue);
+  return isCatalogRow(value) && Object.values(value).every(isEmptyValue);
 };
 
 const isStrings = (value: unknown): value is string[] => Array.isArray(value) && value.every((item) => typeof item === 'string');
@@ -74,13 +71,13 @@ const dateOf = (value: unknown): string | null | undefined => {
   return typeof value === 'string' && CALENDAR_DATE.test(value) ? value : undefined;
 };
 
-function membersRuleOf(kind: 'one' | 'all', { include, exclude, ...rest }: Row): MembersRule | null {
+function membersRuleOf(kind: 'one' | 'all', { include, exclude, ...rest }: CatalogRow): MembersRule | null {
   const included = listOf(include);
   const excluded = listOf(exclude);
   return included && excluded && Object.values(rest).every(isEmptyValue) ? { kind, include: included, exclude: excluded } : null;
 }
 
-function labelRuleOf({ include, exclude, mode, ...rest }: Row): LabelRule | null {
+function labelRuleOf({ include, exclude, mode, ...rest }: CatalogRow): LabelRule | null {
   const included = listOf(include);
   const excluded = listOf(exclude);
   const isKnownMode = mode === undefined || mode === null || mode === ANY_MODE || mode === ALL_MODE;
@@ -89,31 +86,31 @@ function labelRuleOf({ include, exclude, mode, ...rest }: Row): LabelRule | null
     : null;
 }
 
-function countRuleOf({ start, end, ...rest }: Row): CountRule | null {
+function countRuleOf({ start, end, ...rest }: CatalogRow): CountRule | null {
   const first = countOf(start);
   const last = countOf(end);
   return first !== undefined && last !== undefined && Object.values(rest).every(isEmptyValue) ? { kind: 'count', start: first, end: last } : null;
 }
 
-function dateRuleOf({ start, end, ...rest }: Row): DateRule | null {
+function dateRuleOf({ start, end, ...rest }: CatalogRow): DateRule | null {
   const first = dateOf(start);
   const last = dateOf(end);
   return first !== undefined && last !== undefined && Object.values(rest).every(isEmptyValue) ? { kind: 'date', start: first, end: last } : null;
 }
 
-const ruleOf = ({ rule }: FilterSpec, value: Row): Rule | null => {
+const ruleOf = ({ rule }: FilterSpec, value: CatalogRow): Rule | null => {
   if (rule === 'label') return labelRuleOf(value);
   if (rule === 'count') return countRuleOf(value);
   return rule === 'date' ? dateRuleOf(value) : membersRuleOf(rule, value);
 };
 
 function conditionOf(spec: FilterSpec | undefined, value: unknown): Condition | null {
-  if (!spec || !isRow(value)) return null;
+  if (!spec || !isCatalogRow(value)) return null;
   const rule = ruleOf(spec, value);
   return rule ? { fact: spec.fact, rule } : null;
 }
 
-export function searchRequestOf(variables: Row | undefined, kind: CatalogKind): SearchRequest | null {
+export function searchRequestOf(variables: CatalogRow | undefined, kind: CatalogKind): SearchRequest | null {
   const text = variables?.[SEARCH_VARIABLE];
   if (!variables || typeof text !== 'string' || text.trim() === '') return null;
   const filters: Condition[] = [];
@@ -131,7 +128,7 @@ const hasEvery = (members: readonly string[], wanted: readonly string[]): boolea
 const hasSome = (members: readonly string[], wanted: readonly string[]): boolean => wanted.some((item) => members.includes(item));
 
 const memberOf = (item: unknown): string[] => {
-  const member = isRow(item) ? item.slug : item;
+  const member = isCatalogRow(item) ? item.slug : item;
   return typeof member === 'string' ? [member] : [];
 };
 
@@ -161,7 +158,7 @@ function passesDate({ start, end }: DateRule, value: unknown): boolean {
   return typeof value === 'string' && (start === null || value >= start) && (end === null || value <= end);
 }
 
-function passesCondition({ fact, rule }: Condition, facts: Row): boolean {
+function passesCondition({ fact, rule }: Condition, facts: CatalogRow): boolean {
   const value = facts[fact];
   if (rule.kind === 'count') return passesCount(rule, value);
   if (rule.kind === 'date') return passesDate(rule, value);
@@ -169,5 +166,5 @@ function passesCondition({ fact, rule }: Condition, facts: Row): boolean {
   return rule.kind === 'one' ? passesOne(rule, value) : passesAll(rule, membersOf(value));
 }
 
-export const rowPasses = (facts: Row | undefined, filters: CatalogFilters): boolean =>
+export const rowPasses = (facts: CatalogRow | undefined, filters: CatalogFilters): boolean =>
   filters.length === 0 || (facts !== undefined && filters.every((condition) => passesCondition(condition, facts)));

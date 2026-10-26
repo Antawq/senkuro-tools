@@ -1,10 +1,7 @@
 import type { CatalogKind } from './catalog-results';
+import { isCatalogRow, type CatalogRow } from './catalog-row';
 
-type Row = Record<string, unknown>;
-
-export type FactsBySlug = ReadonlyMap<string, Row>;
-
-const isRow = (value: unknown): value is Row => typeof value === 'object' && value !== null && !Array.isArray(value);
+export type FactsBySlug = ReadonlyMap<string, CatalogRow>;
 
 export function factsDocumentOf(kind: CatalogKind, slots: number): string {
   const slotNumbers = Array.from({ length: slots }, (_, index) => index);
@@ -20,11 +17,11 @@ export function factVariablesOf(slugs: readonly string[], slots: number): Record
   return Object.fromEntries(Array.from({ length: slots }, (_, index) => [`s${index}`, slugs[index] ?? lastSlug]));
 }
 
-export function readFacts(data: unknown): Map<string, Row> {
-  const factsBySlug = new Map<string, Row>();
-  if (!isRow(data)) return factsBySlug;
+export function readFacts(data: unknown): Map<string, CatalogRow> {
+  const factsBySlug = new Map<string, CatalogRow>();
+  if (!isCatalogRow(data)) return factsBySlug;
   for (const lookup of Object.values(data)) {
-    if (isRow(lookup) && typeof lookup.slug === 'string') factsBySlug.set(lookup.slug, lookup);
+    if (isCatalogRow(lookup) && typeof lookup.slug === 'string') factsBySlug.set(lookup.slug, lookup);
   }
   return factsBySlug;
 }
