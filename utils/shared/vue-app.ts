@@ -1,8 +1,8 @@
-const APP_ROOT = '#app';
+export const APP_ROOT = '#app';
 export const VUE_APP_KEY = '__vue_app__';
 
 export interface VueApp {
-  _context?: { provides?: Record<string, unknown> };
+  _context?: { provides?: Record<string | symbol, unknown> };
   config?: { globalProperties?: Record<string, unknown> };
 }
 

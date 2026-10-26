@@ -1,9 +1,10 @@
+import { findVueApp } from '../shared/vue-app';
+
 export const AVATAR_COST_SENKOINS = 5000;
 export const MONEY_STICKER_ID = 25;
 export const COIN_ALT = 'сенкоинов';
 export const COIN_CLASS = 'senkutools-avatar-coin';
 
-const APP_ROOT = '#app';
 const AVATAR_UPLOAD_BUTTON = '.edit-media__user + .edit-media__actions > button:first-child';
 const MODALS_SYMBOL_DESCRIPTION = 'modals';
 const SERVICE_WORKER_PATH = '/sw.js';
@@ -40,14 +41,10 @@ interface AvatarConfirmHost {
   assets: SiteAssets;
 }
 
-interface AppRoot {
-  __vue_app__?: { _context?: { provides?: Record<symbol, unknown> } };
-}
-
 const isSiteModals = (candidate: unknown): candidate is SiteModals => typeof (candidate as SiteModals | null)?.showModal === 'function';
 
 export function findSiteModals(pageDocument: Document): SiteModals | null {
-  const provides = (pageDocument.querySelector(APP_ROOT) as AppRoot | null)?.__vue_app__?._context?.provides;
+  const provides = findVueApp(pageDocument)?._context?.provides;
   if (!provides) return null;
   const modalsSymbol = Object.getOwnPropertySymbols(provides).find((symbol) => symbol.description === MODALS_SYMBOL_DESCRIPTION);
   const siteModals = modalsSymbol ? provides[modalsSymbol] : null;
