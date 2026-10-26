@@ -19,7 +19,7 @@ export const isPrivateVariables = (variables: Variables): boolean => isPrivateFi
 
 export const mentionsPrivateField = (text: string): boolean => text.includes(FIELD_PREFIX);
 
-export const cursorOf = (version: number, offset: number): string => `${CURSOR_PREFIX}${version}${CURSOR_SEPARATOR}${offset}`;
+export const createPrivateCursor = (version: number, offset: number): string => `${CURSOR_PREFIX}${version}${CURSOR_SEPARATOR}${offset}`;
 
 export const hasPrivateCursor = (after: unknown): boolean => typeof after === 'string' && after.startsWith(CURSOR_PREFIX);
 

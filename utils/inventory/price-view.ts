@@ -4,7 +4,7 @@ import type { MutationResult } from './client-hooks';
 import { isGridVariables, type Variables } from './list-families';
 import { DEFAULT_CONNECTION_TYPE, DEFAULT_PAGE_INFO_TYPE, modifierOf, slugOf, type CrawledList, type Row } from './price-crawl';
 import {
-  cursorOf,
+  createPrivateCursor,
   hasPrivateCursor,
   isPrivateVariables,
   privateFieldOf,
@@ -231,7 +231,7 @@ export function createPriceView(host: ViewHost): PriceView {
     }
     for (const pageKey of pageKeys) {
       const [direction, offset] = pageKey.split(':');
-      const after = Number(offset) === 0 ? null : cursorOf(view.version, Number(offset));
+      const after = Number(offset) === 0 ? null : createPrivateCursor(view.version, Number(offset));
       host.refreshPage(current, privateVariablesOf({ ...variablesOf(current), orderDirection: direction, after }, view.version));
     }
   }
@@ -276,7 +276,7 @@ export function createPriceView(host: ViewHost): PriceView {
           userCards: {
             __typename: served.connectionType,
             edges,
-            pageInfo: { __typename: served.pageInfoType, hasNextPage, endCursor: hasNextPage ? cursorOf(served.version, end) : null },
+            pageInfo: { __typename: served.pageInfoType, hasNextPage, endCursor: hasNextPage ? createPrivateCursor(served.version, end) : null },
           },
         },
       };

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { Variables } from '../utils/inventory/list-families';
 import {
-  cursorOf,
+  createPrivateCursor,
   hasPrivateCursor,
   isPrivateField,
   isPrivateVariables,
@@ -30,8 +30,8 @@ const pickerOf = (variables: Variables): Variables =>
 
 describe('the private cursor', () => {
   it('carries the version of the view and the place in its list, and reads back', () => {
-    expect(readCursor(cursorOf(3, 40))).toEqual({ version: 3, offset: 40 });
-    expect(hasPrivateCursor(cursorOf(3, 40))).toBe(true);
+    expect(readCursor(createPrivateCursor(3, 40))).toEqual({ version: 3, offset: 40 });
+    expect(hasPrivateCursor(createPrivateCursor(3, 40))).toBe(true);
   });
 
   it('is not read from a cursor of the server, a cut one or one with extra parts', () => {
@@ -102,8 +102,8 @@ describe('privateVariablesOf', () => {
   });
 
   it('keeps the cursor of the same version and starts over for any other cursor', () => {
-    expect(privateVariablesOf(grid({ after: cursorOf(2, 40) }), 2).after).toBe(cursorOf(2, 40));
-    expect(privateVariablesOf(grid({ after: cursorOf(1, 40) }), 2).after).toBeNull();
+    expect(privateVariablesOf(grid({ after: createPrivateCursor(2, 40) }), 2).after).toBe(createPrivateCursor(2, 40));
+    expect(privateVariablesOf(grid({ after: createPrivateCursor(1, 40) }), 2).after).toBeNull();
     expect(privateVariablesOf(grid({ after: 'UgECAA_YJe18' }), 2).after).toBeNull();
     expect(privateVariablesOf(grid({ after: undefined }), 2).after).toBeNull();
   });
@@ -111,7 +111,7 @@ describe('privateVariablesOf', () => {
 
 describe('realVariablesOf', () => {
   it('drops a private cursor and touches nothing else', () => {
-    expect(realVariablesOf(grid({ after: cursorOf(2, 40) }))).toEqual(grid({ after: null }));
+    expect(realVariablesOf(grid({ after: createPrivateCursor(2, 40) }))).toEqual(grid({ after: null }));
     const real = grid({ after: 'UgECAA_YJe18' });
     expect(realVariablesOf(real)).toBe(real);
   });

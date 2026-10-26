@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { MutationResult } from '../utils/inventory/client-hooks';
 import type { Variables } from '../utils/inventory/list-families';
 import type { Row } from '../utils/inventory/price-crawl';
-import { cursorOf, privateFieldOf } from '../utils/inventory/price-private';
+import { createPrivateCursor, privateFieldOf } from '../utils/inventory/price-private';
 import { createPriceView, type ListPage, type ViewHost, type ViewList } from '../utils/inventory/price-view';
 import type { PriceRows, PriceState } from '../utils/shared/price-signal';
 import type { QueryRequest } from '../utils/shared/urql-client';
@@ -215,8 +215,8 @@ describe('serving the list', () => {
 
   it('keeps the direction the site asks for and the cursor of the version it serves', async () => {
     const { view } = await served();
-    expect(view.rewrite(request(gridVariables({ orderDirection: 'ASC', after: cursorOf(1, 2) }))).variables).toEqual(
-      gridVariables({ orderField: privateFieldOf(1), orderDirection: 'ASC', after: cursorOf(1, 2) })
+    expect(view.rewrite(request(gridVariables({ orderDirection: 'ASC', after: createPrivateCursor(1, 2) }))).variables).toEqual(
+      gridVariables({ orderField: privateFieldOf(1), orderDirection: 'ASC', after: createPrivateCursor(1, 2) })
     );
   });
 
@@ -225,11 +225,11 @@ describe('serving the list', () => {
     const first = view.answer(gridVariables({ orderField: privateFieldOf(1) }));
     expect(slugsOf(first)).toEqual(['c', 'a']);
     expect(first.data.userCards.__typename).toBe('ConnectionOfCards');
-    expect(first.data.userCards.pageInfo).toEqual({ __typename: 'PageInfoOfCards', hasNextPage: true, endCursor: cursorOf(1, 2) });
-    const second = view.answer(gridVariables({ orderField: privateFieldOf(1), after: cursorOf(1, 2) }));
+    expect(first.data.userCards.pageInfo).toEqual({ __typename: 'PageInfoOfCards', hasNextPage: true, endCursor: createPrivateCursor(1, 2) });
+    const second = view.answer(gridVariables({ orderField: privateFieldOf(1), after: createPrivateCursor(1, 2) }));
     expect(slugsOf(second)).toEqual(['e', 'b']);
-    expect(second.data.userCards.pageInfo).toMatchObject({ hasNextPage: true, endCursor: cursorOf(1, 4) });
-    const last = view.answer(gridVariables({ orderField: privateFieldOf(1), after: cursorOf(1, 4) }));
+    expect(second.data.userCards.pageInfo).toMatchObject({ hasNextPage: true, endCursor: createPrivateCursor(1, 4) });
+    const last = view.answer(gridVariables({ orderField: privateFieldOf(1), after: createPrivateCursor(1, 4) }));
     expect(slugsOf(last)).toEqual(['d']);
     expect(last.data.userCards.pageInfo).toMatchObject({ hasNextPage: false, endCursor: null });
   });
@@ -248,7 +248,7 @@ describe('serving the list', () => {
 
   it('starts over for a cursor of another version or of the server, instead of serving the middle of another list', async () => {
     const { view } = await served();
-    for (const after of [cursorOf(0, 2), cursorOf(9, 2), 'UgECAA_YJe18', 'senkutools:price:broken']) {
+    for (const after of [createPrivateCursor(0, 2), createPrivateCursor(9, 2), 'UgECAA_YJe18', 'senkutools:price:broken']) {
       expect(slugsOf(view.answer(gridVariables({ orderField: privateFieldOf(1), after })))).toEqual(['c', 'a']);
     }
   });
@@ -276,7 +276,7 @@ describe('serving the list', () => {
 
   it('turns a private cursor into the start of the real list when it is not serving that list', async () => {
     const { view } = await crawled();
-    const rewritten = view.rewrite(request(gridVariables({ after: cursorOf(1, 4) })));
+    const rewritten = view.rewrite(request(gridVariables({ after: createPrivateCursor(1, 4) })));
     expect(rewritten.variables).toEqual(gridVariables({ after: null }));
     expect(rewritten.key).toBe(7);
   });
@@ -358,8 +358,8 @@ describe('the order', () => {
 describe('stopping', () => {
   it('gives the grid its own list back when it was serving, starting from the first page of it', async () => {
     const { view, redrives } = await served();
-    view.rewrite(request(gridVariables({ after: cursorOf(1, 2) })));
-    view.watch(request(gridVariables({ after: cursorOf(1, 2) }), 'fetchUserCards', 9), {});
+    view.rewrite(request(gridVariables({ after: createPrivateCursor(1, 2) })));
+    view.watch(request(gridVariables({ after: createPrivateCursor(1, 2) }), 'fetchUserCards', 9), {});
     view.stop();
     expect(redrives).toHaveLength(2);
     expect(redrives[1]?.variables).toEqual(gridVariables({ after: null }));
@@ -380,7 +380,7 @@ describe('stopping', () => {
     view.stop();
     const asked = request(gridVariables());
     expect(view.rewrite(asked)).toBe(asked);
-    expect(view.rewrite(request(gridVariables({ after: cursorOf(1, 2) }))).variables).toEqual(gridVariables({ after: null }));
+    expect(view.rewrite(request(gridVariables({ after: createPrivateCursor(1, 2) }))).variables).toEqual(gridVariables({ after: null }));
   });
 
   it('serves a view that is started again as another private list than the first, so the old cached pages are never linked to', async () => {
@@ -415,7 +415,7 @@ describe('the grid asking for another list', () => {
 
   it('keeps following the same list when it asks again for a later page or the other direction', async () => {
     const { view, crawls } = await served();
-    view.watch(request(gridVariables({ after: cursorOf(1, 2) }), 'fetchUserCards', 8), {});
+    view.watch(request(gridVariables({ after: createPrivateCursor(1, 2) }), 'fetchUserCards', 8), {});
     view.watch(request(gridVariables({ orderDirection: 'ASC' }), 'fetchUserCards', 9), {});
     expect(crawls).toHaveLength(1);
   });
@@ -511,7 +511,7 @@ describe('what the site does to the inventory meanwhile', () => {
     view.handleMutation(locked([{ cardId: 'id-a', modifier: 0 }], true, 'USER:2'));
     const first = view.answer(gridVariables({ orderField: privateFieldOf(1) })).data.userCards.edges;
     expect(first.map((row) => row.node.locked)).toEqual([true, false]);
-    const second = view.answer(gridVariables({ orderField: privateFieldOf(1), after: cursorOf(1, 2) })).data.userCards.edges;
+    const second = view.answer(gridVariables({ orderField: privateFieldOf(1), after: createPrivateCursor(1, 2) })).data.userCards.edges;
     expect(second.map((row) => row.node.locked)).toEqual([false, false]);
     view.handleMutation(locked([{ cardId: 'id-c', modifier: 0 }], false));
     expect(view.answer(gridVariables({ orderField: privateFieldOf(1) })).data.userCards.edges[0]?.node.locked).toBe(false);
@@ -530,22 +530,22 @@ describe('what the site does to the inventory meanwhile', () => {
     it('are written again, only the one that holds a locked card, with its cursor and direction, so the grid shows the lock', async () => {
       const { view, refreshes } = await served();
       view.answer(privateGrid());
-      view.answer(privateGrid({ after: cursorOf(1, 2) }));
+      view.answer(privateGrid({ after: createPrivateCursor(1, 2) }));
       view.handleMutation(locked([{ cardId: 'id-e', modifier: 0 }]));
       expect(refreshes).toHaveLength(1);
-      expect(refreshes[0]?.variables).toEqual(privateGrid({ orderDirection: 'DESC', after: cursorOf(1, 2) }));
+      expect(refreshes[0]?.variables).toEqual(privateGrid({ orderDirection: 'DESC', after: createPrivateCursor(1, 2) }));
       expect(refreshes[0]?.page.request.key).toBe(7);
     });
 
     it('start from the first page with no cursor, and keep the direction they were served in', async () => {
       const { view, refreshes } = await served();
       view.answer(privateGrid());
-      view.answer(privateGrid({ orderDirection: 'ASC', after: cursorOf(1, 2) }));
+      view.answer(privateGrid({ orderDirection: 'ASC', after: createPrivateCursor(1, 2) }));
       view.handleMutation(locked([{ cardId: 'id-c', modifier: 0 }]));
       view.handleMutation(locked([{ cardId: 'id-e', modifier: 0 }], false));
       expect(refreshes.map((entry) => entry.variables)).toEqual([
         privateGrid({ orderDirection: 'DESC', after: null }),
-        privateGrid({ orderDirection: 'ASC', after: cursorOf(1, 2) }),
+        privateGrid({ orderDirection: 'ASC', after: createPrivateCursor(1, 2) }),
       ]);
     });
 
@@ -560,7 +560,7 @@ describe('what the site does to the inventory meanwhile', () => {
     it('are written once for a card that sits on served pages of both directions, and once for two cards on one page', async () => {
       const { view, refreshes } = await served();
       view.answer(privateGrid());
-      view.answer(privateGrid({ orderDirection: 'ASC', after: cursorOf(1, 2) }));
+      view.answer(privateGrid({ orderDirection: 'ASC', after: createPrivateCursor(1, 2) }));
       view.handleMutation(locked([{ cardId: 'id-a', modifier: 0 }]));
       expect(refreshes).toHaveLength(1);
       view.handleMutation(
@@ -597,7 +597,7 @@ describe('what the site does to the inventory meanwhile', () => {
     const serving = await served();
     const crawling = await crawled();
     for (const { view } of [serving, crawling]) {
-      const asked = request(gridVariables({ orderField: privateFieldOf(1), after: cursorOf(1, 2) }));
+      const asked = request(gridVariables({ orderField: privateFieldOf(1), after: createPrivateCursor(1, 2) }));
       expect(view.rewrite(asked)).toBe(asked);
     }
   });

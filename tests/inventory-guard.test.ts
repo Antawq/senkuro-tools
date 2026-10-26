@@ -9,7 +9,7 @@ import type { MutationResult } from '../utils/inventory/client-hooks';
 import { LIST_OPERATION, createListRecord, type Variables } from '../utils/inventory/list-families';
 import { AUTO_REFRESH_MAX_PAGES, installInventoryGuard, planRefresh } from '../utils/inventory/inventory-guard';
 import { REFRESH_POLICY } from '../utils/inventory/list-refresh';
-import { privateFieldOf, cursorOf } from '../utils/inventory/price-private';
+import { privateFieldOf, createPrivateCursor } from '../utils/inventory/price-private';
 import {
   GUARD_ATTRIBUTE,
   GUARD_READY,
@@ -601,7 +601,7 @@ describe('installInventoryGuard', () => {
         data: { userCards: { edges: { node: { card: { slug: string } } }[]; pageInfo: { endCursor: string } } };
       };
       expect(answer.data.userCards.edges.map((row) => row.node.card.slug)).toEqual(['d', 'c']);
-      expect(answer.data.userCards.pageInfo.endCursor).toBe(cursorOf(1, 2));
+      expect(answer.data.userCards.pageInfo.endCursor).toBe(createPrivateCursor(1, 2));
       expect(fetched).toHaveLength(before);
       await win.happyDOM.close();
     });
@@ -616,12 +616,12 @@ describe('installInventoryGuard', () => {
       order(reversed);
       browseList(listRequest({ ...grid, after: 'UgECAA_YJe18' }));
       expect(reached.at(-1)).toEqual({ ...grid, orderField: privateFieldOf(1), after: null });
-      browseList(listRequest({ ...grid, after: cursorOf(1, 2) }, 9));
+      browseList(listRequest({ ...grid, after: createPrivateCursor(1, 2) }, 9));
       switchView(false);
       expect(reexecuted).toHaveLength(2);
       expect(reexecuted[1]?.requested.variables).toEqual({ ...grid, after: null });
       expect(reexecuted[1]?.requested.key).toBe(9);
-      browseList(listRequest({ ...grid, after: cursorOf(1, 2) }));
+      browseList(listRequest({ ...grid, after: createPrivateCursor(1, 2) }));
       expect(reached.at(-1)).toEqual({ ...grid, after: null });
       await win.happyDOM.close();
     });
@@ -664,13 +664,13 @@ describe('installInventoryGuard', () => {
       order(reversed);
       await win.fetch(GRAPHQL, {
         method: 'POST',
-        body: JSON.stringify({ operationName: LIST_OPERATION, variables: { ...grid, orderField: privateFieldOf(1), after: cursorOf(1, 2) } }),
+        body: JSON.stringify({ operationName: LIST_OPERATION, variables: { ...grid, orderField: privateFieldOf(1), after: createPrivateCursor(1, 2) } }),
       });
       const before = fetched.length;
       await mutate('bulkUpdateUserCardLock');
       await settle();
       expect(queries).toHaveLength(1);
-      expect(queries[0]?.variables).toEqual({ ...grid, orderField: privateFieldOf(1), orderDirection: 'DESC', after: cursorOf(1, 2) });
+      expect(queries[0]?.variables).toEqual({ ...grid, orderField: privateFieldOf(1), orderDirection: 'DESC', after: createPrivateCursor(1, 2) });
       expect(queries[0]?.options.requestPolicy).toBe('network-only');
       expect(fetched).toHaveLength(before);
       await win.happyDOM.close();
