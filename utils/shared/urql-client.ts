@@ -1,5 +1,5 @@
 import type { PageWindow } from './page-window';
-import { findVueApp, VUE_APP_KEY } from './vue-app';
+import { findVueApp, watchVueApp } from './vue-app';
 
 const CLIENT_KEY = '$urql';
 const OPERATION_KIND = 'OperationDefinition';
@@ -54,19 +54,6 @@ function claimClient(pageWindow: PageWindow, waiting: Waiting): void {
   }
 }
 
-function watchApp(pageWindow: PageWindow, claim: () => void): void {
-  const prototype = pageWindow.Element.prototype;
-  const previous = Object.getOwnPropertyDescriptor(prototype, VUE_APP_KEY);
-  Object.defineProperty(prototype, VUE_APP_KEY, {
-    configurable: true,
-    set(this: Element, app: unknown) {
-      previous?.set?.call(this, app);
-      Object.defineProperty(this, VUE_APP_KEY, { value: app, writable: true, configurable: true, enumerable: true });
-      claim();
-    },
-  });
-}
-
 function watchFetch(pageWindow: PageWindow, waiting: Waiting, claim: () => void): void {
   const nativeFetch = pageWindow.fetch.bind(pageWindow);
   pageWindow.fetch = (...fetchArguments: Parameters<typeof fetch>) => {
@@ -84,7 +71,7 @@ export function runWhenClientFound(pageWindow: PageWindow, run: (client: QueryCl
     waiting = created;
     windowSlots[WAITING] = created;
     const claim = () => claimClient(pageWindow, created);
-    watchApp(pageWindow, claim);
+    watchVueApp(pageWindow, claim);
     watchFetch(pageWindow, created, claim);
   }
   if (waiting.client) run(waiting.client);
