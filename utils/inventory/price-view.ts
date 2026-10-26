@@ -2,7 +2,7 @@ import { operationName, type QueryRequest } from '../shared/urql-client';
 import type { PriceOrder, PriceRows, PriceState } from '../shared/price-signal';
 import type { MutationResult } from './client-hooks';
 import { isGridVariables, type Variables } from './list-families';
-import { modifierOf, slugOf, type CrawledList, type Row } from './price-crawl';
+import { DEFAULT_CONNECTION_TYPE, DEFAULT_PAGE_INFO_TYPE, modifierOf, slugOf, type CrawledList, type Row } from './price-crawl';
 import {
   cursorOf,
   hasPrivateCursor,
@@ -15,8 +15,6 @@ import {
   viewKeyOf,
 } from './price-private';
 
-const DEFAULT_CONNECTION_TYPE = 'UserCardConnection';
-const DEFAULT_PAGE_INFO_TYPE = 'PageInfo';
 const LOCK_MUTATION = 'bulkUpdateUserCardLock';
 const ACCEPTING_MUTATIONS = ['acceptCardTrade', 'acceptCardOffer'];
 const REBUILDING_MUTATIONS = ['forgeCards', 'restoreForge', 'openCardPack', 'claimCardDrop'];

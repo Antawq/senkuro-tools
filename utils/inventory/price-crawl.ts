@@ -5,8 +5,8 @@ import { CRAWL_OPERATION } from './price-document';
 
 export const MAX_CRAWL_PAGES = 300;
 
-const DEFAULT_CONNECTION_TYPE = 'UserCardConnection';
-const DEFAULT_PAGE_INFO_TYPE = 'PageInfo';
+export const DEFAULT_CONNECTION_TYPE = 'UserCardConnection';
+export const DEFAULT_PAGE_INFO_TYPE = 'PageInfo';
 
 export interface RowNode {
   modifier?: unknown;
