@@ -1,10 +1,10 @@
+import type { PageWindow } from './page-window';
+
 export const APP_MOUNTED_EVENT = 'senkutools:app-mounted';
 export const APP_MOUNTED_ATTRIBUTE = 'data-senkutools-mounted';
 export const APP_MOUNT_POLL_MS = 100;
 
 const APP_ROOT = '#app';
-
-type PageWindow = Window & typeof globalThis;
 
 type AppRoot = Element & { __vue_app__?: unknown };
 
