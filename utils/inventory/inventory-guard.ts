@@ -82,18 +82,18 @@ function apiUrlOf(client: QueryClient | null, page: ListPage): string | null {
   }
 }
 
-export function installInventoryGuard(win: PageWindow): void {
-  if (!claimPage(win, 'inventory-guard')) return;
-  const debug = debugLogger(win);
+export function installInventoryGuard(pageWindow: PageWindow): void {
+  if (!claimPage(pageWindow, 'inventory-guard')) return;
+  const debug = debugLogger(pageWindow);
   const record = createListRecord();
   const ledger = createCursorLedger();
   const silent = new WeakSet<object>();
   let queue: Promise<unknown> = Promise.resolve();
   let attachedClient: QueryClient | null = null;
 
-  const sleep = (ms: number) => (ms > 0 ? new Promise<void>((resolve) => win.setTimeout(resolve, ms)) : Promise.resolve());
+  const sleep = (ms: number) => (ms > 0 ? new Promise<void>((resolve) => pageWindow.setTimeout(resolve, ms)) : Promise.resolve());
 
-  const environment = (client: QueryClient): RefreshEnv => ({ client, fetch: (input, init) => win.fetch(input, init), silent, record, sleep });
+  const environment = (client: QueryClient): RefreshEnv => ({ client, fetch: (input, init) => pageWindow.fetch(input, init), silent, record, sleep });
 
   const enqueueRefresh = (client: QueryClient, families: Family[]): Promise<RefreshReport> => {
     const report = queue.then(() => refreshFamilies(environment(client), families));
@@ -104,7 +104,7 @@ export function installInventoryGuard(win: PageWindow): void {
     return report;
   };
 
-  const publish = (eventName: string, detail: string) => win.document.dispatchEvent(new win.CustomEvent(eventName, { detail }));
+  const publish = (eventName: string, detail: string) => pageWindow.document.dispatchEvent(new pageWindow.CustomEvent(eventName, { detail }));
 
   const priceView = createPriceView({
     isReady: () => typeof attachedClient?.createRequestOperation === 'function' && typeof attachedClient.reexecuteOperation === 'function',
@@ -116,7 +116,7 @@ export function installInventoryGuard(win: PageWindow): void {
         return Promise.resolve(null);
       }
       const transport: Transport = {
-        fetch: (input, init) => win.fetch(input, init),
+        fetch: (input, init) => pageWindow.fetch(input, init),
         sleep,
         random: Math.random,
         endpoint: url,
@@ -154,7 +154,7 @@ export function installInventoryGuard(win: PageWindow): void {
   };
 
   const familiesOf = (scope: RefreshScope): Family[] => {
-    const route = win.location.pathname;
+    const route = pageWindow.location.pathname;
     const isInScope = scope === 'grid' ? isGridFamily : isPickerFamily;
     return record.families().filter((family) => isInScope(family) && family.route === route);
   };
@@ -185,9 +185,9 @@ export function installInventoryGuard(win: PageWindow): void {
   };
 
   const publishRefreshResult = (scope: RefreshScope, outcome: RefreshOutcome) =>
-    win.document.dispatchEvent(new win.CustomEvent(REFRESH_RESULT_EVENT, { detail: encodeRefreshResult({ scope, outcome }) }));
+    pageWindow.document.dispatchEvent(new pageWindow.CustomEvent(REFRESH_RESULT_EVENT, { detail: encodeRefreshResult({ scope, outcome }) }));
 
-  win.document.addEventListener(REFRESH_REQUEST_EVENT, (event) => {
+  pageWindow.document.addEventListener(REFRESH_REQUEST_EVENT, (event) => {
     const scope = readRefreshRequest(event);
     if (!scope) return;
     void refreshOnRequest(scope)
@@ -195,26 +195,26 @@ export function installInventoryGuard(win: PageWindow): void {
       .then((outcome) => publishRefreshResult(scope, outcome));
   });
 
-  win.document.addEventListener(PRICE_VIEW_EVENT, (event) => {
+  pageWindow.document.addEventListener(PRICE_VIEW_EVENT, (event) => {
     const isOn = readPriceSwitch(event);
     if (isOn === null) return;
     if (isOn) priceView.start();
     else priceView.stop();
   });
-  win.document.addEventListener(PRICE_ORDER_EVENT, (event) => {
+  pageWindow.document.addEventListener(PRICE_ORDER_EVENT, (event) => {
     const order = readPriceOrder(event);
     if (order) priceView.receiveOrder(order);
   });
 
-  learnFromFetch(win, ledger);
-  answerPrivateRequests(win, priceView);
+  learnFromFetch(pageWindow, ledger);
+  answerPrivateRequests(pageWindow, priceView);
 
-  runWhenClientFound(win, (client) => {
+  runWhenClientFound(pageWindow, (client) => {
     attachedClient = client;
     const isRecording = recordLists(
       client,
       (page) => {
-        if (!isPrivateVariables(page.variables)) record.record(page, win.location.pathname);
+        if (!isPrivateVariables(page.variables)) record.record(page, pageWindow.location.pathname);
       },
       silent,
       refreshOnCacheHit
@@ -223,7 +223,7 @@ export function installInventoryGuard(win: PageWindow): void {
     const isRewriting = rewriteLists(client, priceView, silent);
     const isGuarding = guardCursors(client, (variables) => debug('stale cursor dropped', { list: familyIdOf(variables), after: variables.after }), ledger);
     const isAttached = isRecording && isTapping && isGuarding && isRewriting;
-    if (isAttached) win.document.documentElement.setAttribute(GUARD_ATTRIBUTE, GUARD_READY);
+    if (isAttached) pageWindow.document.documentElement.setAttribute(GUARD_ATTRIBUTE, GUARD_READY);
     debug('urql client', isAttached ? 'attached' : 'not replaceable');
   });
 }
