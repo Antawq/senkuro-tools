@@ -1,13 +1,13 @@
-export const FILTERS = '.user-card__filters';
+import { USER_CARD_FILTERS } from '../shared/user-card-filters';
 export const GRID = '.user-cards-grid';
 export const CARD = '.user-card';
 export const MENU = '#cards-browse-order .dropdown-menu--sm';
 export const MENU_ITEM = 'label.radio--list';
 export const OWN_ITEM_ATTRIBUTE = 'data-senkutools-sort-item';
 export const OWN_ITEM = `[${OWN_ITEM_ATTRIBUTE}]`;
-export const TRIGGER = `${FILTERS} > .v-popper > button`;
-export const DIRECTION_ASCENDING = `${FILTERS} > button.cards-cnt__nav-filter--asc`;
-export const WATCHED_AREAS = `${GRID}, ${FILTERS}, #cards-browse-order`;
+export const TRIGGER = `${USER_CARD_FILTERS} > .v-popper > button`;
+export const DIRECTION_ASCENDING = `${USER_CARD_FILTERS} > button.cards-cnt__nav-filter--asc`;
+export const WATCHED_AREAS = `${GRID}, ${USER_CARD_FILTERS}, #cards-browse-order`;
 
 export const MODE_ATTRIBUTE = 'data-senkutools-sort';
 export const STATE_ATTRIBUTE = 'data-senkutools-sort-state';

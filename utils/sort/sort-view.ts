@@ -1,10 +1,11 @@
+import { USER_CARD_FILTERS } from '../shared/user-card-filters';
 import { PERCENT } from '../shared/cards';
 import type { Database } from '../shared/database';
 import { readPriceRows, readPriceState, type PriceOrder, type PriceRows } from '../shared/price-signal';
 import type { Settings } from '../shared/settings';
 import { createPriceLookup, sortedIndices } from './price-order';
 import { clearOrder, inspectGrid, markState, orderCards, type GridView } from './sort-grid';
-import { DIRECTION_ASCENDING, FILTERS, MENU, MENU_ITEM, MODE_ATTRIBUTE, OWN_ITEM, PRICE_MODE, WATCHED_AREAS } from './sort-dom';
+import { DIRECTION_ASCENDING, MENU, MENU_ITEM, MODE_ATTRIBUTE, OWN_ITEM, PRICE_MODE, WATCHED_AREAS } from './sort-dom';
 import { decorateMenu, findSortTrigger, isPriceMode, reflectLabel } from './sort-menu';
 
 const STALL_MS = 15000;
@@ -122,7 +123,7 @@ export function createPriceSort(pageDocument: Document, host: SortHost): PriceSo
     sync(database, { commission }) {
       const current = { database, commission };
       inputs = current;
-      const filters = pageDocument.querySelector(FILTERS);
+      const filters = pageDocument.querySelector(USER_CARD_FILTERS);
       if (!filters) return endView();
       const isPriceSelected = isPriceMode(filters);
       decorateMenu(pageDocument, isPriceSelected);
@@ -138,7 +139,7 @@ export function createPriceSort(pageDocument: Document, host: SortHost): PriceSo
     },
 
     handleClick(event) {
-      const filters = pageDocument.querySelector(FILTERS);
+      const filters = pageDocument.querySelector(USER_CARD_FILTERS);
       const menuItem = event.target instanceof Element ? event.target.closest(`${MENU} ${MENU_ITEM}`) : null;
       if (!filters || !menuItem) return;
       if (menuItem.matches(OWN_ITEM)) {

@@ -1,6 +1,6 @@
+import { USER_CARD_FILTERS } from '../shared/user-card-filters';
 import { MODAL_CONTENT_SELECTOR } from '../shared/modal-selectors';
 import {
-  FILTERS,
   MENU,
   MENU_ITEM,
   MODE_ATTRIBUTE,
@@ -56,7 +56,7 @@ function restoreLabel(filters: Element, labelElement: Element): void {
 }
 
 export function reflectLabel(pageDocument: Document, state: LabelState, percent: number | null = null): void {
-  const filters = pageDocument.querySelector(FILTERS);
+  const filters = pageDocument.querySelector(USER_CARD_FILTERS);
   const trigger = findSortTrigger(pageDocument);
   const labelElement = trigger?.querySelector('span');
   if (!filters || !trigger || !labelElement) return;

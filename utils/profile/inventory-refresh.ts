@@ -1,3 +1,4 @@
+import { USER_CARD_FILTERS } from '../shared/user-card-filters';
 import { isAppMounted } from '../shared/app-mounted';
 import { createRefreshButton } from '../shared/refresh-button';
 import type { RefreshOutcome } from '../shared/refresh-signal';
@@ -7,7 +8,6 @@ import { warnStoreFailure } from './profile-store';
 export const REFRESH_BUTTON_ID = 'senkutools-inventory-refresh';
 
 const CARDS_PATH = /^\/users\/[^/?#]+\/cards\/?$/;
-const FILTERS = '.user-card__filters';
 const HEADER = 'header.back';
 const TITLE = 'h2';
 
@@ -21,7 +21,7 @@ export interface RefreshHost {
 
 const findCardsSlug = (): string | null => (CARDS_PATH.test(window.location.pathname) ? extractProfileSlug(window.location.pathname) : null);
 
-const findCardsTitle = (): Element | null => document.querySelector(FILTERS)?.closest(HEADER)?.querySelector(TITLE) ?? null;
+const findCardsTitle = (): Element | null => document.querySelector(USER_CARD_FILTERS)?.closest(HEADER)?.querySelector(TITLE) ?? null;
 
 async function refreshProfile(slug: string, host: RefreshHost): Promise<RefreshOutcome> {
   const outcome = host.isReady() ? await host.refresh() : 'nothing';
