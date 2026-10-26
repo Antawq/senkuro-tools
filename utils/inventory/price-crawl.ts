@@ -1,9 +1,7 @@
 import { ApiError, execute, type Transport } from '../shared/graphql';
-import { delayForPage } from '../shared/paging';
+import { delayForPage, USER_CARDS_MAX_PAGES } from '../shared/paging';
 import type { Variables } from './list-families';
 import { CRAWL_OPERATION } from './price-document';
-
-export const MAX_CRAWL_PAGES = 300;
 
 export const DEFAULT_CONNECTION_TYPE = 'UserCardConnection';
 export const DEFAULT_PAGE_INFO_TYPE = 'PageInfo';
@@ -57,7 +55,7 @@ export async function crawlList({ text, variables, transport, signal, onProgress
   let after: string | null = null;
   let connectionType = DEFAULT_CONNECTION_TYPE;
   let pageInfoType = DEFAULT_PAGE_INFO_TYPE;
-  for (let page = 0; page < MAX_CRAWL_PAGES; page++) {
+  for (let page = 0; page < USER_CARDS_MAX_PAGES; page++) {
     const answer: PageData = await execute<PageData>(null, text, CRAWL_OPERATION, { ...variables, after }, transport, signal);
     const connection = answer.userCards;
     if (!connection || !Array.isArray(connection.edges)) throw new ApiError('decode');

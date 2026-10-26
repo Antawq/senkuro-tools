@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import type { Transport } from '../utils/shared/graphql';
 import { CRAWL_OPERATION } from '../utils/inventory/price-document';
-import { MAX_CRAWL_PAGES, crawlList, slugOf } from '../utils/inventory/price-crawl';
+import { crawlList, slugOf } from '../utils/inventory/price-crawl';
+import { USER_CARDS_MAX_PAGES } from '../utils/shared/paging';
 import { FAST_PAGES, THROTTLED_DELAY_MS } from '../utils/shared/paging';
 
 interface Sent {
@@ -103,7 +104,7 @@ describe('crawlList', () => {
   it('stops with an error at the page limit instead of walking on', async () => {
     const { sent, transport } = serve((_request, index) => json(connection([row(`s-${index}`)], `c${index}`)));
     await expect(crawlList({ text: 'q', variables: VARIABLES, transport })).rejects.toMatchObject({ failure: 'limit' });
-    expect(sent).toHaveLength(MAX_CRAWL_PAGES);
+    expect(sent).toHaveLength(USER_CARDS_MAX_PAGES);
   });
 
   it('fails when the server answers something that is not a list, and when a request fails', async () => {

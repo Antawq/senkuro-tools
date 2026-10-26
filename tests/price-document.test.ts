@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { parse } from '@0no-co/graphql.web';
 
-import { CRAWL_OPERATION, CRAWL_PAGE_SIZE, crawlDocumentOf } from '../utils/inventory/price-document';
+import { CRAWL_OPERATION, crawlDocumentOf } from '../utils/inventory/price-document';
+import { USER_CARDS_PAGE_SIZE } from '../utils/shared/paging';
 
 const LIST = `
   query fetchUserCards($after: String, $userId: ID!, $orderField: UserCardOrderField = CREATED_AT) {
@@ -20,7 +21,7 @@ describe('crawlDocumentOf', () => {
   it('asks for the biggest page, the total and a name of its own, and reports the page size the site uses', () => {
     const crawl = crawlDocumentOf(parse(LIST));
     expect(crawl?.pageSize).toBe(20);
-    expect(crawl?.text).toContain(`first: ${CRAWL_PAGE_SIZE}`);
+    expect(crawl?.text).toContain(`first: ${USER_CARDS_PAGE_SIZE}`);
     expect(crawl?.text).toContain(`query ${CRAWL_OPERATION}(`);
     expect(crawl?.text).toContain('totalCount');
   });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { MAX_PAGES, PAGE_SIZE, fetchUserCards, packCards, unpackCards } from '../utils/profile/user-cards';
+import { fetchUserCards, packCards, unpackCards } from '../utils/profile/user-cards';
+import { USER_CARDS_MAX_PAGES, USER_CARDS_PAGE_SIZE } from '../utils/shared/paging';
 import type { Transport } from '../utils/shared/graphql';
 import { FAST_DELAY_MS, FAST_PAGES, THROTTLED_DELAY_MS, delayForPage } from '../utils/shared/paging';
 
@@ -55,9 +56,9 @@ describe('fetchUserCards', () => {
     expect(progress).toEqual([2, 3, 4]);
     expect(sent.map((request) => request.operationName)).toEqual(['UserCards', 'UserCards', 'UserCards']);
     expect(sent.map((request) => request.variables)).toEqual([
-      { userId: 'user-1', first: PAGE_SIZE, after: null, orderBy: { field: 'CREATED_AT', direction: 'ASC' } },
-      { userId: 'user-1', first: PAGE_SIZE, after: 'c1', orderBy: { field: 'CREATED_AT', direction: 'ASC' } },
-      { userId: 'user-1', first: PAGE_SIZE, after: 'c2', orderBy: { field: 'CREATED_AT', direction: 'ASC' } },
+      { userId: 'user-1', first: USER_CARDS_PAGE_SIZE, after: null, orderBy: { field: 'CREATED_AT', direction: 'ASC' } },
+      { userId: 'user-1', first: USER_CARDS_PAGE_SIZE, after: 'c1', orderBy: { field: 'CREATED_AT', direction: 'ASC' } },
+      { userId: 'user-1', first: USER_CARDS_PAGE_SIZE, after: 'c2', orderBy: { field: 'CREATED_AT', direction: 'ASC' } },
     ]);
   });
 
@@ -115,7 +116,7 @@ describe('fetchUserCards', () => {
     const { sent, transport } = serve(() => json(page([node('a-a', 1)], `c${++cursor}`)));
     const error = await fetchUserCards(null, 'user-1', undefined, transport).catch((thrown: unknown) => thrown);
     expect(error).toMatchObject({ failure: 'limit' });
-    expect(sent).toHaveLength(MAX_PAGES);
+    expect(sent).toHaveLength(USER_CARDS_MAX_PAGES);
   });
 
   it('passes an api failure on', async () => {

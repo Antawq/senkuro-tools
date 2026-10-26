@@ -1,6 +1,6 @@
 import { Kind, print, visit, type ASTNode, type DocumentNode, type FieldNode, type SelectionNode, type SelectionSetNode } from '@0no-co/graphql.web';
+import { USER_CARDS_PAGE_SIZE } from '../shared/paging';
 
-export const CRAWL_PAGE_SIZE = 100;
 export const CRAWL_OPERATION = 'senkutoolsPriceRows';
 
 const LIST_FIELD = 'userCards';
@@ -39,7 +39,7 @@ function readPageSize(field: FieldNode): number | null {
 const withCrawlPaging = (field: FieldNode): FieldNode => ({
   ...field,
   arguments: field.arguments?.map((argument) =>
-    argument.name.value === PAGE_ARGUMENT ? { ...argument, value: { kind: Kind.INT, value: String(CRAWL_PAGE_SIZE) } } : argument
+    argument.name.value === PAGE_ARGUMENT ? { ...argument, value: { kind: Kind.INT, value: String(USER_CARDS_PAGE_SIZE) } } : argument
   ),
   selectionSet: field.selectionSet && { ...field.selectionSet, selections: [...field.selectionSet.selections, plainField(TOTAL_FIELD)] },
 });

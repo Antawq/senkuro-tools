@@ -1,14 +1,11 @@
 import { ApiError, execute, type Transport } from '../shared/graphql';
-import { delayForPage } from '../shared/paging';
+import { delayForPage, USER_CARDS_MAX_PAGES, USER_CARDS_PAGE_SIZE } from '../shared/paging';
 
 export interface UserCard {
   slug: string;
   quantity: number;
   shard: boolean;
 }
-
-export const PAGE_SIZE = 100;
-export const MAX_PAGES = 300;
 
 const USER_CARDS =
   'query UserCards($userId: ID!, $first: Int = 20, $after: String, $orderBy: UserCardOrder!) { userCards(userId: $userId, first: $first, after: $after, orderBy: $orderBy) { pageInfo { hasNextPage endCursor } edges { node { quantity shard card { slug } } } } }';
@@ -57,8 +54,15 @@ export async function fetchUserCards(
   const cards = [...(from?.cards ?? [])];
   let after = from?.after ?? null;
   const sleep = transport?.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
-  for (let page = from?.pages ?? 0; page < MAX_PAGES; page++) {
-    const data: PageData = await execute<PageData>(token, USER_CARDS, 'UserCards', { userId, first: PAGE_SIZE, after, orderBy: ORDER }, transport, signal);
+  for (let page = from?.pages ?? 0; page < USER_CARDS_MAX_PAGES; page++) {
+    const data: PageData = await execute<PageData>(
+      token,
+      USER_CARDS,
+      'UserCards',
+      { userId, first: USER_CARDS_PAGE_SIZE, after, orderBy: ORDER },
+      transport,
+      signal
+    );
     const connection = data.userCards;
     for (const edge of connection?.edges ?? []) {
       const card = toCard(edge?.node);
