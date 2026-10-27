@@ -189,13 +189,17 @@ export function installCapture(win: CapturingWindow): void {
   });
 }
 
-export function listenForTrades(store: TradeStore, onChange: () => void): void {
-  document.addEventListener(TRADES_EVENT, (event) => {
-    const detail = (event as CustomEvent<unknown>).detail;
-    const found = typeof detail === 'string' ? (parseJson(detail) as Partial<Capture> | null) : null;
-    if (!found) return;
-    store.add(found);
-    onChange();
-  });
+export function listenForTrades(store: TradeStore, onChange: () => void, signal: AbortSignal): void {
+  document.addEventListener(
+    TRADES_EVENT,
+    (event) => {
+      const detail = (event as CustomEvent<unknown>).detail;
+      const found = typeof detail === 'string' ? (parseJson(detail) as Partial<Capture> | null) : null;
+      if (!found) return;
+      store.add(found);
+      onChange();
+    },
+    { signal }
+  );
   document.dispatchEvent(new CustomEvent(REPLAY_EVENT));
 }

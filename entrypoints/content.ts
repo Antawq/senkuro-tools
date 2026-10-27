@@ -14,7 +14,14 @@ import { loadDatabase } from '@/utils/shared/database';
 import { SENKURO_MATCHES } from '@/utils/shared/hosts';
 import { createPriceBadges } from '@/utils/badges/price-badges';
 import { isRefreshButtonMissing, syncRefreshButton, type RefreshHost } from '@/utils/profile/inventory-refresh';
-import { forgetProfileBadge, profileBadgeMissing, removeProfileBadge, updateProfileBadge } from '@/utils/profile/profile-dom';
+import {
+  abortProfileLoading,
+  forgetProfileBadge,
+  handleOutsideClick,
+  profileBadgeMissing,
+  removeProfileBadge,
+  updateProfileBadge,
+} from '@/utils/profile/profile-dom';
 import { createSearchKeys } from '@/utils/search/search-keys';
 import { SEARCH_EVENT } from '@/utils/shared/search-event';
 import { createSearchSignals } from '@/utils/search/search-signal';
@@ -139,11 +146,17 @@ export default defineContentScript({
     });
 
     ctx.addEventListener(document, APP_MOUNTED_EVENT, loop.schedule);
+    ctx.addEventListener(document, 'click', handleOutsideClick);
+    ctx.onInvalidated(() => abortProfileLoading());
 
-    listenForTrades(tradeStore, () => {
-      loop.markTrades();
-      loop.schedule();
-    });
+    listenForTrades(
+      tradeStore,
+      () => {
+        loop.markTrades();
+        loop.schedule();
+      },
+      ctx.signal
+    );
     void tokenBar.sync(settings.showToken);
     void loop.renderAll();
     LATE_RENDER_DELAYS_MS.forEach((delay) => ctx.setTimeout(() => void loop.renderAll(), delay));

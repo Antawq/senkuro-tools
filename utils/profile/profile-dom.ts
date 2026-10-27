@@ -61,7 +61,6 @@ interface NicknameTarget {
 const inProgress = new Map<string, AbortController>();
 const known = new Map<string, Collection | null>();
 const reading = new Set<string>();
-let closingBound = false;
 
 export const isTradeOpen = (): boolean => Boolean(document.querySelector('.modal-content--trade, .modal-trade'));
 
@@ -148,14 +147,10 @@ function keepInView(popover: HTMLElement): void {
   if (shift > 0) popover.style.setProperty(SHIFT_PROPERTY, `${-shift}px`);
 }
 
-function bindOutsideClose(): void {
-  if (closingBound) return;
-  closingBound = true;
-  document.addEventListener('click', (event) => {
-    const target = event.target instanceof Node ? event.target : null;
-    document.querySelectorAll(`.${ACTIVE}`).forEach((el) => {
-      if (!target || !el.contains(target)) el.classList.remove(ACTIVE);
-    });
+export function handleOutsideClick(event: Event): void {
+  const target = event.target instanceof Node ? event.target : null;
+  document.querySelectorAll(`.${ACTIVE}`).forEach((el) => {
+    if (!target || !el.contains(target)) el.classList.remove(ACTIVE);
   });
 }
 
@@ -364,7 +359,6 @@ export function updateProfileBadge(deps: ProfileBadgeDeps): void {
     widget = element('div', CHIP);
     widget.id = WIDGET_ID;
     widget.dataset.slug = slug;
-    bindOutsideClose();
   }
   if (!target.container.contains(widget)) target.insert(widget);
   show(widget, slug, deps);

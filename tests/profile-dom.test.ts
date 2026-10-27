@@ -7,6 +7,7 @@ import {
   abortProfileLoading,
   findNicknameTarget,
   forgetProfileBadge,
+  handleOutsideClick,
   isTradeOpen,
   profileBadgeMissing,
   removeProfileBadge,
@@ -357,16 +358,25 @@ describe('profile-dom', () => {
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it('listens for clicks outside once, however often it draws', async () => {
+    it('leaves listening on the page to the content script, so nothing of it outlives the extension', async () => {
       window.history.pushState({}, '', '/users/phaivroh');
       document.body.innerHTML = header;
       await store([['luffy-s', 1, 0]]);
       const listen = vi.spyOn(document, 'addEventListener');
       await draw();
       for (const commission of [true, false, true, false]) updateProfileBadge({ db, valuation: { ...plain, commission } });
-      removeProfileBadge();
-      await draw();
-      expect(listen.mock.calls.filter(([type]) => type === 'click').length).toBeLessThanOrEqual(1);
+      expect(listen).not.toHaveBeenCalled();
+    });
+
+    it('closes an open popover on a click outside it and keeps it open on a click inside', () => {
+      document.body.innerHTML = '<div class="senkuro-popover-active"><span></span></div><p></p>';
+      const open = document.querySelector('.senkuro-popover-active') as HTMLElement;
+      document.addEventListener('click', handleOutsideClick);
+      open.querySelector('span')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(open.classList.contains('senkuro-popover-active')).toBe(true);
+      document.querySelector('p')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(open.classList.contains('senkuro-popover-active')).toBe(false);
+      document.removeEventListener('click', handleOutsideClick);
     });
 
     it('shows the value on the badge drawn again while the cards were still loading', async () => {

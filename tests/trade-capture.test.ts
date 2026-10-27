@@ -138,10 +138,21 @@ describe('trade store bridge', () => {
     const onChange = vi.fn();
     const replay = vi.fn(() => document.dispatchEvent(new CustomEvent(TRADES_EVENT, { detail: JSON.stringify(captureTrades({ cardTrade: trade })) })));
     document.addEventListener(REPLAY_EVENT, replay, { once: true });
-    listenForTrades(store, onChange);
+    listenForTrades(store, onChange, new AbortController().signal);
     expect(replay).toHaveBeenCalledOnce();
     expect(onChange).toHaveBeenCalledOnce();
     expect(store.trades().map((item) => item.id)).toEqual(['t1']);
+  });
+
+  it('stops listening once the extension context is gone', () => {
+    const store = createTradeStore();
+    const onChange = vi.fn();
+    const context = new AbortController();
+    listenForTrades(store, onChange, context.signal);
+    context.abort();
+    document.dispatchEvent(new CustomEvent(TRADES_EVENT, { detail: JSON.stringify(captureTrades({ cardTrade: trade })) }));
+    expect(onChange).not.toHaveBeenCalled();
+    expect(store.trades()).toEqual([]);
   });
 
   it('replaces a trade seen again under the same id', () => {
