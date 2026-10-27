@@ -33,11 +33,17 @@ async function ask(client: QueryClient, document: string, variables: Record<stri
   return isCatalogRow(answer) ? answer : {};
 }
 
-async function* searchPages(client: QueryClient, kind: CatalogKind, text: string, options: QueryOptions): AsyncGenerator<CatalogRow[]> {
+async function* searchPages(
+  client: QueryClient,
+  kind: CatalogKind,
+  text: string,
+  options: QueryOptions,
+  signal: AbortSignal | undefined
+): AsyncGenerator<CatalogRow[]> {
   let after: string | null = null;
   let totalCount = CATALOG_ROW_LIMIT;
   let loadedCount = 0;
-  while (loadedCount < Math.min(totalCount, CATALOG_ROW_LIMIT)) {
+  while (!signal?.aborted && loadedCount < Math.min(totalCount, CATALOG_ROW_LIMIT)) {
     const answer = await ask(client, kind.searchDocument, { query: text, type: kind.searchType, first: SEARCH_PAGE_ROWS, after }, options);
     const search = isCatalogRow(answer.data) ? answer.data.search : null;
     if (!isCatalogRow(search) || !Array.isArray(search.edges)) return;
@@ -70,12 +76,14 @@ export async function* streamCatalogMatches(
   client: QueryClient,
   kind: CatalogKind,
   { text, order, filters }: MatchQuery,
-  options: QueryOptions
+  options: QueryOptions,
+  signal?: AbortSignal
 ): AsyncGenerator<CatalogRow[]> {
   let canStreamPages = order === null && filters.length === 0;
   const matches: CatalogRow[] = [];
   const factsBySlug = new Map<string, CatalogRow>();
-  for await (const page of searchPages(client, kind, text, options)) {
+  for await (const page of searchPages(client, kind, text, options, signal)) {
+    if (signal?.aborted) return;
     const rows = page.slice(0, CATALOG_ROW_LIMIT - matches.length);
     for (const [slug, facts] of await lookUpFacts(client, kind, rows, options)) factsBySlug.set(slug, facts);
     matches.push(...rows);

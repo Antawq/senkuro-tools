@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { pipe, subscribe, type Source } from 'wonka';
+import { make, pipe, subscribe, type Source } from 'wonka';
 
 import { installCatalogFallback } from '../utils/catalog/catalog-fallback';
 import type { QueryClient, QueryRequest } from '../utils/shared/urql-client';
@@ -176,6 +176,64 @@ describe('installCatalogFallback', () => {
     );
     await settle();
     expect(seen.map((answer) => rowsOf(answer).map((edge) => edge.node.slug))).toEqual([['naruto'], ['naruto', 'boruto']]);
+  });
+
+  describe('a search the page drops for a newer one', () => {
+    const liveCatalog = (): Source<Answer> =>
+      make<Answer>((observer) => {
+        observer.next(emptyCatalog);
+        return () => undefined;
+      });
+    const numberedSlugs = (text: string) => Array.from({ length: 300 }, (_, index) => `${text}-${index}`);
+
+    const dropRig = () => {
+      const asked: string[] = [];
+      const waiting: (() => void)[] = [];
+      const client = {
+        executeQuery: liveCatalog,
+        executeMutation: () => null,
+        query: (document: string, variables: Record<string, unknown>) => ({
+          toPromise: () =>
+            new Promise<Answer>((resolve) => {
+              const isFacts = document.includes('catalogRowFacts');
+              asked.push(isFacts ? 'facts' : `search:${String(variables.after)}`);
+              const page = variables.after === null ? 0 : Number(variables.after) / 100;
+              const slugs = numberedSlugs('naruto');
+              const answer = isFacts
+                ? factsAnswer(Object.fromEntries(slugs.map((slug) => [slug, { containExplicitThemes: true, score: 1 }])))
+                : searchPage(slugs.slice(page * 100, page * 100 + 100), 300, String((page + 1) * 100));
+              waiting.push(() => resolve(answer));
+            }),
+        }),
+      } as unknown as QueryClient;
+      installCatalogFallback(client, () => false);
+      const answerAll = async () => {
+        for (let round = 0; round < 20; round++) {
+          waiting.splice(0).forEach((answer) => answer());
+          await settle();
+        }
+      };
+      return { asked, client, answerAll };
+    };
+
+    for (const [label, variables] of [
+      ['with no sort', {}],
+      ['with a sort', { orderField: 'SCORE', orderDirection: 'DESC' }],
+    ] as const) {
+      it(`asks nothing more for it once the page lets it go, ${label}`, async () => {
+        const { asked, client, answerAll } = dropRig();
+        const subscription = pipe(
+          client.executeQuery(catalogRequest('fetchMangas', variables)) as Source<Answer>,
+          subscribe(() => undefined)
+        );
+        await settle();
+        const askedBeforeDrop = asked.length;
+        subscription.unsubscribe();
+        await answerAll();
+        expect(askedBeforeDrop).toBe(1);
+        expect(asked).toEqual(['search:null']);
+      });
+    }
   });
 
   describe('the sort the page asks for', () => {

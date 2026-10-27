@@ -8,19 +8,17 @@ import { streamCatalogMatches } from './catalog-matches';
 import { catalogKindOf, isEmptyCatalogAnswer, toCatalogData } from './catalog-results';
 import { sortOrderOf } from './catalog-sort';
 
-const sourceOfStream = <T>(stream: AsyncIterable<T>): Source<T> =>
+const sourceOfStream = <T>(openStream: (signal: AbortSignal) => AsyncIterable<T>): Source<T> =>
   make<T>((observer) => {
-    let isClosed = false;
+    const controller = new AbortController();
     void (async () => {
-      for await (const value of stream) {
-        if (isClosed) return;
+      for await (const value of openStream(controller.signal)) {
+        if (controller.signal.aborted) return;
         observer.next(value);
       }
-      if (!isClosed) observer.complete();
+      if (!controller.signal.aborted) observer.complete();
     })();
-    return () => {
-      isClosed = true;
-    };
+    return () => controller.abort();
   });
 
 interface CatalogAnswer extends SourceResult {
@@ -44,7 +42,7 @@ export function installCatalogFallback(client: QueryClient, isHydrating: () => b
       switchMap((answer) => {
         if (!isSettled(answer) || !isEmptyCatalogAnswer(answer, kind)) return fromValue(answer);
         const rows = pipe(
-          sourceOfStream(streamCatalogMatches(client, kind, { text: search.text.toLowerCase(), order, filters: search.filters }, options)),
+          sourceOfStream((signal) => streamCatalogMatches(client, kind, { text: search.text.toLowerCase(), order, filters: search.filters }, options, signal)),
           map((matches) => {
             const data = toCatalogData(matches, kind);
             return data ? { ...answer, data, error: undefined, stale: false, hasNext: false } : answer;
