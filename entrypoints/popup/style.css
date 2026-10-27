@@ -240,26 +240,6 @@ details.setting-group[open] > summary::after {
   border-top: 1px solid var(--c-line);
 }
 
-hr {
-  margin: 20px 0;
-  border: 0;
-  border-top: 1px solid var(--c-line);
-  display: none;
-}
-
-h3 {
-  margin: 0 0 12px 0;
-  font-size: 14px;
-  text-align: center;
-  color: var(--c-heading);
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  background: var(--title-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
 .anim-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
