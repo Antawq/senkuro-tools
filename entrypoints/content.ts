@@ -23,7 +23,7 @@ import {
   updateProfileBadge,
 } from '@/utils/profile/profile-dom';
 import { createSearchKeys } from '@/utils/search/search-keys';
-import { SEARCH_EVENT } from '@/utils/shared/search-event';
+import { SEARCH_EVENT } from '@/utils/search/search-event';
 import { createSearchSignals } from '@/utils/search/search-signal';
 import { createSearchView } from '@/utils/search/search-view';
 import { addedCards, createRenderLoop } from '@/utils/shared/render-loop';

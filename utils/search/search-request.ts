@@ -5,7 +5,7 @@ import type { PageWindow } from '../shared/page-window';
 import { SEARCH_OPERATION, widenSearchRequest } from './search-page-size';
 import { operationName, runWhenClientFound, type QueryClient, type QueryRequest } from '../shared/urql-client';
 import { tapSource, type SourceResult } from '../shared/urql-source';
-import { SEARCH_EVENT, type SearchSignal } from '../shared/search-event';
+import { SEARCH_EVENT, type SearchSignal } from './search-event';
 
 export const SEARCH_PAGE_SIZE = 30;
 

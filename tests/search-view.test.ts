@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { SEARCH_EVENT } from '../utils/shared/search-event';
+import { SEARCH_EVENT } from '../utils/search/search-event';
 import { createSearchSignals, type SearchSignals } from '../utils/search/search-signal';
 import { createSearchView, type SearchView } from '../utils/search/search-view';
 

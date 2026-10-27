@@ -1,4 +1,4 @@
-import { parseSearchSignal } from '../shared/search-event';
+import { parseSearchSignal } from './search-event';
 
 export const MAX_PENDING_MS = 5000;
 
