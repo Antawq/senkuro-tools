@@ -108,8 +108,8 @@ sequenceDiagram
   S->>H: opens the catalog with the text in query
   H->>S: beforeEach guard: query becomes the search filter
   S->>H: the catalog asks for titles through executeQuery
-  H->>A: empty answer: asks search, up to 300 rows, and catalogRowFacts
-  H->>S: hands back rows in the catalog format
+  H->>A: empty answer: asks search, up to 300 rows, and catalogRowFacts for each page
+  H->>S: hands back rows in the catalog format, with the 18+ flag
 ```
 
 ## Avatar price warning
