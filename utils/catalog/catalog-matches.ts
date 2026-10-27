@@ -33,6 +33,19 @@ async function ask(client: QueryClient, document: string, variables: Record<stri
   return isCatalogRow(answer) ? answer : {};
 }
 
+const searchRowsOf = (edges: unknown[]): CatalogRow[] =>
+  edges.flatMap((edge) => (isCatalogRow(edge) && isCatalogRow(edge.node) && typeof edge.node.slug === 'string' ? [edge.node] : []));
+
+function searchPageOf(answer: CatalogRow): { search: CatalogRow; edges: unknown[] } | null {
+  const search = isCatalogRow(answer.data) ? answer.data.search : null;
+  return isCatalogRow(search) && Array.isArray(search.edges) ? { search, edges: search.edges } : null;
+}
+
+function nextCursorOf(search: CatalogRow, edges: unknown[]): string | null {
+  const pageInfo = isCatalogRow(search.pageInfo) ? search.pageInfo : {};
+  return pageInfo.hasNextPage === true && typeof pageInfo.endCursor === 'string' && edges.length > 0 ? pageInfo.endCursor : null;
+}
+
 async function* searchPages(
   client: QueryClient,
   kind: CatalogKind,
@@ -44,18 +57,14 @@ async function* searchPages(
   let totalCount = CATALOG_ROW_LIMIT;
   let loadedCount = 0;
   while (!signal?.aborted && loadedCount < Math.min(totalCount, CATALOG_ROW_LIMIT)) {
-    const answer = await ask(client, kind.searchDocument, { query: text, type: kind.searchType, first: SEARCH_PAGE_ROWS, after }, options);
-    const search = isCatalogRow(answer.data) ? answer.data.search : null;
-    if (!isCatalogRow(search) || !Array.isArray(search.edges)) return;
-    const rows = search.edges.flatMap((edge: unknown) =>
-      isCatalogRow(edge) && isCatalogRow(edge.node) && typeof edge.node.slug === 'string' ? [edge.node] : []
-    );
+    const searchPage = searchPageOf(await ask(client, kind.searchDocument, { query: text, type: kind.searchType, first: SEARCH_PAGE_ROWS, after }, options));
+    if (!searchPage) return;
+    const rows = searchRowsOf(searchPage.edges);
     loadedCount += rows.length;
     if (rows.length > 0) yield rows;
-    if (typeof search.totalCount === 'number') totalCount = search.totalCount;
-    const pageInfo = isCatalogRow(search.pageInfo) ? search.pageInfo : {};
-    if (pageInfo.hasNextPage !== true || typeof pageInfo.endCursor !== 'string' || search.edges.length === 0) return;
-    after = pageInfo.endCursor;
+    if (typeof searchPage.search.totalCount === 'number') totalCount = searchPage.search.totalCount;
+    after = nextCursorOf(searchPage.search, searchPage.edges);
+    if (after === null) return;
   }
 }
 
