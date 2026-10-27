@@ -53,8 +53,7 @@ export default defineContentScript({
 
     const nextFrame = (run: () => void) => {
       if (ctx.isInvalid) return;
-      if ('requestAnimationFrame' in window) ctx.requestAnimationFrame(run);
-      else ctx.setTimeout(run, 0);
+      ctx.requestAnimationFrame(run);
     };
     const inventoryRefresh: RefreshHost = {
       isReady: () => isGuardReady(document),
