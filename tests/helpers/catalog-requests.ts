@@ -36,7 +36,7 @@ export const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 export const emptyCatalog: Answer = { data: { mangas: { edges: [] } } };
 
-export const searchRow = (slug: string, fields: Record<string, unknown> = {}) => ({
+const searchRow = (slug: string, fields: Record<string, unknown> = {}) => ({
   id: slug,
   slug,
   originalName: slug,

@@ -23,7 +23,7 @@ const SITE_TAB = 'button button--secondary button--auto button-size--md button--
 const SITE_TAB_ACTIVE = 'tabs-tab--active';
 const GROUP_LABEL = 'Что показывать';
 
-export type ShardView = 'all' | 'cards' | 'shards';
+type ShardView = 'all' | 'cards' | 'shards';
 
 const VIEW_LABELS: Record<ShardView, string> = { all: 'Все', cards: 'Карты', shards: 'Осколки' };
 

@@ -12,7 +12,7 @@ export const TAB = '.tabs-tab';
 export const ACTIVE_TAB = '.tabs-tab--active';
 export const OPEN_BUTTON = '.nav-search__btn';
 export const EDITABLE = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
-export const MIN_QUERY_CHARACTERS = 2;
+const MIN_QUERY_CHARACTERS = 2;
 
 export const findTopSearchModal = (pageDocument: Document, isSpent: (searchModal: HTMLElement) => boolean = () => false): HTMLElement | null => {
   const openSearchModals = [...pageDocument.querySelectorAll<HTMLElement>(SEARCH_MODAL)].filter(
