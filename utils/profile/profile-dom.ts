@@ -333,6 +333,16 @@ function pauseCount(deps: ProfileBadgeDeps): void {
   if (widget?.dataset.slug && widget.classList.contains(LOADING)) renderIdle(widget, widget.dataset.slug, deps);
 }
 
+function ensureWidget(slug: string): HTMLElement {
+  const existing = document.getElementById(WIDGET_ID);
+  if (existing?.dataset.slug === slug) return existing;
+  existing?.remove();
+  const widget = element('div', CHIP);
+  widget.id = WIDGET_ID;
+  widget.dataset.slug = slug;
+  return widget;
+}
+
 export function updateProfileBadge(deps: ProfileBadgeDeps): void {
   if (isTradeOpen()) {
     pauseCount(deps);
@@ -350,16 +360,7 @@ export function updateProfileBadge(deps: ProfileBadgeDeps): void {
     return;
   }
   if (!isAppMounted(document)) return;
-  let widget = document.getElementById(WIDGET_ID);
-  if (widget && widget.dataset.slug !== slug) {
-    widget.remove();
-    widget = null;
-  }
-  if (!widget) {
-    widget = element('div', CHIP);
-    widget.id = WIDGET_ID;
-    widget.dataset.slug = slug;
-  }
+  const widget = ensureWidget(slug);
   if (!target.container.contains(widget)) target.insert(widget);
   show(widget, slug, deps);
 }
