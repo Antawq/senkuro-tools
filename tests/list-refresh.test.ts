@@ -140,6 +140,22 @@ describe('refreshFamilies', () => {
     expect(family.pages.map((entry) => entry.variables.after)).toEqual([undefined, '11', '9', '7']);
   });
 
+  it('fills one boundary after another, so the filler pages never send more requests at once than the replay itself', async () => {
+    let counter = 0;
+    const { env, record, flight } = setup({
+      answer: () => ({
+        data: {
+          userCards: { pageInfo: { endCursor: `e${(counter += 1)}`, hasNextPage: true }, edges: [{ node: { modifier: 0, card: { id: `n${counter}` } } }] },
+        },
+      }),
+    });
+    const recorded = Array.from({ length: FAST_PAGES + 2 }, (_, index) => page(index === 0 ? { userId: 'A' } : { userId: 'A', after: `old${index}` }));
+    const family = recordPages(record, recorded);
+    const report = await refreshFamilies(env, [family]);
+    expect(report.requests).toBe(recorded.length + (recorded.length - 1) * MAX_FILL_ROUNDS);
+    expect(flight.max).toBeLessThanOrEqual(FAST_PAGES);
+  });
+
   it('needs several fill rounds when many cards arrive, and stops at the cap if the chain never meets', async () => {
     const many = setup();
     const family = recordPages(many.record, [page({ userId: 'A' }), page({ userId: 'A', after: '9' })]);

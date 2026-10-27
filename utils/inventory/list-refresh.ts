@@ -71,12 +71,11 @@ async function fetchPages(run: Run, pages: PageRequest[]): Promise<(RawPage | nu
 async function refreshFamily(run: Run, family: Family): Promise<void> {
   const pages = [...family.pages];
   const raws = await fetchPages(run, pages);
-  const filled = await Promise.all(
-    pages.map((page, index) => {
-      const next = pages[index + 1];
-      return next ? fillBoundary(run, family, { page, raw: raws[index] ?? null, next, nextRaw: raws[index + 1] ?? null }) : Promise.resolve([]);
-    })
-  );
+  const filled: PageRequest[][] = [];
+  for (const [index, page] of pages.entries()) {
+    const next = pages[index + 1];
+    filled.push(next ? await fillBoundary(run, family, { page, raw: raws[index] ?? null, next, nextRaw: raws[index + 1] ?? null }) : []);
+  }
   filled.forEach((added, index) => {
     const anchor = pages[index];
     if (anchor) run.record.insertAfter(family, anchor, added);
