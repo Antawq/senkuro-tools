@@ -144,7 +144,6 @@ a.card-collect[data-senkuro-style='outline']::after {
   background: color-mix(in srgb, var(--senkuro-shade) 60%, transparent);
   color: var(--senkuro-white);
   border-radius: 4px;
-  padding: 4px;
   cursor: pointer;
   z-index: 100;
   pointer-events: auto;
