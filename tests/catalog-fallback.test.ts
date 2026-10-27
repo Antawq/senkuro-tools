@@ -207,13 +207,14 @@ describe('installCatalogFallback', () => {
         }),
       } as unknown as QueryClient;
       installCatalogFallback(client, () => false);
-      const answerAll = async () => {
-        for (let round = 0; round < 20; round++) {
-          waiting.splice(0).forEach((answer) => answer());
-          await settle();
-        }
+      const answerWaiting = async () => {
+        waiting.splice(0).forEach((answer) => answer());
+        await settle();
       };
-      return { asked, client, answerAll };
+      const answerAll = async () => {
+        for (let round = 0; round < 20; round++) await answerWaiting();
+      };
+      return { asked, client, answerWaiting, answerAll };
     };
 
     for (const [label, variables] of [
@@ -232,6 +233,23 @@ describe('installCatalogFallback', () => {
         await answerAll();
         expect(askedBeforeDrop).toBe(1);
         expect(asked).toEqual(['search:null']);
+      });
+
+      it(`asks for no next page once the page lets it go while the values of a page are on their way, ${label}`, async () => {
+        const { asked, client, answerWaiting, answerAll } = dropRig();
+        const seen: Answer[] = [];
+        const subscription = pipe(
+          client.executeQuery(catalogRequest('fetchMangas', variables)) as Source<Answer>,
+          subscribe((answer) => seen.push(answer))
+        );
+        await settle();
+        await answerWaiting();
+        expect(asked).toEqual(['search:null', 'facts']);
+        const seenBeforeDrop = seen.length;
+        subscription.unsubscribe();
+        await answerAll();
+        expect(asked).toEqual(['search:null', 'facts']);
+        expect(seen).toHaveLength(seenBeforeDrop);
       });
     }
   });
