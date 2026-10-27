@@ -118,7 +118,7 @@ function catalogNodeOf(node: CatalogRow, kind: CatalogKind): CatalogRow {
     titles: node.titles,
     status: node[kind.searchFields.status],
     type: node[kind.searchFields.type],
-    formats: Array.isArray(node.formats) ? node.formats : [],
+    formats: [],
     rating: node[kind.searchFields.rating],
     score: node.score,
     containExplicitThemes: node.containExplicitThemes !== false,

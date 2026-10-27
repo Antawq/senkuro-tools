@@ -110,7 +110,7 @@ describe('toCatalogData', () => {
   };
 
   it('gives the rows of the search to the page the way the catalog gives its own', () => {
-    const data = toCatalogData([{ ...searchNode, containExplicitThemes: false, formats: ['WEB'] }], catalogKindOf('fetchMangas')!);
+    const data = toCatalogData([{ ...searchNode, containExplicitThemes: false }], catalogKindOf('fetchMangas')!);
     expect(data).toEqual({
       mangas: {
         edges: [
@@ -122,7 +122,7 @@ describe('toCatalogData', () => {
               titles: [{ lang: 'RU', content: 'Наруто', __typename: 'I18nTitle' }],
               status: 'FINISHED',
               type: 'MANGA',
-              formats: ['WEB'],
+              formats: [],
               rating: 'ALL',
               score: 8.1,
               containExplicitThemes: false,

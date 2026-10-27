@@ -9,8 +9,6 @@ type QueryOptions = Record<string, unknown> | undefined;
 
 const CACHE_FIRST = { requestPolicy: 'cache-first' };
 
-const CARD_FACTS = ['containExplicitThemes', 'formats'];
-
 const factsDocuments = new Map<string, string>();
 
 export interface MatchQuery {
@@ -76,7 +74,7 @@ async function lookUpFacts(client: QueryClient, kind: CatalogKind, rows: readonl
 const withCardFacts = (rows: readonly CatalogRow[], factsBySlug: FactsBySlug): CatalogRow[] =>
   rows.map((row) => {
     const facts = factsBySlug.get(String(row.slug));
-    return facts ? { ...row, ...Object.fromEntries(CARD_FACTS.map((key) => [key, facts[key]])) } : row;
+    return facts ? { ...row, containExplicitThemes: facts.containExplicitThemes } : row;
   });
 
 function finalListOf(matches: readonly CatalogRow[], factsBySlug: FactsBySlug, { order, filters }: Omit<MatchQuery, 'text'>): CatalogRow[] {

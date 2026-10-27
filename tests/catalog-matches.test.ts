@@ -101,10 +101,10 @@ describe('streamCatalogMatches', () => {
     ]);
   });
 
-  it('asks for the values of every page before giving it, also with no sort to make, and hands each row its 18+ flag and formats', async () => {
+  it('asks for the values of every page before giving it, also with no sort to make, and hands each row its 18+ flag', async () => {
     const { client, factRequests } = rig(
       { null: searchPage(['a', 'b'], 3, '2'), '2': searchPage(['c'], 3) },
-      factsAnswer({ a: { containExplicitThemes: false, formats: ['WEB'] }, b: { containExplicitThemes: false, formats: [] } })
+      factsAnswer({ a: { containExplicitThemes: false, formats: ['WEB'] }, b: { containExplicitThemes: false } })
     );
     const emissions = await collect(streamCatalogMatches(client, manga, query('x'), undefined));
     expect(factRequests().map((call) => [call.variables.s0, call.variables.s1])).toEqual([
@@ -112,9 +112,10 @@ describe('streamCatalogMatches', () => {
       ['c', 'c'],
     ]);
     expect(emissions[0]).toMatchObject([
-      { slug: 'a', containExplicitThemes: false, formats: ['WEB'] },
-      { slug: 'b', containExplicitThemes: false, formats: [] },
+      { slug: 'a', containExplicitThemes: false },
+      { slug: 'b', containExplicitThemes: false },
     ]);
+    expect(emissions[0]?.[0]).not.toHaveProperty('formats');
     expect(emissions[1]?.[2]).not.toHaveProperty('containExplicitThemes');
   });
 
