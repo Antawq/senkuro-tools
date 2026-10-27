@@ -6,7 +6,6 @@ export interface SearchSignal {
   type: string;
   settled?: boolean;
   firstSlug?: string | null;
-  catalogTerm?: string | null;
 }
 
 export const parseSearchSignal = (event: Event): SearchSignal | null => {
