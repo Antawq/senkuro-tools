@@ -91,13 +91,39 @@ describe('streamCatalogMatches', () => {
   });
 
   it('gives the rows after every page when there is no sort to make, each time with all the rows so far', async () => {
-    const { client } = rig({ null: searchPage(['a', 'b'], 5, '2'), '2': searchPage(['c', 'd'], 5, '4'), '4': searchPage(['e'], 5) });
+    const safe = Object.fromEntries(['a', 'b', 'c', 'd', 'e'].map((slug) => [slug, { containExplicitThemes: false }]));
+    const { client } = rig({ null: searchPage(['a', 'b'], 5, '2'), '2': searchPage(['c', 'd'], 5, '4'), '4': searchPage(['e'], 5) }, factsAnswer(safe));
     const emissions = await collect(streamCatalogMatches(client, manga, query('x'), undefined));
     expect(emissions.map(slugsOf)).toEqual([
       ['a', 'b'],
       ['a', 'b', 'c', 'd'],
       ['a', 'b', 'c', 'd', 'e'],
     ]);
+  });
+
+  it('asks for the values of every page before giving it, also with no sort to make, and hands each row its 18+ flag and formats', async () => {
+    const { client, factRequests } = rig(
+      { null: searchPage(['a', 'b'], 3, '2'), '2': searchPage(['c'], 3) },
+      factsAnswer({ a: { containExplicitThemes: false, formats: ['WEB'] }, b: { containExplicitThemes: false, formats: [] } })
+    );
+    const emissions = await collect(streamCatalogMatches(client, manga, query('x'), undefined));
+    expect(factRequests().map((call) => [call.variables.s0, call.variables.s1])).toEqual([
+      ['a', 'b'],
+      ['c', 'c'],
+    ]);
+    expect(emissions[0]).toMatchObject([
+      { slug: 'a', containExplicitThemes: false, formats: ['WEB'] },
+      { slug: 'b', containExplicitThemes: false, formats: [] },
+    ]);
+    expect(emissions[1]?.[2]).not.toHaveProperty('containExplicitThemes');
+  });
+
+  it('stops giving the rows page by page once a row may be 18+ and gives the rest in one list, as the catalog asks for the age for every list it is given', async () => {
+    const pages = { null: searchPage(['a'], 4, '1'), '1': searchPage(['b'], 4, '2'), '2': searchPage(['c', 'd'], 4) };
+    const explicit = rig(pages, factsAnswer({ a: { containExplicitThemes: false }, b: { containExplicitThemes: true }, c: { containExplicitThemes: false } }));
+    expect((await collect(streamCatalogMatches(explicit.client, manga, query('x'), undefined))).map(slugsOf)).toEqual([['a'], ['a', 'b', 'c', 'd']]);
+    const unknown = rig(pages);
+    expect((await collect(streamCatalogMatches(unknown.client, manga, query('x'), undefined))).map(slugsOf)).toEqual([['a', 'b', 'c', 'd']]);
   });
 
   it('gives an empty list once, so the page hears that there is nothing, when the search finds nothing', async () => {
@@ -119,21 +145,16 @@ describe('streamCatalogMatches', () => {
   describe('with a sort', () => {
     const order = sortOrderOf({ orderField: 'VIEWS', orderDirection: 'DESC' }, manga)!;
 
-    it('asks for the values of all rows in one request, filling all slots with the slugs and the last one repeated', async () => {
+    it('asks for the values of each page in one request, filling all slots of a page with its slugs and the last one repeated', async () => {
       const { client, factRequests } = rig({ null: searchPage(['a', 'b', 'c']) }, factsAnswer({ a: { views: 1 }, b: { views: 3 }, c: { views: 2 } }));
       const rows = await loadCatalogMatches(client, manga, query('x', order), undefined);
       expect(slugsOf(rows)).toEqual(['b', 'c', 'a']);
       expect(factRequests()).toHaveLength(1);
       const variables = factRequests()[0]!.variables;
-      expect(Object.keys(variables)).toHaveLength(CATALOG_ROW_LIMIT);
-      expect([variables.s0, variables.s1, variables.s2, variables.s3, variables[`s${CATALOG_ROW_LIMIT - 1}`]]).toEqual(['a', 'b', 'c', 'c', 'c']);
-      expect(factRequests()[0]?.document).toContain(`$s${CATALOG_ROW_LIMIT - 1}: String!`);
-    });
-
-    it('asks for no values when there is no sort to make', async () => {
-      const { client, factRequests } = rig({ null: searchPage(['a', 'b']) });
-      await loadCatalogMatches(client, manga, query('x'), undefined);
-      expect(factRequests()).toHaveLength(0);
+      expect(Object.keys(variables)).toHaveLength(SEARCH_PAGE_ROWS);
+      expect([variables.s0, variables.s1, variables.s2, variables.s3, variables[`s${SEARCH_PAGE_ROWS - 1}`]]).toEqual(['a', 'b', 'c', 'c', 'c']);
+      expect(factRequests()[0]?.document).toContain(`$s${SEARCH_PAGE_ROWS - 1}: String!`);
+      expect(factRequests()[0]?.document).not.toContain(`$s${SEARCH_PAGE_ROWS}: String!`);
     });
 
     it('asks for no values when the search found nothing', async () => {
@@ -165,14 +186,14 @@ describe('streamCatalogMatches', () => {
       expect(emissions.map(slugsOf)).toEqual([['a', 'b']]);
     });
 
-    it('asks for the values of all rows in one request, the same one a sort asks, and for nothing when no filter is set', async () => {
+    it('asks for the values of a page in one request on the cache, the same one a plain search or a sort asks', async () => {
       const filtered = rig(pages, facts);
       await loadCatalogMatches(filtered.client, manga, query('x', null, romance), undefined);
       expect(filtered.factRequests()).toHaveLength(1);
       expect(filtered.factRequests()[0]?.options).toMatchObject({ requestPolicy: 'cache-first' });
       const plain = rig(pages, facts);
       await loadCatalogMatches(plain.client, manga, query('x'), undefined);
-      expect(plain.factRequests()).toHaveLength(0);
+      expect(plain.factRequests().map((call) => call.variables)).toEqual(filtered.factRequests().map((call) => call.variables));
     });
 
     it('sorts the rows that pass, with the same values', async () => {

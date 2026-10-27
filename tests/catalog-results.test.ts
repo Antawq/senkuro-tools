@@ -110,7 +110,7 @@ describe('toCatalogData', () => {
   };
 
   it('gives the rows of the search to the page the way the catalog gives its own', () => {
-    const data = toCatalogData([searchNode], catalogKindOf('fetchMangas')!);
+    const data = toCatalogData([{ ...searchNode, containExplicitThemes: false, formats: ['WEB'] }], catalogKindOf('fetchMangas')!);
     expect(data).toEqual({
       mangas: {
         edges: [
@@ -122,7 +122,7 @@ describe('toCatalogData', () => {
               titles: [{ lang: 'RU', content: 'Наруто', __typename: 'I18nTitle' }],
               status: 'FINISHED',
               type: 'MANGA',
-              formats: [],
+              formats: ['WEB'],
               rating: 'ALL',
               score: 8.1,
               containExplicitThemes: false,
@@ -157,6 +157,18 @@ describe('toCatalogData', () => {
     };
     expect(data.animes.__typename).toBe('AnimeConnection');
     expect(data.animes.edges[0]?.node).toMatchObject({ status: 'FINISHED', type: 'TV', rating: 'PG13', __typename: 'Anime' });
+  });
+
+  it('marks a row 18+ unless its lookup said otherwise, so the catalog asks for the age and blurs the cover as it does for its own rows', () => {
+    const nodesOf = (rows: Record<string, unknown>[]) =>
+      (toCatalogData(rows, catalogKindOf('fetchMangas')!) as { mangas: { edges: { node: Record<string, unknown> }[] } }).mangas.edges.map((edge) => edge.node);
+    const [explicit, safe, unknown] = nodesOf([
+      { ...searchNode, slug: 'a', containExplicitThemes: true },
+      { ...searchNode, slug: 'b', containExplicitThemes: false },
+      { ...searchNode, slug: 'c' },
+    ]);
+    expect([explicit?.containExplicitThemes, safe?.containExplicitThemes, unknown?.containExplicitThemes]).toEqual([true, false, true]);
+    expect(unknown?.formats).toEqual([]);
   });
 
   it('gives nothing when there are no rows to give', () => {

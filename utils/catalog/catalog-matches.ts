@@ -1,5 +1,5 @@
 import type { QueryClient } from '../shared/urql-client';
-import { factVariablesOf, factsDocumentOf, readFacts } from './catalog-facts';
+import { factVariablesOf, factsDocumentOf, readFacts, type FactsBySlug } from './catalog-facts';
 import { rowPasses, type CatalogFilters } from './catalog-filters';
 import { CATALOG_ROW_LIMIT, SEARCH_PAGE_ROWS, type CatalogKind } from './catalog-results';
 import { sortRows, type SortOrder } from './catalog-sort';
@@ -8,6 +8,8 @@ import { isCatalogRow, type CatalogRow } from './catalog-row';
 type QueryOptions = Record<string, unknown> | undefined;
 
 const CACHE_FIRST = { requestPolicy: 'cache-first' };
+
+const CARD_FACTS = ['containExplicitThemes', 'formats'];
 
 const factsDocuments = new Map<string, string>();
 
@@ -20,7 +22,7 @@ export interface MatchQuery {
 const factsDocumentFor = (kind: CatalogKind): string => {
   let document = factsDocuments.get(kind.operation);
   if (document === undefined) {
-    document = factsDocumentOf(kind, CATALOG_ROW_LIMIT);
+    document = factsDocumentOf(kind, SEARCH_PAGE_ROWS);
     factsDocuments.set(kind.operation, document);
   }
   return document;
@@ -51,26 +53,40 @@ async function* searchPages(client: QueryClient, kind: CatalogKind, text: string
   }
 }
 
+async function lookUpFacts(client: QueryClient, kind: CatalogKind, rows: readonly CatalogRow[], options: QueryOptions): Promise<FactsBySlug> {
+  const slugs = rows.map((row) => String(row.slug));
+  return readFacts((await ask(client, factsDocumentFor(kind), factVariablesOf(slugs, SEARCH_PAGE_ROWS), options)).data);
+}
+
+const withCardFacts = (rows: readonly CatalogRow[], factsBySlug: FactsBySlug): CatalogRow[] =>
+  rows.map((row) => {
+    const facts = factsBySlug.get(String(row.slug));
+    return facts ? { ...row, ...Object.fromEntries(CARD_FACTS.map((key) => [key, facts[key]])) } : row;
+  });
+
+const isExplicit = (row: CatalogRow, factsBySlug: FactsBySlug): boolean => factsBySlug.get(String(row.slug))?.containExplicitThemes !== false;
+
 export async function* streamCatalogMatches(
   client: QueryClient,
   kind: CatalogKind,
   { text, order, filters }: MatchQuery,
   options: QueryOptions
 ): AsyncGenerator<CatalogRow[]> {
-  const needsFacts = order !== null || filters.length > 0;
+  let canStreamPages = order === null && filters.length === 0;
   const matches: CatalogRow[] = [];
+  const factsBySlug = new Map<string, CatalogRow>();
   for await (const page of searchPages(client, kind, text, options)) {
-    matches.push(...page);
-    matches.length = Math.min(matches.length, CATALOG_ROW_LIMIT);
-    if (!needsFacts) yield [...matches];
+    const rows = page.slice(0, CATALOG_ROW_LIMIT - matches.length);
+    for (const [slug, facts] of await lookUpFacts(client, kind, rows, options)) factsBySlug.set(slug, facts);
+    matches.push(...rows);
+    canStreamPages &&= !rows.some((row) => isExplicit(row, factsBySlug));
+    if (canStreamPages) yield withCardFacts(matches, factsBySlug);
   }
   if (matches.length === 0) {
     yield [];
     return;
   }
-  if (!needsFacts) return;
-  const slugs = matches.map((match) => String(match.slug));
-  const facts = readFacts((await ask(client, factsDocumentFor(kind), factVariablesOf(slugs, CATALOG_ROW_LIMIT), options)).data);
-  const kept = matches.filter((match) => rowPasses(facts.get(String(match.slug)), filters));
-  yield order ? sortRows(kept, facts, order) : kept;
+  if (canStreamPages) return;
+  const kept = matches.filter((match) => rowPasses(factsBySlug.get(String(match.slug)), filters));
+  yield withCardFacts(order ? sortRows(kept, factsBySlug, order) : kept, factsBySlug);
 }

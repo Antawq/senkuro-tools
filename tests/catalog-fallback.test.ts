@@ -159,12 +159,13 @@ describe('installCatalogFallback', () => {
   it('gives the page the first rows as soon as they are there, and the rest when the pages have come, when there is no sort to make', async () => {
     const calls: QueryCall[] = [];
     const pages: Record<string, Answer> = { null: searchPage(['naruto'], 2, '1'), '1': searchPage(['boruto'], 2) };
+    const safe = factsAnswer({ naruto: { containExplicitThemes: false }, boruto: { containExplicitThemes: false } });
     const client = {
       executeQuery: () => sourceOf([emptyCatalog]),
       executeMutation: () => null,
       query: (document: string, variables: Record<string, unknown>) => {
         calls.push({ document, variables, options: undefined });
-        return promiseOf(pages[String(variables.after)] ?? {});
+        return promiseOf(document.includes('catalogRowFacts') ? safe : (pages[String(variables.after)] ?? {}));
       },
     } as unknown as QueryClient;
     installCatalogFallback(client, () => false);
@@ -197,11 +198,10 @@ describe('installCatalogFallback', () => {
       expect(slugsOf(await run(catalogRequest('fetchMangas', { orderField: 'SCORE', orderDirection: 'ASC' })))).toEqual(['naruto', 'boruto']);
     });
 
-    it('keeps the order of the search for the popularity sort, which the API gives no field for, and asks for no values', async () => {
-      const { factRequests, run } = rig([emptyCatalog], [searchAnswer('naruto', 'boruto')], () => false, facts);
+    it('keeps the order of the search for the popularity sort, which the API gives no field for', async () => {
+      const { run } = rig([emptyCatalog], [searchAnswer('naruto', 'boruto')], () => false, facts);
       const seen = await run(catalogRequest('fetchMangas', { orderField: 'POPULARITY_SCORE', orderDirection: 'ASC' }));
       expect(slugsOf(seen)).toEqual(['naruto', 'boruto']);
-      expect(factRequests()).toHaveLength(0);
     });
 
     it('keeps the order of the search when the values cannot be had', async () => {

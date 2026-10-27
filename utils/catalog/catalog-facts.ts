@@ -7,7 +7,7 @@ export function factsDocumentOf(kind: CatalogKind, slots: number): string {
   const slotNumbers = Array.from({ length: slots }, (_, index) => index);
   const declarations = slotNumbers.map((index) => `$s${index}: String!`).join(', ');
   const lookups = slotNumbers
-    .map((index) => `a${index}: ${kind.lookupRoot}(slug: $s${index}) { id slug score views createdAt ${kind.lookupSelection} }`)
+    .map((index) => `a${index}: ${kind.lookupRoot}(slug: $s${index}) { id slug score views createdAt containExplicitThemes ${kind.lookupSelection} }`)
     .join(' ');
   return `query catalogRowFacts(${declarations}) { ${lookups} }`;
 }
