@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 
+import { APP_MOUNTED_ATTRIBUTE } from '../utils/shared/app-mounted';
+
 import {
   abortProfileLoading,
   findNicknameTarget,
@@ -77,6 +79,7 @@ describe('profile-dom', () => {
   beforeEach(() => {
     fakeBrowser.reset();
     document.body.innerHTML = '';
+    document.documentElement.setAttribute(APP_MOUNTED_ATTRIBUTE, '');
     fetchMock = vi.fn<typeof fetch>(() => Promise.resolve(reply({ user: null })));
     vi.stubGlobal('fetch', fetchMock);
   });
@@ -84,6 +87,7 @@ describe('profile-dom', () => {
   afterEach(() => {
     abortProfileLoading();
     removeProfileBadge();
+    document.documentElement.removeAttribute(APP_MOUNTED_ATTRIBUTE);
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
@@ -170,6 +174,19 @@ describe('profile-dom', () => {
       window.history.pushState({}, '', '/cards/soran-f');
       updateProfileBadge({ db, valuation: plain });
       expect(widget()).toBeNull();
+    });
+
+    it('puts no chip into the server-rendered header before the site has mounted its app, and draws it once it has', async () => {
+      window.history.pushState({}, '', '/users/phaivroh');
+      document.body.innerHTML = header;
+      document.documentElement.removeAttribute(APP_MOUNTED_ATTRIBUTE);
+      await draw();
+      expect(widget()).toBeNull();
+      expect(profileBadgeMissing()).toBe(false);
+      document.documentElement.setAttribute(APP_MOUNTED_ATTRIBUTE, '');
+      expect(profileBadgeMissing()).toBe(true);
+      await draw();
+      expect(widget()).not.toBeNull();
     });
 
     it('draws nothing until the store has answered', () => {

@@ -1,3 +1,4 @@
+import { isAppMounted } from '../shared/app-mounted';
 import type { Database } from '../shared/database';
 import { element } from '../shared/dom';
 import { chevronIcon, refreshIcon } from '../shared/svg';
@@ -164,7 +165,7 @@ export function removeProfileBadge(): void {
 }
 
 export const profileBadgeMissing = (): boolean =>
-  !isTradeOpen() && Boolean(extractProfileSlug(window.location.pathname) && !document.getElementById(WIDGET_ID));
+  !isTradeOpen() && isAppMounted(document) && Boolean(extractProfileSlug(window.location.pathname) && !document.getElementById(WIDGET_ID));
 
 function renderLoading(widget: HTMLElement, text: string): void {
   widget.classList.add(LOADING);
@@ -353,6 +354,7 @@ export function updateProfileBadge(deps: ProfileBadgeDeps): void {
     readStored(slug, deps);
     return;
   }
+  if (!isAppMounted(document)) return;
   let widget = document.getElementById(WIDGET_ID);
   if (widget && widget.dataset.slug !== slug) {
     widget.remove();
