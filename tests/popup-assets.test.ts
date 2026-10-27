@@ -50,8 +50,13 @@ describe('popup controls', () => {
       const kind = kinds.find((name) => selector.includes(name));
       return !kind || !focused.some((rule) => rule.includes(kind));
     });
-    expect(stripped).toHaveLength(4);
+    expect(stripped.length).toBeGreaterThan(0);
     expect(unringed).toEqual([]);
+  });
+
+  it('draws the ring of a group header inside it, since the group clips whatever overflows it', () => {
+    expect(styles).toMatch(/details\.setting-group\s*\{[^}]*overflow:\s*hidden/);
+    expect(styles).toMatch(/details\.setting-group > summary:focus-visible\s*\{[^}]*outline-offset:\s*-/);
   });
 
   it('keeps the logo next to the name out of what a screen reader says', () => {

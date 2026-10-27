@@ -164,6 +164,9 @@ select:focus {
   outline: 2px solid var(--c-accent-light);
   outline-offset: 2px;
 }
+details.setting-group > summary:focus-visible {
+  outline-offset: -2px;
+}
 
 input[type='range'] {
   -webkit-appearance: none;
