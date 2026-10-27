@@ -37,8 +37,6 @@ import { createShardSwitchWatcher } from '@/utils/trades/shard-switch';
 import { createTradeStore, listenForTrades } from '@/utils/trades/trade-capture';
 import { isTradeMutation, updateTradeSummaries } from '@/utils/trades/trade-summary';
 
-const LATE_RENDER_DELAYS_MS = [400, 1500];
-
 const applySummaryFontSize = (size: number) => document.documentElement.style.setProperty('--senkuro-summary-font-size', `${size}px`);
 
 export default defineContentScript({
@@ -158,6 +156,5 @@ export default defineContentScript({
     );
     void tokenBar.sync(settings.showToken);
     void loop.renderAll();
-    LATE_RENDER_DELAYS_MS.forEach((delay) => ctx.setTimeout(() => void loop.renderAll(), delay));
   },
 });
