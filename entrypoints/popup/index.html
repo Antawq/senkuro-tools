@@ -8,7 +8,7 @@
   </head>
   <body>
     <div class="header">
-      <img class="logo" src="/icon-128.png" width="32" height="32" alt="icon" />
+      <img class="logo" src="/icon-128.png" width="32" height="32" alt="" />
       <h1 class="title">SenkuTools</h1>
       <span class="version" id="version"></span>
     </div>
@@ -45,7 +45,7 @@
         </label>
 
         <div class="field-group">
-          <div class="field-title">Позиция (горизонталь):</div>
+          <label class="field-title" for="positionXSelect">Позиция (горизонталь):</label>
           <select id="positionXSelect">
             <option value="left">Слева</option>
             <option value="center">По центру</option>
@@ -54,7 +54,7 @@
         </div>
 
         <div class="field-group">
-          <div class="field-title">Позиция (вертикаль):</div>
+          <label class="field-title" for="positionYSelect">Позиция (вертикаль):</label>
           <select id="positionYSelect">
             <option value="top">Сверху</option>
             <option value="center">По центру</option>
@@ -63,7 +63,7 @@
         </div>
 
         <div class="field-group">
-          <div class="field-title">Оформление текста:</div>
+          <label class="field-title" for="styleSelect">Оформление текста:</label>
           <select id="styleSelect">
             <option value="background">Черный фон</option>
             <option value="outline">Черный контур (обводка)</option>
@@ -71,12 +71,12 @@
         </div>
 
         <div class="field-group">
-          <div class="field-title">Прозрачность фона: <span class="field-value" id="opacityValue"></span></div>
+          <label class="field-title" for="opacitySlider">Прозрачность фона: <span class="field-value" id="opacityValue"></span></label>
           <input type="range" id="opacitySlider" min="0" max="100" />
         </div>
 
         <div class="field-group">
-          <div class="field-title">Размер текста: <span class="field-value" id="fontSizeValue"></span></div>
+          <label class="field-title" for="fontSizeSlider">Размер текста: <span class="field-value" id="fontSizeValue"></span></label>
           <input type="range" id="fontSizeSlider" min="9" max="24" />
         </div>
       </div>
@@ -102,7 +102,7 @@
           <span class="toggle-text">Показывать Выгоду/Потерю</span>
         </label>
         <div class="field-group field-group--after-toggles">
-          <div class="field-title">Размер текста в таблице: <span class="field-value" id="summaryFontSizeValue"></span></div>
+          <label class="field-title" for="summaryFontSizeSlider">Размер текста в таблице: <span class="field-value" id="summaryFontSizeValue"></span></label>
           <input type="range" id="summaryFontSizeSlider" min="6" max="24" />
         </div>
       </div>
@@ -116,7 +116,7 @@
           <span class="toggle-text">Показывать кнопку</span>
         </label>
         <div class="field-group">
-          <div class="field-title">Размер кнопки: <span class="field-value" id="copyBtnSizeValue"></span></div>
+          <label class="field-title" for="copyBtnSizeSlider">Размер кнопки: <span class="field-value" id="copyBtnSizeValue"></span></label>
           <input type="range" id="copyBtnSizeSlider" min="10" max="24" />
         </div>
       </div>
@@ -197,7 +197,7 @@
         </p>
 
         <div class="field-group">
-          <div class="field-title">Ценность в F считать по:</div>
+          <label class="field-title" for="valueBasisSelect">Ценность в F считать по:</label>
           <select id="valueBasisSelect">
             <option value="bank">Банку (цены карт)</option>
             <option value="cards">Картам (количество)</option>

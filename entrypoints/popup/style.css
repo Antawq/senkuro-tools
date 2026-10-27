@@ -160,6 +160,10 @@ select:focus {
   border-color: var(--c-accent-light);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-accent) 20%, transparent);
 }
+:is(input[type='checkbox'], input[type='range'], summary):focus-visible {
+  outline: 2px solid var(--c-accent-light);
+  outline-offset: 2px;
+}
 
 input[type='range'] {
   -webkit-appearance: none;
