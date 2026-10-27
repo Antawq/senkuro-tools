@@ -79,6 +79,11 @@ const withCardFacts = (rows: readonly CatalogRow[], factsBySlug: FactsBySlug): C
     return facts ? { ...row, ...Object.fromEntries(CARD_FACTS.map((key) => [key, facts[key]])) } : row;
   });
 
+function finalListOf(matches: readonly CatalogRow[], factsBySlug: FactsBySlug, { order, filters }: Omit<MatchQuery, 'text'>): CatalogRow[] {
+  const kept = matches.filter((match) => rowPasses(factsBySlug.get(String(match.slug)), filters));
+  return withCardFacts(order ? sortRows(kept, factsBySlug, order) : kept, factsBySlug);
+}
+
 const isExplicit = (row: CatalogRow, factsBySlug: FactsBySlug): boolean => factsBySlug.get(String(row.slug))?.containExplicitThemes !== false;
 
 export async function* streamCatalogMatches(
@@ -94,7 +99,7 @@ export async function* streamCatalogMatches(
   for await (const page of searchPages(client, kind, text, options, signal)) {
     if (signal?.aborted) return;
     const rows = page.slice(0, CATALOG_ROW_LIMIT - matches.length);
-    for (const [slug, facts] of await lookUpFacts(client, kind, rows, options)) factsBySlug.set(slug, facts);
+    (await lookUpFacts(client, kind, rows, options)).forEach((facts, slug) => factsBySlug.set(slug, facts));
     matches.push(...rows);
     canStreamPages &&= !rows.some((row) => isExplicit(row, factsBySlug));
     if (canStreamPages) yield withCardFacts(matches, factsBySlug);
@@ -103,7 +108,5 @@ export async function* streamCatalogMatches(
     yield [];
     return;
   }
-  if (canStreamPages) return;
-  const kept = matches.filter((match) => rowPasses(factsBySlug.get(String(match.slug)), filters));
-  yield withCardFacts(order ? sortRows(kept, factsBySlug, order) : kept, factsBySlug);
+  if (!canStreamPages) yield finalListOf(matches, factsBySlug, { order, filters });
 }
