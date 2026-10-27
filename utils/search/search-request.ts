@@ -2,7 +2,7 @@ import type { Sink } from 'wonka';
 
 import { claimPage } from '../shared/page-claim';
 import type { PageWindow } from '../shared/page-window';
-import { SEARCH_OPERATION, widenSearchRequest } from '../shared/search-page-size';
+import { SEARCH_OPERATION, widenSearchRequest } from './search-page-size';
 import { operationName, runWhenClientFound, type QueryClient, type QueryRequest } from '../shared/urql-client';
 import { tapSource, type SourceResult } from '../shared/urql-source';
 import { SEARCH_EVENT, type SearchSignal } from '../shared/search-event';

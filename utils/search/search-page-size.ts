@@ -1,4 +1,4 @@
-import { operationName, type QueryRequest } from './urql-client';
+import { operationName, type QueryRequest } from '../shared/urql-client';
 
 export const SEARCH_OPERATION = 'search';
 const PAGE_ARGUMENT = 'first';

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { widenSearchRequest } from '../utils/shared/search-page-size';
+import { widenSearchRequest } from '../utils/search/search-page-size';
 import type { QueryRequest } from '../utils/shared/urql-client';
 import { firstOf, keyOf, request, searchDocument } from './helpers/search-requests';
 
