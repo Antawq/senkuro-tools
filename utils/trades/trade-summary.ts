@@ -110,8 +110,7 @@ function cellOf(side: SideView, key: RowKey): HTMLElement {
     return cell;
   }
   if (key === 'bank') return amounts(cell, side.bank, side.unknown);
-  if (key === 'count') return amounts(cell, side.count, side.unknown);
-  return cell;
+  return amounts(cell, side.count, side.unknown);
 }
 
 function rCell(side: SideView, key: RowKey): HTMLElement {
