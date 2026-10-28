@@ -1,22 +1,20 @@
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 
-type Shape = [string, Record<string, string>];
-
-function svgIcon(attributes: Record<string, string>, shapes: Shape[]): SVGSVGElement {
+function symbolIcon(path: string, sizePx: number, className?: string): SVGSVGElement {
   const svg = document.createElementNS(SVG_NAMESPACE, 'svg');
+  const attributes = {
+    ...(className ? { class: className } : {}),
+    viewBox: '0 -960 960 960',
+    width: String(sizePx),
+    height: String(sizePx),
+    fill: 'currentColor',
+  };
   Object.entries(attributes).forEach(([key, value]) => svg.setAttribute(key, value));
-  for (const [tag, shape] of shapes) {
-    const node = document.createElementNS(SVG_NAMESPACE, tag);
-    Object.entries(shape).forEach(([key, value]) => node.setAttribute(key, value));
-    svg.append(node);
-  }
+  const shape = document.createElementNS(SVG_NAMESPACE, 'path');
+  shape.setAttribute('d', path);
+  svg.append(shape);
   return svg;
 }
-
-const symbolIcon = (path: string, sizePx: number, className?: string): SVGSVGElement =>
-  svgIcon({ ...(className ? { class: className } : {}), viewBox: '0 -960 960 960', width: String(sizePx), height: String(sizePx), fill: 'currentColor' }, [
-    ['path', { d: path }],
-  ]);
 
 export const refreshIcon = (sizePx: number): SVGSVGElement =>
   symbolIcon(
