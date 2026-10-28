@@ -8,6 +8,7 @@ import {
   isPickerFamily,
   judge,
   linked,
+  listScopeOf,
   needsRefresh,
   pageIdOf,
   readRawPage,
@@ -277,5 +278,15 @@ describe('what a family is for', () => {
     const other = familyOf(profileGrid);
     expect(isGridFamily(other)).toBe(false);
     expect(isPickerFamily(other)).toBe(false);
+  });
+});
+
+describe('listScopeOf', () => {
+  it('names the grid for a list that includes modifiers, a picker for one that excludes them, and nothing for the rest', () => {
+    expect(listScopeOf({ userId: 'USER:1', modifier: { include: [0] } })).toBe('grid');
+    expect(listScopeOf({ userId: 'USER:1', modifier: { exclude: [1] } })).toBe('picker');
+    expect(listScopeOf(splitPicker)).toBe('picker');
+    expect(listScopeOf(profileGrid)).toBeNull();
+    expect(listScopeOf({ modifier: null })).toBeNull();
   });
 });

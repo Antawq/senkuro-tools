@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Database } from '../utils/shared/database';
+import type { ListScope } from '../utils/shared/list-scope';
 import { PRICE_STATE_EVENT, PRICE_ROWS_EVENT, encodePriceRows, encodePriceState, type PriceOrder, type PriceStateName } from '../utils/shared/price-signal';
 import { createPriceSort, hasSortMutation, type PriceSort, type SortHost } from '../utils/sort/sort-view';
 
@@ -33,7 +34,7 @@ interface Page {
 const render = ({ slugs = ['mid', 'dear', 'cheap'], hasMoreCards = false, isAscending = false, hasMenu = false, hasFilters = true }: Page = {}) => {
   document.body.innerHTML = `${
     hasFilters
-      ? `<div class="back-actions"><div class="user-card__filters"><button class="button button--icon${isAscending ? ' cards-cnt__nav-filter--asc' : ''}" id="direction"></button><div class="v-popper"><button id="sort-trigger" class="button"><span>По дате получения</span></button></div><div class="v-popper"><button id="filter-trigger" class="button"><span>Фильтр</span></button></div></div></div>`
+      ? `<div class="back-actions"><div class="user-card__filters"><button class="button button--icon${isAscending ? ' cards-cnt__nav-filter--asc' : ''}" id="direction"></button><div class="v-popper"><button id="sort-trigger" class="button"${hasMenu ? ' aria-describedby="cards-browse-order" data-popper-shown=""' : ''}><span>По дате получения</span></button></div><div class="v-popper"><button id="filter-trigger" class="button"><span>Фильтр</span></button></div></div></div>`
       : ''
   }<div class="user-cards-grid">${slugs.map(cardHtml).join('')}${hasMoreCards ? '<div></div>' : ''}</div>${hasMenu ? menuHtml() : ''}`;
 };
@@ -61,7 +62,7 @@ const press = (sort: PriceSort, element: Element | null): void => {
   document.removeEventListener('click', sort.handleClick, true);
 };
 
-const setup = () => {
+const setup = (scope: ListScope = 'grid') => {
   const views: boolean[] = [];
   const orders: PriceOrder[] = [];
   const timers: (() => void)[] = [];
@@ -71,11 +72,12 @@ const setup = () => {
     runAfter: (run) => void timers.push(run),
     schedule: vi.fn<() => void>(),
   };
-  const sort = createPriceSort(document, host);
+  const sort = createPriceSort(document, scope, host);
   const choose = () => press(sort, own());
-  const state = (name: PriceStateName, loaded = 0, total: number | null = null) =>
-    sort.handleState(new CustomEvent(PRICE_STATE_EVENT, { detail: encodePriceState({ name, loaded, total }) }));
-  const rows = (viewId: number, slugs: (string | null)[]) => sort.handleRows(new CustomEvent(PRICE_ROWS_EVENT, { detail: encodePriceRows({ viewId, slugs }) }));
+  const state = (name: PriceStateName, loaded = 0, total: number | null = null, from: ListScope = scope) =>
+    sort.handleState(new CustomEvent(PRICE_STATE_EVENT, { detail: encodePriceState({ scope: from, state: { name, loaded, total } }) }));
+  const rows = (viewId: number, slugs: (string | null)[], from: ListScope = scope) =>
+    sort.handleRows(new CustomEvent(PRICE_ROWS_EVENT, { detail: encodePriceRows({ scope: from, rows: { viewId, slugs } }) }));
   return { sort, host, views, orders, timers, choose, state, rows };
 };
 
@@ -367,6 +369,16 @@ describe('the view while the list is loading', () => {
     expect(orders[0]?.ascending).toEqual([0, 1, 2]);
   });
 
+  it('orders a shard row by the price of its whole card, the price its badge shows, next to the card in the order of the list', () => {
+    render();
+    const { sort, rows, orders } = setup();
+    enablePriceMode();
+    sort.sync(database, settings);
+    rows(1, ['mid', 'dear', 'mid', 'cheap']);
+    expect(orders.at(-1)?.descending).toEqual([1, 0, 2, 3]);
+    expect(orders.at(-1)?.ascending).toEqual([3, 0, 2, 1]);
+  });
+
   it('counts a price that is not a number as no price', () => {
     render();
     const { sort, rows, orders } = setup();
@@ -572,8 +584,8 @@ describe('what the page says', () => {
   it('is ignored when it is not a message of the view, or the price is not on', () => {
     render();
     const { sort, host, views, orders } = setup();
-    sort.handleState(new CustomEvent(PRICE_STATE_EVENT, { detail: encodePriceState({ name: 'failed', loaded: 0, total: null }) }));
-    sort.handleRows(new CustomEvent(PRICE_ROWS_EVENT, { detail: encodePriceRows({ viewId: 1, slugs: ['mid'] }) }));
+    sort.handleState(new CustomEvent(PRICE_STATE_EVENT, { detail: encodePriceState({ scope: 'grid', state: { name: 'failed', loaded: 0, total: null } }) }));
+    sort.handleRows(new CustomEvent(PRICE_ROWS_EVENT, { detail: encodePriceRows({ scope: 'grid', rows: { viewId: 1, slugs: ['mid'] } }) }));
     expect(host.schedule).not.toHaveBeenCalled();
     enablePriceMode();
     sort.sync(database, settings);
@@ -590,7 +602,8 @@ describe('what the page says', () => {
 });
 
 describe('hasSortMutation', () => {
-  const record = (target: Node, added: Node[] = []): MutationRecord => ({ target, addedNodes: added as unknown as NodeList }) as MutationRecord;
+  const record = (target: Node, added: Node[] = [], removed: Node[] = []): MutationRecord =>
+    ({ target, addedNodes: added as unknown as NodeList, removedNodes: removed as unknown as NodeList }) as MutationRecord;
 
   it('notices changes in the grid, the bar, and the sort menu, and a menu that is added', () => {
     render({ hasMenu: true });
@@ -612,5 +625,220 @@ describe('hasSortMutation', () => {
     expect(hasSortMutation([record(other, [document.createElement('span'), document.createTextNode('x')])])).toBe(false);
     expect(hasSortMutation([record(document.createTextNode('x'))])).toBe(false);
     expect(hasSortMutation([])).toBe(false);
+  });
+});
+
+interface WindowPage {
+  hint?: string;
+  label?: string;
+  isMenuOpen?: boolean;
+  slugs?: string[];
+}
+
+const OPEN_MARKS = ' aria-describedby="cards-browse-order" data-popper-shown=""';
+
+const windowHtml = ({
+  hint = ' Выбери до 50 карт, которые готов отдать взамен',
+  label = 'По дате получения',
+  isMenuOpen = false,
+  slugs = ['mid', 'dear'],
+}: WindowPage = {}) => `
+  <div class="modal-content modal-content--trade">
+    <header class="modal-trade__header"><div class="modal-trade__header-headline"><h4 class="caption">Твои карточки</h4><div class="modal-trade__header-hint">${hint}</div></div></header>
+    <div class="modal-trade__body scrollbar">
+      <div class="modal-trade__header-form">
+        <div class="v-popper"><button id="window-sort" class="button modal-trade__header-form__mob"${isMenuOpen ? OPEN_MARKS : ''}><svg></svg><span>${label}</span><svg></svg></button></div>
+        <button id="window-direction" class="button"><svg></svg><span>Сначала</span></button>
+        <div class="v-popper"><button class="button"><span>Фильтр</span></button></div>
+      </div>
+      <div class="modal-trade__body-result">${slugs.map((slug) => `<div class="card-collect-preview"><a href="/cards/${slug}" class="card-collect"></a></div>`).join('')}</div>
+    </div>
+  </div>`;
+
+const deckHtml = (isMenuOpen = false) => `
+  <div class="card-browse">
+    <div class="card-browse__form"><div class="v-popper"><button id="deck-sort" class="button card-browse__form__mob"${isMenuOpen ? OPEN_MARKS : ''}><svg></svg><span>По дате получения</span><svg></svg></button></div></div>
+    <div class="card-browse__cnt scrollbar"><div class="card-browse__cnt-result"><div class="card-collect-preview user-card-browse__card"><a href="/cards/mid" class="card-collect"></a></div></div></div>
+  </div>`;
+
+const catalogHtml = `<div class="catalog-cnt__nav"><div class="v-popper"><button${OPEN_MARKS}><span>По популярности</span></button></div></div>`;
+
+const windowToolbar = () => document.querySelector<HTMLElement>('.modal-content--trade .modal-trade__header-form');
+const windowLabel = () => document.querySelector('#window-sort span')?.textContent;
+const windowResults = () => document.querySelector<HTMLElement>('.modal-trade__body-result');
+const windowRowOrders = () => [...document.querySelectorAll<HTMLElement>('.modal-trade__body-result .card-collect-preview')].map((row) => row.style.order);
+const deckToolbar = () => document.querySelector<HTMLElement>('.card-browse__form');
+const setHint = (text: string) => {
+  document.querySelector('.modal-trade__header-hint')!.textContent = text;
+};
+
+describe('the lists of a window and of the deck builder', () => {
+  it('get the item in the sort menu of a window that lists cards and of the deck builder, from the sort of the pickers only', () => {
+    document.body.innerHTML = windowHtml({ isMenuOpen: true }) + menuHtml();
+    setup('grid').sort.sync(database, settings);
+    expect(own()).toBeNull();
+    const picker = setup('picker');
+    picker.sort.sync(database, settings);
+    expect(own()?.closest('label')?.textContent?.trim()).toBe('Цене');
+    document.body.innerHTML = deckHtml(true) + menuHtml();
+    picker.sort.sync(database, settings);
+    expect(own()).not.toBeNull();
+  });
+
+  it('get no item on the catalog step of the offer window, on the catalog of all cards, or under another window', () => {
+    const picker = setup('picker');
+    const grid = setup('grid');
+    document.body.innerHTML = windowHtml({ hint: 'Выбор карт из общего каталога', isMenuOpen: true }) + menuHtml();
+    picker.sort.sync(database, settings);
+    expect(own()).toBeNull();
+    document.body.innerHTML = catalogHtml + menuHtml();
+    picker.sort.sync(database, settings);
+    grid.sort.sync(database, settings);
+    expect(own()).toBeNull();
+    document.body.innerHTML = deckHtml(true) + '<div class="modal-content modal-content--card"></div>' + menuHtml();
+    picker.sort.sync(database, settings);
+    expect(own()).toBeNull();
+  });
+
+  it('give the menu of a window open over the profile grid to the window, not to the grid', () => {
+    render();
+    document.body.insertAdjacentHTML('beforeend', windowHtml({ isMenuOpen: true }) + menuHtml());
+    setup('grid').sort.sync(database, settings);
+    expect(own()).toBeNull();
+    setup('picker').sort.sync(database, settings);
+    expect(own()).not.toBeNull();
+  });
+
+  it('turn on in the window the menu was opened from, start the list of the pickers and close the menu through its button, whatever its label', () => {
+    document.body.innerHTML = windowHtml({ isMenuOpen: true, label: 'Сортировка' }) + menuHtml();
+    const { sort, views, choose } = setup('picker');
+    sort.sync(database, settings);
+    const closed = vi.fn();
+    document.querySelector('#window-sort')?.addEventListener('click', closed);
+    choose();
+    expect(closed).toHaveBeenCalledTimes(1);
+    expect(windowToolbar()?.getAttribute('data-senkutools-sort')).toBe('price');
+    expect(views).toEqual([true]);
+    sort.sync(database, settings);
+    expect(windowLabel()).toBe('Сортировка');
+    expect(own()?.checked).toBe(true);
+  });
+
+  it('leave a click alone that the grid sort gets from the menu of a window', () => {
+    render();
+    document.body.insertAdjacentHTML('beforeend', windowHtml({ isMenuOpen: true }) + menuHtml());
+    const picker = setup('picker');
+    picker.sort.sync(database, settings);
+    const grid = setup('grid');
+    press(grid.sort, own());
+    expect(grid.views).toEqual([]);
+    expect(filters()?.hasAttribute('data-senkutools-sort')).toBe(false);
+  });
+
+  it('label the button of a window that shows the sort, and dim its list while the list loads, then show it as the page draws it', () => {
+    document.body.innerHTML = windowHtml();
+    const { sort, state } = setup('picker');
+    windowToolbar()?.setAttribute('data-senkutools-sort', 'price');
+    sort.sync(database, settings);
+    state('loading', 5, 10);
+    sort.sync(database, settings);
+    expect(windowLabel()).toBe('По цене 50%');
+    expect(windowResults()?.getAttribute('data-senkutools-sort-state')).toBe('loading');
+    state('ready', 10, 10);
+    sort.sync(database, settings);
+    expect(windowLabel()).toBe('По цене');
+    expect(windowResults()?.hasAttribute('data-senkutools-sort-state')).toBe(false);
+    expect(windowRowOrders()).toEqual(['', '']);
+  });
+
+  it('end when the window moves to its catalog step, and stay off when the window comes back to the cards', () => {
+    document.body.innerHTML = windowHtml();
+    const { sort, views } = setup('picker');
+    windowToolbar()?.setAttribute('data-senkutools-sort', 'price');
+    sort.sync(database, settings);
+    setHint('Выбор карт из общего каталога');
+    sort.sync(database, settings);
+    expect(views).toEqual([true, false]);
+    expect(windowToolbar()?.hasAttribute('data-senkutools-sort')).toBe(false);
+    setHint('Выбери до 50 карт');
+    sort.sync(database, settings);
+    expect(views).toEqual([true, false]);
+  });
+
+  it('end, and leave the list of the site as it is, when the view cannot run there: no partial order outside the profile grid', () => {
+    for (const name of ['unavailable', 'failed'] as const) {
+      document.body.innerHTML = windowHtml({ slugs: ['cheap', 'dear', 'mid'] });
+      const { sort, views, state } = setup('picker');
+      windowToolbar()?.setAttribute('data-senkutools-sort', 'price');
+      sort.sync(database, settings);
+      state('loading', 1, 3);
+      sort.sync(database, settings);
+      state(name);
+      sort.sync(database, settings);
+      expect(views).toEqual([true, false]);
+      expect(windowToolbar()?.hasAttribute('data-senkutools-sort')).toBe(false);
+      expect(windowLabel()).toBe('По дате получения');
+      expect(windowResults()?.hasAttribute('data-senkutools-sort-state')).toBe(false);
+      expect(windowRowOrders()).toEqual(['', '', '']);
+    }
+  });
+
+  it('end the same way when nothing is heard from the page for a long time', () => {
+    document.body.innerHTML = windowHtml();
+    const { sort, views, timers } = setup('picker');
+    windowToolbar()?.setAttribute('data-senkutools-sort', 'price');
+    sort.sync(database, settings);
+    timers.shift()?.();
+    sort.sync(database, settings);
+    expect(views).toEqual([true, false]);
+    expect(windowToolbar()?.hasAttribute('data-senkutools-sort')).toBe(false);
+  });
+
+  it('end in the deck builder and start again in a window when the price is chosen in a window over it, one view per kind of list', () => {
+    document.body.innerHTML = deckHtml();
+    const { sort, views, choose } = setup('picker');
+    deckToolbar()?.setAttribute('data-senkutools-sort', 'price');
+    sort.sync(database, settings);
+    document.body.insertAdjacentHTML('beforeend', windowHtml({ isMenuOpen: true }) + menuHtml());
+    sort.sync(database, settings);
+    choose();
+    expect(views).toEqual([true, false, true]);
+    expect(deckToolbar()?.hasAttribute('data-senkutools-sort')).toBe(false);
+    expect(windowToolbar()?.getAttribute('data-senkutools-sort')).toBe('price');
+  });
+
+  it('end when the window closes', () => {
+    document.body.innerHTML = windowHtml();
+    const { sort, views } = setup('picker');
+    windowToolbar()?.setAttribute('data-senkutools-sort', 'price');
+    sort.sync(database, settings);
+    document.querySelector('.modal-content--trade')?.remove();
+    sort.sync(database, settings);
+    expect(views).toEqual([true, false]);
+  });
+
+  it('do not take what the page says about the other kind of list', () => {
+    render();
+    const { sort, host, orders, state, rows } = setup('grid');
+    enablePriceMode();
+    sort.sync(database, settings);
+    const before = vi.mocked(host.schedule).mock.calls.length;
+    state('failed', 0, null, 'picker');
+    rows(1, ['mid'], 'picker');
+    expect(vi.mocked(host.schedule).mock.calls.length).toBe(before);
+    expect(orders).toEqual([]);
+    expect(grid()?.getAttribute('data-senkutools-sort-state')).toBe('loading');
+  });
+
+  it('are noticed when a window, its header, toolbar or list, or the deck builder changes, and when a window is taken away', () => {
+    document.body.innerHTML = windowHtml() + deckHtml();
+    const record = (target: Node, removed: Node[] = []): MutationRecord =>
+      ({ target, addedNodes: [] as unknown as NodeList, removedNodes: removed as unknown as NodeList }) as MutationRecord;
+    for (const selector of ['.modal-trade__header-hint', '#window-sort span', '.modal-trade__body-result', '.card-browse__form', '.card-browse__cnt-result']) {
+      expect(hasSortMutation([record(document.querySelector(selector)!)])).toBe(true);
+    }
+    const closed = document.querySelector('.modal-content--trade')!;
+    closed.remove();
+    expect(hasSortMutation([record(document.body, [closed])])).toBe(true);
   });
 });

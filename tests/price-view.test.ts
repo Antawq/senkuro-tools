@@ -4,7 +4,8 @@ import type { MutationResult } from '../utils/inventory/client-hooks';
 import type { Variables } from '../utils/inventory/list-families';
 import type { Row } from '../utils/inventory/price-crawl';
 import { createPrivateCursor, privateFieldOf } from '../utils/inventory/price-private';
-import { createPriceView, type ListPage, type ViewHost, type ViewList } from '../utils/inventory/price-view';
+import { createPriceView, createViewCounters, type ListPage, type ViewHost, type ViewList } from '../utils/inventory/price-view';
+import type { ListScope } from '../utils/shared/list-scope';
 import type { PriceRows, PriceState } from '../utils/shared/price-signal';
 import type { QueryRequest } from '../utils/shared/urql-client';
 
@@ -48,7 +49,7 @@ interface Crawl {
   fail: () => void;
 }
 
-const rig = ({ isReady = true }: { isReady?: boolean } = {}) => {
+const rig = ({ isReady = true, scope = 'grid' }: { isReady?: boolean; scope?: ListScope } = {}) => {
   const states: PriceState[] = [];
   const rows: PriceRows[] = [];
   const redrives: { page: ListPage; variables: Variables }[] = [];
@@ -66,7 +67,7 @@ const rig = ({ isReady = true }: { isReady?: boolean } = {}) => {
     publishRows: (sent) => void rows.push(sent),
     debug: () => undefined,
   };
-  return { view: createPriceView(host), states, rows, redrives, refreshes, crawls };
+  return { view: createPriceView(host, { scope, counters: createViewCounters() }), states, rows, redrives, refreshes, crawls };
 };
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -624,5 +625,139 @@ describe('what the site does to the inventory meanwhile', () => {
     view.handleMutation({ operation: request({}, 'bulkUpdateUserCardLock'), data: { bulkUpdateUserCardLock: { success: true } } });
     view.handleMutation({ ...locked([{ cardId: 'id-c', modifier: 0 }]), data: { bulkUpdateUserCardLock: { success: false } } });
     expect(view.answer(gridVariables({ orderField: privateFieldOf(1) })).data.userCards.edges.map((row) => row.node.locked)).toEqual([false, false]);
+  });
+});
+
+const siteGridVariables = (extra: Variables = {}): Variables => ({
+  after: null,
+  userId: 'USER:1',
+  orderDirection: 'DESC',
+  orderField: 'CREATED_AT',
+  rank: { include: [] },
+  color: { include: [] },
+  modifier: { include: [0] },
+  animated: null,
+  explicit: null,
+  ...extra,
+});
+
+const windowVariables = (extra: Variables = {}): Variables => ({
+  userId: 'USER:1',
+  orderField: 'CREATED_AT',
+  orderDirection: 'DESC',
+  after: null,
+  rank: { include: [], exclude: [] },
+  color: { include: [] },
+  modifier: { exclude: [] },
+  animated: null,
+  explicit: null,
+  ...extra,
+});
+
+const deckVariables = (extra: Variables = {}): Variables => ({
+  userId: 'USER:1',
+  orderField: 'CREATED_AT',
+  orderDirection: 'DESC',
+  after: null,
+  rank: { include: [] },
+  color: { include: [] },
+  modifier: { exclude: [1] },
+  animated: null,
+  explicit: null,
+  ...extra,
+});
+
+const servedIn = async (scope: ListScope, variables: Variables) => {
+  const harness = rig({ scope });
+  harness.view.watch(request(variables), {});
+  harness.view.start();
+  harness.crawls[0]?.finish(listOf(SLUGS));
+  await settle();
+  harness.view.receiveOrder({ viewId: harness.rows[0]?.viewId ?? -1, revision: 1, descending: DESCENDING, ascending: ASCENDING });
+  return harness;
+};
+
+describe('the lists of the site as they are asked since the 29.10 build, the same names in every place', () => {
+  it('keeps the grid on its list when a window of the same user asks for its picker with the same names', async () => {
+    const { view, crawls } = await servedIn('grid', siteGridVariables());
+    view.watch(request(windowVariables(), 'fetchUserCards', 3), {});
+    view.watch(request(deckVariables(), 'fetchUserCards', 4), {});
+    expect(crawls).toHaveLength(1);
+    const asked = request(windowVariables());
+    expect(view.rewrite(asked)).toBe(asked);
+  });
+});
+
+describe('a view of the pickers', () => {
+  it('crawls the picker the site asked for last and never the grid', () => {
+    const { view, crawls } = rig({ scope: 'picker' });
+    view.watch(request(windowVariables(), 'fetchUserCards', 1), {});
+    view.watch(request(siteGridVariables(), 'fetchUserCards', 2), {});
+    view.start();
+    expect(crawls).toHaveLength(1);
+    expect(crawls[0]?.page.request.key).toBe(1);
+    const gridOnly = rig({ scope: 'picker' });
+    gridOnly.view.watch(request(siteGridVariables()), {});
+    gridOnly.view.start();
+    expect(gridOnly.crawls).toHaveLength(0);
+    expect(gridOnly.states).toEqual([{ name: 'unavailable', loaded: 0, total: null }]);
+  });
+
+  it('serves its window the sorted list and leaves the grid to the grid', async () => {
+    const { view, redrives } = await servedIn('picker', windowVariables());
+    expect(redrives[0]?.variables).toEqual(windowVariables({ orderField: privateFieldOf(1), after: null }));
+    expect(view.rewrite(request(windowVariables())).variables).toEqual(windowVariables({ orderField: privateFieldOf(1), after: null }));
+    const grid = request(siteGridVariables({ after: createPrivateCursor(1, 2) }));
+    expect(view.rewrite(grid)).toBe(grid);
+    expect(slugsOf(view.answer(windowVariables({ orderField: privateFieldOf(1) })))).toEqual(['c', 'a']);
+  });
+
+  it('follows its window to the list of another user, as the two steps of a trade window list the partner and then the own cards', async () => {
+    const { view, crawls } = await servedIn('picker', windowVariables({ userId: 'USER:2' }));
+    view.watch(request(windowVariables({ userId: 'USER:1' })), {});
+    expect(crawls).toHaveLength(2);
+    expect(crawls[1]?.page.request.variables?.userId).toBe('USER:1');
+  });
+
+  it('is not moved by a picker of another kind, told apart by the fields of its filters: a window over the deck builder', async () => {
+    const { view, crawls } = await servedIn('picker', deckVariables());
+    view.watch(request(windowVariables()), {});
+    view.watch(request(windowVariables({ userId: 'USER:2' })), {});
+    expect(crawls).toHaveLength(1);
+  });
+});
+
+describe('restarting', () => {
+  it('crawls the list it serves again, gives the site its real list meanwhile, and serves the new crawl as another private list', async () => {
+    const { view, redrives, crawls, rows } = await servedIn('picker', windowVariables());
+    view.restart();
+    expect(crawls).toHaveLength(2);
+    expect(redrives.at(-1)?.variables).toEqual(windowVariables({ after: null }));
+    const asked = request(windowVariables());
+    expect(view.rewrite(asked)).toBe(asked);
+    crawls[1]?.finish(listOf(['n', 'm', 'k']));
+    await settle();
+    view.receiveOrder({ viewId: rows.at(-1)?.viewId ?? -1, revision: 1, descending: [0, 1, 2], ascending: [2, 1, 0] });
+    expect(redrives.at(-1)?.variables).toEqual(windowVariables({ orderField: privateFieldOf(2), after: null }));
+    expect(slugsOf(view.answer(windowVariables({ orderField: privateFieldOf(2) })))).toEqual(['n', 'm']);
+  });
+
+  it('crawls in the direction of its first crawl, so equal prices keep their order, and gives back the list in the direction the site shows', async () => {
+    const { view, redrives, crawls } = await servedIn('picker', windowVariables());
+    view.watch(request(windowVariables({ orderDirection: 'ASC', after: createPrivateCursor(1, 2) }), 'fetchUserCards', 9), {});
+    view.restart();
+    expect(crawls[1]?.page.request.variables?.orderDirection).toBe('DESC');
+    expect(crawls[1]?.page.request.key).toBe(9);
+    expect(redrives.at(-1)?.variables).toEqual(windowVariables({ orderDirection: 'ASC', after: null }));
+    view.handleMutation(forged());
+    expect(crawls[2]?.page.request.variables?.orderDirection).toBe('DESC');
+  });
+
+  it('does nothing while it is off', () => {
+    const { view, crawls, redrives } = rig({ scope: 'picker' });
+    view.watch(request(windowVariables()), {});
+    view.restart();
+    expect(crawls).toHaveLength(0);
+    expect(redrives).toHaveLength(0);
   });
 });

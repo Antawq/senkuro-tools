@@ -1,7 +1,8 @@
-import { operationName, type QueryRequest } from '../shared/urql-client';
+import type { ListScope } from '../shared/list-scope';
 import type { PriceOrder, PriceRows, PriceState } from '../shared/price-signal';
+import { operationName, type QueryRequest } from '../shared/urql-client';
 import type { MutationResult } from './client-hooks';
-import { isGridVariables, type Variables } from './list-families';
+import { listScopeOf, type Variables } from './list-families';
 import { DEFAULT_CONNECTION_TYPE, DEFAULT_PAGE_INFO_TYPE, modifierOf, slugOf, type CrawledList, type Row } from './price-crawl';
 import {
   createPrivateCursor,
@@ -55,9 +56,22 @@ export interface PriceView {
   answer: (variables: Variables) => PageAnswer;
   start: () => void;
   stop: () => void;
+  restart: () => void;
   receiveOrder: (order: PriceOrder) => void;
   handleMutation: (mutation: MutationResult) => void;
 }
+
+export interface ViewCounters {
+  lastId: number;
+  lastVersion: number;
+}
+
+export interface ViewOptions {
+  scope: ListScope;
+  counters: ViewCounters;
+}
+
+export const createViewCounters = (): ViewCounters => ({ lastId: 0, lastVersion: 0 });
 
 interface Orders {
   descending: number[];
@@ -70,6 +84,7 @@ interface View {
   names: string;
   userId: unknown;
   orderField: unknown;
+  crawled: Variables;
   phase: 'crawling' | 'sorting' | 'ready';
   rows: Row[];
   pageSize: number;
@@ -93,7 +108,7 @@ const FAILED: PriceState = { name: 'failed', loaded: 0, total: null };
 
 const variablesOf = (page: ListPage): Variables => page.request.variables ?? {};
 
-const emptyAnswer = (): PageAnswer => ({
+export const emptyAnswer = (): PageAnswer => ({
   data: {
     userCards: {
       __typename: DEFAULT_CONNECTION_TYPE,
@@ -130,12 +145,12 @@ function isSuccessful(mutation: MutationResult, name: string): boolean {
 
 interface ViewState {
   host: ViewHost;
+  scope: ListScope;
+  counters: ViewCounters;
   isOn: boolean;
   latest: ListPage | null;
   current: ListPage | null;
   view: View | null;
-  lastId: number;
-  lastVersion: number;
 }
 
 const isServing = (state: ViewState): boolean => state.isOn && state.view?.phase === 'ready';
@@ -161,13 +176,14 @@ function arrive(state: ViewState, arrived: View, list: ViewList | null): void {
   state.host.publishRows({ viewId: arrived.id, slugs: list.rows.map(slugOf) });
 }
 
-function createView(id: number, variables: Variables): View {
+function createView(id: number, variables: Variables, crawled: Variables): View {
   return {
     id,
     key: viewKeyOf(variables),
     names: variableNamesOf(variables),
     userId: variables.userId,
     orderField: variables.orderField,
+    crawled,
     phase: 'crawling',
     rows: [],
     pageSize: 0,
@@ -181,11 +197,11 @@ function createView(id: number, variables: Variables): View {
   };
 }
 
-function begin(state: ViewState, page: ListPage): void {
+function begin(state: ViewState, page: ListPage, crawled: Variables = variablesOf(page)): void {
   const { host } = state;
   state.view?.controller.abort();
-  state.lastId += 1;
-  const started = createView(state.lastId, variablesOf(page));
+  state.counters.lastId += 1;
+  const started = createView(state.counters.lastId, variablesOf(page), crawled);
   state.view = started;
   state.current = page;
   host.debug('price view begins', { viewId: started.id });
@@ -193,7 +209,7 @@ function begin(state: ViewState, page: ListPage): void {
   const report = (loaded: number, total: number | null): void => {
     if (state.view === started) host.publishState({ name: 'loading', loaded, total });
   };
-  host.crawl(page, report, started.controller.signal).then(
+  host.crawl({ ...page, request: { ...page.request, variables: crawled } }, report, started.controller.signal).then(
     (list) => arrive(state, started, list),
     () => fail(state, started, FAILED)
   );
@@ -204,7 +220,7 @@ function invalidate(state: ViewState): void {
   const page = state.current;
   const wasServing = isServing(state);
   state.host.debug('price view invalidated');
-  begin(state, page);
+  begin(state, page, state.view.crawled);
   if (wasServing) redriveReal(state, page);
 }
 
@@ -243,24 +259,29 @@ function refreshServed(state: ViewState, patched: Set<number>): void {
   }
 }
 
+const canFollowOtherUsers = (scope: ListScope): boolean => scope === 'picker';
+
 function followList(state: ViewState, page: ListPage, variables: Variables): void {
   const view = state.view;
   if (!state.isOn || !view) return;
   if (viewKeyOf(variables) === view.key) state.current = page;
-  else if (variableNamesOf(variables) === view.names && variables.userId === view.userId) begin(state, page);
+  else if (variableNamesOf(variables) === view.names && (canFollowOtherUsers(state.scope) || variables.userId === view.userId)) begin(state, page);
 }
+
+const isOwnList = (state: ViewState, variables: Variables | undefined): variables is Variables =>
+  variables !== undefined && !isPrivateVariables(variables) && listScopeOf(variables) === state.scope;
 
 function watchList(state: ViewState, request: QueryRequest, options: Record<string, unknown> | undefined): void {
   const variables = request.variables;
-  if (!variables || isPrivateVariables(variables)) return;
+  if (!isOwnList(state, variables)) return;
   const page: ListPage = { request, options: options ?? {} };
-  if (isGridVariables(variables)) state.latest = page;
+  state.latest = page;
   followList(state, page, variables);
 }
 
 function rewriteList(state: ViewState, request: QueryRequest): QueryRequest {
   const variables = request.variables;
-  if (!variables || isPrivateVariables(variables)) return request;
+  if (!isOwnList(state, variables)) return request;
   const view = state.view;
   if (isServing(state) && view && viewKeyOf(variables) === view.key) return { ...request, variables: privateVariablesOf(variables, view.version) };
   return hasPrivateCursor(variables.after) ? { ...request, variables: realVariablesOf(variables) } : request;
@@ -329,8 +350,8 @@ function receiveOrder(state: ViewState, order: PriceOrder): void {
   if (!acceptsOrder(view, order)) return;
   view.orders = { descending: order.descending, ascending: order.ascending };
   view.revision = order.revision;
-  state.lastVersion += 1;
-  view.version = state.lastVersion;
+  state.counters.lastVersion += 1;
+  view.version = state.counters.lastVersion;
   view.servedPages = new Set();
   view.phase = 'ready';
   state.host.debug('price view ready', { viewId: view.id, version: view.version });
@@ -352,14 +373,15 @@ function handleViewMutation(state: ViewState, mutation: MutationResult): void {
   else if (ACCEPTING_MUTATIONS.includes(name) || REBUILDING_MUTATIONS.includes(name)) invalidate(state);
 }
 
-export function createPriceView(host: ViewHost): PriceView {
-  const state: ViewState = { host, isOn: false, latest: null, current: null, view: null, lastId: 0, lastVersion: 0 };
+export function createPriceView(host: ViewHost, { scope, counters }: ViewOptions): PriceView {
+  const state: ViewState = { host, scope, counters, isOn: false, latest: null, current: null, view: null };
   return {
     watch: (request, options) => watchList(state, request, options),
     rewrite: (request) => rewriteList(state, request),
     answer: (variables) => answerPage(state, variables),
     start: () => startView(state),
     stop: () => stopView(state),
+    restart: () => invalidate(state),
     receiveOrder: (order) => receiveOrder(state, order),
     handleMutation: (mutation) => handleViewMutation(state, mutation),
   };

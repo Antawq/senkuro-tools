@@ -26,6 +26,7 @@ import { createSearchKeys } from '@/utils/search/search-keys';
 import { SEARCH_EVENT } from '@/utils/search/search-event';
 import { createSearchSignals } from '@/utils/search/search-signal';
 import { createSearchView } from '@/utils/search/search-view';
+import { LIST_SCOPES } from '@/utils/shared/list-scope';
 import { addedCards, createRenderLoop } from '@/utils/shared/render-loop';
 import { PRICE_ORDER_EVENT, PRICE_ROWS_EVENT, PRICE_STATE_EVENT, PRICE_VIEW_EVENT, encodePriceOrder, encodePriceSwitch } from '@/utils/shared/price-signal';
 import { isGuardReady, requestInventoryRefresh } from '@/utils/shared/refresh-signal';
@@ -68,18 +69,20 @@ export default defineContentScript({
           updateProfileBadge({ db, valuation: settings, redraw: loop.schedule });
           syncRefreshButton(inventoryRefresh);
         },
-        sort: (db) => priceSort.sync(db, settings),
+        sort: (db) => priceSorts.forEach((priceSort) => priceSort.sync(db, settings)),
       },
       loadDatabase,
       nextFrame
     );
     const badges = createPriceBadges({ touch });
-    const priceSort = createPriceSort(document, {
-      setView: (isOn) => void document.dispatchEvent(new CustomEvent(PRICE_VIEW_EVENT, { detail: encodePriceSwitch(isOn) })),
-      sendOrder: (order) => void document.dispatchEvent(new CustomEvent(PRICE_ORDER_EVENT, { detail: encodePriceOrder(order) })),
-      runAfter: (run, delayMs) => void ctx.setTimeout(run, delayMs),
-      schedule: loop.schedule,
-    });
+    const priceSorts = LIST_SCOPES.map((scope) =>
+      createPriceSort(document, scope, {
+        setView: (isOn) => void document.dispatchEvent(new CustomEvent(PRICE_VIEW_EVENT, { detail: encodePriceSwitch({ scope, isOn }) })),
+        sendOrder: (order) => void document.dispatchEvent(new CustomEvent(PRICE_ORDER_EVENT, { detail: encodePriceOrder({ scope, order }) })),
+        runAfter: (run, delayMs) => void ctx.setTimeout(run, delayMs),
+        schedule: loop.schedule,
+      })
+    );
     const shardSwitches = createShardSwitchWatcher({ nextFrame });
     const modalRefresh = createModalRefreshWatcher({
       isReady: () => isGuardReady(document),
@@ -129,9 +132,11 @@ export default defineContentScript({
     ctx.addEventListener(document, 'focusin', searchView.syncView, { capture: true });
     ctx.addEventListener(document, 'input', searchView.syncView, { capture: true });
     ctx.addEventListener(document, 'click', searchView.handleClick, { capture: true });
-    ctx.addEventListener(document, 'click', priceSort.handleClick, { capture: true });
-    ctx.addEventListener(document, PRICE_STATE_EVENT, priceSort.handleState);
-    ctx.addEventListener(document, PRICE_ROWS_EVENT, priceSort.handleRows);
+    for (const priceSort of priceSorts) {
+      ctx.addEventListener(document, 'click', priceSort.handleClick, { capture: true });
+      ctx.addEventListener(document, PRICE_STATE_EVENT, priceSort.handleState);
+      ctx.addEventListener(document, PRICE_ROWS_EVENT, priceSort.handleRows);
+    }
     ctx.addEventListener(document, 'keydown', searchKeys.handleKeydown, { capture: true });
     ctx.addEventListener(document, 'input', searchKeys.handleInput, { capture: true });
 

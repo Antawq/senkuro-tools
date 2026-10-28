@@ -1,12 +1,15 @@
 .user-cards-grid[data-senkutools-sort-state] {
   --senkutools-sort-end: 99999;
-  transition: opacity var(--senkuro-hover);
 }
 
 .user-cards-grid[data-senkutools-sort-state] > :not(.user-card) {
   order: var(--senkutools-sort-end);
 }
 
-.user-cards-grid[data-senkutools-sort-state='loading'] {
+:is(.user-cards-grid, .card-browse__cnt-result, .modal-trade__body-result)[data-senkutools-sort-state] {
+  transition: opacity var(--senkuro-hover);
+}
+
+:is(.user-cards-grid, .card-browse__cnt-result, .modal-trade__body-result)[data-senkutools-sort-state='loading'] {
   opacity: 0.6;
 }

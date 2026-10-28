@@ -1,3 +1,5 @@
+import type { ListScope } from '../shared/list-scope';
+
 export const LIST_OPERATION = 'fetchUserCards';
 
 export const CURSOR_KEY = 'after';
@@ -95,9 +97,16 @@ export const needsRefresh = (family: Family, received: ReceivedCard[]): boolean 
 
 export const isGridVariables = (variables: Variables): boolean => Array.isArray(asFilter(variables.modifier)?.include);
 
+const isPickerVariables = (variables: Variables): boolean => Array.isArray(asFilter(variables.modifier)?.exclude);
+
+export function listScopeOf(variables: Variables): ListScope | null {
+  if (isGridVariables(variables)) return 'grid';
+  return isPickerVariables(variables) ? 'picker' : null;
+}
+
 export const isGridFamily = (family: Family): boolean => isGridVariables(family.filters);
 
-export const isPickerFamily = (family: Family): boolean => Array.isArray(asFilter(family.filters.modifier)?.exclude);
+export const isPickerFamily = (family: Family): boolean => isPickerVariables(family.filters);
 
 const idOf = (edge: RawEdge): string | null => {
   const id = edge.node?.card?.id;

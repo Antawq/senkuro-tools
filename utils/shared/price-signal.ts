@@ -1,4 +1,5 @@
 import { parseJson } from './json';
+import { isListScope, type ListScope } from './list-scope';
 
 export const PRICE_VIEW_EVENT = 'senkutools:price-view';
 export const PRICE_STATE_EVENT = 'senkutools:price-state';
@@ -27,10 +28,37 @@ export interface PriceOrder {
   ascending: number[];
 }
 
-const readDetail = (event: Event): Record<string, unknown> | null => {
-  const detail = (event as CustomEvent<unknown>).detail;
-  const parsed = typeof detail === 'string' ? parseJson(detail) : null;
-  return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
+export interface PriceSwitch {
+  scope: ListScope;
+  isOn: boolean;
+}
+
+export interface ScopedState {
+  scope: ListScope;
+  state: PriceState;
+}
+
+export interface ScopedRows {
+  scope: ListScope;
+  rows: PriceRows;
+}
+
+export interface ScopedOrder {
+  scope: ListScope;
+  order: PriceOrder;
+}
+
+interface ScopedDetail {
+  scope: ListScope;
+  detail: Record<string, unknown>;
+}
+
+const readDetail = (event: Event): ScopedDetail | null => {
+  const raw = (event as CustomEvent<unknown>).detail;
+  const parsed = typeof raw === 'string' ? parseJson(raw) : null;
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  const detail = parsed as Record<string, unknown>;
+  return isListScope(detail.scope) ? { scope: detail.scope, detail } : null;
 };
 
 const isCount = (candidate: unknown): candidate is number => typeof candidate === 'number' && Number.isSafeInteger(candidate) && candidate >= 0;
@@ -40,32 +68,39 @@ const isCountList = (candidate: unknown): candidate is number[] => Array.isArray
 const isSlugList = (candidate: unknown): candidate is (string | null)[] =>
   Array.isArray(candidate) && candidate.every((slug) => slug === null || typeof slug === 'string');
 
-export const encodePriceSwitch = (isOn: boolean): string => JSON.stringify({ isOn });
+export const encodePriceSwitch = ({ scope, isOn }: PriceSwitch): string => JSON.stringify({ scope, isOn });
 
-export const readPriceSwitch = (event: Event): boolean | null => {
-  const detail = readDetail(event);
-  return typeof detail?.isOn === 'boolean' ? detail.isOn : null;
-};
-
-export const encodePriceState = (state: PriceState): string => JSON.stringify(state);
-
-export function readPriceState(event: Event): PriceState | null {
-  const detail = readDetail(event);
-  if (!detail || !STATE_NAMES.includes(detail.name) || !isCount(detail.loaded)) return null;
-  return { name: detail.name as PriceStateName, loaded: detail.loaded, total: isCount(detail.total) ? detail.total : null };
+export function readPriceSwitch(event: Event): PriceSwitch | null {
+  const scoped = readDetail(event);
+  if (!scoped || typeof scoped.detail.isOn !== 'boolean') return null;
+  return { scope: scoped.scope, isOn: scoped.detail.isOn };
 }
 
-export const encodePriceRows = (rows: PriceRows): string => JSON.stringify(rows);
+export const encodePriceState = ({ scope, state }: ScopedState): string => JSON.stringify({ scope, ...state });
 
-export function readPriceRows(event: Event): PriceRows | null {
-  const detail = readDetail(event);
-  return detail && isCount(detail.viewId) && isSlugList(detail.slugs) ? { viewId: detail.viewId, slugs: detail.slugs } : null;
+export function readPriceState(event: Event): ScopedState | null {
+  const scoped = readDetail(event);
+  if (!scoped) return null;
+  const { name, loaded, total } = scoped.detail;
+  if (!STATE_NAMES.includes(name) || !isCount(loaded)) return null;
+  return { scope: scoped.scope, state: { name: name as PriceStateName, loaded, total: isCount(total) ? total : null } };
 }
 
-export const encodePriceOrder = (order: PriceOrder): string => JSON.stringify(order);
+export const encodePriceRows = ({ scope, rows }: ScopedRows): string => JSON.stringify({ scope, ...rows });
 
-export function readPriceOrder(event: Event): PriceOrder | null {
-  const detail = readDetail(event);
-  if (!detail || !isCount(detail.viewId) || !isCount(detail.revision) || !isCountList(detail.descending) || !isCountList(detail.ascending)) return null;
-  return { viewId: detail.viewId, revision: detail.revision, descending: detail.descending, ascending: detail.ascending };
+export function readPriceRows(event: Event): ScopedRows | null {
+  const scoped = readDetail(event);
+  if (!scoped) return null;
+  const { viewId, slugs } = scoped.detail;
+  return isCount(viewId) && isSlugList(slugs) ? { scope: scoped.scope, rows: { viewId, slugs } } : null;
+}
+
+export const encodePriceOrder = ({ scope, order }: ScopedOrder): string => JSON.stringify({ scope, ...order });
+
+export function readPriceOrder(event: Event): ScopedOrder | null {
+  const scoped = readDetail(event);
+  if (!scoped) return null;
+  const { viewId, revision, descending, ascending } = scoped.detail;
+  if (!isCount(viewId) || !isCount(revision) || !isCountList(descending) || !isCountList(ascending)) return null;
+  return { scope: scoped.scope, order: { viewId, revision, descending, ascending } };
 }

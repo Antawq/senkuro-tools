@@ -33,9 +33,13 @@ export function readCursor(after: unknown): PrivateCursor | null {
 export const viewKeyOf = (variables: Variables): string =>
   stableJson(Object.fromEntries(Object.entries(variables).filter(([name]) => name !== CURSOR_KEY && name !== DIRECTION_KEY)));
 
+const fieldNamesOf = (name: string, value: unknown): string[] =>
+  value && typeof value === 'object' && !Array.isArray(value) ? Object.keys(value).map((field) => `${name}.${field}`) : [];
+
 export const variableNamesOf = (variables: Variables): string =>
-  Object.keys(variables)
-    .filter((name) => name !== CURSOR_KEY)
+  Object.entries(variables)
+    .filter(([name]) => name !== CURSOR_KEY)
+    .flatMap(([name, value]) => [name, ...fieldNamesOf(name, value)])
     .sort()
     .join();
 

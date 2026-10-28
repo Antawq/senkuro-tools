@@ -1,4 +1,3 @@
-import type { ListScope } from '../shared/list-scope';
 import { debugLogger } from '../shared/debug';
 import type { Transport } from '../shared/graphql';
 import { claimPage } from '../shared/page-claim';
@@ -22,6 +21,7 @@ import {
   readRefreshRequest,
   type RefreshOutcome,
 } from '../shared/refresh-signal';
+import type { ListScope } from '../shared/list-scope';
 import { operationName, runWhenClientFound, type QueryClient } from '../shared/urql-client';
 import { recordLists, rewriteLists, tapMutations, type MutationResult } from './client-hooks';
 import { createCursorLedger, guardCursors, type CursorLedger } from './list-cursors';
@@ -42,11 +42,13 @@ import { crawlList } from './price-crawl';
 import { crawlDocumentOf } from './price-document';
 import { answerPrivateRequests } from './price-fetch';
 import { isPrivateVariables } from './price-private';
-import { createPriceView, type ListPage, type PriceView, type ViewHost } from './price-view';
+import type { ListPage, ViewHost } from './price-view';
+import { createPriceViews, type PriceViews } from './price-views';
 
 const FORGE_OPERATION = 'forgeCards';
 const TRADE_OPERATIONS = ['acceptCardTrade', 'acceptCardOffer'];
 export const AUTO_REFRESH_MAX_PAGES = 25;
+const VIEWS_RESTARTED_BY_REFRESH: readonly ListScope[] = ['picker'];
 
 interface ForgeAnswer {
   userId?: unknown;
@@ -153,19 +155,19 @@ function refreshServedPage(guard: Guard, ...[page, variables]: Parameters<ViewHo
     .catch(() => undefined);
 }
 
-const createGuardView = (guard: Guard): PriceView =>
-  createPriceView({
+const createGuardViews = (guard: Guard): PriceViews =>
+  createPriceViews({
     isReady: () => isViewReady(guard),
     crawl: (...request) => crawlForView(guard, ...request),
     redrive: (...request) => redriveList(guard, ...request),
     refreshPage: (...request) => refreshServedPage(guard, ...request),
-    publishState: (state) => publish(guard, PRICE_STATE_EVENT, encodePriceState(state)),
-    publishRows: (rows) => publish(guard, PRICE_ROWS_EVENT, encodePriceRows(rows)),
+    publishState: (scope, state) => publish(guard, PRICE_STATE_EVENT, encodePriceState({ scope, state })),
+    publishRows: (scope, rows) => publish(guard, PRICE_ROWS_EVENT, encodePriceRows({ scope, rows })),
     debug: guard.debug,
   });
 
-function handleMutation(guard: Guard, priceView: PriceView, client: QueryClient, result: MutationResult): void {
-  priceView.handleMutation(result);
+function handleMutation(guard: Guard, priceViews: PriceViews, client: QueryClient, result: MutationResult): void {
+  priceViews.handleMutation(result);
   const plan = planRefresh(result, guard.record.families());
   guard.debug('inventory change', { recorded: pageCounts(guard.record), refreshing: plan.length });
   if (plan.length === 0) return;
@@ -181,7 +183,8 @@ function familiesOf(guard: Guard, scope: ListScope): Family[] {
   return guard.record.families().filter((family) => isInScope(family) && family.route === route);
 }
 
-async function refreshOnRequest(guard: Guard, scope: ListScope): Promise<RefreshOutcome> {
+async function refreshOnRequest(guard: Guard, priceViews: PriceViews, scope: ListScope): Promise<RefreshOutcome> {
+  if (VIEWS_RESTARTED_BY_REFRESH.includes(scope)) priceViews.restart(scope);
   const client = guard.client;
   const families = client ? familiesOf(guard, scope) : [];
   if (!client || families.length === 0) return 'nothing';
@@ -207,27 +210,27 @@ function refreshOnCacheHit(guard: Guard, page: PageRequest): void {
 const publishRefreshResult = (guard: Guard, scope: ListScope, outcome: RefreshOutcome) =>
   guard.pageWindow.document.dispatchEvent(new guard.pageWindow.CustomEvent(REFRESH_RESULT_EVENT, { detail: encodeRefreshResult({ scope, outcome }) }));
 
-function handleRefreshRequest(guard: Guard, event: Event): void {
+function handleRefreshRequest(guard: Guard, priceViews: PriceViews, event: Event): void {
   const scope = readRefreshRequest(event);
   if (!scope) return;
-  void refreshOnRequest(guard, scope)
+  void refreshOnRequest(guard, priceViews, scope)
     .catch((): RefreshOutcome => 'failed')
     .then((outcome) => publishRefreshResult(guard, scope, outcome));
 }
 
-function handlePriceSwitch(priceView: PriceView, event: Event): void {
-  const isOn = readPriceSwitch(event);
-  if (isOn === null) return;
-  if (isOn) priceView.start();
-  else priceView.stop();
+function handlePriceSwitch(priceViews: PriceViews, event: Event): void {
+  const priceSwitch = readPriceSwitch(event);
+  if (!priceSwitch) return;
+  if (priceSwitch.isOn) priceViews.start(priceSwitch.scope);
+  else priceViews.stop(priceSwitch.scope);
 }
 
-function handlePriceOrder(priceView: PriceView, event: Event): void {
-  const order = readPriceOrder(event);
-  if (order) priceView.receiveOrder(order);
+function handlePriceOrder(priceViews: PriceViews, event: Event): void {
+  const scoped = readPriceOrder(event);
+  if (scoped) priceViews.receiveOrder(scoped.scope, scoped.order);
 }
 
-function attachClient(guard: Guard, priceView: PriceView, client: QueryClient): void {
+function attachClient(guard: Guard, priceViews: PriceViews, client: QueryClient): void {
   guard.client = client;
   const isRecording = recordLists(
     client,
@@ -237,8 +240,8 @@ function attachClient(guard: Guard, priceView: PriceView, client: QueryClient): 
     guard.silent,
     (page) => refreshOnCacheHit(guard, page)
   );
-  const isTapping = tapMutations(client, (result) => handleMutation(guard, priceView, client, result));
-  const isRewriting = rewriteLists(client, priceView, guard.silent);
+  const isTapping = tapMutations(client, (result) => handleMutation(guard, priceViews, client, result));
+  const isRewriting = rewriteLists(client, priceViews, guard.silent);
   const isGuarding = guardCursors(
     client,
     (variables) => guard.debug('stale cursor dropped', { list: familyIdOf(variables), after: variables.after }),
@@ -262,11 +265,11 @@ export function installInventoryGuard(pageWindow: PageWindow): void {
     queue: Promise.resolve(),
     client: null,
   };
-  const priceView = createGuardView(guard);
-  pageWindow.document.addEventListener(REFRESH_REQUEST_EVENT, (event) => handleRefreshRequest(guard, event));
-  pageWindow.document.addEventListener(PRICE_VIEW_EVENT, (event) => handlePriceSwitch(priceView, event));
-  pageWindow.document.addEventListener(PRICE_ORDER_EVENT, (event) => handlePriceOrder(priceView, event));
+  const priceViews = createGuardViews(guard);
+  pageWindow.document.addEventListener(REFRESH_REQUEST_EVENT, (event) => handleRefreshRequest(guard, priceViews, event));
+  pageWindow.document.addEventListener(PRICE_VIEW_EVENT, (event) => handlePriceSwitch(priceViews, event));
+  pageWindow.document.addEventListener(PRICE_ORDER_EVENT, (event) => handlePriceOrder(priceViews, event));
   learnFromFetch(pageWindow, guard.ledger);
-  answerPrivateRequests(pageWindow, priceView);
-  runWhenClientFound(pageWindow, (client) => attachClient(guard, priceView, client));
+  answerPrivateRequests(pageWindow, priceViews);
+  runWhenClientFound(pageWindow, (client) => attachClient(guard, priceViews, client));
 }

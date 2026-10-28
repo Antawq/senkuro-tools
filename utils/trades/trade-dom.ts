@@ -1,9 +1,9 @@
 import { slugFromHref } from '../shared/cards';
 import { debugLogger } from '../shared/debug';
+import { MODAL } from '../shared/trade-modal';
 import type { CardRef, Side } from '../shared/trade-value';
 import { REPLAY_EVENT, type Trade, type TradeStore } from './trade-capture';
 import { matchOffer, matchTrade, matchTradeByCounts, shows } from './trade-match';
-import { MODAL } from './trade-modal';
 
 const CARD_LIST = '.modal-content--review';
 const HISTORY = '.card-trade';

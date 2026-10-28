@@ -1,7 +1,7 @@
 import { element } from '../shared/dom';
+import { CATALOG_STEP, HEADER, MODAL, RESULTS_CLASS } from '../shared/trade-modal';
 import { MODAL_REFRESH_CLASS } from './modal-refresh';
 import { createFrameWatcher, createMutationFilter } from './mutation-watcher';
-import { CATALOG_STEP, HEADER, MODAL, RESULTS_CLASS } from './trade-modal';
 
 const PICKER = '.modal-trade__body';
 const SHARD_ROW = '.card-collect-preview--shard';

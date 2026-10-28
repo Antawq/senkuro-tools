@@ -1,5 +1,3 @@
-import { USER_CARD_FILTERS } from '../shared/user-card-filters';
-import { MODAL_CONTENT_SELECTOR } from '../shared/modal-selectors';
 import {
   MENU,
   MENU_ITEM,
@@ -18,7 +16,7 @@ type LabelState = 'off' | 'loading' | 'price' | 'partial';
 
 const SORT_LABEL = /^По /;
 
-export const isPriceMode = (filters: Element): boolean => filters.getAttribute(MODE_ATTRIBUTE) === PRICE_MODE;
+export const isPriceMode = (toolbar: Element): boolean => toolbar.getAttribute(MODE_ATTRIBUTE) === PRICE_MODE;
 
 function createMenuItem(menu: Element): HTMLElement | null {
   const menuItems = menu.querySelectorAll<HTMLElement>(MENU_ITEM);
@@ -34,7 +32,7 @@ function createMenuItem(menu: Element): HTMLElement | null {
 
 export function decorateMenu(pageDocument: Document, isPriceSelected: boolean): void {
   const menu = pageDocument.querySelector(MENU);
-  if (!menu || pageDocument.querySelector(MODAL_CONTENT_SELECTOR)) return;
+  if (!menu) return;
   if (!menu.querySelector(OWN_ITEM)) {
     const ownItem = createMenuItem(menu);
     if (!ownItem) return;
@@ -46,38 +44,37 @@ export function decorateMenu(pageDocument: Document, isPriceSelected: boolean): 
   }
 }
 
-export const findSortTrigger = (pageDocument: Document): HTMLElement | undefined =>
-  [...pageDocument.querySelectorAll<HTMLElement>(TRIGGER)].find((button) => SORT_LABEL.test(button.textContent?.trim() ?? ''));
+export const findSortTrigger = (toolbar: Element): HTMLElement | undefined =>
+  [...toolbar.querySelectorAll<HTMLElement>(TRIGGER)].find((button) => SORT_LABEL.test(button.textContent?.trim() ?? ''));
 
-function restoreLabel(filters: Element, labelElement: Element): void {
-  const saved = filters.getAttribute(SAVED_LABEL_ATTRIBUTE);
-  filters.removeAttribute(SAVED_LABEL_ATTRIBUTE);
+function restoreLabel(toolbar: Element, labelElement: Element): void {
+  const saved = toolbar.getAttribute(SAVED_LABEL_ATTRIBUTE);
+  toolbar.removeAttribute(SAVED_LABEL_ATTRIBUTE);
   if (saved && isOwnLabel(labelElement.textContent)) labelElement.textContent = saved;
 }
 
-function findLabelParts(pageDocument: Document): { filters: Element; trigger: HTMLElement; labelElement: HTMLElement } | null {
-  const filters = pageDocument.querySelector(USER_CARD_FILTERS);
-  const trigger = findSortTrigger(pageDocument);
+function findLabelParts(toolbar: Element): { trigger: HTMLElement; labelElement: HTMLElement } | null {
+  const trigger = findSortTrigger(toolbar);
   const labelElement = trigger?.querySelector('span');
-  return filters && trigger && labelElement ? { filters, trigger, labelElement } : null;
+  return trigger && labelElement ? { trigger, labelElement } : null;
 }
 
-function showOwnLabel(filters: Element, labelElement: Element, wanted: string): void {
+function showOwnLabel(toolbar: Element, labelElement: Element, wanted: string): void {
   const current = labelElement.textContent ?? '';
-  if (current && !isOwnLabel(current)) filters.setAttribute(SAVED_LABEL_ATTRIBUTE, current);
+  if (current && !isOwnLabel(current)) toolbar.setAttribute(SAVED_LABEL_ATTRIBUTE, current);
   if (current !== wanted) labelElement.textContent = wanted;
 }
 
-export function reflectLabel(pageDocument: Document, state: LabelState, percent: number | null = null): void {
-  const parts = findLabelParts(pageDocument);
+export function reflectLabel(toolbar: Element, state: LabelState, percent: number | null = null): void {
+  const parts = findLabelParts(toolbar);
   if (!parts) return;
-  const { filters, trigger, labelElement } = parts;
+  const { trigger, labelElement } = parts;
   if (state === 'off') {
-    restoreLabel(filters, labelElement);
+    restoreLabel(toolbar, labelElement);
     trigger.removeAttribute('title');
     return;
   }
-  showOwnLabel(filters, labelElement, { loading: loadingLabelOf(percent), price: SORT_TEXT.label, partial: SORT_TEXT.partialLabel }[state]);
+  showOwnLabel(toolbar, labelElement, { loading: loadingLabelOf(percent), price: SORT_TEXT.label, partial: SORT_TEXT.partialLabel }[state]);
   if (state === 'partial') trigger.setAttribute('title', SORT_TEXT.partialHint);
   else trigger.removeAttribute('title');
 }

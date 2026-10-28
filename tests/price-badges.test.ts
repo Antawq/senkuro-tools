@@ -57,6 +57,12 @@ describe('createPriceBadges', () => {
     expect(holders[0]?.getAttribute('data-senkuro-price')).toBe('1.00');
   });
 
+  it('prices a shard row with the price of its whole card, the price the price sort orders it by', () => {
+    render(preview().replace('class="card-collect-preview"', 'class="card-collect-preview card-collect-preview--shard"') + preview());
+    const prices = [...document.querySelectorAll('[data-senkuro-price]')].map((holder) => holder.getAttribute('data-senkuro-price'));
+    expect(prices).toEqual(['1.00', '1.00']);
+  });
+
   it('keeps the chosen corner on ordinary cards', () => {
     render(preview());
     expect(holderOf().dataset.badgePos).toBe(`${DEFAULT_SETTINGS.positionX}-${DEFAULT_SETTINGS.positionY}`);

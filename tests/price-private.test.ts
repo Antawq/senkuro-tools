@@ -94,6 +94,14 @@ describe('variableNamesOf', () => {
     expect(variableNamesOf(grid({ after: undefined }))).toBe(variableNamesOf(grid()));
     expect(variableNamesOf(grid({ animated: null }))).not.toBe(variableNamesOf(grid()));
   });
+
+  it('names the fields of a filter too, so the list of the deck builder and the one of a window are other kinds of list', () => {
+    const deck = grid({ modifier: { exclude: [1] } });
+    const window = grid({ modifier: { exclude: [] }, rank: { include: [], exclude: ['R'] } });
+    expect(variableNamesOf(deck)).not.toBe(variableNamesOf(window));
+    expect(variableNamesOf(deck)).not.toBe(variableNamesOf(grid()));
+    expect(variableNamesOf(window)).toBe(variableNamesOf(grid({ modifier: { exclude: [1] }, rank: { include: ['S'], exclude: [] } })));
+  });
 });
 
 describe('privateVariablesOf', () => {

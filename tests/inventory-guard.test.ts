@@ -1,4 +1,3 @@
-import type { ListScope } from '../utils/shared/list-scope';
 import { describe, expect, it } from 'vitest';
 
 import { Window } from 'happy-dom';
@@ -20,6 +19,7 @@ import {
   readRefreshResult,
   type RefreshResult,
 } from '../utils/shared/refresh-signal';
+import type { ListScope } from '../utils/shared/list-scope';
 import {
   PRICE_ORDER_EVENT,
   PRICE_ROWS_EVENT,
@@ -31,6 +31,7 @@ import {
   readPriceState,
   type PriceRows,
   type PriceState,
+  type ScopedRows,
 } from '../utils/shared/price-signal';
 import type { QueryClient, QueryRequest } from '../utils/shared/urql-client';
 
@@ -145,13 +146,15 @@ const rig = ({ answer = {}, mounted = true, results = [], slow = false, outcomes
   }
   const states: PriceState[] = [];
   const rows: PriceRows[] = [];
+  const scopedRows: ScopedRows[] = [];
   win.document.addEventListener(PRICE_STATE_EVENT, (event) => {
-    const state = readPriceState(event as unknown as Event);
-    if (state) states.push(state);
+    const scoped = readPriceState(event as unknown as Event);
+    if (scoped) states.push(scoped.state);
   });
   win.document.addEventListener(PRICE_ROWS_EVENT, (event) => {
-    const sent = readPriceRows(event as unknown as Event);
-    if (sent) rows.push(sent);
+    const scoped = readPriceRows(event as unknown as Event);
+    if (scoped) rows.push(scoped.rows);
+    if (scoped) scopedRows.push(scoped);
   });
   const mount = () => {
     (win.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = { _context: { provides: { $urql: { value: client } } } };
@@ -177,8 +180,9 @@ const rig = ({ answer = {}, mounted = true, results = [], slow = false, outcomes
   const sendRefreshDetail = (detail: string) => win.document.dispatchEvent(new win.CustomEvent(REFRESH_REQUEST_EVENT, { detail } as never));
   const requestRefresh = (scope: ListScope) => sendRefreshDetail(encodeRefreshRequest(scope));
   const send = (name: string, detail: string) => win.document.dispatchEvent(new win.CustomEvent(name, { detail: detail as unknown as object }));
-  const switchView = (isOn: boolean) => send(PRICE_VIEW_EVENT, encodePriceSwitch(isOn));
-  const order = (sent: { viewId: number; revision: number; descending: number[]; ascending: number[] }) => send(PRICE_ORDER_EVENT, encodePriceOrder(sent));
+  const switchView = (isOn: boolean, scope: ListScope = 'grid') => send(PRICE_VIEW_EVENT, encodePriceSwitch({ scope, isOn }));
+  const order = (sent: { viewId: number; revision: number; descending: number[]; ascending: number[] }, scope: ListScope = 'grid') =>
+    send(PRICE_ORDER_EVENT, encodePriceOrder({ scope, order: sent }));
   const browseList = (asked: QueryRequest) => client.executeQuery(asked);
   return {
     win,
@@ -190,6 +194,7 @@ const rig = ({ answer = {}, mounted = true, results = [], slow = false, outcomes
     reexecuted,
     states,
     rows,
+    scopedRows,
     refreshed,
     requestRefresh,
     sendRefreshDetail,
@@ -673,6 +678,54 @@ describe('installInventoryGuard', () => {
       expect(queries[0]?.variables).toEqual({ ...grid, orderField: privateFieldOf(1), orderDirection: 'DESC', after: createPrivateCursor(1, 2) });
       expect(queries[0]?.options.requestPolicy).toBe('network-only');
       expect(fetched).toHaveLength(before);
+      await win.happyDOM.close();
+    });
+
+    const picker = { userId: 'USER:1', orderField: 'CREATED_AT', orderDirection: 'DESC', modifier: { exclude: [] }, after: null };
+    const forOrder = (viewId: number) => ({ ...reversed, viewId });
+
+    it('keeps the profile grid and a window picker apart: each switch starts, serves and stops only its own list', async () => {
+      const { win, respond, browseList, switchView, order, scopedRows, reexecuted, reached } = rig({ onFetch: crawlPages, withRedrive: true });
+      await respond();
+      browseList(listRequest(grid, 7));
+      browseList(listRequest(picker, 8));
+      switchView(true, 'grid');
+      switchView(true, 'picker');
+      await until(() => scopedRows.length === 2);
+      expect(scopedRows.map((sent) => sent.scope).sort()).toEqual(['grid', 'picker']);
+      for (const sent of scopedRows) order(forOrder(sent.rows.viewId), sent.scope);
+      browseList(listRequest(grid, 7));
+      const gridField = reached.at(-1)?.orderField;
+      browseList(listRequest(picker, 8));
+      const pickerField = reached.at(-1)?.orderField;
+      expect([gridField, pickerField].sort()).toEqual([privateFieldOf(1), privateFieldOf(2)]);
+      switchView(false, 'picker');
+      expect(reexecuted.at(-1)?.requested.key).toBe(8);
+      expect(reexecuted.at(-1)?.requested.variables).toEqual(picker);
+      browseList(listRequest(grid, 7));
+      expect(reached.at(-1)?.orderField).toBe(gridField);
+      await win.happyDOM.close();
+    });
+
+    it('crawls the list of a window again when the window asks for a refresh, and leaves the grid serving its own', async () => {
+      const { win, respond, browseList, switchView, order, scopedRows, requestRefresh, reached } = rig({ onFetch: crawlPages, withRedrive: true });
+      await respond();
+      browseList(listRequest(grid, 7));
+      browseList(listRequest(picker, 8));
+      switchView(true, 'grid');
+      switchView(true, 'picker');
+      await until(() => scopedRows.length === 2);
+      for (const sent of scopedRows) order(forOrder(sent.rows.viewId), sent.scope);
+      requestRefresh('picker');
+      await until(() => scopedRows.length === 3);
+      expect(scopedRows.at(-1)?.scope).toBe('picker');
+      browseList(listRequest(picker, 8));
+      expect(reached.at(-1)).toEqual(picker);
+      browseList(listRequest(grid, 7));
+      expect(String(reached.at(-1)?.orderField)).toMatch(/^SENKUTOOLS_PRICE_/);
+      requestRefresh('grid');
+      await settle();
+      expect(scopedRows).toHaveLength(3);
       await win.happyDOM.close();
     });
 
