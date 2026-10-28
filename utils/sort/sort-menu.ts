@@ -55,20 +55,29 @@ function restoreLabel(filters: Element, labelElement: Element): void {
   if (saved && isOwnLabel(labelElement.textContent)) labelElement.textContent = saved;
 }
 
-export function reflectLabel(pageDocument: Document, state: LabelState, percent: number | null = null): void {
+function findLabelParts(pageDocument: Document): { filters: Element; trigger: HTMLElement; labelElement: HTMLElement } | null {
   const filters = pageDocument.querySelector(USER_CARD_FILTERS);
   const trigger = findSortTrigger(pageDocument);
   const labelElement = trigger?.querySelector('span');
-  if (!filters || !trigger || !labelElement) return;
+  return filters && trigger && labelElement ? { filters, trigger, labelElement } : null;
+}
+
+function showOwnLabel(filters: Element, labelElement: Element, wanted: string): void {
+  const current = labelElement.textContent ?? '';
+  if (current && !isOwnLabel(current)) filters.setAttribute(SAVED_LABEL_ATTRIBUTE, current);
+  if (current !== wanted) labelElement.textContent = wanted;
+}
+
+export function reflectLabel(pageDocument: Document, state: LabelState, percent: number | null = null): void {
+  const parts = findLabelParts(pageDocument);
+  if (!parts) return;
+  const { filters, trigger, labelElement } = parts;
   if (state === 'off') {
     restoreLabel(filters, labelElement);
     trigger.removeAttribute('title');
     return;
   }
-  const current = labelElement.textContent ?? '';
-  if (current && !isOwnLabel(current)) filters.setAttribute(SAVED_LABEL_ATTRIBUTE, current);
-  const wanted = { loading: loadingLabelOf(percent), price: SORT_TEXT.label, partial: SORT_TEXT.partialLabel }[state];
-  if (current !== wanted) labelElement.textContent = wanted;
+  showOwnLabel(filters, labelElement, { loading: loadingLabelOf(percent), price: SORT_TEXT.label, partial: SORT_TEXT.partialLabel }[state]);
   if (state === 'partial') trigger.setAttribute('title', SORT_TEXT.partialHint);
   else trigger.removeAttribute('title');
 }
