@@ -142,7 +142,7 @@ export default defineContentScript({
       void loop.renderAll();
     });
 
-    ctx.addEventListener(document, APP_MOUNTED_EVENT, loop.schedule);
+    ctx.addEventListener(document, APP_MOUNTED_EVENT, () => void loop.renderAll());
     ctx.addEventListener(document, 'click', handleOutsideClick);
     ctx.onInvalidated(() => abortProfileLoading());
 

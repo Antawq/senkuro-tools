@@ -1,3 +1,4 @@
+import { isAppMounted } from '../shared/app-mounted';
 import { BADGE_INSET, CENTER, CENTERING_SHIFT, centerGapShift, faceGap, gapKey, insetAbove, insetBelow, NO_GAP, type FaceGap } from '../shared/badge-layout';
 import { CARD_LINK, PERCENT, PRICE_DECIMALS, effectivePrice, slugFromHref } from '../shared/cards';
 import { removeCopyButton, syncCopyButton } from '../shared/copy-button';
@@ -184,19 +185,26 @@ function position(state: BadgeState, { holders: { target }, isUnpositioned }: Me
   state.positioned.add(target);
 }
 
+function syncCardCopyButton(state: BadgeState, { holders, entry }: Measured, settings: Settings, spot: Spot): boolean {
+  if (!settings.copyBtn || isSmall(holders)) {
+    removeCopyButton(holders.target);
+    return true;
+  }
+  if (!isAppMounted(document)) return false;
+  syncCopyButton(holders.target, { name: entry.name || UNKNOWN_NAME, size: settings.copyBtnSize, ...spot, touch: state.touch });
+  return true;
+}
+
 function show(state: BadgeState, measured: Measured, settings: Settings, shades: Shades): void {
   const { holders, entry, slug, isUndrawn } = measured;
-  const { target } = holders;
+  let isDone = true;
   if (isUndrawn) clearHolders(holders);
   else {
-    clearHolders(holders, target);
+    clearHolders(holders, holders.target);
     if (settings.showBadges) paint(holders, entry.price, settings, shades);
-    const spot = place(holders, settings, measured);
-    if (settings.copyBtn && !isSmall(holders))
-      syncCopyButton(target, { name: entry.name || UNKNOWN_NAME, size: settings.copyBtnSize, ...spot, touch: state.touch });
-    else removeCopyButton(target);
+    isDone = syncCardCopyButton(state, measured, settings, place(holders, settings, measured));
   }
-  holders.card.dataset.priceBadgeAdded = slug;
+  if (isDone) holders.card.dataset.priceBadgeAdded = slug;
 }
 
 function resetBadges(): void {

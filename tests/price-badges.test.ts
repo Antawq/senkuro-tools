@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createPriceBadges } from '../utils/badges/price-badges';
+import { APP_MOUNTED_ATTRIBUTE } from '../utils/shared/app-mounted';
 import { visibleName } from '../utils/shared/copy-button';
 import { DEFAULT_SETTINGS } from '../utils/shared/settings';
 
@@ -21,8 +22,14 @@ const render = (html: string) => {
   createPriceBadges({ touch: false }).update(db, DEFAULT_SETTINGS);
 };
 
-beforeEach(() => document.body.replaceChildren());
-afterEach(() => vi.restoreAllMocks());
+beforeEach(() => {
+  document.body.replaceChildren();
+  document.documentElement.setAttribute(APP_MOUNTED_ATTRIBUTE, '');
+});
+afterEach(() => {
+  document.documentElement.removeAttribute(APP_MOUNTED_ATTRIBUTE);
+  vi.restoreAllMocks();
+});
 
 const AXIS_X = {
   left: { '--s-left': '5px', '--s-align': 'left' },
@@ -73,6 +80,18 @@ describe('createPriceBadges', () => {
     badges.update(db, { ...DEFAULT_SETTINGS, positionX: 'left', positionY: 'top' });
     expect(holderOf().dataset.badgePos).toBe('left-top');
     expect(positionVars(holderOf())).toEqual({ ...AXIS_X.left, ...AXIS_Y.top });
+  });
+
+  it('puts no copy button into a card before the site has mounted its app, and draws it on the next render after the mount', () => {
+    document.body.innerHTML = preview();
+    document.documentElement.removeAttribute(APP_MOUNTED_ATTRIBUTE);
+    const badges = createPriceBadges({ touch: false });
+    badges.update(db, { ...DEFAULT_SETTINGS, copyBtn: true });
+    expect(holderOf().querySelector('.senkuro-copy-btn')).toBeNull();
+    expect(holderOf().getAttribute('data-senkuro-price')).not.toBeNull();
+    document.documentElement.setAttribute(APP_MOUNTED_ATTRIBUTE, '');
+    badges.update(db, { ...DEFAULT_SETTINGS, copyBtn: true });
+    expect(holderOf().querySelectorAll('.senkuro-copy-btn')).toHaveLength(1);
   });
 
   it('draws the copy button as a real button, so a keyboard reaches it', () => {
