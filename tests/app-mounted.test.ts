@@ -15,7 +15,54 @@ const createPage = (html = '<div id="app"></div><div id="other"></div>'): { page
   return { pageWindow, mount };
 };
 
+const siteHooks = () => {
+  const handlers = new Map<string, (() => void)[]>();
+  return {
+    on: (event: string, handler: () => void) => handlers.set(event, [...(handlers.get(event) ?? []), handler]),
+    off: (event: string, handler: () => void) =>
+      handlers.set(
+        event,
+        (handlers.get(event) ?? []).filter((known) => known !== handler)
+      ),
+    emit: (event: string) => (handlers.get(event) ?? []).slice().forEach((handler) => handler()),
+    count: (event: string) => (handlers.get(event) ?? []).length,
+  };
+};
+
 describe('publishAppMounted', () => {
+  it('waits for the site to finish hydrating its page when the app mounts mid hydration, then says so once', () => {
+    const { pageWindow } = createPage();
+    const hooks = siteHooks();
+    const handleAppMounted = vi.fn();
+    pageWindow.document.addEventListener(APP_MOUNTED_EVENT, handleAppMounted);
+    publishAppMounted(pageWindow);
+    (pageWindow.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = { $senkuro: { hydrating: true, hooks } };
+    expect(isAppMounted(pageWindow.document)).toBe(false);
+    hooks.emit('app:suspense:resolve');
+    expect(isAppMounted(pageWindow.document)).toBe(true);
+    expect(handleAppMounted).toHaveBeenCalledOnce();
+    expect(hooks.count('app:suspense:resolve')).toBe(0);
+  });
+
+  it('says so at once when the site has already finished hydrating, as when the event fired inside the mount', () => {
+    const { pageWindow } = createPage();
+    const hooks = siteHooks();
+    publishAppMounted(pageWindow);
+    (pageWindow.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = { $senkuro: { hydrating: false, hooks } };
+    expect(isAppMounted(pageWindow.document)).toBe(true);
+    expect(hooks.count('app:suspense:resolve')).toBe(0);
+  });
+
+  it('waits for the hydration of an app that was mounted before the script ran', () => {
+    const { pageWindow } = createPage();
+    const hooks = siteHooks();
+    (pageWindow.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = { $senkuro: { hydrating: true, hooks } };
+    publishAppMounted(pageWindow);
+    expect(isAppMounted(pageWindow.document)).toBe(false);
+    hooks.emit('app:suspense:resolve');
+    expect(isAppMounted(pageWindow.document)).toBe(true);
+  });
+
   it('marks the page and says so the moment the app mounts', () => {
     const { pageWindow, mount } = createPage();
     const handleAppMounted = vi.fn();

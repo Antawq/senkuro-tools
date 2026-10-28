@@ -3,9 +3,15 @@ import type { PageWindow } from './page-window';
 export const APP_ROOT = '#app';
 const VUE_APP_KEY = '__vue_app__';
 
+export interface SiteHooks {
+  on: (event: string, handler: () => void) => void;
+  off: (event: string, handler: () => void) => void;
+}
+
 export interface VueApp {
   _context?: { provides?: Record<string | symbol, unknown> };
   config?: { globalProperties?: Record<string, unknown> };
+  $senkuro?: { hydrating?: unknown; hooks?: Partial<SiteHooks> };
 }
 
 export const findVueApp = (pageDocument: Document): VueApp | null =>
