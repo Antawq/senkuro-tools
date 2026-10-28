@@ -100,6 +100,23 @@ describe('createPriceBadges', () => {
     expect(holderOf().querySelectorAll('.senkuro-copy-btn')).toHaveLength(1);
   });
 
+  it('draws the copy control as a plain element when the card link itself holds it, since a link must not contain a button', () => {
+    document.body.innerHTML = '<a class="card-collect" href="/cards/soran"><img></a>';
+    createPriceBadges({ touch: false }).update(db, { ...DEFAULT_SETTINGS, copyBtn: true });
+    expect(document.querySelector('a.card-collect > .senkuro-copy-btn')?.tagName).toBe('DIV');
+  });
+
+  it('draws the copy control as a plain element when an outer link wraps the card holder', () => {
+    document.body.innerHTML = preview();
+    const holder = holderOf();
+    const outer = document.createElement('a');
+    outer.href = '/offers/1';
+    holder.replaceWith(outer);
+    outer.append(holder);
+    createPriceBadges({ touch: false }).update(db, { ...DEFAULT_SETTINGS, copyBtn: true });
+    expect(document.querySelector('.card-collect-preview > .senkuro-copy-btn')?.tagName).toBe('DIV');
+  });
+
   it('draws the copy button as a real button, so a keyboard reaches it', () => {
     document.body.innerHTML = preview();
     createPriceBadges({ touch: false }).update(db, { ...DEFAULT_SETTINGS, copyBtn: true });
