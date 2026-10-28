@@ -1,3 +1,4 @@
+import type { ListScope } from '../shared/list-scope';
 import { debugLogger } from '../shared/debug';
 import type { Transport } from '../shared/graphql';
 import { claimPage } from '../shared/page-claim';
@@ -20,7 +21,6 @@ import {
   encodeRefreshResult,
   readRefreshRequest,
   type RefreshOutcome,
-  type RefreshScope,
 } from '../shared/refresh-signal';
 import { operationName, runWhenClientFound, type QueryClient } from '../shared/urql-client';
 import { recordLists, rewriteLists, tapMutations, type MutationResult } from './client-hooks';
@@ -175,13 +175,13 @@ function handleMutation(guard: Guard, priceView: PriceView, client: QueryClient,
   );
 }
 
-function familiesOf(guard: Guard, scope: RefreshScope): Family[] {
+function familiesOf(guard: Guard, scope: ListScope): Family[] {
   const route = guard.pageWindow.location.pathname;
   const isInScope = scope === 'grid' ? isGridFamily : isPickerFamily;
   return guard.record.families().filter((family) => isInScope(family) && family.route === route);
 }
 
-async function refreshOnRequest(guard: Guard, scope: RefreshScope): Promise<RefreshOutcome> {
+async function refreshOnRequest(guard: Guard, scope: ListScope): Promise<RefreshOutcome> {
   const client = guard.client;
   const families = client ? familiesOf(guard, scope) : [];
   if (!client || families.length === 0) return 'nothing';
@@ -204,7 +204,7 @@ function refreshOnCacheHit(guard: Guard, page: PageRequest): void {
     .finally(() => guard.pendingFamilyIds.delete(id));
 }
 
-const publishRefreshResult = (guard: Guard, scope: RefreshScope, outcome: RefreshOutcome) =>
+const publishRefreshResult = (guard: Guard, scope: ListScope, outcome: RefreshOutcome) =>
   guard.pageWindow.document.dispatchEvent(new guard.pageWindow.CustomEvent(REFRESH_RESULT_EVENT, { detail: encodeRefreshResult({ scope, outcome }) }));
 
 function handleRefreshRequest(guard: Guard, event: Event): void {

@@ -1,3 +1,4 @@
+import type { ListScope } from '../utils/shared/list-scope';
 import { describe, expect, it } from 'vitest';
 
 import { Window } from 'happy-dom';
@@ -18,7 +19,6 @@ import {
   encodeRefreshRequest,
   readRefreshResult,
   type RefreshResult,
-  type RefreshScope,
 } from '../utils/shared/refresh-signal';
 import {
   PRICE_ORDER_EVENT,
@@ -175,7 +175,7 @@ const rig = ({ answer = {}, mounted = true, results = [], slow = false, outcomes
     if (result) refreshed.push(result);
   });
   const sendRefreshDetail = (detail: string) => win.document.dispatchEvent(new win.CustomEvent(REFRESH_REQUEST_EVENT, { detail } as never));
-  const requestRefresh = (scope: RefreshScope) => sendRefreshDetail(encodeRefreshRequest(scope));
+  const requestRefresh = (scope: ListScope) => sendRefreshDetail(encodeRefreshRequest(scope));
   const send = (name: string, detail: string) => win.document.dispatchEvent(new win.CustomEvent(name, { detail: detail as unknown as object }));
   const switchView = (isOn: boolean) => send(PRICE_VIEW_EVENT, encodePriceSwitch(isOn));
   const order = (sent: { viewId: number; revision: number; descending: number[]; ascending: number[] }) => send(PRICE_ORDER_EVENT, encodePriceOrder(sent));

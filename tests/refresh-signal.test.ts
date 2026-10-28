@@ -11,12 +11,12 @@ import {
   readRefreshRequest,
   readRefreshResult,
   requestInventoryRefresh,
-  type RefreshScope,
 } from '../utils/shared/refresh-signal';
+import type { ListScope } from '../utils/shared/list-scope';
 
 const eventWith = (detail: unknown) => new CustomEvent('probe', { detail });
 
-const answer = (scope: RefreshScope, outcome: 'done' | 'nothing' | 'failed') =>
+const answer = (scope: ListScope, outcome: 'done' | 'nothing' | 'failed') =>
   document.dispatchEvent(new CustomEvent(REFRESH_RESULT_EVENT, { detail: encodeRefreshResult({ scope, outcome }) }));
 
 describe('readRefreshRequest', () => {
@@ -64,7 +64,7 @@ describe('isGuardReady', () => {
 
 describe('requestInventoryRefresh', () => {
   it('asks the page and settles with the answer for its own scope, ignoring other scopes and unreadable answers', async () => {
-    const asked: (RefreshScope | null)[] = [];
+    const asked: (ListScope | null)[] = [];
     document.addEventListener(REFRESH_REQUEST_EVENT, (event) => asked.push(readRefreshRequest(event)), { once: true });
     const pending = requestInventoryRefresh(document, 'grid');
     answer('picker', 'failed');
