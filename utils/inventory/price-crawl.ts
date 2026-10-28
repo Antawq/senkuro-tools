@@ -49,6 +49,23 @@ const keyOf = (row: Row): string | null => (typeof row.node.card?.id === 'string
 
 const typeNameOf = (candidate: unknown, fallback: string): string => (typeof candidate === 'string' && candidate !== '' ? candidate : fallback);
 
+function addNewRows(edges: NonNullable<Connection['edges']>, rows: Row[], seen: Set<string>): void {
+  for (const edge of edges) {
+    const row = edge?.node ? (edge as Row) : null;
+    const key = row ? keyOf(row) : null;
+    if (!row || key === null || seen.has(key)) continue;
+    seen.add(key);
+    rows.push(row);
+  }
+}
+
+const totalOf = (connection: Connection): number | null => (typeof connection.totalCount === 'number' ? connection.totalCount : null);
+
+function nextCursorOf(connection: Connection): string | null {
+  const cursor = connection.pageInfo?.endCursor;
+  return connection.pageInfo?.hasNextPage === true && typeof cursor === 'string' ? cursor : null;
+}
+
 export async function crawlList({ text, variables, transport, signal, onProgress }: CrawlRequest): Promise<CrawledList> {
   const rows: Row[] = [];
   const seen = new Set<string>();
@@ -61,16 +78,10 @@ export async function crawlList({ text, variables, transport, signal, onProgress
     if (!connection || !Array.isArray(connection.edges)) throw new ApiError('decode');
     connectionType = typeNameOf(connection.__typename, connectionType);
     pageInfoType = typeNameOf(connection.pageInfo?.__typename, pageInfoType);
-    for (const edge of connection.edges) {
-      const row = edge?.node ? (edge as Row) : null;
-      const key = row ? keyOf(row) : null;
-      if (!row || key === null || seen.has(key)) continue;
-      seen.add(key);
-      rows.push(row);
-    }
-    onProgress?.(rows.length, typeof connection.totalCount === 'number' ? connection.totalCount : null);
-    const cursor = connection.pageInfo?.endCursor;
-    if (connection.pageInfo?.hasNextPage !== true || typeof cursor !== 'string') return { rows, connectionType, pageInfoType };
+    addNewRows(connection.edges, rows, seen);
+    onProgress?.(rows.length, totalOf(connection));
+    const cursor = nextCursorOf(connection);
+    if (cursor === null) return { rows, connectionType, pageInfoType };
     after = cursor;
     const delay = delayForPage(page);
     if (delay > 0) await transport.sleep(delay);
