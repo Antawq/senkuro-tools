@@ -153,61 +153,78 @@ function place({ target }: Holders, settings: Settings, { isCovered, gap }: Pick
   return spot;
 }
 
+interface BadgeState {
+  touch: boolean;
+  positioned: WeakSet<HTMLElement>;
+}
+
+function pricedEntryOf(card: HTMLAnchorElement, db: Database): { slug: string; entry: CardEntry } | null {
+  if (!card.isConnected || card.closest(BACK_FACE)) return null;
+  const slug = slugFromHref(card.getAttribute('href'));
+  if (!slug || card.dataset.priceBadgeAdded === slug) return null;
+  const entry = db[slug];
+  return entry && Number.isFinite(entry.price) ? { slug, entry } : null;
+}
+
+const isUndrawnFor = (holders: Holders, settings: Settings): boolean =>
+  isTooNarrow(holders) || (!settings.showBadges && (!settings.copyBtn || isSmall(holders)));
+
+function measure(state: BadgeState, card: HTMLAnchorElement, db: Database, settings: Settings): Measured | null {
+  const priced = pricedEntryOf(card, db);
+  if (!priced) return null;
+  const holders = holdersOf(card, settings.showBadges || settings.copyBtn);
+  const { target } = holders;
+  const isUndrawn = isUndrawnFor(holders, settings);
+  const isUnpositioned = !isUndrawn && !state.positioned.has(target) && getComputedStyle(target).position === 'static';
+  return { holders, ...priced, isUndrawn, isUnpositioned, isCovered: !isUndrawn && coveredInStack(target), gap: NO_GAP };
+}
+
+function position(state: BadgeState, { holders: { target }, isUnpositioned }: Measured): void {
+  if (isUnpositioned) target.style.position = 'relative';
+  state.positioned.add(target);
+}
+
+function show(state: BadgeState, measured: Measured, settings: Settings, shades: Shades): void {
+  const { holders, entry, slug, isUndrawn } = measured;
+  const { target } = holders;
+  if (isUndrawn) clearHolders(holders);
+  else {
+    clearHolders(holders, target);
+    if (settings.showBadges) paint(holders, entry.price, settings, shades);
+    const spot = place(holders, settings, measured);
+    if (settings.copyBtn && !isSmall(holders))
+      syncCopyButton(target, { name: entry.name || UNKNOWN_NAME, size: settings.copyBtnSize, ...spot, touch: state.touch });
+    else removeCopyButton(target);
+  }
+  holders.card.dataset.priceBadgeAdded = slug;
+}
+
+function resetBadges(): void {
+  document.querySelectorAll('[data-senkuro-price]').forEach(clearBadge);
+  document.querySelectorAll<HTMLElement>(CARD_LINK).forEach((card) => delete card.dataset.priceBadgeAdded);
+}
+
+function resetPageBadges(): void {
+  resetBadges();
+  document.querySelectorAll<HTMLElement>('[data-badge-pos]').forEach((el) => delete el.dataset.badgePos);
+  document.querySelectorAll('.senkuro-copy-btn').forEach((el) => el.remove());
+}
+
+function updateBadges(state: BadgeState, db: Database, settings: Settings, cards?: Iterable<HTMLAnchorElement>): void {
+  const shades = shadesOf(settings.opacity);
+  const list = cards ?? document.querySelectorAll<HTMLAnchorElement>(CARD_LINK);
+  const batch = [...new Set(list)].flatMap((card) => measure(state, card, db, settings) ?? []);
+  const drawn = batch.filter(({ isUndrawn }) => !isUndrawn);
+  drawn.forEach((item) => position(state, item));
+  for (const item of drawn) if (item.holders.preview) item.gap = faceGap(item.holders.preview);
+  for (const item of batch) show(state, item, settings, shades);
+}
+
 export function createPriceBadges({ touch }: { touch: boolean }): PriceBadges {
-  const positioned = new WeakSet<HTMLElement>();
-
-  function measure(card: HTMLAnchorElement, db: Database, settings: Settings): Measured | null {
-    if (!card.isConnected || card.closest(BACK_FACE)) return null;
-    const slug = slugFromHref(card.getAttribute('href'));
-    if (!slug || card.dataset.priceBadgeAdded === slug) return null;
-    const entry = db[slug];
-    if (!entry || !Number.isFinite(entry.price)) return null;
-    const holders = holdersOf(card, settings.showBadges || settings.copyBtn);
-    const { target } = holders;
-    const isUndrawn = isTooNarrow(holders) || (!settings.showBadges && (!settings.copyBtn || isSmall(holders)));
-    const isUnpositioned = !isUndrawn && !positioned.has(target) && getComputedStyle(target).position === 'static';
-    return { holders, slug, entry, isUndrawn, isUnpositioned, isCovered: !isUndrawn && coveredInStack(target), gap: NO_GAP };
-  }
-
-  function position({ holders: { target }, isUnpositioned }: Measured): void {
-    if (isUnpositioned) target.style.position = 'relative';
-    positioned.add(target);
-  }
-
-  function show(measured: Measured, settings: Settings, shades: Shades): void {
-    const { holders, entry, slug, isUndrawn } = measured;
-    const { target } = holders;
-    if (isUndrawn) clearHolders(holders);
-    else {
-      clearHolders(holders, target);
-      if (settings.showBadges) paint(holders, entry.price, settings, shades);
-      const spot = place(holders, settings, measured);
-      if (settings.copyBtn && !isSmall(holders)) syncCopyButton(target, { name: entry.name || UNKNOWN_NAME, size: settings.copyBtnSize, ...spot, touch });
-      else removeCopyButton(target);
-    }
-    holders.card.dataset.priceBadgeAdded = slug;
-  }
-
-  const reset = () => {
-    document.querySelectorAll('[data-senkuro-price]').forEach(clearBadge);
-    document.querySelectorAll<HTMLElement>(CARD_LINK).forEach((card) => delete card.dataset.priceBadgeAdded);
-  };
-
+  const state: BadgeState = { touch, positioned: new WeakSet<HTMLElement>() };
   return {
-    update(db, settings, cards?: Iterable<HTMLAnchorElement>) {
-      const shades = shadesOf(settings.opacity);
-      const list = cards ?? document.querySelectorAll<HTMLAnchorElement>(CARD_LINK);
-      const batch = [...new Set(list)].flatMap((card) => measure(card, db, settings) ?? []);
-      const drawn = batch.filter(({ isUndrawn }) => !isUndrawn);
-      drawn.forEach(position);
-      for (const item of drawn) if (item.holders.preview) item.gap = faceGap(item.holders.preview);
-      for (const item of batch) show(item, settings, shades);
-    },
-    reset,
-    resetPage() {
-      reset();
-      document.querySelectorAll<HTMLElement>('[data-badge-pos]').forEach((el) => delete el.dataset.badgePos);
-      document.querySelectorAll('.senkuro-copy-btn').forEach((el) => el.remove());
-    },
+    update: (db, settings, cards) => updateBadges(state, db, settings, cards),
+    reset: resetBadges,
+    resetPage: resetPageBadges,
   };
 }
