@@ -75,6 +75,14 @@ describe('createPriceBadges', () => {
     expect(positionVars(holderOf())).toEqual({ ...AXIS_X.left, ...AXIS_Y.top });
   });
 
+  it('draws the copy button as a real button, so a keyboard reaches it', () => {
+    document.body.innerHTML = preview();
+    createPriceBadges({ touch: false }).update(db, { ...DEFAULT_SETTINGS, copyBtn: true });
+    const button = holderOf().querySelector('.senkuro-copy-btn');
+    expect(button?.tagName).toBe('BUTTON');
+    expect((button as HTMLButtonElement).type).toBe('button');
+  });
+
   it.each([
     ['center', 'bottom', '-50% 0'],
     ['right', 'center', '0 -50%'],

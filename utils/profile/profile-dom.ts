@@ -147,10 +147,15 @@ function keepInView(popover: HTMLElement): void {
   if (shift > 0) popover.style.setProperty(SHIFT_PROPERTY, `${-shift}px`);
 }
 
+function closePopover(widget: Element): void {
+  widget.classList.remove(ACTIVE);
+  widget.querySelector('[aria-expanded]')?.setAttribute('aria-expanded', 'false');
+}
+
 export function handleOutsideClick(event: Event): void {
   const target = event.target instanceof Node ? event.target : null;
   document.querySelectorAll(`.${ACTIVE}`).forEach((el) => {
-    if (!target || !el.contains(target)) el.classList.remove(ACTIVE);
+    if (!target || !el.contains(target)) closePopover(el);
   });
 }
 
@@ -172,11 +177,18 @@ function renderLoading(widget: HTMLElement, text: string): void {
   widget.replaceChildren(content);
 }
 
+function chipButton(text: string): HTMLButtonElement {
+  const button = element('button', 'senkuro-f-chip-content');
+  button.type = 'button';
+  button.append(element('span', 'senkuro-f-text', text));
+  return button;
+}
+
 function renderIdle(widget: HTMLElement, slug: string, deps: ProfileBadgeDeps): void {
   widget.classList.remove(LOADING, FAILED);
   widget.classList.add(IDLE);
   widget.onmouseenter = null;
-  widget.replaceChildren(element('span', 'senkuro-f-text', TEXT.idle));
+  widget.replaceChildren(chipButton(TEXT.idle));
   widget.onclick = (event) => {
     event.stopPropagation();
     renderLoading(widget, TEXT.counting);
@@ -188,7 +200,7 @@ function renderError(widget: HTMLElement, slug: string, deps: ProfileBadgeDeps):
   widget.classList.remove(LOADING, IDLE);
   widget.classList.add(FAILED);
   widget.onmouseenter = null;
-  widget.replaceChildren(element('span', 'senkuro-f-text', TEXT.failed));
+  widget.replaceChildren(chipButton(TEXT.failed));
   widget.onclick = (event) => {
     event.stopPropagation();
     reload(widget, slug, deps, false);
@@ -201,14 +213,18 @@ function renderSummary(widget: HTMLElement, slug: string, summary: ProfileValueS
   widget.onmouseenter = null;
 
   const popover = element('div', 'senkuro-profile-f-popover');
-  const chip = element('div', 'senkuro-f-chip-content');
+  const chip = element('button', 'senkuro-f-chip-content');
+  chip.type = 'button';
+  chip.setAttribute('aria-expanded', 'false');
   chip.append(element('span', 'senkuro-f-value', summary.formattedF), chevronIcon('senkuro-chip-arrow'));
   chip.addEventListener('click', (event) => {
     event.stopPropagation();
     document.querySelectorAll(`.${ACTIVE}`).forEach((el) => {
-      if (el !== widget) el.classList.remove(ACTIVE);
+      if (el !== widget) closePopover(el);
     });
-    if (widget.classList.toggle(ACTIVE)) keepInView(popover);
+    const isOpen = widget.classList.toggle(ACTIVE);
+    chip.setAttribute('aria-expanded', String(isOpen));
+    if (isOpen) keepInView(popover);
   });
 
   const title = element('div', 'senkuro-popover-title');
@@ -222,7 +238,7 @@ function renderSummary(widget: HTMLElement, slug: string, summary: ProfileValueS
   refresh.append(refreshIcon(POPOVER_ICON_SIZE_PX));
   refresh.addEventListener('click', (event) => {
     event.stopPropagation();
-    widget.classList.remove(ACTIVE);
+    closePopover(widget);
     reload(widget, slug, deps, true);
   });
 

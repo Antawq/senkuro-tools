@@ -66,8 +66,10 @@ export function syncCopyButton(target: HTMLElement, { name: rawName, size, posit
   const name = visibleName(rawName);
   let button = target.querySelector<HTMLElement>(`.${BUTTON}`);
   if (!button) {
-    button = document.createElement('div');
-    button.className = BUTTON;
+    const created = document.createElement('button');
+    created.type = 'button';
+    created.className = BUTTON;
+    button = created;
     target.append(button);
   }
   const current = button;

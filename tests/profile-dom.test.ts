@@ -368,6 +368,33 @@ describe('profile-dom', () => {
       expect(listen).not.toHaveBeenCalled();
     });
 
+    it('gives a keyboard user a real button for the count, which a press on Enter or Space reaches', async () => {
+      window.history.pushState({}, '', '/users/phaivroh');
+      document.body.innerHTML = header;
+      await draw();
+      const button = widget()?.querySelector('button');
+      expect(button?.type).toBe('button');
+      expect(button?.textContent).toBe('Посчитать ценность');
+      button?.click();
+      expect(widget()?.textContent).toContain('Считаем F...');
+    });
+
+    it('opens the value popover from a real button that says whether it is open, and outside clicks say it is closed', async () => {
+      window.history.pushState({}, '', '/users/phaivroh');
+      document.body.innerHTML = header;
+      await store([['luffy-s', 1, 0]]);
+      await draw();
+      const trigger = widget()?.querySelector('button[aria-expanded]') as HTMLButtonElement;
+      expect(trigger.type).toBe('button');
+      expect(trigger.getAttribute('aria-expanded')).toBe('false');
+      trigger.click();
+      expect(trigger.getAttribute('aria-expanded')).toBe('true');
+      expect(widget()?.classList.contains('senkuro-popover-active')).toBe(true);
+      handleOutsideClick(new MouseEvent('click'));
+      expect(trigger.getAttribute('aria-expanded')).toBe('false');
+      expect(widget()?.classList.contains('senkuro-popover-active')).toBe(false);
+    });
+
     it('closes an open popover on a click outside it and keeps it open on a click inside', () => {
       document.body.innerHTML = '<div class="senkuro-popover-active"><span></span></div><p></p>';
       const open = document.querySelector('.senkuro-popover-active') as HTMLElement;

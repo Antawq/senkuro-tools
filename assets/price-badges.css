@@ -140,6 +140,10 @@ a.card-collect[data-senkuro-style='outline']::after {
 }
 
 .senkuro-copy-btn {
+  appearance: none;
+  margin: 0;
+  border: 0;
+  font: inherit;
   position: absolute;
   background: color-mix(in srgb, var(--senkuro-shade) 60%, transparent);
   color: var(--senkuro-white);

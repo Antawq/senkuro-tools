@@ -59,6 +59,17 @@
   gap: 6px;
 }
 
+button.senkuro-f-chip-content {
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: inherit;
+}
+
 @supports (text-box: trim-both cap alphabetic) {
   .senkuro-profile-f-chip :is(.senkuro-f-text, .senkuro-f-value) {
     text-box: trim-both cap alphabetic;
