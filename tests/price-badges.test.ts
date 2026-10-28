@@ -117,6 +117,19 @@ describe('createPriceBadges', () => {
     expect(document.querySelector('.card-collect-preview > .senkuro-copy-btn')?.tagName).toBe('DIV');
   });
 
+  it('copies the visible name from the control inside a link without following the link', async () => {
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
+    document.body.innerHTML = '<a class="card-collect" href="/cards/soran"><img></a>';
+    createPriceBadges({ touch: false }).update(db, { ...DEFAULT_SETTINGS, copyBtn: true });
+    const control = document.querySelector('.senkuro-copy-btn') as HTMLElement;
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true });
+    control.dispatchEvent(click);
+    await Promise.resolve();
+    expect(writeText).toHaveBeenCalledWith('Соран');
+    expect(click.defaultPrevented).toBe(true);
+    expect(control.classList.contains('senkuro-copy-btn--done')).toBe(true);
+  });
+
   it('draws the copy button as a real button, so a keyboard reaches it', () => {
     document.body.innerHTML = preview();
     createPriceBadges({ touch: false }).update(db, { ...DEFAULT_SETTINGS, copyBtn: true });
