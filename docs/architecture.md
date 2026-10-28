@@ -45,12 +45,12 @@ sequenceDiagram
   participant G as inventory-guard
   participant A as Site API
   participant S as Site page
-  U->>C: picks Цене in the sort menu
-  C->>G: senkutools:price-view on
+  U->>C: picks Цене in the sort menu of a card list: profile, deck builder or a trade or forge window
+  C->>G: senkutools:price-view on, naming the list: grid or picker
   G->>A: crawls the list, 100 cards a page, no token
   G->>C: senkutools:price-rows and price-state, progress
   C->>G: senkutools:price-order, sorted by the bundled prices
-  G->>S: answers the grid with a private sorted list, one page at a time
+  G->>S: answers that list with a private sorted list, one page at a time
   G->>C: senkutools:price-state ready
 ```
 

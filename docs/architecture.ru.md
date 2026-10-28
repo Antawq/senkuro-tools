@@ -45,12 +45,12 @@ sequenceDiagram
   participant G as inventory-guard
   participant A as API сайта
   participant S as Страница сайта
-  U->>C: выбирает Цене в меню сортировки
-  C->>G: senkutools:price-view включить
+  U->>C: выбирает Цене в меню сортировки списка карт: профиль, конструктор колоды или окно обмена или кузницы
+  C->>G: senkutools:price-view включить, с именем списка: grid или picker
   G->>A: обходит список по 100 карт, без токена
   G->>C: senkutools:price-rows и price-state, прогресс
   C->>G: senkutools:price-order, порядок по ценам из расширения
-  G->>S: отвечает сетке служебным отсортированным списком, по странице
+  G->>S: отвечает этому списку служебным отсортированным списком, по странице
   G->>C: senkutools:price-state готово
 ```
 
