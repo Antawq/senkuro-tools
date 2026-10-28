@@ -45,16 +45,28 @@ export interface FetchOptions {
   signal?: AbortSignal;
 }
 
+const startOf = (from: PageState | undefined): PageState => ({ cards: [...(from?.cards ?? [])], after: from?.after ?? null, pages: from?.pages ?? 0 });
+
+const pageCardsOf = (connection: PageData['userCards']): UserCard[] => (connection?.edges ?? []).flatMap((edge) => toCard(edge?.node) ?? []);
+
+function nextAfterOf(connection: PageData['userCards']): string | null {
+  const info = connection?.pageInfo;
+  return info?.hasNextPage && info.endCursor ? info.endCursor : null;
+}
+
+const sleepOf = (transport: Transport | undefined) => transport?.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
+
 export async function fetchUserCards(
   token: string | null,
   userId: string,
   { from, onPage, signal }: FetchOptions = {},
   transport?: Transport
 ): Promise<UserCard[]> {
-  const cards = [...(from?.cards ?? [])];
-  let after = from?.after ?? null;
-  const sleep = transport?.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
-  for (let page = from?.pages ?? 0; page < USER_CARDS_MAX_PAGES; page++) {
+  const start = startOf(from);
+  const cards = start.cards;
+  let after = start.after;
+  const sleep = sleepOf(transport);
+  for (let page = start.pages; page < USER_CARDS_MAX_PAGES; page++) {
     const data: PageData = await execute<PageData>(
       token,
       USER_CARDS,
@@ -63,13 +75,8 @@ export async function fetchUserCards(
       transport,
       signal
     );
-    const connection = data.userCards;
-    for (const edge of connection?.edges ?? []) {
-      const card = toCard(edge?.node);
-      if (card) cards.push(card);
-    }
-    const info = connection?.pageInfo;
-    after = info?.hasNextPage && info.endCursor ? info.endCursor : null;
+    cards.push(...pageCardsOf(data.userCards));
+    after = nextAfterOf(data.userCards);
     onPage?.({ cards: [...cards], after, pages: page + 1 });
     if (after === null) return cards;
     const delay = delayForPage(page);
