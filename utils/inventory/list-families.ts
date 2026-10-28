@@ -95,7 +95,7 @@ export function judge(filters: Variables, entry: ReceivedCard): Verdict {
 export const needsRefresh = (family: Family, received: ReceivedCard[]): boolean =>
   !isNewestFirst(family.filters) || received.some((entry) => judge(family.filters, entry) !== 'match');
 
-export const isGridVariables = (variables: Variables): boolean => Array.isArray(asFilter(variables.modifier)?.include);
+const isGridVariables = (variables: Variables): boolean => Array.isArray(asFilter(variables.modifier)?.include);
 
 const isPickerVariables = (variables: Variables): boolean => Array.isArray(asFilter(variables.modifier)?.exclude);
 

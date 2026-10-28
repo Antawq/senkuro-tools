@@ -44,7 +44,7 @@ export function decorateMenu(pageDocument: Document, isPriceSelected: boolean): 
   }
 }
 
-export const findSortTrigger = (toolbar: Element): HTMLElement | undefined =>
+const findSortTrigger = (toolbar: Element): HTMLElement | undefined =>
   [...toolbar.querySelectorAll<HTMLElement>(TRIGGER)].find((button) => SORT_LABEL.test(button.textContent?.trim() ?? ''));
 
 function restoreLabel(toolbar: Element, labelElement: Element): void {
