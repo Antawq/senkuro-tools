@@ -42,140 +42,162 @@ export function hasSortMutation(mutations: Iterable<MutationRecord>): boolean {
 
 const percentOf = (loaded: number, total: number | null): number | null => (total ? Math.min(PERCENT, Math.floor((loaded * PERCENT) / total)) : null);
 
-export function createPriceSort(pageDocument: Document, host: SortHost): PriceSort {
-  let phase: Phase = 'idle';
-  let percent: number | null = null;
-  let eventCount = 0;
-  let rows: PriceRows | null = null;
-  let revision = 0;
-  let inputs: PriceInputs | null = null;
-  let sentWith: PriceInputs | null = null;
+interface SortState {
+  pageDocument: Document;
+  host: SortHost;
+  phase: Phase;
+  percent: number | null;
+  eventCount: number;
+  rows: PriceRows | null;
+  revision: number;
+  inputs: PriceInputs | null;
+  sentWith: PriceInputs | null;
+}
 
-  const watchStall = (seenEventCount: number): void =>
-    host.runAfter(() => {
-      if (phase !== 'loading') return;
-      if (eventCount !== seenEventCount) return watchStall(eventCount);
-      fallBack();
-    }, STALL_MS);
+function watchStall(state: SortState, seenEventCount: number): void {
+  state.host.runAfter(() => {
+    if (state.phase !== 'loading') return;
+    if (state.eventCount !== seenEventCount) return watchStall(state, state.eventCount);
+    fallBack(state);
+  }, STALL_MS);
+}
 
-  function fallBack(): void {
-    if (phase === 'partial' || phase === 'idle') return;
-    phase = 'partial';
-    rows = null;
-    sentWith = null;
-    host.setView(false);
-    host.schedule();
+function fallBack(state: SortState): void {
+  if (state.phase === 'partial' || state.phase === 'idle') return;
+  state.phase = 'partial';
+  state.rows = null;
+  state.sentWith = null;
+  state.host.setView(false);
+  state.host.schedule();
+}
+
+function beginView(state: SortState): void {
+  state.phase = 'loading';
+  state.percent = null;
+  state.rows = null;
+  state.sentWith = null;
+  state.host.setView(true);
+  watchStall(state, state.eventCount);
+}
+
+function endView(state: SortState): void {
+  if (state.phase === 'idle') return;
+  state.phase = 'idle';
+  state.rows = null;
+  state.sentWith = null;
+  state.host.setView(false);
+}
+
+function sendOrder(state: SortState, current: PriceInputs): void {
+  const rows = state.rows;
+  if (!rows) return;
+  state.revision += 1;
+  const lookup = createPriceLookup(current.database, current.commission);
+  state.host.sendOrder({
+    viewId: rows.viewId,
+    revision: state.revision,
+    descending: sortedIndices(rows.slugs, lookup, true),
+    ascending: sortedIndices(rows.slugs, lookup, false),
+  });
+  state.sentWith = current;
+}
+
+function releaseGrid(state: SortState, view: GridView | null): void {
+  reflectLabel(state.pageDocument, 'off');
+  if (!view) return;
+  markState(view.grid, null);
+  clearOrder(view.cards);
+}
+
+function showGrid(state: SortState, view: GridView, current: PriceInputs): void {
+  const { pageDocument, phase } = state;
+  if (phase === 'partial') {
+    markState(view.grid, 'partial');
+    reflectLabel(pageDocument, 'partial');
+    orderCards(view.cards, current.database, current.commission, pageDocument.querySelector(DIRECTION_ASCENDING) === null);
+    return;
   }
+  markState(view.grid, phase === 'loading' ? 'loading' : null);
+  clearOrder(view.cards);
+  if (phase === 'loading') reflectLabel(pageDocument, 'loading', state.percent);
+  else reflectLabel(pageDocument, 'price');
+}
 
-  function beginView(): void {
-    phase = 'loading';
-    percent = null;
-    rows = null;
-    sentWith = null;
-    host.setView(true);
-    watchStall(eventCount);
+function choosePriceMode(state: SortState, filters: Element): void {
+  filters.setAttribute(MODE_ATTRIBUTE, PRICE_MODE);
+  if (state.phase === 'idle' || state.phase === 'partial') beginView(state);
+  findSortTrigger(state.pageDocument)?.click();
+  state.host.schedule();
+}
+
+const needsNewOrder = (state: SortState, current: PriceInputs): boolean =>
+  state.rows !== null &&
+  (state.phase === 'loading' || state.phase === 'ready') &&
+  (state.sentWith?.database !== current.database || state.sentWith.commission !== current.commission);
+
+function syncSort(state: SortState, current: PriceInputs): void {
+  state.inputs = current;
+  const filters = state.pageDocument.querySelector(USER_CARD_FILTERS);
+  if (!filters) return endView(state);
+  const isPriceSelected = isPriceMode(filters);
+  decorateMenu(state.pageDocument, isPriceSelected);
+  const view = inspectGrid(state.pageDocument);
+  if (!isPriceSelected) {
+    endView(state);
+    return releaseGrid(state, view);
   }
+  if (state.phase === 'idle') beginView(state);
+  if (needsNewOrder(state, current)) sendOrder(state, current);
+  if (view) showGrid(state, view, current);
+  else reflectLabel(state.pageDocument, state.phase === 'loading' ? 'loading' : 'price', state.percent);
+}
 
-  function endView(): void {
-    if (phase === 'idle') return;
-    phase = 'idle';
-    rows = null;
-    sentWith = null;
-    host.setView(false);
+function handleSortClick(state: SortState, event: Event): void {
+  const filters = state.pageDocument.querySelector(USER_CARD_FILTERS);
+  const menuItem = event.target instanceof Element ? event.target.closest(`${MENU} ${MENU_ITEM}`) : null;
+  if (!filters || !menuItem) return;
+  if (menuItem.matches(OWN_ITEM)) {
+    if (event.target instanceof HTMLInputElement) choosePriceMode(state, filters);
+  } else if (isPriceMode(filters)) {
+    filters.removeAttribute(MODE_ATTRIBUTE);
+    endView(state);
+    state.host.schedule();
   }
+}
 
-  function sendOrder(current: PriceInputs): void {
-    if (!rows) return;
-    revision += 1;
-    const lookup = createPriceLookup(current.database, current.commission);
-    host.sendOrder({ viewId: rows.viewId, revision, descending: sortedIndices(rows.slugs, lookup, true), ascending: sortedIndices(rows.slugs, lookup, false) });
-    sentWith = current;
-  }
-
-  function releaseGrid(view: GridView | null): void {
-    reflectLabel(pageDocument, 'off');
-    if (!view) return;
-    markState(view.grid, null);
-    clearOrder(view.cards);
-  }
-
-  function showGrid(view: GridView, current: PriceInputs): void {
-    if (phase === 'partial') {
-      markState(view.grid, 'partial');
-      reflectLabel(pageDocument, 'partial');
-      orderCards(view.cards, current.database, current.commission, pageDocument.querySelector(DIRECTION_ASCENDING) === null);
-      return;
+function handleViewState(state: SortState, event: Event): void {
+  const viewState = readPriceState(event);
+  if (!viewState || state.phase === 'idle' || state.phase === 'partial') return;
+  state.eventCount += 1;
+  if (viewState.name === 'loading') {
+    if (state.phase === 'ready') {
+      state.rows = null;
+      state.sentWith = null;
+      watchStall(state, state.eventCount);
     }
-    markState(view.grid, phase === 'loading' ? 'loading' : null);
-    clearOrder(view.cards);
-    if (phase === 'loading') reflectLabel(pageDocument, 'loading', percent);
-    else reflectLabel(pageDocument, 'price');
-  }
+    state.phase = 'loading';
+    state.percent = percentOf(viewState.loaded, viewState.total);
+  } else if (viewState.name === 'ready') state.phase = 'ready';
+  else fallBack(state);
+  state.host.schedule();
+}
 
-  function choosePriceMode(filters: Element): void {
-    filters.setAttribute(MODE_ATTRIBUTE, PRICE_MODE);
-    if (phase === 'idle' || phase === 'partial') beginView();
-    findSortTrigger(pageDocument)?.click();
-    host.schedule();
-  }
+function handleViewRows(state: SortState, event: Event): void {
+  const next = readPriceRows(event);
+  if (!next || state.phase !== 'loading') return;
+  state.eventCount += 1;
+  state.rows = next;
+  state.revision = 0;
+  state.sentWith = null;
+  if (state.inputs) sendOrder(state, state.inputs);
+}
 
+export function createPriceSort(pageDocument: Document, host: SortHost): PriceSort {
+  const state: SortState = { pageDocument, host, phase: 'idle', percent: null, eventCount: 0, rows: null, revision: 0, inputs: null, sentWith: null };
   return {
-    sync(database, { commission }) {
-      const current = { database, commission };
-      inputs = current;
-      const filters = pageDocument.querySelector(USER_CARD_FILTERS);
-      if (!filters) return endView();
-      const isPriceSelected = isPriceMode(filters);
-      decorateMenu(pageDocument, isPriceSelected);
-      const view = inspectGrid(pageDocument);
-      if (!isPriceSelected) {
-        endView();
-        return releaseGrid(view);
-      }
-      if (phase === 'idle') beginView();
-      if (rows && (phase === 'loading' || phase === 'ready') && (sentWith?.database !== database || sentWith.commission !== commission)) sendOrder(current);
-      if (view) showGrid(view, current);
-      else reflectLabel(pageDocument, phase === 'loading' ? 'loading' : 'price', percent);
-    },
-
-    handleClick(event) {
-      const filters = pageDocument.querySelector(USER_CARD_FILTERS);
-      const menuItem = event.target instanceof Element ? event.target.closest(`${MENU} ${MENU_ITEM}`) : null;
-      if (!filters || !menuItem) return;
-      if (menuItem.matches(OWN_ITEM)) {
-        if (event.target instanceof HTMLInputElement) choosePriceMode(filters);
-      } else if (isPriceMode(filters)) {
-        filters.removeAttribute(MODE_ATTRIBUTE);
-        endView();
-        host.schedule();
-      }
-    },
-
-    handleState(event) {
-      const state = readPriceState(event);
-      if (!state || phase === 'idle' || phase === 'partial') return;
-      eventCount += 1;
-      if (state.name === 'loading') {
-        if (phase === 'ready') {
-          rows = null;
-          sentWith = null;
-          watchStall(eventCount);
-        }
-        phase = 'loading';
-        percent = percentOf(state.loaded, state.total);
-      } else if (state.name === 'ready') phase = 'ready';
-      else fallBack();
-      host.schedule();
-    },
-
-    handleRows(event) {
-      const next = readPriceRows(event);
-      if (!next || phase !== 'loading') return;
-      eventCount += 1;
-      rows = next;
-      revision = 0;
-      sentWith = null;
-      if (inputs) sendOrder(inputs);
-    },
+    sync: (database, { commission }) => syncSort(state, { database, commission }),
+    handleClick: (event) => handleSortClick(state, event),
+    handleState: (event) => handleViewState(state, event),
+    handleRows: (event) => handleViewRows(state, event),
   };
 }
