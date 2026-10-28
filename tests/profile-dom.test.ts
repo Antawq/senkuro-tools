@@ -379,6 +379,25 @@ describe('profile-dom', () => {
       expect(widget()?.textContent).toContain('Считаем F...');
     });
 
+    it('keeps the keyboard focus on the chip button through the count and the summary', async () => {
+      window.history.pushState({}, '', '/users/phaivroh');
+      document.body.innerHTML = header;
+      fetchMock.mockImplementation((_input: unknown, init?: RequestInit) =>
+        Promise.resolve(operationOf(init) === 'User' ? reply({ user: { id: 'u1', name: 'phaivroh' } }) : cardsPage(['luffy-s'], null))
+      );
+      await draw();
+      const button = widget()?.querySelector('button') as HTMLButtonElement;
+      button.focus();
+      button.click();
+      expect(widget()?.textContent).toContain('Считаем F...');
+      expect(document.activeElement).toBe(button);
+      expect(button.getAttribute('aria-busy')).toBe('true');
+      await until(() => widget()?.querySelector('.senkuro-f-value') !== null);
+      expect(document.activeElement).toBe(button);
+      expect(button.hasAttribute('aria-busy')).toBe(false);
+      expect(button.getAttribute('aria-expanded')).toBe('false');
+    });
+
     it('opens the value popover from a real button that says whether it is open, and outside clicks say it is closed', async () => {
       window.history.pushState({}, '', '/users/phaivroh');
       document.body.innerHTML = header;

@@ -13,6 +13,7 @@ const LOADING = 'senkuro-loading';
 const FAILED = 'senkuro-error';
 const IDLE = 'senkuro-idle';
 const ACTIVE = 'senkuro-popover-active';
+const TRIGGER = 'senkuro-f-chip-content';
 const R_HIGHLIGHT = 'senkuro-rank-r';
 const GUTTER_PROPERTY = '--senkuro-gutter';
 const SHIFT_PROPERTY = '--senkuro-popover-shift';
@@ -167,28 +168,38 @@ export function removeProfileBadge(): void {
 export const profileBadgeMissing = (): boolean =>
   !isTradeOpen() && isAppMounted(document) && Boolean(extractProfileSlug(window.location.pathname) && !document.getElementById(WIDGET_ID));
 
+function triggerOf(widget: HTMLElement): HTMLButtonElement {
+  const existing = [...widget.children].find((child): child is HTMLButtonElement => child instanceof HTMLButtonElement && child.classList.contains(TRIGGER));
+  if (existing) return existing;
+  const button = element('button', TRIGGER);
+  button.type = 'button';
+  widget.prepend(button);
+  return button;
+}
+
+function showTrigger(widget: HTMLElement, ...content: Node[]): HTMLButtonElement {
+  const button = triggerOf(widget);
+  [...widget.children].filter((child) => child !== button).forEach((child) => child.remove());
+  button.onclick = null;
+  button.removeAttribute('aria-expanded');
+  button.removeAttribute('aria-busy');
+  button.replaceChildren(...content);
+  return button;
+}
+
 function renderLoading(widget: HTMLElement, text: string): void {
   widget.classList.add(LOADING);
   widget.classList.remove(FAILED, IDLE);
   widget.onclick = null;
   widget.onmouseenter = null;
-  const content = element('div', 'senkuro-f-chip-content');
-  content.append(element('span', 'senkuro-chip-spinner'), element('span', 'senkuro-f-text', text));
-  widget.replaceChildren(content);
-}
-
-function chipButton(text: string): HTMLButtonElement {
-  const button = element('button', 'senkuro-f-chip-content');
-  button.type = 'button';
-  button.append(element('span', 'senkuro-f-text', text));
-  return button;
+  showTrigger(widget, element('span', 'senkuro-chip-spinner'), element('span', 'senkuro-f-text', text)).setAttribute('aria-busy', 'true');
 }
 
 function renderIdle(widget: HTMLElement, slug: string, deps: ProfileBadgeDeps): void {
   widget.classList.remove(LOADING, FAILED);
   widget.classList.add(IDLE);
   widget.onmouseenter = null;
-  widget.replaceChildren(chipButton(TEXT.idle));
+  showTrigger(widget, element('span', 'senkuro-f-text', TEXT.idle));
   widget.onclick = (event) => {
     event.stopPropagation();
     renderLoading(widget, TEXT.counting);
@@ -200,7 +211,7 @@ function renderError(widget: HTMLElement, slug: string, deps: ProfileBadgeDeps):
   widget.classList.remove(LOADING, IDLE);
   widget.classList.add(FAILED);
   widget.onmouseenter = null;
-  widget.replaceChildren(chipButton(TEXT.failed));
+  showTrigger(widget, element('span', 'senkuro-f-text', TEXT.failed));
   widget.onclick = (event) => {
     event.stopPropagation();
     reload(widget, slug, deps, false);
@@ -213,11 +224,9 @@ function renderSummary(widget: HTMLElement, slug: string, summary: ProfileValueS
   widget.onmouseenter = null;
 
   const popover = element('div', 'senkuro-profile-f-popover');
-  const chip = element('button', 'senkuro-f-chip-content');
-  chip.type = 'button';
+  const chip = showTrigger(widget, element('span', 'senkuro-f-value', summary.formattedF), chevronIcon('senkuro-chip-arrow'));
   chip.setAttribute('aria-expanded', 'false');
-  chip.append(element('span', 'senkuro-f-value', summary.formattedF), chevronIcon('senkuro-chip-arrow'));
-  chip.addEventListener('click', (event) => {
+  chip.onclick = (event) => {
     event.stopPropagation();
     document.querySelectorAll(`.${ACTIVE}`).forEach((el) => {
       if (el !== widget) closePopover(el);
@@ -225,7 +234,7 @@ function renderSummary(widget: HTMLElement, slug: string, summary: ProfileValueS
     const isOpen = widget.classList.toggle(ACTIVE);
     chip.setAttribute('aria-expanded', String(isOpen));
     if (isOpen) keepInView(popover);
-  });
+  };
 
   const title = element('div', 'senkuro-popover-title');
   const caption = element('span', undefined, TEXT.value);
@@ -254,7 +263,7 @@ function renderSummary(widget: HTMLElement, slug: string, summary: ProfileValueS
 
   popover.append(header, meta, body);
   widget.onmouseenter = () => keepInView(popover);
-  widget.replaceChildren(chip, popover);
+  widget.append(popover);
   if (widget.matches(':hover') || widget.classList.contains(ACTIVE)) keepInView(popover);
 }
 
