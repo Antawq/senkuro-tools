@@ -7,6 +7,7 @@ import { readDocumentToken } from './access-token';
 import { TOKEN_REQUEST, type TokenRequest, type TokenResponse } from './messages';
 
 const BAR = 'senkuro-token-bar';
+const HEIGHT_PROPERTY = '--senkutools-token-bar-height';
 const COPIED_MS = 2500;
 const COPY_LABEL = 'Копировать токен';
 const COPIED_LABEL = '✓ Скопировано!';
@@ -50,6 +51,17 @@ function copyButton(token: string): HTMLButtonElement {
   return button;
 }
 
+function publishHeight(root: HTMLElement): ResizeObserver {
+  const observer = new ResizeObserver(() => document.documentElement.style.setProperty(HEIGHT_PROPERTY, `${root.offsetHeight}px`));
+  observer.observe(root);
+  return observer;
+}
+
+function stopPublishing(observer: ResizeObserver | undefined): void {
+  observer?.disconnect();
+  document.documentElement.style.removeProperty(HEIGHT_PROPERTY);
+}
+
 function bar(token: string | null): HTMLElement {
   const root = element('div', BAR, '');
   root.append(
@@ -61,7 +73,7 @@ function bar(token: string | null): HTMLElement {
 }
 
 export function createTokenBar(ctx: ContentScriptContext): TokenBar {
-  let ui: IntegratedContentScriptUi<void> | null = null;
+  let ui: IntegratedContentScriptUi<ResizeObserver> | null = null;
   let latestRequestId = 0;
   const hide = () => {
     ui?.remove();
@@ -77,7 +89,16 @@ export function createTokenBar(ctx: ContentScriptContext): TokenBar {
       const token = await readToken();
       if (ctx.isInvalid || requestId !== latestRequestId) return;
       hide();
-      ui = createIntegratedUi(ctx, { position: 'inline', anchor: 'body', onMount: (wrapper) => wrapper.append(bar(token)) });
+      ui = createIntegratedUi(ctx, {
+        position: 'inline',
+        anchor: 'body',
+        onMount: (wrapper) => {
+          const root = bar(token);
+          wrapper.append(root);
+          return publishHeight(root);
+        },
+        onRemove: stopPublishing,
+      });
       ui.mount();
     },
   };

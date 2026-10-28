@@ -33,3 +33,9 @@
   margin: 0 -0.15em 0 0.25em;
   vertical-align: -0.3em;
 }
+
+@media (width < 992px) {
+  body:has(.senkuro-token-bar) {
+    padding-bottom: var(--senkutools-token-bar-height, 0px);
+  }
+}

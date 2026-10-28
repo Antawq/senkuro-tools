@@ -48,4 +48,31 @@ describe('token bar setting', () => {
     await bar.sync(false);
     expect(document.querySelector(BAR)).toBeNull();
   });
+
+  it('publishes its height on the page root while shown, and clears it when hidden or when the extension context goes away', async () => {
+    const disconnect = vi.fn();
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(private readonly onResize: () => void) {}
+        observe() {
+          this.onResize();
+        }
+        disconnect = disconnect;
+      }
+    );
+    const height = () => document.documentElement.style.getPropertyValue('--senkutools-token-bar-height');
+    const bar = createTokenBar(ctx);
+    answer({ token: TOKEN });
+    await bar.sync(true);
+    expect(height()).toBe('0px');
+    await bar.sync(false);
+    expect(height()).toBe('');
+    expect(disconnect).toHaveBeenCalledOnce();
+    await bar.sync(true);
+    expect(height()).toBe('0px');
+    ctx.abort();
+    expect(height()).toBe('');
+    vi.unstubAllGlobals();
+  });
 });

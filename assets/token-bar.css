@@ -53,3 +53,10 @@
   background: var(--success-tertiary);
   color: var(--success);
 }
+
+@media (width < 992px) {
+  body:has(.nav-bar) .senkuro-token-bar {
+    --senkuro-dock-room: calc(12px + 60px);
+    bottom: var(--senkuro-dock-room);
+  }
+}
