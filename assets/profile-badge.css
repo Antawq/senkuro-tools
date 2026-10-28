@@ -70,6 +70,15 @@ button.senkuro-f-chip-content {
   cursor: inherit;
 }
 
+button.senkuro-f-chip-content:focus-visible {
+  outline: none;
+}
+
+.senkuro-profile-f-chip:has(> .senkuro-f-chip-content:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 @supports (text-box: trim-both cap alphabetic) {
   .senkuro-profile-f-chip :is(.senkuro-f-text, .senkuro-f-value) {
     text-box: trim-both cap alphabetic;

@@ -180,6 +180,12 @@ a.card-collect[data-senkuro-style='outline']::after {
   opacity: 1;
 }
 
+.senkuro-copy-btn:focus-visible {
+  outline: 2px solid var(--senkuro-accent);
+  outline-offset: 2px;
+  opacity: 1;
+}
+
 .senkuro-copy-btn--done {
   color: var(--senkuro-tier-green);
 }
