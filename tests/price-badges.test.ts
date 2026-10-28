@@ -29,6 +29,7 @@ beforeEach(() => {
 afterEach(() => {
   document.documentElement.removeAttribute(APP_MOUNTED_ATTRIBUTE);
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 const AXIS_X = {
@@ -128,6 +129,25 @@ describe('createPriceBadges', () => {
     expect(writeText).toHaveBeenCalledWith('Соран');
     expect(click.defaultPrevented).toBe(true);
     expect(control.classList.contains('senkuro-copy-btn--done')).toBe(true);
+  });
+
+  it('restores the copy icon after the done mark, and says nothing is copied when the clipboard refuses', async () => {
+    vi.useFakeTimers();
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('denied'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    document.body.innerHTML = preview();
+    createPriceBadges({ touch: false }).update(db, { ...DEFAULT_SETTINGS, copyBtn: true });
+    const control = holderOf().querySelector('.senkuro-copy-btn') as HTMLElement;
+    control.click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(control.classList.contains('senkuro-copy-btn--done')).toBe(true);
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(control.classList.contains('senkuro-copy-btn--done')).toBe(false);
+    control.click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(writeText).toHaveBeenCalledTimes(2);
+    expect(control.classList.contains('senkuro-copy-btn--done')).toBe(false);
+    expect(warn).toHaveBeenCalledWith('SenkuTools: clipboard', expect.any(Error));
   });
 
   it('draws the copy button as a real button, so a keyboard reaches it', () => {
