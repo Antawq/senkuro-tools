@@ -2,7 +2,7 @@ import { concat, fromValue, make, map, pipe, switchMap } from 'wonka';
 import type { Source } from 'wonka';
 
 import { operationName, type QueryClient, type QueryRequest } from '../shared/urql-client';
-import { isSettled, type SourceResult } from '../shared/urql-source';
+import { isSettled, tapSource, type SourceResult } from '../shared/urql-source';
 import { searchRequestOf } from './catalog-filters';
 import { streamCatalogMatches } from './catalog-matches';
 import { catalogKindOf, isEmptyCatalogAnswer, toCatalogData } from './catalog-results';
@@ -37,7 +37,7 @@ export function installCatalogFallback(client: QueryClient, isHydrating: () => b
     const isHydration = isHydrating();
     const order = sortOrderOf(request.variables, kind);
 
-    return pipe(
+    const answers = pipe(
       source as Source<CatalogAnswer>,
       switchMap((answer) => {
         if (!isSettled(answer) || !isEmptyCatalogAnswer(answer, kind)) return fromValue(answer);
@@ -51,5 +51,6 @@ export function installCatalogFallback(client: QueryClient, isHydrating: () => b
         return isHydration ? concat([fromValue(answer), rows]) : rows;
       })
     );
+    return tapSource(answers, {});
   });
 }

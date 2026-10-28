@@ -8,32 +8,38 @@ const HYDRATION_DONE = 'app:suspense:resolve';
 
 export const isAppMounted = (pageDocument: Document): boolean => pageDocument.documentElement.hasAttribute(APP_MOUNTED_ATTRIBUTE);
 
-const hydratingHooksOf = (app: VueApp | null): SiteHooks | null => {
-  const site = app?.$senkuro;
+const hydratingHooksOf = (app: VueApp): SiteHooks | null => {
+  const site = app.$senkuro;
   const hooks = site?.hooks;
   return site?.hydrating === true && typeof hooks?.on === 'function' && typeof hooks.off === 'function' ? (hooks as SiteHooks) : null;
 };
 
-function publishAfterHydration(app: VueApp | null, publish: () => void): void {
+function runWhenHydrated(app: VueApp, run: (app: VueApp) => void): void {
   const hooks = hydratingHooksOf(app);
-  if (!hooks) return publish();
+  if (!hooks) return run(app);
   const handleHydrationDone = (): void => {
     hooks.off(HYDRATION_DONE, handleHydrationDone);
-    publish();
+    run(app);
   };
   hooks.on(HYDRATION_DONE, handleHydrationDone);
 }
 
+export function runAfterHydration(pageWindow: PageWindow, run: (app: VueApp) => void): void {
+  const app = findVueApp(pageWindow.document);
+  if (app) return runWhenHydrated(app, run);
+  let hasMounted = false;
+  watchVueApp(pageWindow, (container) => {
+    const mounted = !hasMounted && container.matches(APP_ROOT) ? findVueApp(pageWindow.document) : null;
+    if (!mounted) return;
+    hasMounted = true;
+    runWhenHydrated(mounted, run);
+  });
+}
+
 export function publishAppMounted(pageWindow: PageWindow): void {
-  const publish = (): void => {
+  runAfterHydration(pageWindow, () => {
     if (isAppMounted(pageWindow.document)) return;
     pageWindow.document.documentElement.setAttribute(APP_MOUNTED_ATTRIBUTE, '');
     pageWindow.document.dispatchEvent(new pageWindow.CustomEvent(APP_MOUNTED_EVENT));
-  };
-  const app = findVueApp(pageWindow.document);
-  if (app) publishAfterHydration(app, publish);
-  else
-    watchVueApp(pageWindow, (container) => {
-      if (container.matches(APP_ROOT)) publishAfterHydration(findVueApp(pageWindow.document), publish);
-    });
+  });
 }
