@@ -317,18 +317,6 @@ describe('installInventoryGuard', () => {
     await win.happyDOM.close();
   });
 
-  it('knows the cursors the site was given before its client was found, from the answers on the wire', async () => {
-    const { win, mount, respond, browse, reached } = rig({ mounted: false });
-    const cards = { userId: 'USER:1', modifier: { include: [0] } };
-    await win.fetch(GRAPHQL, { method: 'POST', body: JSON.stringify({ operationName: LIST_OPERATION, variables: cards }) });
-    mount();
-    await respond();
-    browse({ userId: 'USER:1', modifier: { include: [1] }, after: 'c1' });
-    browse({ ...cards, after: 'c1' });
-    expect(reached.map((variables) => variables.after)).toEqual([null, 'c1']);
-    await win.happyDOM.close();
-  });
-
   describe('refreshing the open lists on request', () => {
     it('marks the document ready once it has found the client, and not before', async () => {
       const { win, mount, respond } = rig({ mounted: false });
@@ -546,20 +534,6 @@ describe('installInventoryGuard', () => {
       await settle();
       expect(states.at(-1)?.name).not.toBe('unavailable');
       expect(rows).toEqual([{ viewId: 1, slugs: ['a', 'b', 'c', 'd'] }]);
-      await win.happyDOM.close();
-    });
-
-    it('gives the real list back with the cursor the guard repaired, not the foreign one it dropped', async () => {
-      const { win, respond, browseList, switchView, order, reexecuted, reached } = rig({ onFetch: crawlPages, withRedrive: true });
-      await respond();
-      await win.fetch(GRAPHQL, { method: 'POST', body: JSON.stringify({ operationName: LIST_OPERATION, variables: grid }) });
-      browseList(listRequest({ ...grid, modifier: { include: [1] }, after: 'c1' }));
-      expect(reached.at(-1)?.after).toBeNull();
-      switchView(true);
-      await settle();
-      order(reversed);
-      switchView(false);
-      expect(reexecuted.at(-1)?.requested.variables?.after ?? null).toBeNull();
       await win.happyDOM.close();
     });
 

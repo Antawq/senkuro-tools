@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
+import { Client, gql, type Operation, type OperationResult } from '@urql/core';
+
 import { recordLists } from '../utils/inventory/client-hooks';
-import { createCursorLedger, guardCursors, repairRequest } from '../utils/inventory/list-cursors';
-import { LIST_OPERATION, type PageRequest, type Variables } from '../utils/inventory/list-families';
-import type { QueryClient, QueryRequest } from '../utils/shared/urql-client';
+import { createCursorLedger, cursorExchange, repairOperation, type CursorLedger } from '../utils/inventory/list-cursors';
+import type { PageRequest, Variables } from '../utils/inventory/list-families';
+import { delegateExchange } from '../utils/shared/delegate-exchange';
+import type { QueryClient } from '../utils/shared/urql-client';
+import { SITE_URL, createSiteClient, nameOf, type SiteAnswer } from './helpers/site-client';
 
 const cards = (after?: string | null): Variables => ({
   userId: 'USER:1',
@@ -15,11 +19,34 @@ const cards = (after?: string | null): Variables => ({
 
 const shards = (after?: string | null): Variables => ({ ...cards(after), modifier: { include: [1] } });
 
-const request = (variables: Variables | undefined, name = LIST_OPERATION): QueryRequest => ({
-  key: 7,
-  ...(variables ? { variables } : {}),
-  query: { definitions: [{ kind: 'OperationDefinition', name: { value: name } }] },
-});
+const LIST = gql`
+  query fetchUserCards($userId: ID!, $after: String) {
+    userCards(first: 20, userId: $userId, after: $after) {
+      edges {
+        node {
+          modifier
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
+
+const VIEWER = gql`
+  query fetchViewer($after: String) {
+    viewer {
+      id
+    }
+  }
+`;
+
+const listAnswer = (endCursor: unknown) => ({ data: { userCards: { edges: [], pageInfo: { hasNextPage: true, endCursor } } } });
+
+const operationOf = (variables: Variables | undefined, query = LIST): Operation =>
+  new Client({ url: SITE_URL, exchanges: [] }).createRequestOperation('query', { key: 7, query, variables: variables ?? {} });
 
 describe('createCursorLedger', () => {
   it('calls a cursor foreign only when another list issued it', () => {
@@ -82,43 +109,33 @@ describe('createCursorLedger', () => {
   });
 });
 
-describe('repairRequest', () => {
+describe('repairOperation', () => {
   it('starts a list over when it was asked for with another list cursor, changing nothing else', () => {
     const ledger = createCursorLedger();
     ledger.learn(cards(), 'c1');
-    const asked = request(shards('c1'));
-    const fixed = repairRequest(asked, ledger);
+    const asked = operationOf(shards('c1'));
+    const fixed = repairOperation(asked, ledger);
     expect(fixed.variables).toEqual(shards(null));
     expect(fixed.key).toBe(asked.key);
     expect(fixed.query).toBe(asked.query);
+    expect(fixed.context).toEqual(asked.context);
     expect(asked.variables).toEqual(shards('c1'));
   });
 
-  it('returns the same request when the cursor is its own, unknown, missing, or the operation is another one', () => {
+  it('returns the same operation when the cursor is its own, unknown, missing, or the operation is another one', () => {
     const ledger = createCursorLedger();
     ledger.learn(cards(), 'c1');
-    for (const asked of [request(cards('c1')), request(shards('unknown')), request(shards()), request(undefined), request(shards('c1'), 'fetchViewer')]) {
-      expect(repairRequest(asked, ledger)).toBe(asked);
+    for (const asked of [
+      operationOf(cards('c1')),
+      operationOf(shards('unknown')),
+      operationOf(shards()),
+      operationOf(undefined, VIEWER),
+      operationOf(shards('c1'), VIEWER),
+    ]) {
+      expect(repairOperation(asked, ledger)).toBe(asked);
     }
   });
 });
-
-interface Calls {
-  asked: { request: QueryRequest; options: Record<string, unknown> | undefined }[];
-}
-
-const clientRecording = () => {
-  const calls: Calls = { asked: [] };
-  const client: QueryClient = {
-    executeQuery(asked, options) {
-      calls.asked.push({ request: asked, options });
-      return 'source';
-    },
-    executeMutation: () => null,
-    query: () => ({ toPromise: () => Promise.resolve({}) }),
-  };
-  return { client, calls };
-};
 
 const knowing = (...pairs: [Variables, string][]) => {
   const ledger = createCursorLedger();
@@ -126,98 +143,116 @@ const knowing = (...pairs: [Variables, string][]) => {
   return ledger;
 };
 
-describe('guardCursors', () => {
-  it('sends a list that asks with the cursor of another list from its first page, changing nothing else', () => {
-    const { client, calls } = clientRecording();
-    expect(guardCursors(client, undefined, knowing([cards(), 'c1']))).toBe(true);
-    const asked = request(shards('c1'));
-    expect(client.executeQuery(asked, { requestPolicy: 'cache-first' })).toBe('source');
-    expect(calls.asked[0]?.request.variables).toEqual(shards(null));
-    expect(calls.asked[0]?.request.key).toBe(asked.key);
-    expect(calls.asked[0]?.options).toEqual({ requestPolicy: 'cache-first' });
-    expect(asked.variables).toEqual(shards('c1'));
+const rig = (ledger: CursorLedger = createCursorLedger(), onDrop?: (variables: Variables) => void, answer: SiteAnswer = () => listAnswer('c9')) => {
+  const site = createSiteClient(answer);
+  const client = new Client({ url: SITE_URL, exchanges: [cursorExchange(ledger, onDrop), delegateExchange(site.client)] });
+  const siteVariables = () => site.operations.filter((operation) => operation.kind === 'query').map((operation) => operation.variables);
+  const ask = (variables: Variables, query = LIST): Promise<OperationResult> => client.query(query, variables).toPromise();
+  return { site, ledger, siteVariables, ask };
+};
+
+describe('cursorExchange', () => {
+  it('sends a list that asks with the cursor of another list from its first page, changing nothing else, and the caller gets the answer', async () => {
+    const { ask, siteVariables } = rig(knowing([cards(), 'c1']));
+    const result = await ask(shards('c1'));
+    expect(siteVariables()).toEqual([shards(null)]);
+    expect(result.data).toEqual(listAnswer('c9').data);
+    expect(result.operation.variables).toEqual(shards(null));
   });
 
-  it('lets a list continue with its own cursor, and asks with a cursor nobody gave out as it is', () => {
-    const { client, calls } = clientRecording();
-    guardCursors(client, undefined, knowing([cards(), 'c1']));
-    client.executeQuery(request(cards('c1')));
-    client.executeQuery(request(shards('unknown')));
-    expect(calls.asked.map((entry) => entry.request.variables)).toEqual([cards('c1'), shards('unknown')]);
+  it('lets a list continue with its own cursor, and asks with a cursor nobody gave out as it is', async () => {
+    const { ask, siteVariables } = rig(knowing([cards(), 'c1']));
+    await ask(cards('c1'));
+    await ask(shards('unknown'));
+    expect(siteVariables()).toEqual([cards('c1'), shards('unknown')]);
   });
 
-  it('reports each dropped cursor with the variables it was dropped from', () => {
-    const { client } = clientRecording();
+  it('reports each dropped cursor with the variables it was dropped from', async () => {
     const dropped: Variables[] = [];
-    guardCursors(client, (variables) => dropped.push(variables), knowing([cards(), 'c1']));
-    client.executeQuery(request(shards('c1')));
-    client.executeQuery(request(cards('c1')));
+    const { ask } = rig(knowing([cards(), 'c1']), (variables) => dropped.push(variables));
+    await ask(shards('c1'));
+    await ask(cards('c1'));
     expect(dropped).toEqual([shards('c1')]);
   });
 
-  it('leaves other operations and requests without variables as they are', () => {
-    const { client, calls } = clientRecording();
-    guardCursors(client, undefined, knowing([cards(), 'c1']));
-    const other = request({ ...shards('c1') }, 'fetchViewer');
-    const bare = request(undefined);
-    client.executeQuery(other);
-    client.executeQuery(bare);
-    expect(calls.asked[0]?.request).toBe(other);
-    expect(calls.asked[1]?.request).toBe(bare);
+  it('leaves other operations as they are', async () => {
+    const { ask, site } = rig(knowing([cards(), 'c1']), undefined, () => ({ data: { viewer: { id: 'U1' } } }));
+    await ask(shards('c1'), VIEWER);
+    expect(site.operations.filter((operation) => nameOf(operation) === 'fetchViewer').map((operation) => operation.variables)).toEqual([shards('c1')]);
   });
 
-  it('hands back whatever the client returns, untouched', () => {
-    const client = clientRecording().client;
-    const plain = { not: 'a source' };
-    client.executeQuery = () => plain;
-    expect(guardCursors(client)).toBe(true);
-    expect(client.executeQuery(request(cards()))).toBe(plain);
+  it('survives a throwing report callback', async () => {
+    const { ask, siteVariables } = rig(knowing([cards(), 'c1']), () => {
+      throw new Error('boom');
+    });
+    await expect(ask(shards('c1'))).resolves.toBeDefined();
+    expect(siteVariables()).toEqual([shards(null)]);
   });
 
-  it('survives a throwing report callback', () => {
-    const { client, calls } = clientRecording();
-    guardCursors(
-      client,
-      () => {
-        throw new Error('boom');
-      },
-      knowing([cards(), 'c1'])
-    );
-    expect(() => client.executeQuery(request(shards('c1')))).not.toThrow();
-    expect(calls.asked[0]?.request.variables).toEqual(shards(null));
+  it('learns the end cursor of a list answer with the list that asked', async () => {
+    const { ask, ledger } = rig(createCursorLedger(), undefined, () => listAnswer('c1'));
+    await ask(cards());
+    expect(ledger.isForeign(shards('c1'))).toBe(true);
+    expect(ledger.isForeign(cards('c1'))).toBe(false);
   });
 
-  it('wraps a client once and gives up quietly on one that cannot be changed', () => {
-    const twice = clientRecording();
-    const reported: string[] = [];
-    const ledger = knowing([cards(), 'c1']);
-    expect(guardCursors(twice.client, () => reported.push('first'), ledger)).toBe(true);
-    expect(guardCursors(twice.client, () => reported.push('second'), ledger)).toBe(true);
-    twice.client.executeQuery(request(shards('c1')));
-    expect(reported).toEqual(['first']);
-    expect(twice.calls.asked).toHaveLength(1);
-    const frozen = clientRecording().client;
-    Object.freeze(frozen);
-    expect(guardCursors(frozen)).toBe(false);
+  it('learns the cursor a list asked with too, which the site handed out before the swap', async () => {
+    const { ask, ledger } = rig(createCursorLedger(), undefined, () => listAnswer('c2'));
+    await ask(cards('c1'));
+    expect(ledger.isForeign(shards('c1'))).toBe(true);
+    expect(ledger.isForeign(shards('c2'))).toBe(true);
+    expect(ledger.isForeign(cards('c1'))).toBe(false);
   });
 
-  it('is seen by the list record before it records, so a replay never carries a foreign cursor', () => {
-    const { client, calls } = clientRecording();
+  it('learns the end cursor of a first page the cache answered, which never went over the wire', async () => {
+    const { ask, ledger } = rig(createCursorLedger(), undefined, () => ({ ...listAnswer('c20'), cacheOutcome: 'hit' }));
+    await ask(cards(null));
+    expect(ledger.isForeign(shards('c20'))).toBe(true);
+  });
+
+  it('hands the caller the answer whole', async () => {
+    const { ask } = rig();
+    expect((await ask(cards())).data).toEqual(listAnswer('c9').data);
+  });
+
+  it('learns nothing from an answer of another operation, an answer that is not a list or has no cursor, and still returns it', async () => {
+    for (const data of [{ userCards: null }, listAnswer(null).data, listAnswer('').data]) {
+      const { ask, ledger } = rig(createCursorLedger(), undefined, () => ({ data }));
+      expect((await ask(cards())).data).toEqual(data);
+      expect(ledger.isForeign(shards(''))).toBe(false);
+    }
+    const viewer = rig(createCursorLedger(), undefined, () => listAnswer('c1'));
+    await viewer.ask({}, VIEWER);
+    expect(viewer.ledger.isForeign(shards('c1'))).toBe(false);
+  });
+
+  it('passes a failed answer on as it failed and learns only the cursor it was asked with', async () => {
+    const { ask, ledger } = rig(createCursorLedger(), undefined, () => ({ error: 'boom' }));
+    const result = await ask(cards('c1'));
+    expect(result.error?.message).toContain('boom');
+    expect(ledger.isForeign(shards('c1'))).toBe(true);
+    expect(ledger.isForeign(shards('c9'))).toBe(false);
+  });
+});
+
+describe('cursorExchange and the list record', () => {
+  const recordedRig = (ledger: CursorLedger) => {
+    const site = createSiteClient(() => listAnswer('c9'));
     const pages: PageRequest[] = [];
-    recordLists(client, (page) => pages.push(page), new WeakSet());
-    guardCursors(client, undefined, knowing([cards(), 'c1']));
-    client.executeQuery(request(shards('c1')));
+    recordLists(site.client as unknown as QueryClient, (page) => pages.push(page), new WeakSet());
+    const client = new Client({ url: SITE_URL, exchanges: [cursorExchange(ledger), delegateExchange(site.client)] });
+    return { client, pages };
+  };
+
+  it('is seen by the list record before it records, so a replay never carries a foreign cursor', async () => {
+    const { client, pages } = recordedRig(knowing([cards(), 'c1']));
+    await client.query(LIST, shards('c1')).toPromise();
     expect(pages.map((page) => page.variables)).toEqual([shards(null)]);
-    expect(calls.asked[0]?.request.variables).toEqual(shards(null));
   });
 
-  it('keeps a replay that carries a cursor of its own list', () => {
-    const { client, calls } = clientRecording();
-    const pages: PageRequest[] = [];
-    recordLists(client, (page) => pages.push(page), new WeakSet());
-    guardCursors(client, undefined, knowing([cards(), 'c1']));
-    client.executeQuery(request(cards('c1')));
+  it('keeps a replay that carries a cursor of its own list', async () => {
+    const { client, pages } = recordedRig(knowing([cards(), 'c1']));
+    await client.query(LIST, cards('c1')).toPromise();
     expect(pages.map((page) => page.variables)).toEqual([cards('c1')]);
-    expect(calls.asked[0]?.request.variables).toEqual(cards('c1'));
   });
 });

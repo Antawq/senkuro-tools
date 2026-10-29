@@ -1,3 +1,5 @@
+import { getOperationName, type Operation } from '@urql/core';
+
 import type { ListScope } from '../shared/list-scope';
 
 export const LIST_OPERATION = 'fetchUserCards';
@@ -58,6 +60,12 @@ export const stableJson = (value: unknown): string => JSON.stringify(value, sort
 const withoutCursor = (variables: Variables): Variables => Object.fromEntries(Object.entries(variables).filter(([key]) => key !== CURSOR_KEY));
 
 export const familyIdOf = (variables: Variables): string => stableJson(withoutCursor(variables));
+
+export function listVariablesOf(operation: Operation): Variables | null {
+  if (operation.kind !== 'query' || getOperationName(operation.query) !== LIST_OPERATION) return null;
+  const variables: unknown = operation.variables;
+  return variables && typeof variables === 'object' ? (variables as Variables) : null;
+}
 
 export const hasCursor = (variables: Variables): boolean => variables[CURSOR_KEY] != null;
 

@@ -24,7 +24,6 @@ import {
 import type { ListScope } from '../shared/list-scope';
 import { operationName, runWhenClientFound, type QueryClient } from '../shared/urql-client';
 import { recordLists, rewriteLists, tapMutations, type MutationResult } from './client-hooks';
-import { createCursorLedger, guardCursors, type CursorLedger } from './list-cursors';
 import {
   createListRecord,
   familyIdOf,
@@ -36,7 +35,6 @@ import {
   type PageRequest,
   type ReceivedCard,
 } from './list-families';
-import { learnFromFetch } from './list-seen';
 import { REFRESH_POLICY, refreshFamilies, type RefreshEnv, type RefreshReport } from './list-refresh';
 import { crawlList } from './price-crawl';
 import { crawlDocumentOf } from './price-document';
@@ -88,7 +86,6 @@ interface Guard {
   pageWindow: PageWindow;
   debug: (...args: unknown[]) => void;
   record: ListRecord;
-  ledger: CursorLedger;
   silent: WeakSet<object>;
   pendingFamilyIds: Set<string>;
   sleep: (ms: number) => Promise<void>;
@@ -242,12 +239,7 @@ function attachClient(guard: Guard, priceViews: PriceViews, client: QueryClient)
   );
   const isTapping = tapMutations(client, (result) => handleMutation(guard, priceViews, client, result));
   const isRewriting = rewriteLists(client, priceViews, guard.silent);
-  const isGuarding = guardCursors(
-    client,
-    (variables) => guard.debug('stale cursor dropped', { list: familyIdOf(variables), after: variables.after }),
-    guard.ledger
-  );
-  const isAttached = isRecording && isTapping && isGuarding && isRewriting;
+  const isAttached = isRecording && isTapping && isRewriting;
   if (isAttached) guard.pageWindow.document.documentElement.setAttribute(GUARD_ATTRIBUTE, GUARD_READY);
   guard.debug('urql client', isAttached ? 'attached' : 'not replaceable');
 }
@@ -258,7 +250,6 @@ export function installInventoryGuard(pageWindow: PageWindow): void {
     pageWindow,
     debug: debugLogger(pageWindow),
     record: createListRecord(),
-    ledger: createCursorLedger(),
     silent: new WeakSet<object>(),
     pendingFamilyIds: new Set<string>(),
     sleep: sleepIn(pageWindow),
@@ -269,7 +260,6 @@ export function installInventoryGuard(pageWindow: PageWindow): void {
   pageWindow.document.addEventListener(REFRESH_REQUEST_EVENT, (event) => handleRefreshRequest(guard, priceViews, event));
   pageWindow.document.addEventListener(PRICE_VIEW_EVENT, (event) => handlePriceSwitch(priceViews, event));
   pageWindow.document.addEventListener(PRICE_ORDER_EVENT, (event) => handlePriceOrder(priceViews, event));
-  learnFromFetch(pageWindow, guard.ledger);
   answerPrivateRequests(pageWindow, priceViews);
   runWhenClientFound(pageWindow, (client) => attachClient(guard, priceViews, client));
 }

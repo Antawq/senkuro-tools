@@ -1,7 +1,8 @@
-import { operationName, type QueryClient, type QueryRequest } from '../shared/urql-client';
-import { LIST_OPERATION, familyIdOf, type Variables } from './list-families';
+import { makeOperation, type Exchange, type Operation, type OperationResult } from '@urql/core';
+import { map, pipe, tap } from 'wonka';
 
-const CURSOR_KEY = 'after';
+import { CURSOR_KEY, familyIdOf, listVariablesOf, type Variables } from './list-families';
+
 const MAX_CURSORS = 2000;
 
 export interface CursorLedger {
@@ -9,7 +10,9 @@ export interface CursorLedger {
   isForeign(variables: Variables): boolean;
 }
 
-const guardedClients = new WeakSet<QueryClient>();
+interface ListAnswer {
+  userCards?: { pageInfo?: { endCursor?: unknown } | null } | null;
+}
 
 const cursorOf = (variables: Variables): string | null => {
   const cursor = variables[CURSOR_KEY];
@@ -36,10 +39,10 @@ export function createCursorLedger(maxCursors = MAX_CURSORS): CursorLedger {
   };
 }
 
-export function repairRequest(request: QueryRequest, ledger: CursorLedger): QueryRequest {
-  const { variables } = request;
-  if (operationName(request) !== LIST_OPERATION || !variables || !ledger.isForeign(variables)) return request;
-  return { ...request, variables: { ...variables, [CURSOR_KEY]: null } };
+export function repairOperation(operation: Operation, ledger: CursorLedger): Operation {
+  const variables = listVariablesOf(operation);
+  if (!variables || !ledger.isForeign(variables)) return operation;
+  return makeOperation(operation.kind, { ...operation, variables: { ...variables, [CURSOR_KEY]: null } }, operation.context);
 }
 
 const reportDroppedCursor = (onDrop: (variables: Variables) => void, variables: Variables): void => {
@@ -50,18 +53,23 @@ const reportDroppedCursor = (onDrop: (variables: Variables) => void, variables: 
   }
 };
 
-export function guardCursors(client: QueryClient, onDrop: (variables: Variables) => void = () => undefined, ledger = createCursorLedger()): boolean {
-  if (guardedClients.has(client)) return true;
-  const original = client.executeQuery.bind(client);
-  try {
-    client.executeQuery = (request, options) => {
-      const repairedRequest = repairRequest(request, ledger);
-      if (repairedRequest !== request && request.variables) reportDroppedCursor(onDrop, request.variables);
-      return original(repairedRequest, options);
-    };
-  } catch {
-    return false;
-  }
-  guardedClients.add(client);
-  return true;
+function learnFromResult(result: OperationResult, ledger: CursorLedger): void {
+  const variables = listVariablesOf(result.operation);
+  if (variables) ledger.learn(variables, (result.data as ListAnswer | null | undefined)?.userCards?.pageInfo?.endCursor);
+}
+
+export function cursorExchange(ledger: CursorLedger, onDrop: (variables: Variables) => void = () => undefined): Exchange {
+  const guard = (operation: Operation): Operation => {
+    const repaired = repairOperation(operation, ledger);
+    const variables = listVariablesOf(repaired);
+    if (repaired !== operation) reportDroppedCursor(onDrop, operation.variables as Variables);
+    if (variables) ledger.learn(variables, variables[CURSOR_KEY]);
+    return repaired;
+  };
+  return ({ forward }) =>
+    (operations$) =>
+      pipe(
+        forward(pipe(operations$, map(guard))),
+        tap((result) => learnFromResult(result, ledger))
+      );
 }
