@@ -47,7 +47,7 @@ export function swapClient(app: VueApp, host: SwapHost, debug: Debug = () => und
     ...host.exchangesFor(siteClient),
     delegateExchange(siteClient, (operation) => debug('site request re-keyed', getOperationName(operation.query))),
   ];
-  const client = new Client({ url, suspense: true, exchanges });
+  const client = new Client({ url, requestPolicy: defaultContextOf(siteClient).requestPolicy, suspense: true, exchanges });
   clientRef.value = client;
   if (clientRef.value !== client) {
     debug('client not swapped', { isReadonly: true });

@@ -1,4 +1,14 @@
-import { Client, getOperationName, makeOperation, makeResult, type CacheOutcome, type Exchange, type Operation, type OperationResult } from '@urql/core';
+import {
+  Client,
+  getOperationName,
+  makeOperation,
+  makeResult,
+  type CacheOutcome,
+  type ClientOptions,
+  type Exchange,
+  type Operation,
+  type OperationResult,
+} from '@urql/core';
 import { delay, filter, fromValue, mergeMap, pipe, subscribe } from 'wonka';
 
 export const SITE_URL = 'https://api.senkuro.me/graphql';
@@ -35,8 +45,15 @@ const answeringExchange =
       })
     );
 
-export function createSiteClient(answer: SiteAnswer): SiteClient {
-  const client = new Client({ url: SITE_URL, fetchOptions: siteFetchOptions, preferGetMethod: false, suspense: true, exchanges: [answeringExchange(answer)] });
+export function createSiteClient(answer: SiteAnswer, options: Partial<ClientOptions> = {}): SiteClient {
+  const client = new Client({
+    url: SITE_URL,
+    fetchOptions: siteFetchOptions,
+    preferGetMethod: false,
+    suspense: true,
+    exchanges: [answeringExchange(answer)],
+    ...options,
+  });
   const operations: Operation[] = [];
   pipe(
     client.operations$,

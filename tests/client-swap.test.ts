@@ -74,6 +74,16 @@ describe('swapClient', () => {
     await tick();
   });
 
+  it('asks the site with its own default request policy when the caller names none', async () => {
+    const site = createSiteClient(() => ({ data: { viewer: { id: 'U1' } } }), { requestPolicy: 'cache-and-network' });
+    const swapped = swapClient(appWith(clientRef(site.client)), host());
+    await swapped!.query(VIEWER, {}).toPromise();
+    await tick();
+    expect(site.operations.filter((operation) => operation.kind === 'query').map((operation) => operation.context.requestPolicy)).toEqual([
+      'cache-and-network',
+    ]);
+  });
+
   it('leaves the site as it is when the provide is not a ref, holds no client, or the client names no address', () => {
     const site = createSiteClient(() => null);
     const noUrl = { ...site.client, createRequestOperation: () => ({ context: { url: '' } }) };
