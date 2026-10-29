@@ -1,6 +1,6 @@
 import { getOperationName, type Client, type Exchange, type Operation, type OperationResult } from '@urql/core';
 import { concat, filter, fromValue, make, makeSubject, map, merge, mergeMap, onEnd, pipe, share, switchMap, takeUntil, tap } from 'wonka';
-import type { Source } from 'wonka';
+import type { Source, Subject } from 'wonka';
 
 import { isSettled } from '../shared/urql-result';
 import { searchRequestOf } from './catalog-filters';
@@ -49,47 +49,66 @@ function answersOf(client: Client, answer: OperationResult, search: CatalogSearc
   return search.isHydration ? concat([fromValue(answer), rows]) : rows;
 }
 
+interface CatalogWatch {
+  client: Client;
+  isHydrating: () => boolean;
+  searchesByKey: Map<number, CatalogSearch>;
+  openedKeys: Subject<number>;
+}
+
+function watchOperation(watch: CatalogWatch, operation: Operation): void {
+  const search = catalogSearchOf(operation, watch.isHydrating);
+  if (!search) return;
+  const isOpen = watch.searchesByKey.has(operation.key);
+  watch.searchesByKey.set(operation.key, search);
+  if (!isOpen) watch.openedKeys.next(operation.key);
+}
+
+interface CatalogStreams {
+  results$: Source<OperationResult>;
+  teardowns$: Source<Operation>;
+}
+
+const answersForKey = (watch: CatalogWatch, { results$, teardowns$ }: CatalogStreams, key: number): Source<OperationResult> =>
+  pipe(
+    results$,
+    filter((result) => result.operation.key === key),
+    switchMap((result) => answersOf(watch.client, result, watch.searchesByKey.get(key))),
+    takeUntil(
+      pipe(
+        teardowns$,
+        filter((operation) => operation.key === key)
+      )
+    ),
+    onEnd(() => watch.searchesByKey.delete(key))
+  );
+
 export function catalogFallbackExchange(isHydrating: () => boolean): Exchange {
   return ({ client, forward }) =>
     (operations$) => {
-      const searchesByKey = new Map<number, CatalogSearch>();
-      const openedKeys = makeSubject<number>();
+      const watch: CatalogWatch = { client, isHydrating, searchesByKey: new Map(), openedKeys: makeSubject() };
       const sharedOperations$ = share(operations$);
       const teardowns$ = pipe(
         sharedOperations$,
         filter((operation) => operation.kind === 'teardown')
       );
-
-      const handleOperation = (operation: Operation): void => {
-        const search = catalogSearchOf(operation, isHydrating);
-        if (!search) return;
-        const isOpen = searchesByKey.has(operation.key);
-        searchesByKey.set(operation.key, search);
-        if (!isOpen) openedKeys.next(operation.key);
-      };
-
-      const results$ = share(forward(pipe(sharedOperations$, tap(handleOperation))));
-
-      const answersFor = (key: number): Source<OperationResult> =>
-        pipe(
-          results$,
-          filter((result) => result.operation.key === key),
-          switchMap((result) => answersOf(client, result, searchesByKey.get(key))),
-          takeUntil(
-            pipe(
-              teardowns$,
-              filter((operation) => operation.key === key)
-            )
-          ),
-          onEnd(() => searchesByKey.delete(key))
-        );
-
+      const results$ = share(
+        forward(
+          pipe(
+            sharedOperations$,
+            tap((operation: Operation) => watchOperation(watch, operation))
+          )
+        )
+      );
       return merge([
         pipe(
           results$,
-          filter((result) => !searchesByKey.has(result.operation.key))
+          filter((result) => !watch.searchesByKey.has(result.operation.key))
         ),
-        pipe(openedKeys.source, mergeMap(answersFor)),
+        pipe(
+          watch.openedKeys.source,
+          mergeMap((key: number) => answersForKey(watch, { results$, teardowns$ }, key))
+        ),
       ]);
     };
 }

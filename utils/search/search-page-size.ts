@@ -21,15 +21,19 @@ const widenedByQueryDocument = new WeakMap<DocumentNode, DocumentNode | null>();
 const isPageArgument = (node: AstNode, pageSize: number): boolean =>
   node.kind === 'Argument' && node.name?.value === PAGE_ARGUMENT && node.value?.kind === INT_LITERAL && Number(node.value.value) < pageSize;
 
-function setPageSizeInQuery(node: AstNode | undefined, pageSize: number): boolean {
-  if (!node) return false;
+function setPageSizeOfField(node: AstNode, pageSize: number): boolean {
+  if (node.kind !== 'Field' || node.name?.value !== SEARCH_OPERATION) return false;
   let didChange = false;
-  const isSearchField = node.kind === 'Field' && node.name?.value === SEARCH_OPERATION;
-  for (const argument of isSearchField ? (node.arguments ?? []) : []) {
+  for (const argument of node.arguments ?? []) {
     if (!isPageArgument(argument, pageSize) || !argument.value) continue;
     argument.value.value = String(pageSize);
     didChange = true;
   }
+  return didChange;
+}
+
+function setPageSizeInQuery(node: AstNode, pageSize: number): boolean {
+  const didChange = setPageSizeOfField(node, pageSize);
   const children = [...(node.definitions ?? []), ...(node.selections ?? []), ...(node.selectionSet ? [node.selectionSet] : [])];
   return children.map((child) => setPageSizeInQuery(child, pageSize)).some(Boolean) || didChange;
 }

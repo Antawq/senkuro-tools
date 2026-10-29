@@ -49,69 +49,89 @@ const mappedResult = (operation: Operation, siteResult: OperationResult): Operat
   return { ...siteResult, operation: meta ? makeOperation(operation.kind, operation, { ...operation.context, meta }) : operation };
 };
 
+interface Delegate {
+  siteClient: Client;
+  client: Client;
+  onRekey: (operation: Operation) => void;
+  deliver: (result: OperationResult) => void;
+  defaults: OperationContext | null;
+  queries: Map<number, HeldQuery>;
+  mutations: Set<Subscription>;
+}
+
+function siteSourceOf(delegate: Delegate, operation: Operation): OperationResultSource<OperationResult> {
+  delegate.defaults ??= defaultContextOf(delegate.client);
+  const request = siteRequestOf(operation);
+  if (request.key !== operation.key) delegate.onRekey(operation);
+  const context = callerContextOf(operation.context, delegate.defaults);
+  if (operation.kind === 'mutation') return delegate.siteClient.executeMutation(request, context);
+  if (operation.kind === 'subscription') return delegate.siteClient.executeSubscription(request, context);
+  return delegate.siteClient.executeQuery(request, context);
+}
+
+function startMutation(delegate: Delegate, operation: Operation): void {
+  let isSettled = false;
+  let subscription: Subscription | null = null;
+  subscription = siteSourceOf(delegate, operation).subscribe((siteResult) => {
+    delegate.deliver(mappedResult(operation, siteResult));
+    if (siteResult.hasNext) return;
+    isSettled = true;
+    if (subscription) delegate.mutations.delete(subscription);
+  });
+  if (!isSettled) delegate.mutations.add(subscription);
+}
+
+function startQuery(delegate: Delegate, operation: Operation): void {
+  const previous = delegate.queries.get(operation.key);
+  if (previous) previous.isLive = false;
+  const held: HeldQuery = { isLive: true, subscription: null };
+  delegate.queries.set(operation.key, held);
+  held.subscription = siteSourceOf(delegate, operation).subscribe((siteResult) => {
+    if (held.isLive) delegate.deliver(mappedResult(operation, siteResult));
+  });
+  previous?.subscription?.unsubscribe();
+}
+
+function release(delegate: Delegate, key: number): void {
+  const held = delegate.queries.get(key);
+  if (!held) return;
+  held.isLive = false;
+  delegate.queries.delete(key);
+  held.subscription?.unsubscribe();
+}
+
+function handleOperation(delegate: Delegate, operation: Operation): void {
+  if (operation.kind === 'teardown') release(delegate, operation.key);
+  else if (operation.kind === 'mutation') startMutation(delegate, operation);
+  else startQuery(delegate, operation);
+}
+
+function releaseAll(delegate: Delegate): void {
+  [...delegate.queries.keys()].forEach((key) => release(delegate, key));
+  delegate.mutations.forEach((subscription) => subscription.unsubscribe());
+  delegate.mutations.clear();
+}
+
 export function delegateExchange(siteClient: Client, onRekey: (operation: Operation) => void = () => undefined): Exchange {
   return ({ client }) =>
     (operations$) =>
       make<OperationResult>((observer) => {
-        let defaults: OperationContext | null = null;
-        const queries = new Map<number, HeldQuery>();
-        const mutations = new Set<Subscription>();
-
-        const siteSourceOf = (operation: Operation): OperationResultSource<OperationResult> => {
-          defaults ??= defaultContextOf(client);
-          const request = siteRequestOf(operation);
-          if (request.key !== operation.key) onRekey(operation);
-          const context = callerContextOf(operation.context, defaults);
-          if (operation.kind === 'mutation') return siteClient.executeMutation(request, context);
-          if (operation.kind === 'subscription') return siteClient.executeSubscription(request, context);
-          return siteClient.executeQuery(request, context);
+        const delegate: Delegate = {
+          siteClient,
+          client,
+          onRekey,
+          deliver: (result) => observer.next(result),
+          defaults: null,
+          queries: new Map(),
+          mutations: new Set(),
         };
-
-        const startMutation = (operation: Operation): void => {
-          let isSettled = false;
-          let subscription: Subscription | null = null;
-          subscription = siteSourceOf(operation).subscribe((siteResult) => {
-            observer.next(mappedResult(operation, siteResult));
-            if (siteResult.hasNext) return;
-            isSettled = true;
-            if (subscription) mutations.delete(subscription);
-          });
-          if (!isSettled) mutations.add(subscription);
-        };
-
-        const startQuery = (operation: Operation): void => {
-          const previous = queries.get(operation.key);
-          if (previous) previous.isLive = false;
-          const held: HeldQuery = { isLive: true, subscription: null };
-          queries.set(operation.key, held);
-          held.subscription = siteSourceOf(operation).subscribe((siteResult) => {
-            if (held.isLive) observer.next(mappedResult(operation, siteResult));
-          });
-          previous?.subscription?.unsubscribe();
-        };
-
-        const release = (key: number): void => {
-          const held = queries.get(key);
-          if (!held) return;
-          held.isLive = false;
-          queries.delete(key);
-          held.subscription?.unsubscribe();
-        };
-
         const input = pipe(
           operations$,
-          subscribe((operation: Operation) => {
-            if (operation.kind === 'teardown') release(operation.key);
-            else if (operation.kind === 'mutation') startMutation(operation);
-            else startQuery(operation);
-          })
+          subscribe((operation: Operation) => handleOperation(delegate, operation))
         );
-
         return () => {
           input.unsubscribe();
-          [...queries.keys()].forEach(release);
-          mutations.forEach((subscription) => subscription.unsubscribe());
-          mutations.clear();
+          releaseAll(delegate);
         };
       });
 }

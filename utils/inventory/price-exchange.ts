@@ -1,58 +1,66 @@
 import { makeOperation, makeResult, type Exchange, type Operation, type OperationContext, type OperationResult } from '@urql/core';
-import { filter, makeSubject, map, merge, pipe, share } from 'wonka';
+import { filter, makeSubject, map, merge, pipe, share, type Subject } from 'wonka';
 
 import { isSettled } from '../shared/urql-result';
 import { listScopeOf, listVariablesOf } from './list-families';
 import type { PriceViews } from './price-views';
+
+interface PriceRoute {
+  views: PriceViews;
+  isSilent: (context: OperationContext) => boolean;
+  answers: Subject<OperationResult>;
+  releases: Subject<Operation>;
+  heldKeys: Set<number>;
+}
 
 const isViewList = (operation: Operation): boolean => {
   const variables = listVariablesOf(operation);
   return variables !== null && listScopeOf(variables) !== null;
 };
 
+function answer(route: PriceRoute, operation: Operation): boolean {
+  const data = route.views.answer(operation);
+  if (!data) return false;
+  if (route.heldKeys.delete(operation.key)) route.releases.next(makeOperation('teardown', operation, operation.context));
+  route.answers.next(makeResult(operation, { data }));
+  return true;
+}
+
+function routeOperation(route: PriceRoute, operation: Operation): Operation | null {
+  if (operation.kind === 'teardown') {
+    route.heldKeys.delete(operation.key);
+    return operation;
+  }
+  if (!isViewList(operation)) return operation;
+  const isReplay = route.isSilent(operation.context);
+  if (!isReplay) route.views.watch(operation);
+  if (!isReplay && answer(route, operation)) return null;
+  route.heldKeys.add(operation.key);
+  return route.views.forwarded(operation);
+}
+
+function answered(views: PriceViews, result: OperationResult): OperationResult {
+  if (result.operation.kind === 'mutation') {
+    if (isSettled(result)) views.handleMutation(result);
+    return result;
+  }
+  const data = isViewList(result.operation) ? views.answer(result.operation) : null;
+  return data ? { ...makeResult(result.operation, { data }), stale: result.stale } : result;
+}
+
 export function priceExchange(views: PriceViews, isSilent: (context: OperationContext) => boolean): Exchange {
   return ({ forward }) =>
     (operations$) => {
-      const answers = makeSubject<OperationResult>();
-      const releases = makeSubject<Operation>();
-      const heldKeys = new Set<number>();
-
-      const answer = (operation: Operation): boolean => {
-        const data = views.answer(operation);
-        if (!data) return false;
-        if (heldKeys.delete(operation.key)) releases.next(makeOperation('teardown', operation, operation.context));
-        answers.next(makeResult(operation, { data }));
-        return true;
-      };
-
-      const route = (operation: Operation): Operation | null => {
-        if (operation.kind === 'teardown') {
-          heldKeys.delete(operation.key);
-          return operation;
-        }
-        if (!isViewList(operation)) return operation;
-        const isReplay = isSilent(operation.context);
-        if (!isReplay) views.watch(operation);
-        if (!isReplay && answer(operation)) return null;
-        heldKeys.add(operation.key);
-        return views.forwarded(operation);
-      };
-
-      const answered = (result: OperationResult): OperationResult => {
-        if (result.operation.kind === 'mutation') {
-          if (isSettled(result)) views.handleMutation(result);
-          return result;
-        }
-        const data = isViewList(result.operation) ? views.answer(result.operation) : null;
-        return data ? { ...makeResult(result.operation, { data }), stale: result.stale } : result;
-      };
-
+      const route: PriceRoute = { views, isSilent, answers: makeSubject(), releases: makeSubject(), heldKeys: new Set() };
       const forwarded$ = pipe(
         share(operations$),
-        map(route),
+        map((operation: Operation) => routeOperation(route, operation)),
         filter((operation): operation is Operation => operation !== null)
       );
-
-      return merge([pipe(forward(merge([forwarded$, releases.source])), map(answered)), answers.source]);
+      const results$ = pipe(
+        forward(merge([forwarded$, route.releases.source])),
+        map((result: OperationResult) => answered(views, result))
+      );
+      return merge([results$, route.answers.source]);
     };
 }
