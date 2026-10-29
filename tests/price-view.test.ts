@@ -525,6 +525,17 @@ describe('what the site does to the inventory meanwhile', () => {
     expect(lockedOf(view.answer(redrives[1]!))).toEqual([true, true]);
   });
 
+  it('answers a locked row as a new object, so a card that compares its row by reference draws the lock', async () => {
+    const { view } = await served();
+    const before = view.answer(listOperation(gridVariables()))?.userCards.edges ?? [];
+    view.handleMutation(locked([{ cardId: 'id-c', modifier: 0 }]));
+    const after = view.answer(listOperation(gridVariables()))?.userCards.edges ?? [];
+    expect(after[0]).not.toBe(before[0]);
+    expect(after[0]?.node).not.toBe(before[0]?.node);
+    expect(after[1]).toBe(before[1]);
+    expect(before[0]?.node.locked).toBe(false);
+  });
+
   it('does not ask the grid again for a lock of a card it does not hold, of another user, or while it is not serving', async () => {
     const { view, redrives } = await served();
     view.handleMutation(locked([{ cardId: 'id-z', modifier: 0 }]));

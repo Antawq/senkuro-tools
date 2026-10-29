@@ -197,11 +197,11 @@ function patchLocks(view: View, input: LockInput): boolean {
   const cards = input.cards;
   if (input.userId !== view.userId || !Array.isArray(cards) || typeof input.locked !== 'boolean') return false;
   let didPatch = false;
-  for (const row of view.rows) {
-    if (!cards.some((card) => card.cardId === row.node.card?.id && modifierOf(card.modifier) === modifierOf(row.node.modifier))) continue;
-    row.node.locked = input.locked;
+  view.rows = view.rows.map((row) => {
+    if (!cards.some((card) => card.cardId === row.node.card?.id && modifierOf(card.modifier) === modifierOf(row.node.modifier))) return row;
     didPatch = true;
-  }
+    return { ...row, node: { ...row.node, locked: input.locked } };
+  });
   return didPatch;
 }
 
