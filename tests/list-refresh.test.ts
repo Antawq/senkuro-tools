@@ -65,7 +65,7 @@ const setup = ({
         await send('graphql', { body: JSON.stringify({ variables }) });
         flight.now -= 1;
         order.push(`end ${String(variables.userId)}`);
-        return failFor?.(variables) ? { error: new Error('429') } : { operation: { context: { fetch: send } } };
+        return failFor?.(variables) ? { error: new Error('429') } : {};
       },
     }),
     executeQuery: () => null,
@@ -236,41 +236,42 @@ describe('refreshFamilies on the real client, while the page of a list is still 
   const FLIGHT_MS = 20;
 
   const flightRig = () => {
-    const sent: { at: number; isReplay: boolean }[] = [];
-    const answered: number[] = [];
+    const events: string[] = [];
+    const sent: string[] = [];
     const siteFetch = async (_input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-      sent.push({ at: Date.now(), isReplay: false });
+      sent.push('sent');
       await new Promise((resolve) => setTimeout(resolve, FLIGHT_MS));
-      answered.push(Date.now());
+      events.push(`answered ${sent.length}`);
       const { variables } = JSON.parse(typeof init?.body === 'string' ? init.body : '{}') as { variables: Variables };
       return new Response(JSON.stringify(listAnswer(() => [10, 9, 8])(variables)), { headers: { 'content-type': 'application/json' } });
     };
     const site = new Client({ url: 'https://api.senkuro.me/graphql', preferGetMethod: false, fetch: siteFetch, exchanges: [fetchExchange] });
     const client = new Client({ url: 'https://api.senkuro.me/graphql', exchanges: [delegateExchange(site)] });
-    const replayed: number[] = [];
+    const replayed: string[] = [];
     const replayFetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-      replayed.push(Date.now());
+      replayed.push('replayed');
+      events.push('replayed');
       return siteFetch(input, init);
     };
     const record = createListRecord();
     record.record({ document: FLIGHT, variables: { userId: 'A' }, options: {} }, ROUTE);
     const family = record.families()[0] as Family;
     const env: RefreshEnv = { client, fetch: replayFetch, silent: new WeakSet<object>(), record, sleep: () => Promise.resolve() };
-    return { site, client, env, family, sent, answered, replayed };
+    return { site, client, env, family, sent, events, replayed };
   };
 
   it('sends its own request once the page the client already had on its way is in, when the client of the page holds it', async () => {
-    const { client, env, family, answered, replayed } = flightRig();
+    const { client, env, family, events, replayed } = flightRig();
     const subscription = client.query(FLIGHT, { userId: 'A' }).subscribe(() => undefined);
     const report = await refreshFamilies(env, [family]);
     expect(report).toEqual({ requests: 1, failed: false });
     expect(replayed).toHaveLength(1);
-    expect(replayed[0]).toBeGreaterThanOrEqual(answered[0] ?? Number.POSITIVE_INFINITY);
+    expect(events).toEqual(['answered 1', 'replayed', 'answered 2']);
     subscription.unsubscribe();
   });
 
   it('sends its own request at once when the site client refetches a page it already had, since urql only merges a first flight', async () => {
-    const { site, client, env, family, sent, answered, replayed } = flightRig();
+    const { site, client, env, family, sent, events, replayed } = flightRig();
     const results: unknown[] = [];
     const subscription = client.query(FLIGHT, { userId: 'A' }).subscribe((result) => results.push(result));
     await new Promise((resolve) => setTimeout(resolve, FLIGHT_MS * 2));
@@ -283,7 +284,7 @@ describe('refreshFamilies on the real client, while the page of a list is still 
     const report = await refreshFamilies(env, [family]);
     expect(report).toEqual({ requests: 1, failed: false });
     expect(replayed).toHaveLength(1);
-    expect(replayed[0]).toBeLessThanOrEqual(answered[1] ?? 0);
+    expect(events.slice(1)).toEqual(['replayed', 'answered 3', 'answered 3']);
     expect(results.length).toBeGreaterThanOrEqual(2);
     subscription.unsubscribe();
   });

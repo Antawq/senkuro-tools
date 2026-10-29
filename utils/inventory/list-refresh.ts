@@ -35,34 +35,33 @@ interface Boundary {
   nextRaw: RawPage | null;
 }
 
-interface PageAnswer {
-  isOwn: boolean;
+interface SentPage {
+  answer: Promise<unknown> | null;
   raw: RawPage | null;
 }
 
-interface RefreshResult {
-  error?: unknown;
-  operation?: { context?: { fetch?: unknown } };
-}
-
-async function requestPage(run: Run, page: PageRequest): Promise<PageAnswer> {
-  const seen: { raw: RawPage | null } = { raw: null };
-  const capture: Fetch = async (input, init) => {
+async function requestPage(run: Run, page: PageRequest): Promise<SentPage> {
+  const sent: SentPage = { answer: null, raw: null };
+  const capture: Fetch = (input, init) => {
     run.requests += 1;
-    const response = await run.fetch(input, init);
-    seen.raw = readRawPage(parseJson(await response.clone().text())) ?? seen.raw;
-    return response;
+    const answer = run.fetch(input, init).then(async (response) => {
+      sent.raw = readRawPage(parseJson(await response.clone().text())) ?? sent.raw;
+      return response;
+    });
+    sent.answer = answer;
+    return answer;
   };
   run.silent.add(capture);
   const result = (await run.client.query(page.document, page.variables, { ...page.options, requestPolicy: REFRESH_POLICY, fetch: capture }).toPromise()) as
-    RefreshResult | undefined;
+    { error?: unknown } | undefined;
   if (result?.error) throw new Error('list refresh failed');
-  return { isOwn: result?.operation?.context?.fetch === capture, raw: seen.raw };
+  await sent.answer?.catch(() => undefined);
+  return sent;
 }
 
 async function fetchPage(run: Run, page: PageRequest): Promise<RawPage | null> {
-  const answer = await requestPage(run, page);
-  return answer.isOwn ? answer.raw : (await requestPage(run, page)).raw;
+  const sent = await requestPage(run, page);
+  return sent.answer ? sent.raw : (await requestPage(run, page)).raw;
 }
 
 async function fillBoundary(run: Run, family: Family, boundary: Boundary): Promise<PageRequest[]> {

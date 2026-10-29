@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { Window } from 'happy-dom';
 import { Client, gql, makeResult, type Exchange, type Operation } from '@urql/core';
-import { filter, fromArray, mergeMap, pipe } from 'wonka';
+import { filter, fromArray, fromPromise, mergeMap, pipe } from 'wonka';
 
 import { installInventoryGuard } from '../utils/inventory/inventory-guard';
 import type { Variables } from '../utils/inventory/list-families';
@@ -64,8 +64,10 @@ const swappedPage = (installs: SwapModules[]) => {
       filter((operation: Operation) => operation.kind !== 'teardown'),
       mergeMap((operation: Operation) => {
         if (operation.kind === 'mutation') return fromArray([makeResult(operation, { data: { acceptCardTrade: { success: true } } })]);
-        if (typeof operation.context.fetch === 'function') refreshes.push(operation.variables as Variables);
-        return fromArray([makeResult(operation, { data: page.data })]);
+        const sendFetch = operation.context.fetch;
+        if (typeof sendFetch !== 'function') return fromArray([makeResult(operation, { data: page.data })]);
+        refreshes.push(operation.variables as Variables);
+        return fromPromise(sendFetch(GRAPHQL, { method: 'POST', body: '{}' }).then(() => makeResult(operation, { data: page.data })));
       })
     );
   const clientRef = { __v_isRef: true, value: new Client({ url: GRAPHQL, exchanges: [site] }) as unknown };
