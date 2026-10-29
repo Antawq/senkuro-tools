@@ -176,7 +176,9 @@ describe('cursorExchange', () => {
   it('leaves other operations as they are', async () => {
     const { ask, site } = rig(knowing([cards(), 'c1']), undefined, () => ({ data: { viewer: { id: 'U1' } } }));
     await ask(shards('c1'), VIEWER);
-    expect(site.operations.filter((operation) => nameOf(operation) === 'fetchViewer').map((operation) => operation.variables)).toEqual([shards('c1')]);
+    expect(
+      site.operations.filter((operation) => operation.kind === 'query' && nameOf(operation) === 'fetchViewer').map((operation) => operation.variables)
+    ).toEqual([shards('c1')]);
   });
 
   it('survives a throwing report callback', async () => {

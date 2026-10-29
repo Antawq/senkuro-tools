@@ -144,6 +144,30 @@ describe('delegateExchange', () => {
     expect(site.openKeys()).toEqual([]);
   });
 
+  it('releases the site key of a one-shot query the site answered at once, from its cache', async () => {
+    const { site, client } = rig();
+    const result = await client.query(VIEWER, {}).toPromise();
+    await tick();
+    expect(result.data).toEqual({ viewer: { id: 'U1' } });
+    expect(site.openKeys()).toEqual([]);
+  });
+
+  it('releases the site key when the caller asks the same key again inside an answer given at once', async () => {
+    const { site, client } = rig();
+    const inner: { unsubscribe: () => void }[] = [];
+    let hasAskedAgain = false;
+    const outer = client.query(VIEWER, {}).subscribe(() => {
+      if (hasAskedAgain) return;
+      hasAskedAgain = true;
+      inner.push(client.query(VIEWER, {}, { requestPolicy: 'network-only' }).subscribe(() => undefined));
+    });
+    await tick();
+    outer.unsubscribe();
+    inner.forEach((subscription) => subscription.unsubscribe());
+    await tick();
+    expect(site.openKeys()).toEqual([]);
+  });
+
   it('runs a mutation once on the site with the instance of the site client, not its own', async () => {
     const { site, client } = rig();
     await site.client.mutation(LOCK, { input: 'c0' }).toPromise();

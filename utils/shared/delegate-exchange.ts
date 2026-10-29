@@ -89,6 +89,7 @@ function startQuery(delegate: Delegate, operation: Operation): void {
   held.subscription = siteSourceOf(delegate, operation).subscribe((siteResult) => {
     if (held.isLive) delegate.deliver(mappedResult(operation, siteResult));
   });
+  if (!held.isLive) held.subscription.unsubscribe();
   previous?.subscription?.unsubscribe();
 }
 
