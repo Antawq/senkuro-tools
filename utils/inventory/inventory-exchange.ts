@@ -2,7 +2,7 @@ import type { Exchange, Operation, OperationContext, OperationResult } from '@ur
 import { pipe, tap } from 'wonka';
 
 import { callerContextOf, defaultContextOf } from '../shared/delegate-exchange';
-import { isSettled } from '../shared/urql-source';
+import { isSettled } from '../shared/urql-result';
 import { hasCursor, listVariablesOf, type PageRequest } from './list-families';
 
 const POLICY_OPTION = 'requestPolicy';

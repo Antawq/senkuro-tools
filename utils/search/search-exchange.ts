@@ -2,7 +2,7 @@ import { getOperationName, makeOperation, type Exchange, type Operation, type Op
 import { map, pipe, tap } from 'wonka';
 
 import type { PageWindow } from '../shared/page-window';
-import { isSettled } from '../shared/urql-source';
+import { isSettled } from '../shared/urql-result';
 import { SEARCH_EVENT, type SearchSignal } from './search-event';
 import { SEARCH_OPERATION, widenSearchQuery } from './search-page-size';
 

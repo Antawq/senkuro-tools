@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isSettled } from '../utils/shared/urql-source';
+import { isSettled } from '../utils/shared/urql-result';
 
 describe('isSettled', () => {
   it('is false for a stale or streaming result only', () => {

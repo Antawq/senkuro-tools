@@ -2,7 +2,7 @@ import { getOperationName, type Client, type Exchange, type Operation, type Oper
 import { concat, filter, fromValue, make, makeSubject, map, merge, mergeMap, onEnd, pipe, share, switchMap, takeUntil, tap } from 'wonka';
 import type { Source } from 'wonka';
 
-import { isSettled } from '../shared/urql-source';
+import { isSettled } from '../shared/urql-result';
 import { searchRequestOf } from './catalog-filters';
 import { streamCatalogMatches, type MatchQuery } from './catalog-matches';
 import { catalogKindOf, isEmptyCatalogAnswer, toCatalogData, type CatalogKind } from './catalog-results';

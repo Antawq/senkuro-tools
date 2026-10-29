@@ -1,7 +1,7 @@
 import { makeOperation, makeResult, type Exchange, type Operation, type OperationContext, type OperationResult } from '@urql/core';
 import { filter, makeSubject, map, merge, pipe, share } from 'wonka';
 
-import { isSettled } from '../shared/urql-source';
+import { isSettled } from '../shared/urql-result';
 import { listScopeOf, listVariablesOf } from './list-families';
 import type { PriceViews } from './price-views';
 
