@@ -1,30 +1,15 @@
+import { getOperationName, makeOperation, type Operation, type OperationResult } from '@urql/core';
+
 import type { ListScope } from '../shared/list-scope';
 import type { PriceOrder, PriceRows, PriceState } from '../shared/price-signal';
-import { operationName, type QueryRequest } from '../shared/urql-client';
-import type { MutationResult } from './client-hooks';
 import { listScopeOf, type Variables } from './list-families';
 import { DEFAULT_CONNECTION_TYPE, DEFAULT_PAGE_INFO_TYPE, modifierOf, slugOf, type CrawledList, type Row } from './price-crawl';
-import {
-  createPrivateCursor,
-  hasPrivateCursor,
-  isPrivateVariables,
-  privateFieldOf,
-  privateVariablesOf,
-  readCursor,
-  realVariablesOf,
-  variableNamesOf,
-  viewKeyOf,
-} from './price-private';
+import { createPrivateCursor, hasPrivateCursor, readCursor, realVariablesOf, variableNamesOf, viewKeyOf } from './price-private';
 
 const LOCK_MUTATION = 'bulkUpdateUserCardLock';
 const ACCEPTING_MUTATIONS = ['acceptCardTrade', 'acceptCardOffer'];
 const REBUILDING_MUTATIONS = ['forgeCards', 'restoreForge', 'openCardPack', 'claimCardDrop'];
 const FLAGGED_MUTATIONS = [...ACCEPTING_MUTATIONS, LOCK_MUTATION];
-
-export interface ListPage {
-  request: QueryRequest;
-  options: Record<string, unknown>;
-}
 
 export interface ViewList extends CrawledList {
   pageSize: number;
@@ -32,33 +17,30 @@ export interface ViewList extends CrawledList {
 
 export interface ViewHost {
   isReady: () => boolean;
-  crawl: (page: ListPage, report: (loaded: number, total: number | null) => void, signal: AbortSignal) => Promise<ViewList | null>;
-  redrive: (page: ListPage, variables: Variables) => void;
-  refreshPage: (page: ListPage, variables: Variables) => void;
+  crawl: (operation: Operation, report: (loaded: number, total: number | null) => void, signal: AbortSignal) => Promise<ViewList | null>;
+  redrive: (operation: Operation) => void;
   publishState: (state: PriceState) => void;
   publishRows: (rows: PriceRows) => void;
   debug: (...details: unknown[]) => void;
 }
 
 export interface PageAnswer {
-  data: {
-    userCards: {
-      __typename: string;
-      edges: Row[];
-      pageInfo: { __typename: string; hasNextPage: boolean; endCursor: string | null };
-    };
+  userCards: {
+    __typename: string;
+    edges: Row[];
+    pageInfo: { __typename: string; hasNextPage: boolean; endCursor: string | null };
   };
 }
 
 export interface PriceView {
-  watch: (request: QueryRequest, options: Record<string, unknown> | undefined) => void;
-  rewrite: (request: QueryRequest) => QueryRequest;
-  answer: (variables: Variables) => PageAnswer;
+  watch: (operation: Operation) => void;
+  answer: (operation: Operation) => PageAnswer | null;
+  forwarded: (operation: Operation) => Operation;
   start: () => void;
   stop: () => void;
   restart: () => void;
   receiveOrder: (order: PriceOrder) => void;
-  handleMutation: (mutation: MutationResult) => void;
+  handleMutation: (result: OperationResult) => void;
 }
 
 export interface ViewCounters {
@@ -83,7 +65,6 @@ interface View {
   key: string;
   names: string;
   userId: unknown;
-  orderField: unknown;
   crawled: Variables;
   phase: 'crawling' | 'sorting' | 'ready';
   rows: Row[];
@@ -93,9 +74,10 @@ interface View {
   orders: Orders | null;
   revision: number;
   version: number;
-  servedPages: Set<string>;
   controller: AbortController;
 }
+
+type ServedView = View & { orders: Orders };
 
 interface LockInput {
   userId?: unknown;
@@ -106,17 +88,9 @@ interface LockInput {
 const UNAVAILABLE: PriceState = { name: 'unavailable', loaded: 0, total: null };
 const FAILED: PriceState = { name: 'failed', loaded: 0, total: null };
 
-const variablesOf = (page: ListPage): Variables => page.request.variables ?? {};
+const variablesOf = (operation: Operation): Variables => operation.variables ?? {};
 
-export const emptyAnswer = (): PageAnswer => ({
-  data: {
-    userCards: {
-      __typename: DEFAULT_CONNECTION_TYPE,
-      edges: [],
-      pageInfo: { __typename: DEFAULT_PAGE_INFO_TYPE, hasNextPage: false, endCursor: null },
-    },
-  },
-});
+const withVariables = (operation: Operation, variables: Variables): Operation => makeOperation(operation.kind, { ...operation, variables }, operation.context);
 
 function isPermutation(order: number[], size: number): boolean {
   if (order.length !== size) return false;
@@ -128,18 +102,17 @@ function isPermutation(order: number[], size: number): boolean {
   });
 }
 
-const pageKeyOf = (direction: string, offset: number): string => `${direction}:${offset}`;
-
 const directionOf = (variables: Variables): 'ASC' | 'DESC' => (variables.orderDirection === 'ASC' ? 'ASC' : 'DESC');
 
-const readLockInput = (mutation: MutationResult): LockInput | null => {
-  const input = mutation.operation?.variables?.input;
+const readLockInput = (result: OperationResult): LockInput | null => {
+  const input = (result.operation.variables as { input?: unknown } | undefined)?.input;
   return input && typeof input === 'object' ? input : null;
 };
 
-function isSuccessful(mutation: MutationResult, name: string): boolean {
-  if (mutation.error || !mutation.data) return false;
-  const payload = mutation.data[name] as { success?: unknown } | null | undefined;
+function isSuccessful(result: OperationResult, name: string): boolean {
+  const data = result.data as Record<string, unknown> | null | undefined;
+  if (result.error || !data) return false;
+  const payload = data[name] as { success?: unknown } | null | undefined;
   return FLAGGED_MUTATIONS.includes(name) ? payload?.success === true : Boolean(payload);
 }
 
@@ -148,14 +121,12 @@ interface ViewState {
   scope: ListScope;
   counters: ViewCounters;
   isOn: boolean;
-  latest: ListPage | null;
-  current: ListPage | null;
+  latest: Operation | null;
+  current: Operation | null;
   view: View | null;
 }
 
 const isServing = (state: ViewState): boolean => state.isOn && state.view?.phase === 'ready';
-
-const redriveReal = (state: ViewState, page: ListPage): void => state.host.redrive(page, realVariablesOf(variablesOf(page)));
 
 function fail(state: ViewState, failed: View, priceState: PriceState): void {
   if (state.view !== failed) return;
@@ -182,7 +153,6 @@ function createView(id: number, variables: Variables, crawled: Variables): View 
     key: viewKeyOf(variables),
     names: variableNamesOf(variables),
     userId: variables.userId,
-    orderField: variables.orderField,
     crawled,
     phase: 'crawling',
     rows: [],
@@ -192,24 +162,23 @@ function createView(id: number, variables: Variables, crawled: Variables): View 
     orders: null,
     revision: 0,
     version: 0,
-    servedPages: new Set(),
     controller: new AbortController(),
   };
 }
 
-function begin(state: ViewState, page: ListPage, crawled: Variables = variablesOf(page)): void {
+function begin(state: ViewState, operation: Operation, crawled: Variables = variablesOf(operation)): void {
   const { host } = state;
   state.view?.controller.abort();
   state.counters.lastId += 1;
-  const started = createView(state.counters.lastId, variablesOf(page), crawled);
+  const started = createView(state.counters.lastId, variablesOf(operation), crawled);
   state.view = started;
-  state.current = page;
+  state.current = operation;
   host.debug('price view begins', { viewId: started.id });
   host.publishState({ name: 'loading', loaded: 0, total: null });
   const report = (loaded: number, total: number | null): void => {
     if (state.view === started) host.publishState({ name: 'loading', loaded, total });
   };
-  host.crawl({ ...page, request: { ...page.request, variables: crawled } }, report, started.controller.signal).then(
+  host.crawl(withVariables(operation, crawled), report, started.controller.signal).then(
     (list) => arrive(state, started, list),
     () => fail(state, started, FAILED)
   );
@@ -217,105 +186,70 @@ function begin(state: ViewState, page: ListPage, crawled: Variables = variablesO
 
 function invalidate(state: ViewState): void {
   if (!state.isOn || !state.view || !state.current) return;
-  const page = state.current;
+  const operation = state.current;
   const wasServing = isServing(state);
   state.host.debug('price view invalidated');
-  begin(state, page, state.view.crawled);
-  if (wasServing) redriveReal(state, page);
+  begin(state, operation, state.view.crawled);
+  if (wasServing) state.host.redrive(operation);
 }
 
-function patchLocks(view: View | null, input: LockInput): Set<number> {
-  const patched = new Set<number>();
+function patchLocks(view: View, input: LockInput): boolean {
   const cards = input.cards;
-  if (!view || input.userId !== view.userId || !Array.isArray(cards) || typeof input.locked !== 'boolean') return patched;
-  view.rows.forEach((row, index) => {
-    if (!cards.some((card) => card.cardId === row.node.card?.id && modifierOf(card.modifier) === modifierOf(row.node.modifier))) return;
+  if (input.userId !== view.userId || !Array.isArray(cards) || typeof input.locked !== 'boolean') return false;
+  let didPatch = false;
+  for (const row of view.rows) {
+    if (!cards.some((card) => card.cardId === row.node.card?.id && modifierOf(card.modifier) === modifierOf(row.node.modifier))) continue;
     row.node.locked = input.locked;
-    patched.add(index);
-  });
-  return patched;
-}
-
-function holdsRow(view: View, pageKey: string, index: number): boolean {
-  const [direction, offset] = pageKey.split(':');
-  const orders = view.orders;
-  if (!orders) return false;
-  const order = direction === 'ASC' ? orders.ascending : orders.descending;
-  return order.slice(Number(offset), Number(offset) + view.pageSize).includes(index);
-}
-
-function refreshServed(state: ViewState, patched: Set<number>): void {
-  const { view, current } = state;
-  if (!view || !current) return;
-  const pageKeys = new Set<string>();
-  for (const index of patched) {
-    const holder = [...view.servedPages].find((pageKey) => holdsRow(view, pageKey, index));
-    if (holder) pageKeys.add(holder);
+    didPatch = true;
   }
-  for (const pageKey of pageKeys) {
-    const [direction, offset] = pageKey.split(':');
-    const after = Number(offset) === 0 ? null : createPrivateCursor(view.version, Number(offset));
-    state.host.refreshPage(current, privateVariablesOf({ ...variablesOf(current), orderDirection: direction, after }, view.version));
-  }
+  return didPatch;
 }
 
 const canFollowOtherUsers = (scope: ListScope): boolean => scope === 'picker';
 
-function followList(state: ViewState, page: ListPage, variables: Variables): void {
+function followList(state: ViewState, operation: Operation, variables: Variables): void {
   const view = state.view;
   if (!state.isOn || !view) return;
-  if (viewKeyOf(variables) === view.key) state.current = page;
-  else if (variableNamesOf(variables) === view.names && (canFollowOtherUsers(state.scope) || variables.userId === view.userId)) begin(state, page);
+  if (viewKeyOf(variables) === view.key) state.current = operation;
+  else if (variableNamesOf(variables) === view.names && (canFollowOtherUsers(state.scope) || variables.userId === view.userId)) begin(state, operation);
 }
 
-const isOwnList = (state: ViewState, variables: Variables | undefined): variables is Variables =>
-  variables !== undefined && !isPrivateVariables(variables) && listScopeOf(variables) === state.scope;
+const isOwnList = (state: ViewState, variables: Variables): boolean => listScopeOf(variables) === state.scope;
 
-function watchList(state: ViewState, request: QueryRequest, options: Record<string, unknown> | undefined): void {
-  const variables = request.variables;
+function watchList(state: ViewState, operation: Operation): void {
+  const variables = variablesOf(operation);
   if (!isOwnList(state, variables)) return;
-  const page: ListPage = { request, options: options ?? {} };
-  state.latest = page;
-  followList(state, page, variables);
+  state.latest = operation;
+  followList(state, operation, variables);
 }
 
-function rewriteList(state: ViewState, request: QueryRequest): QueryRequest {
-  const variables = request.variables;
-  if (!isOwnList(state, variables)) return request;
+function servedViewOf(state: ViewState, variables: Variables): ServedView | null {
   const view = state.view;
-  if (isServing(state) && view && viewKeyOf(variables) === view.key) return { ...request, variables: privateVariablesOf(variables, view.version) };
-  return hasPrivateCursor(variables.after) ? { ...request, variables: realVariablesOf(variables) } : request;
+  if (!isServing(state) || !view?.orders || !isOwnList(state, variables) || viewKeyOf(variables) !== view.key) return null;
+  return view as ServedView;
 }
 
-function isServedList(view: View | null, variables: Variables): view is View & { orders: Orders } {
-  return (
-    view?.phase === 'ready' &&
-    view.orders !== null &&
-    variables.orderField === privateFieldOf(view.version) &&
-    viewKeyOf({ ...variables, orderField: view.orderField }) === view.key
-  );
-}
-
-function answerPage(state: ViewState, variables: Variables): PageAnswer {
-  const served = state.view;
-  if (!isServedList(served, variables)) return emptyAnswer();
+function answerList(state: ViewState, operation: Operation): PageAnswer | null {
+  const variables = variablesOf(operation);
+  const served = servedViewOf(state, variables);
+  if (!served) return null;
   const cursor = readCursor(variables.after);
   const offset = cursor?.version === served.version ? cursor.offset : 0;
-  const direction = directionOf(variables);
-  served.servedPages.add(pageKeyOf(direction, offset));
-  const order = direction === 'ASC' ? served.orders.ascending : served.orders.descending;
-  const edges = order.slice(offset, offset + served.pageSize).flatMap((index) => served.rows[index] ?? []);
-  const end = offset + edges.length;
+  const order = directionOf(variables) === 'ASC' ? served.orders.ascending : served.orders.descending;
+  const end = Math.min(order.length, offset + served.pageSize);
   const hasNextPage = end < order.length;
   return {
-    data: {
-      userCards: {
-        __typename: served.connectionType,
-        edges,
-        pageInfo: { __typename: served.pageInfoType, hasNextPage, endCursor: hasNextPage ? createPrivateCursor(served.version, end) : null },
-      },
+    userCards: {
+      __typename: served.connectionType,
+      edges: order.slice(0, end).flatMap((index) => served.rows[index] ?? []),
+      pageInfo: { __typename: served.pageInfoType, hasNextPage, endCursor: hasNextPage ? createPrivateCursor(served.version, end) : null },
     },
   };
+}
+
+function forwardedList(state: ViewState, operation: Operation): Operation {
+  const variables = variablesOf(operation);
+  return isOwnList(state, variables) && hasPrivateCursor(variables.after) ? withVariables(operation, realVariablesOf(variables)) : operation;
 }
 
 function startView(state: ViewState): void {
@@ -327,14 +261,14 @@ function startView(state: ViewState): void {
 }
 
 function stopView(state: ViewState): void {
-  const page = state.current;
+  const operation = state.current;
   const wasServing = isServing(state);
   state.isOn = false;
   state.view?.controller.abort();
   state.view = null;
   state.current = null;
   state.host.debug('price view stops');
-  if (wasServing && page) redriveReal(state, page);
+  if (wasServing && operation) state.host.redrive(operation);
 }
 
 const acceptsOrder = (view: View | null, order: PriceOrder): view is View =>
@@ -352,37 +286,36 @@ function receiveOrder(state: ViewState, order: PriceOrder): void {
   view.revision = order.revision;
   state.counters.lastVersion += 1;
   view.version = state.counters.lastVersion;
-  view.servedPages = new Set();
   view.phase = 'ready';
   state.host.debug('price view ready', { viewId: view.id, version: view.version });
   state.host.publishState({ name: 'ready', loaded: view.rows.length, total: view.rows.length });
-  if (state.current) state.host.redrive(state.current, privateVariablesOf(variablesOf(state.current), view.version));
+  if (state.current) state.host.redrive(state.current);
 }
 
-function handleLockMutation(state: ViewState, view: View, mutation: MutationResult): void {
-  const input = readLockInput(mutation);
-  if (view.phase === 'crawling') invalidate(state);
-  else if (input) refreshServed(state, patchLocks(view, input));
+function handleLockMutation(state: ViewState, view: View, result: OperationResult): void {
+  if (view.phase === 'crawling') return invalidate(state);
+  const input = readLockInput(result);
+  if (input && patchLocks(view, input) && isServing(state) && state.current) state.host.redrive(state.current);
 }
 
-function handleViewMutation(state: ViewState, mutation: MutationResult): void {
-  const name = mutation.operation ? operationName(mutation.operation) : undefined;
+function handleViewMutation(state: ViewState, result: OperationResult): void {
+  const name = getOperationName(result.operation.query);
   const view = state.view;
-  if (!state.isOn || !view || !name || !isSuccessful(mutation, name)) return;
-  if (name === LOCK_MUTATION) handleLockMutation(state, view, mutation);
+  if (!state.isOn || !view || !name || !isSuccessful(result, name)) return;
+  if (name === LOCK_MUTATION) handleLockMutation(state, view, result);
   else if (ACCEPTING_MUTATIONS.includes(name) || REBUILDING_MUTATIONS.includes(name)) invalidate(state);
 }
 
 export function createPriceView(host: ViewHost, { scope, counters }: ViewOptions): PriceView {
   const state: ViewState = { host, scope, counters, isOn: false, latest: null, current: null, view: null };
   return {
-    watch: (request, options) => watchList(state, request, options),
-    rewrite: (request) => rewriteList(state, request),
-    answer: (variables) => answerPage(state, variables),
+    watch: (operation) => watchList(state, operation),
+    answer: (operation) => answerList(state, operation),
+    forwarded: (operation) => forwardedList(state, operation),
     start: () => startView(state),
     stop: () => stopView(state),
     restart: () => invalidate(state),
     receiveOrder: (order) => receiveOrder(state, order),
-    handleMutation: (mutation) => handleViewMutation(state, mutation),
+    handleMutation: (result) => handleViewMutation(state, result),
   };
 }

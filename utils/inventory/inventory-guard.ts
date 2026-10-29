@@ -1,4 +1,4 @@
-import type { Client, Exchange, OperationContext, OperationResult } from '@urql/core';
+import { getOperationName, makeOperation, type Client, type Exchange, type Operation, type OperationContext, type OperationResult } from '@urql/core';
 
 import { debugLogger } from '../shared/debug';
 import type { Transport } from '../shared/graphql';
@@ -23,8 +23,6 @@ import {
   type RefreshOutcome,
 } from '../shared/refresh-signal';
 import type { ListScope } from '../shared/list-scope';
-import { operationName, type QueryClient } from '../shared/urql-client';
-import { rewriteLists, type MutationResult } from './client-hooks';
 import { inventoryExchange } from './inventory-exchange';
 import {
   createListRecord,
@@ -40,8 +38,8 @@ import {
 import { REFRESH_POLICY, refreshFamilies, type RefreshEnv, type RefreshReport } from './list-refresh';
 import { crawlList } from './price-crawl';
 import { crawlDocumentOf } from './price-document';
-import { answerPrivateRequests } from './price-fetch';
-import type { ListPage, ViewHost } from './price-view';
+import { priceExchange } from './price-exchange';
+import type { ViewHost } from './price-view';
 import { createPriceViews, type PriceViews } from './price-views';
 
 const FORGE_OPERATION = 'forgeCards';
@@ -66,21 +64,13 @@ const pageCounts = (record: ListRecord): string =>
     .map((family) => family.pages.length)
     .join('+');
 
-export function planRefresh(result: MutationResult, families: Family[]): Family[] {
-  const name = result.operation ? operationName(result.operation) : undefined;
-  if (result.error || !result.data || !name) return [];
-  if (name === FORGE_OPERATION) return forgePlan(result.data[name] as ForgeAnswer | null | undefined, families);
-  const answer = result.data[name] as { success?: unknown } | null | undefined;
+export function planRefresh(result: OperationResult, families: Family[]): Family[] {
+  const name = getOperationName(result.operation.query);
+  const data = result.data as Record<string, unknown> | null | undefined;
+  if (result.error || !data || !name) return [];
+  if (name === FORGE_OPERATION) return forgePlan(data[name] as ForgeAnswer | null | undefined, families);
+  const answer = data[name] as { success?: unknown } | null | undefined;
   return TRADE_OPERATIONS.includes(name) && answer?.success === true ? families : [];
-}
-
-function apiUrlOf(client: QueryClient | null, page: ListPage): string | null {
-  try {
-    const operation = client?.createRequestOperation?.('query', page.request) as { context?: { url?: unknown } } | undefined;
-    return typeof operation?.context?.url === 'string' ? operation.context.url : null;
-  } catch {
-    return null;
-  }
 }
 
 interface Guard {
@@ -92,12 +82,11 @@ interface Guard {
   sleep: (ms: number) => Promise<void>;
   queue: Promise<unknown>;
   client: Client | null;
-  siteClient: QueryClient | null;
 }
 
 export interface InventoryGuard {
-  exchange: Exchange;
-  attach: (client: Client, siteClient: Client) => void;
+  exchanges: Exchange[];
+  attach: (client: Client) => void;
 }
 
 const sleepIn =
@@ -124,14 +113,11 @@ function enqueueRefresh(guard: Guard, client: Client, families: Family[]): Promi
 const publish = (guard: Guard, eventName: string, detail: string) =>
   guard.pageWindow.document.dispatchEvent(new guard.pageWindow.CustomEvent(eventName, { detail }));
 
-const isViewReady = (guard: Guard): boolean =>
-  typeof guard.siteClient?.createRequestOperation === 'function' && typeof guard.siteClient.reexecuteOperation === 'function';
-
-function crawlForView(guard: Guard, ...[page, report, signal]: Parameters<ViewHost['crawl']>): ReturnType<ViewHost['crawl']> {
-  const crawlDocument = crawlDocumentOf(page.request.query);
-  const url = apiUrlOf(guard.siteClient, page);
-  if (!crawlDocument || !url) {
-    guard.debug('price view cannot crawl', { hasDocument: crawlDocument !== null, hasUrl: url !== null });
+function crawlForView(guard: Guard, ...[operation, report, signal]: Parameters<ViewHost['crawl']>): ReturnType<ViewHost['crawl']> {
+  const crawlDocument = crawlDocumentOf(operation.query);
+  const url: unknown = operation.context.url;
+  if (!crawlDocument || typeof url !== 'string' || url === '') {
+    guard.debug('price view cannot crawl', { hasDocument: crawlDocument !== null, hasUrl: typeof url === 'string' });
     return Promise.resolve(null);
   }
   const transport: Transport = {
@@ -140,40 +126,29 @@ function crawlForView(guard: Guard, ...[page, report, signal]: Parameters<ViewHo
     random: Math.random,
     endpoint: url,
   };
-  return crawlList({ text: crawlDocument.text, variables: page.request.variables ?? {}, transport, signal, onProgress: report }).then((crawled) => ({
+  const variables = (operation.variables ?? {}) as Record<string, unknown>;
+  return crawlList({ text: crawlDocument.text, variables, transport, signal, onProgress: report }).then((crawled) => ({
     ...crawled,
     pageSize: crawlDocument.pageSize,
   }));
 }
 
-function redriveList(guard: Guard, ...[page, variables]: Parameters<ViewHost['redrive']>): void {
-  const client = guard.siteClient;
-  if (!client?.createRequestOperation || !client.reexecuteOperation) return;
-  client.reexecuteOperation(client.createRequestOperation('query', { ...page.request, variables }, { ...page.options, requestPolicy: REFRESH_POLICY }));
-}
-
-function refreshServedPage(guard: Guard, ...[page, variables]: Parameters<ViewHost['refreshPage']>): void {
-  void guard.siteClient
-    ?.query(page.request.query, variables, { ...page.options, requestPolicy: REFRESH_POLICY })
-    .toPromise()
-    .catch(() => undefined);
+function redriveList(guard: Guard, operation: Operation): void {
+  guard.client?.reexecuteOperation(makeOperation(operation.kind, operation, { ...operation.context, requestPolicy: REFRESH_POLICY }));
 }
 
 const createGuardViews = (guard: Guard): PriceViews =>
   createPriceViews({
-    isReady: () => isViewReady(guard),
+    isReady: () => guard.client !== null,
     crawl: (...request) => crawlForView(guard, ...request),
-    redrive: (...request) => redriveList(guard, ...request),
-    refreshPage: (...request) => refreshServedPage(guard, ...request),
+    redrive: (operation) => redriveList(guard, operation),
     publishState: (scope, state) => publish(guard, PRICE_STATE_EVENT, encodePriceState({ scope, state })),
     publishRows: (scope, rows) => publish(guard, PRICE_ROWS_EVENT, encodePriceRows({ scope, rows })),
     debug: guard.debug,
   });
 
-function handleMutation(guard: Guard, priceViews: PriceViews, result: OperationResult): void {
-  const mutation = result as unknown as MutationResult;
-  priceViews.handleMutation(mutation);
-  const plan = planRefresh(mutation, guard.record.families());
+function handleMutation(guard: Guard, result: OperationResult): void {
+  const plan = planRefresh(result, guard.record.families());
   const client = guard.client;
   guard.debug('inventory change', { recorded: pageCounts(guard.record), refreshing: plan.length });
   if (!client || plan.length === 0) return;
@@ -245,12 +220,10 @@ function recordPage(guard: Guard, page: PageRequest): boolean {
 
 const isSilent = (guard: Guard, context: OperationContext): boolean => typeof context.fetch === 'function' && guard.silent.has(context.fetch);
 
-function attach(guard: Guard, priceViews: PriceViews, client: Client, siteClient: Client): void {
+function attach(guard: Guard, client: Client): void {
   guard.client = client;
-  guard.siteClient = siteClient as unknown as QueryClient;
-  const isRewriting = rewriteLists(guard.siteClient, priceViews, guard.silent);
-  if (isRewriting) guard.pageWindow.document.documentElement.setAttribute(GUARD_ATTRIBUTE, GUARD_READY);
-  guard.debug('urql client', isRewriting ? 'attached' : 'not replaceable');
+  guard.pageWindow.document.documentElement.setAttribute(GUARD_ATTRIBUTE, GUARD_READY);
+  guard.debug('urql client', 'attached');
 }
 
 export function installInventoryGuard(pageWindow: PageWindow): InventoryGuard {
@@ -263,18 +236,20 @@ export function installInventoryGuard(pageWindow: PageWindow): InventoryGuard {
     sleep: sleepIn(pageWindow),
     queue: Promise.resolve(),
     client: null,
-    siteClient: null,
   };
   const priceViews = createGuardViews(guard);
   pageWindow.document.addEventListener(REFRESH_REQUEST_EVENT, (event) => handleRefreshRequest(guard, priceViews, event));
   pageWindow.document.addEventListener(PRICE_VIEW_EVENT, (event) => handlePriceSwitch(priceViews, event));
   pageWindow.document.addEventListener(PRICE_ORDER_EVENT, (event) => handlePriceOrder(priceViews, event));
-  answerPrivateRequests(pageWindow, priceViews);
-  const exchange = inventoryExchange({
-    isSilent: (context) => isSilent(guard, context),
-    record: (page) => recordPage(guard, page),
-    handleCacheHit: (page) => refreshOnCacheHit(guard, page),
-    handleMutation: (result) => handleMutation(guard, priceViews, result),
-  });
-  return { exchange, attach: (client, siteClient) => attach(guard, priceViews, client, siteClient) };
+  const isGuardSilent = (context: OperationContext): boolean => isSilent(guard, context);
+  const exchanges = [
+    priceExchange(priceViews, isGuardSilent),
+    inventoryExchange({
+      isSilent: isGuardSilent,
+      record: (page) => recordPage(guard, page),
+      handleCacheHit: (page) => refreshOnCacheHit(guard, page),
+      handleMutation: (result) => handleMutation(guard, result),
+    }),
+  ];
+  return { exchanges, attach: (client) => attach(guard, client) };
 }

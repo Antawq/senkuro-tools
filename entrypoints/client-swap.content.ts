@@ -22,7 +22,7 @@ export default defineContentScript({
           searchExchange(createSearchPublisher(window)),
           catalogFallbackExchange(installCatalogRouting(document)),
           cursorExchange(createCursorLedger(), (variables) => debug('stale cursor dropped', { list: familyIdOf(variables), after: variables.after })),
-          inventory.exchange,
+          ...inventory.exchanges,
         ],
         onSwapped: inventory.attach,
       };

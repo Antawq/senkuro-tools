@@ -1,13 +1,27 @@
 import { describe, expect, it } from 'vitest';
 
-import type { MutationResult } from '../utils/inventory/client-hooks';
+import { Client, gql, makeErrorResult, makeResult, type Operation, type OperationResult } from '@urql/core';
+
 import type { Variables } from '../utils/inventory/list-families';
 import type { Row } from '../utils/inventory/price-crawl';
-import { createPrivateCursor, privateFieldOf } from '../utils/inventory/price-private';
-import { createPriceView, createViewCounters, type ListPage, type ViewHost, type ViewList } from '../utils/inventory/price-view';
+import { createPrivateCursor } from '../utils/inventory/price-private';
+import { createPriceView, createViewCounters, type PageAnswer, type ViewHost, type ViewList } from '../utils/inventory/price-view';
 import type { ListScope } from '../utils/shared/list-scope';
 import type { PriceRows, PriceState } from '../utils/shared/price-signal';
-import type { QueryRequest } from '../utils/shared/urql-client';
+
+const LIST = gql`
+  query fetchUserCards($userId: ID!, $after: String) {
+    userCards(first: 2, userId: $userId, after: $after) {
+      edges {
+        node {
+          modifier
+        }
+      }
+    }
+  }
+`;
+
+const operations = new Client({ url: 'https://api.senkuro.me/graphql', exchanges: [] });
 
 const gridVariables = (extra: Variables = {}): Variables => ({
   userId: 'USER:1',
@@ -22,11 +36,17 @@ const gridVariables = (extra: Variables = {}): Variables => ({
 const pickerOf = (variables: Variables): Variables =>
   Object.fromEntries(Object.entries(variables).filter(([name]) => name !== 'orderField' && name !== 'orderDirection'));
 
-const request = (variables: Variables | undefined, name = 'fetchUserCards', key = 7): QueryRequest => ({
-  key,
-  ...(variables ? { variables } : {}),
-  query: { definitions: [{ kind: 'OperationDefinition', name: { value: name } }] },
-});
+const listOperation = (variables: Variables, key = 7): Operation =>
+  operations.createRequestOperation('query', { key, query: LIST, variables }, { suspense: true });
+
+const mutationOf = (name: string, variables: Variables, data: Record<string, unknown> | null, error?: Error): OperationResult => {
+  const operation = operations.createRequestOperation('mutation', {
+    key: 1,
+    query: gql(`mutation ${name}($input: ID) { ${name}(input: $input) { success } }`),
+    variables,
+  });
+  return error ? makeErrorResult(operation, error) : makeResult(operation, { data });
+};
 
 const rowOf = (slug: string, modifier = 0, locked = false): Row => ({ node: { modifier, locked, card: { id: `id-${slug}`, slug } } });
 
@@ -42,7 +62,7 @@ const DESCENDING = [2, 0, 4, 1, 3];
 const ASCENDING = [3, 1, 4, 0, 2];
 
 interface Crawl {
-  page: ListPage;
+  operation: Operation;
   report: (loaded: number, total: number | null) => void;
   signal: AbortSignal;
   finish: (list: ViewList | null) => void;
@@ -52,29 +72,27 @@ interface Crawl {
 const rig = ({ isReady = true, scope = 'grid' }: { isReady?: boolean; scope?: ListScope } = {}) => {
   const states: PriceState[] = [];
   const rows: PriceRows[] = [];
-  const redrives: { page: ListPage; variables: Variables }[] = [];
-  const refreshes: { page: ListPage; variables: Variables }[] = [];
+  const redrives: Operation[] = [];
   const crawls: Crawl[] = [];
   const host: ViewHost = {
     isReady: () => isReady,
-    crawl: (page, report, signal) =>
+    crawl: (operation, report, signal) =>
       new Promise((finish, reject) => {
-        crawls.push({ page, report, signal, finish, fail: () => reject(new Error('crawl failed')) });
+        crawls.push({ operation, report, signal, finish, fail: () => reject(new Error('crawl failed')) });
       }),
-    redrive: (page, variables) => void redrives.push({ page, variables }),
-    refreshPage: (page, variables) => void refreshes.push({ page, variables }),
+    redrive: (operation) => void redrives.push(operation),
     publishState: (state) => void states.push(state),
     publishRows: (sent) => void rows.push(sent),
     debug: () => undefined,
   };
-  return { view: createPriceView(host, { scope, counters: createViewCounters() }), states, rows, redrives, refreshes, crawls };
+  return { view: createPriceView(host, { scope, counters: createViewCounters() }), states, rows, redrives, crawls };
 };
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 const crawled = async (slugs = SLUGS) => {
   const harness = rig();
-  harness.view.watch(request(gridVariables()), { suspense: true });
+  harness.view.watch(listOperation(gridVariables()));
   harness.view.start();
   harness.crawls[0]?.finish(listOf(slugs));
   await settle();
@@ -83,7 +101,7 @@ const crawled = async (slugs = SLUGS) => {
 
 const served = async (variables: Variables = gridVariables()) => {
   const harness = rig();
-  harness.view.watch(request(variables), { suspense: true });
+  harness.view.watch(listOperation(variables));
   harness.view.start();
   harness.crawls[0]?.finish(listOf(SLUGS));
   await settle();
@@ -91,17 +109,16 @@ const served = async (variables: Variables = gridVariables()) => {
   return harness;
 };
 
-const slugsOf = (answer: ReturnType<ReturnType<typeof createPriceView>['answer']>): string[] =>
-  answer.data.userCards.edges.map((row) => String(row.node.card?.slug));
+const slugsOf = (answer: PageAnswer | null): string[] => (answer?.userCards.edges ?? []).map((row) => String(row.node.card?.slug));
 
-const forged = (): MutationResult => ({ operation: request({ input: {} }, 'forgeCards'), data: { forgeCards: { userId: 'USER:1' } } });
+const lockedOf = (answer: PageAnswer | null): unknown[] => (answer?.userCards.edges ?? []).map((row) => row.node.locked);
 
-const accepted = (name = 'acceptCardTrade', success = true): MutationResult => ({ operation: request({}, name), data: { [name]: { success } } });
+const forged = (): OperationResult => mutationOf('forgeCards', { input: {} }, { forgeCards: { userId: 'USER:1' } });
 
-const locked = (cards: { cardId: string; modifier: number }[], isLocked = true, userId = 'USER:1'): MutationResult => ({
-  operation: request({ input: { userId, cards, locked: isLocked } }, 'bulkUpdateUserCardLock'),
-  data: { bulkUpdateUserCardLock: { success: true } },
-});
+const accepted = (name = 'acceptCardTrade', success = true): OperationResult => mutationOf(name, {}, { [name]: { success } });
+
+const locked = (cards: { cardId: string; modifier: number }[], isLocked = true, userId = 'USER:1'): OperationResult =>
+  mutationOf('bulkUpdateUserCardLock', { input: { userId, cards, locked: isLocked } }, { bulkUpdateUserCardLock: { success: true } });
 
 describe('starting', () => {
   it('says it is unavailable when no list was asked for yet, and when the page cannot run it', () => {
@@ -110,7 +127,7 @@ describe('starting', () => {
     expect(noList.states).toEqual([{ name: 'unavailable', loaded: 0, total: null }]);
     expect(noList.crawls).toHaveLength(0);
     const notReady = rig({ isReady: false });
-    notReady.view.watch(request(gridVariables()), {});
+    notReady.view.watch(listOperation(gridVariables()));
     notReady.view.start();
     expect(notReady.states).toEqual([{ name: 'unavailable', loaded: 0, total: null }]);
     expect(notReady.crawls).toHaveLength(0);
@@ -119,13 +136,13 @@ describe('starting', () => {
   it('crawls the grid and never a picker the page asked for after it, since only the grid is served', () => {
     const picker = { userId: 'USER:1', modifier: { exclude: [1] }, rank: { include: [], exclude: ['F'] } };
     const withGrid = rig();
-    withGrid.view.watch(request(gridVariables(), 'fetchUserCards', 1), {});
-    withGrid.view.watch(request(picker, 'fetchUserCards', 2), {});
+    withGrid.view.watch(listOperation(gridVariables(), 1));
+    withGrid.view.watch(listOperation(picker, 2));
     withGrid.view.start();
     expect(withGrid.crawls).toHaveLength(1);
-    expect(withGrid.crawls[0]?.page.request.key).toBe(1);
+    expect(withGrid.crawls[0]?.operation.key).toBe(1);
     const onlyPicker = rig();
-    onlyPicker.view.watch(request(picker, 'fetchUserCards', 3), {});
+    onlyPicker.view.watch(listOperation(picker, 3));
     onlyPicker.view.start();
     expect(onlyPicker.crawls).toHaveLength(0);
     expect(onlyPicker.states).toEqual([{ name: 'unavailable', loaded: 0, total: null }]);
@@ -133,12 +150,12 @@ describe('starting', () => {
 
   it('crawls the list the site asked for last and says it is loading, and how far it is', () => {
     const { view, states, crawls } = rig();
-    view.watch(request(gridVariables({ rank: { include: ['S'] } }), 'fetchUserCards', 1), {});
-    view.watch(request(gridVariables(), 'fetchUserCards', 2), { suspense: true });
+    view.watch(listOperation(gridVariables({ rank: { include: ['S'] } }), 1));
+    view.watch(listOperation(gridVariables(), 2));
     view.start();
     expect(crawls).toHaveLength(1);
-    expect(crawls[0]?.page.request.key).toBe(2);
-    expect(crawls[0]?.page.options).toEqual({ suspense: true });
+    expect(crawls[0]?.operation.key).toBe(2);
+    expect(crawls[0]?.operation.context.suspense).toBe(true);
     expect(states).toEqual([{ name: 'loading', loaded: 0, total: null }]);
     crawls[0]?.report(40, 100);
     expect(states.at(-1)).toEqual({ name: 'loading', loaded: 40, total: 100 });
@@ -151,7 +168,7 @@ describe('starting', () => {
 
   it('gives a null for a card that has no slug', async () => {
     const harness = rig();
-    harness.view.watch(request(gridVariables()), {});
+    harness.view.watch(listOperation(gridVariables()));
     harness.view.start();
     harness.crawls[0]?.finish({ ...listOf(['a']), rows: [rowOf('a'), { node: { modifier: 0, card: { id: 'x' } } }] });
     await settle();
@@ -160,19 +177,19 @@ describe('starting', () => {
 
   it('says it is unavailable when the crawl cannot start, and failed when it fails or finds nothing', async () => {
     const cannot = rig();
-    cannot.view.watch(request(gridVariables()), {});
+    cannot.view.watch(listOperation(gridVariables()));
     cannot.view.start();
     cannot.crawls[0]?.finish(null);
     await settle();
     expect(cannot.states.at(-1)).toEqual({ name: 'unavailable', loaded: 0, total: null });
     const broken = rig();
-    broken.view.watch(request(gridVariables()), {});
+    broken.view.watch(listOperation(gridVariables()));
     broken.view.start();
     broken.crawls[0]?.fail();
     await settle();
     expect(broken.states.at(-1)).toEqual({ name: 'failed', loaded: 0, total: null });
     const empty = rig();
-    empty.view.watch(request(gridVariables()), {});
+    empty.view.watch(listOperation(gridVariables()));
     empty.view.start();
     empty.crawls[0]?.finish(listOf([]));
     await settle();
@@ -182,9 +199,9 @@ describe('starting', () => {
 
   it('forgets a crawl that was left for another one', async () => {
     const { view, crawls, rows, states } = rig();
-    view.watch(request(gridVariables()), {});
+    view.watch(listOperation(gridVariables()));
     view.start();
-    view.watch(request(gridVariables({ rank: { include: ['S'] } })), {});
+    view.watch(listOperation(gridVariables({ rank: { include: ['S'] } })));
     expect(crawls[0]?.signal.aborted).toBe(true);
     crawls[0]?.finish(listOf(['old']));
     await settle();
@@ -199,115 +216,103 @@ describe('starting', () => {
 describe('serving the list', () => {
   it('does not serve until the order has come: the grid keeps the list of the site', async () => {
     const { view } = await crawled();
-    const asked = request(gridVariables());
-    expect(view.rewrite(asked)).toBe(asked);
+    const asked = listOperation(gridVariables());
+    expect(view.answer(asked)).toBeNull();
+    expect(view.forwarded(asked)).toBe(asked);
   });
 
-  it('serves from the moment the order has come: says so, and asks the grid again for its private list', async () => {
+  it('serves from the moment the order has come: says so, and asks the grid again, which it then answers itself', async () => {
     const { view, states, redrives } = await served();
     expect(states.at(-1)).toEqual({ name: 'ready', loaded: 5, total: 5 });
     expect(redrives).toHaveLength(1);
-    expect(redrives[0]?.variables).toEqual(gridVariables({ orderField: privateFieldOf(1), after: null }));
-    expect(redrives[0]?.page.request.key).toBe(7);
-    const rewritten = view.rewrite(request(gridVariables({ after: 'UgECAA_YJe18' })));
-    expect(rewritten.key).toBe(7);
-    expect(rewritten.variables).toEqual(gridVariables({ orderField: privateFieldOf(1), after: null }));
+    expect(redrives[0]?.key).toBe(7);
+    expect(slugsOf(view.answer(redrives[0]!))).toEqual(['c', 'a']);
+    expect(slugsOf(view.answer(listOperation(gridVariables({ after: 'UgECAA_YJe18' }))))).toEqual(['c', 'a']);
   });
 
   it('keeps the direction the site asks for and the cursor of the version it serves', async () => {
     const { view } = await served();
-    expect(view.rewrite(request(gridVariables({ orderDirection: 'ASC', after: createPrivateCursor(1, 2) }))).variables).toEqual(
-      gridVariables({ orderField: privateFieldOf(1), orderDirection: 'ASC', after: createPrivateCursor(1, 2) })
-    );
+    expect(slugsOf(view.answer(listOperation(gridVariables({ orderDirection: 'ASC', after: createPrivateCursor(1, 2) }))))).toEqual(['d', 'b', 'e', 'a']);
   });
 
-  it('answers a page of the sorted list with the type names the server used, and a cursor for the next', async () => {
+  it('answers every row up to the end of the page asked for, with the type names the server used and a cursor for the next, as the cache would have merged them', async () => {
     const { view } = await served();
-    const first = view.answer(gridVariables({ orderField: privateFieldOf(1) }));
+    const first = view.answer(listOperation(gridVariables()));
     expect(slugsOf(first)).toEqual(['c', 'a']);
-    expect(first.data.userCards.__typename).toBe('ConnectionOfCards');
-    expect(first.data.userCards.pageInfo).toEqual({ __typename: 'PageInfoOfCards', hasNextPage: true, endCursor: createPrivateCursor(1, 2) });
-    const second = view.answer(gridVariables({ orderField: privateFieldOf(1), after: createPrivateCursor(1, 2) }));
-    expect(slugsOf(second)).toEqual(['e', 'b']);
-    expect(second.data.userCards.pageInfo).toMatchObject({ hasNextPage: true, endCursor: createPrivateCursor(1, 4) });
-    const last = view.answer(gridVariables({ orderField: privateFieldOf(1), after: createPrivateCursor(1, 4) }));
-    expect(slugsOf(last)).toEqual(['d']);
-    expect(last.data.userCards.pageInfo).toMatchObject({ hasNextPage: false, endCursor: null });
+    expect(first?.userCards.__typename).toBe('ConnectionOfCards');
+    expect(first?.userCards.pageInfo).toEqual({ __typename: 'PageInfoOfCards', hasNextPage: true, endCursor: createPrivateCursor(1, 2) });
+    const second = view.answer(listOperation(gridVariables({ after: createPrivateCursor(1, 2) })));
+    expect(slugsOf(second)).toEqual(['c', 'a', 'e', 'b']);
+    expect(second?.userCards.pageInfo).toMatchObject({ hasNextPage: true, endCursor: createPrivateCursor(1, 4) });
+    const last = view.answer(listOperation(gridVariables({ after: createPrivateCursor(1, 4) })));
+    expect(slugsOf(last)).toEqual(['c', 'a', 'e', 'b', 'd']);
+    expect(last?.userCards.pageInfo).toMatchObject({ hasNextPage: false, endCursor: null });
   });
 
   it('answers the rows as they were crawled, the same objects, so nothing the card needs is lost', async () => {
     const { view, crawls } = await served();
-    const crawledRows = crawls.length;
-    expect(crawledRows).toBe(1);
-    expect(view.answer(gridVariables({ orderField: privateFieldOf(1) })).data.userCards.edges[0]).toEqual(rowOf('c'));
+    expect(crawls).toHaveLength(1);
+    expect(view.answer(listOperation(gridVariables()))?.userCards.edges[0]).toEqual(rowOf('c'));
   });
 
   it('answers the other way round for the other direction of the site', async () => {
     const { view } = await served();
-    expect(slugsOf(view.answer(gridVariables({ orderField: privateFieldOf(1), orderDirection: 'ASC' })))).toEqual(['d', 'b']);
+    expect(slugsOf(view.answer(listOperation(gridVariables({ orderDirection: 'ASC' }))))).toEqual(['d', 'b']);
   });
 
   it('starts over for a cursor of another version or of the server, instead of serving the middle of another list', async () => {
     const { view } = await served();
     for (const after of [createPrivateCursor(0, 2), createPrivateCursor(9, 2), 'UgECAA_YJe18', 'senkutools:price:broken']) {
-      expect(slugsOf(view.answer(gridVariables({ orderField: privateFieldOf(1), after })))).toEqual(['c', 'a']);
+      expect(slugsOf(view.answer(listOperation(gridVariables({ after }))))).toEqual(['c', 'a']);
     }
   });
 
   it('leaves alone the lists that are not the one it serves: another filter, another field, other names, another user', async () => {
     const { view } = await served();
-    const picker = pickerOf(gridVariables());
     for (const variables of [
       gridVariables({ modifier: { include: [1] } }),
       gridVariables({ orderField: 'RANK' }),
-      picker,
+      pickerOf(gridVariables()),
       gridVariables({ userId: 'USER:2' }),
       gridVariables({ animated: false }),
     ]) {
-      const asked = request(variables);
-      expect(view.rewrite(asked)).toBe(asked);
+      const asked = listOperation(variables);
+      expect(view.answer(asked)).toBeNull();
+      expect(view.forwarded(asked)).toBe(asked);
     }
   });
 
   it('leaves a request without variables alone', async () => {
     const { view } = await served();
-    const asked = request(undefined);
-    expect(view.rewrite(asked)).toBe(asked);
+    const asked = listOperation({});
+    expect(view.answer(asked)).toBeNull();
+    expect(view.forwarded(asked)).toBe(asked);
   });
 
-  it('turns a private cursor into the start of the real list when it is not serving that list', async () => {
+  it('turns a private cursor into the start of the real list when it is not serving that list, keeping the key', async () => {
     const { view } = await crawled();
-    const rewritten = view.rewrite(request(gridVariables({ after: createPrivateCursor(1, 4) })));
-    expect(rewritten.variables).toEqual(gridVariables({ after: null }));
-    expect(rewritten.key).toBe(7);
+    const sent = view.forwarded(listOperation(gridVariables({ after: createPrivateCursor(1, 4) })));
+    expect(sent.variables).toEqual(gridVariables({ after: null }));
+    expect(sent.key).toBe(7);
   });
 });
 
-describe('an answer that cannot be served', () => {
-  const emptyPage = { hasNextPage: false, endCursor: null };
-
-  it('is an empty page, never an error and never a request to the server, whatever was asked', async () => {
-    const privateVariables = gridVariables({ orderField: privateFieldOf(1) });
+describe('a list it does not serve', () => {
+  it('gets no answer from it, so the site answers it, whatever was asked', async () => {
     const nothing = rig();
-    expect(nothing.view.answer(privateVariables).data.userCards.edges).toEqual([]);
-    expect(nothing.view.answer(privateVariables).data.userCards.pageInfo).toMatchObject(emptyPage);
+    expect(nothing.view.answer(listOperation(gridVariables()))).toBeNull();
     const crawling = await crawled();
-    expect(crawling.view.answer(privateVariables).data.userCards.edges).toEqual([]);
+    expect(crawling.view.answer(listOperation(gridVariables()))).toBeNull();
     const { view } = await served();
-    for (const variables of [
-      gridVariables({ orderField: privateFieldOf(2) }),
-      gridVariables({ orderField: 'CREATED_AT' }),
-      gridVariables({ orderField: privateFieldOf(1), userId: 'USER:2' }),
-      {},
-    ]) {
-      expect(view.answer(variables).data.userCards.edges).toEqual([]);
+    for (const variables of [gridVariables({ orderField: 'RANK' }), gridVariables({ userId: 'USER:2' }), {}]) {
+      expect(view.answer(listOperation(variables))).toBeNull();
     }
   });
 
-  it('is an empty page after the view stopped', async () => {
+  it('gets no answer after the view stopped', async () => {
     const { view } = await served();
     view.stop();
-    expect(view.answer(gridVariables({ orderField: privateFieldOf(1) })).data.userCards.edges).toEqual([]);
+    expect(view.answer(listOperation(gridVariables()))).toBeNull();
   });
 });
 
@@ -331,24 +336,24 @@ describe('the order', () => {
 
   it('is dropped while the list is still being crawled', () => {
     const { view, redrives } = rig();
-    view.watch(request(gridVariables()), {});
+    view.watch(listOperation(gridVariables()));
     view.start();
     view.receiveOrder({ viewId: 1, revision: 1, descending: [], ascending: [] });
     expect(redrives).toHaveLength(0);
   });
 
-  it('is replaced by a newer one for the same list, as another list for the cache, and the grid is asked again', async () => {
+  it('is replaced by a newer one for the same list under a new version, and the grid is asked again', async () => {
     const { view, redrives, rows } = await served();
     view.receiveOrder({ viewId: rows[0]?.viewId ?? -1, revision: 2, descending: ASCENDING, ascending: DESCENDING });
     expect(redrives).toHaveLength(2);
-    expect(redrives[1]?.variables).toEqual(gridVariables({ orderField: privateFieldOf(2), after: null }));
-    expect(slugsOf(view.answer(gridVariables({ orderField: privateFieldOf(2) })))).toEqual(['d', 'b']);
-    expect(view.answer(gridVariables({ orderField: privateFieldOf(1) })).data.userCards.edges).toEqual([]);
+    expect(slugsOf(view.answer(listOperation(gridVariables())))).toEqual(['d', 'b']);
+    expect(slugsOf(view.answer(listOperation(gridVariables({ after: createPrivateCursor(1, 2) }))))).toEqual(['d', 'b']);
+    expect(view.answer(listOperation(gridVariables()))?.userCards.pageInfo.endCursor).toBe(createPrivateCursor(2, 2));
   });
 
   it('is dropped when it comes for a view that was left for another', async () => {
     const { view, rows, redrives, crawls } = await crawled();
-    view.watch(request(gridVariables({ modifier: { include: [1] } })), {});
+    view.watch(listOperation(gridVariables({ modifier: { include: [1] } })));
     crawls[1]?.finish(listOf(['x']));
     await settle();
     view.receiveOrder({ viewId: rows[0]?.viewId ?? -1, revision: 1, descending: DESCENDING, ascending: ASCENDING });
@@ -357,19 +362,18 @@ describe('the order', () => {
 });
 
 describe('stopping', () => {
-  it('gives the grid its own list back when it was serving, starting from the first page of it', async () => {
+  it('asks the grid again when it was serving, and the request then goes to the site from the first page of the real list', async () => {
     const { view, redrives } = await served();
-    view.rewrite(request(gridVariables({ after: createPrivateCursor(1, 2) })));
-    view.watch(request(gridVariables({ after: createPrivateCursor(1, 2) }), 'fetchUserCards', 9), {});
+    view.watch(listOperation(gridVariables({ after: createPrivateCursor(1, 2) }), 9));
     view.stop();
     expect(redrives).toHaveLength(2);
-    expect(redrives[1]?.variables).toEqual(gridVariables({ after: null }));
-    expect(redrives[1]?.page.request.key).toBe(9);
+    expect(redrives[1]?.key).toBe(9);
+    expect(view.forwarded(redrives[1]!).variables).toEqual(gridVariables({ after: null }));
   });
 
   it('asks for nothing when it was not serving, and stops the crawl', () => {
     const { view, redrives, crawls } = rig();
-    view.watch(request(gridVariables()), {});
+    view.watch(listOperation(gridVariables()));
     view.start();
     view.stop();
     expect(crawls[0]?.signal.aborted).toBe(true);
@@ -379,20 +383,19 @@ describe('stopping', () => {
   it('stops serving at once', async () => {
     const { view } = await served();
     view.stop();
-    const asked = request(gridVariables());
-    expect(view.rewrite(asked)).toBe(asked);
-    expect(view.rewrite(request(gridVariables({ after: createPrivateCursor(1, 2) }))).variables).toEqual(gridVariables({ after: null }));
+    expect(view.answer(listOperation(gridVariables()))).toBeNull();
+    expect(view.forwarded(listOperation(gridVariables({ after: createPrivateCursor(1, 2) }))).variables).toEqual(gridVariables({ after: null }));
   });
 
-  it('serves a view that is started again as another private list than the first, so the old cached pages are never linked to', async () => {
-    const { view, redrives, crawls, rows } = await served();
+  it('serves a view that is started again under another version, so a cursor of the first one starts over', async () => {
+    const { view, crawls, rows } = await served();
     view.stop();
     view.start();
     crawls[1]?.finish(listOf(SLUGS));
     await settle();
     view.receiveOrder({ viewId: rows.at(-1)?.viewId ?? -1, revision: 1, descending: DESCENDING, ascending: ASCENDING });
-    expect(redrives.at(-1)?.variables).toEqual(gridVariables({ orderField: privateFieldOf(2), after: null }));
-    expect(view.answer(gridVariables({ orderField: privateFieldOf(1) })).data.userCards.edges).toEqual([]);
+    expect(slugsOf(view.answer(listOperation(gridVariables({ after: createPrivateCursor(1, 2) }))))).toEqual(['c', 'a']);
+    expect(slugsOf(view.answer(listOperation(gridVariables({ after: createPrivateCursor(2, 2) }))))).toEqual(['c', 'a', 'e', 'b']);
   });
 
   it('can start again', async () => {
@@ -406,75 +409,69 @@ describe('stopping', () => {
 describe('the grid asking for another list', () => {
   it('starts over for it when the names and the user are the same and the filters are not', async () => {
     const { view, crawls, states } = await served();
-    view.watch(request(gridVariables({ modifier: { include: [1] } })), {});
+    view.watch(listOperation(gridVariables({ modifier: { include: [1] } })));
     expect(crawls).toHaveLength(2);
     expect(crawls[0]?.signal.aborted).toBe(true);
     expect(states.at(-1)).toEqual({ name: 'loading', loaded: 0, total: null });
-    const asked = request(gridVariables({ modifier: { include: [1] } }));
-    expect(view.rewrite(asked)).toBe(asked);
+    expect(view.answer(listOperation(gridVariables({ modifier: { include: [1] } })))).toBeNull();
   });
 
   it('keeps following the same list when it asks again for a later page or the other direction', async () => {
     const { view, crawls } = await served();
-    view.watch(request(gridVariables({ after: createPrivateCursor(1, 2) }), 'fetchUserCards', 8), {});
-    view.watch(request(gridVariables({ orderDirection: 'ASC' }), 'fetchUserCards', 9), {});
+    view.watch(listOperation(gridVariables({ after: createPrivateCursor(1, 2) }), 8));
+    view.watch(listOperation(gridVariables({ orderDirection: 'ASC' }), 9));
     expect(crawls).toHaveLength(1);
   });
 
-  it('is not moved by a picker, by the lists of other users, or by a request it made itself', async () => {
+  it('is not moved by a picker, by the lists of other users, or by a request without variables', async () => {
     const { view, crawls } = await served();
-    const picker = pickerOf(gridVariables());
-    view.watch(request(picker), {});
-    view.watch(request(gridVariables({ userId: 'USER:2' })), {});
-    view.watch(request(gridVariables({ orderField: privateFieldOf(1) })), {});
-    view.watch(request(undefined), {});
+    view.watch(listOperation(pickerOf(gridVariables())));
+    view.watch(listOperation(gridVariables({ userId: 'USER:2' })));
+    view.watch(listOperation({}));
     expect(crawls).toHaveLength(1);
   });
 
   it('does not start anything while it is off', () => {
     const { view, crawls } = rig();
-    view.watch(request(gridVariables()), {});
-    view.watch(request(gridVariables({ rank: { include: ['S'] } })), {});
+    view.watch(listOperation(gridVariables()));
+    view.watch(listOperation(gridVariables({ rank: { include: ['S'] } })));
     expect(crawls).toHaveLength(0);
   });
 
   it('does not start over while there is no view, after a crawl that failed', async () => {
     const { view, crawls } = rig();
-    view.watch(request(gridVariables()), {});
+    view.watch(listOperation(gridVariables()));
     view.start();
     crawls[0]?.fail();
     await settle();
-    view.watch(request(gridVariables({ rank: { include: ['S'] } })), {});
+    view.watch(listOperation(gridVariables({ rank: { include: ['S'] } })));
     expect(crawls).toHaveLength(1);
   });
 });
 
 describe('what the site does to the inventory meanwhile', () => {
-  it('stops serving after a forge, gives the grid its own list, crawls again, and serves the new list as another one', async () => {
+  it('stops serving after a forge, gives the grid its own list, crawls again, and serves the new list under a new version', async () => {
     const { view, redrives, crawls, rows, states } = await served();
     view.handleMutation(forged());
     expect(redrives).toHaveLength(2);
-    expect(redrives[1]?.variables).toEqual(gridVariables({ after: null }));
     expect(crawls).toHaveLength(2);
     expect(states.at(-1)).toEqual({ name: 'loading', loaded: 0, total: null });
-    const asked = request(gridVariables());
-    expect(view.rewrite(asked)).toBe(asked);
-    expect(view.answer(gridVariables({ orderField: privateFieldOf(1) })).data.userCards.edges).toEqual([]);
+    expect(view.answer(listOperation(gridVariables()))).toBeNull();
     crawls[1]?.finish(listOf(['n', 'm', 'k']));
     await settle();
     view.receiveOrder({ viewId: rows.at(-1)?.viewId ?? -1, revision: 1, descending: [0, 1, 2], ascending: [2, 1, 0] });
-    expect(redrives.at(-1)?.variables).toEqual(gridVariables({ orderField: privateFieldOf(2), after: null }));
-    expect(slugsOf(view.answer(gridVariables({ orderField: privateFieldOf(2) })))).toEqual(['n', 'm']);
-    expect(view.answer(gridVariables({ orderField: privateFieldOf(1) })).data.userCards.edges).toEqual([]);
+    expect(redrives).toHaveLength(3);
+    expect(slugsOf(view.answer(listOperation(gridVariables())))).toEqual(['n', 'm']);
+    expect(view.answer(listOperation(gridVariables()))?.userCards.pageInfo.endCursor).toBe(createPrivateCursor(2, 2));
   });
 
   it('does the same after an accepted trade or offer, a restored forge, an opened pack and a claimed drop', async () => {
     for (const mutation of [
       accepted('acceptCardTrade'),
       accepted('acceptCardOffer'),
-      { operation: request({}, 'restoreForge'), data: { restoreForge: { userId: 'USER:1' } } },
-      { operation: request({}, 'openCardPack'), data: { openCardPack: { cards: [] } } },
-      { operation: request({}, 'claimCardDrop'), data: { claimCardDrop: { card: {} } } },
+      mutationOf('restoreForge', {}, { restoreForge: { userId: 'USER:1' } }),
+      mutationOf('openCardPack', {}, { openCardPack: { cards: [] } }),
+      mutationOf('claimCardDrop', {}, { claimCardDrop: { card: {} } }),
     ]) {
       const { view, crawls } = await served();
       view.handleMutation(mutation);
@@ -484,12 +481,11 @@ describe('what the site does to the inventory meanwhile', () => {
 
   it('does nothing when the action failed, was refused, or is not about the inventory', async () => {
     const { view, crawls, redrives } = await served();
-    view.handleMutation({ ...forged(), error: new Error('x') });
-    view.handleMutation({ operation: request({}, 'forgeCards'), data: { forgeCards: null } });
+    view.handleMutation(mutationOf('forgeCards', {}, null, new Error('x')));
+    view.handleMutation(mutationOf('forgeCards', {}, { forgeCards: null }));
     view.handleMutation(accepted('acceptCardTrade', false));
     view.handleMutation(accepted('declineCardTrade'));
-    view.handleMutation({ data: {} });
-    view.handleMutation({ operation: request({}, 'forgeCards') });
+    view.handleMutation(mutationOf('forgeCards', {}, null));
     expect(crawls).toHaveLength(1);
     expect(redrives).toHaveLength(1);
   });
@@ -501,7 +497,7 @@ describe('what the site does to the inventory meanwhile', () => {
     expect(crawls).toHaveLength(1);
   });
 
-  it('writes a lock into the rows it will still serve, and only for that card and modifier of that user', async () => {
+  it('writes a lock into the rows it serves, and only for that card and modifier of that user', async () => {
     const { view } = await served();
     view.handleMutation(
       locked([
@@ -510,102 +506,38 @@ describe('what the site does to the inventory meanwhile', () => {
       ])
     );
     view.handleMutation(locked([{ cardId: 'id-a', modifier: 0 }], true, 'USER:2'));
-    const first = view.answer(gridVariables({ orderField: privateFieldOf(1) })).data.userCards.edges;
-    expect(first.map((row) => row.node.locked)).toEqual([true, false]);
-    const second = view.answer(gridVariables({ orderField: privateFieldOf(1), after: createPrivateCursor(1, 2) })).data.userCards.edges;
-    expect(second.map((row) => row.node.locked)).toEqual([false, false]);
+    expect(lockedOf(view.answer(listOperation(gridVariables({ after: createPrivateCursor(1, 2) }))))).toEqual([true, false, false, false]);
     view.handleMutation(locked([{ cardId: 'id-c', modifier: 0 }], false));
-    expect(view.answer(gridVariables({ orderField: privateFieldOf(1) })).data.userCards.edges[0]?.node.locked).toBe(false);
+    expect(lockedOf(view.answer(listOperation(gridVariables())))[0]).toBe(false);
   });
 
-  it('leaves the list as it is for a lock, and does not ask the grid again', async () => {
+  it('keeps the list for a lock and asks the grid again once, so its answer shows the lock', async () => {
     const { view, crawls, redrives } = await served();
-    view.handleMutation(locked([{ cardId: 'id-c', modifier: 0 }]));
+    view.handleMutation(
+      locked([
+        { cardId: 'id-c', modifier: 0 },
+        { cardId: 'id-a', modifier: 0 },
+      ])
+    );
     expect(crawls).toHaveLength(1);
+    expect(redrives).toHaveLength(2);
+    expect(redrives[1]?.key).toBe(7);
+    expect(lockedOf(view.answer(redrives[1]!))).toEqual([true, true]);
+  });
+
+  it('does not ask the grid again for a lock of a card it does not hold, of another user, or while it is not serving', async () => {
+    const { view, redrives } = await served();
+    view.handleMutation(locked([{ cardId: 'id-z', modifier: 0 }]));
+    view.handleMutation(locked([{ cardId: 'id-c', modifier: 0 }], true, 'USER:2'));
     expect(redrives).toHaveLength(1);
-  });
-
-  describe('the pages already served', () => {
-    const privateGrid = (extra: Variables = {}): Variables => gridVariables({ orderField: privateFieldOf(1), ...extra });
-
-    it('are written again, only the one that holds a locked card, with its cursor and direction, so the grid shows the lock', async () => {
-      const { view, refreshes } = await served();
-      view.answer(privateGrid());
-      view.answer(privateGrid({ after: createPrivateCursor(1, 2) }));
-      view.handleMutation(locked([{ cardId: 'id-e', modifier: 0 }]));
-      expect(refreshes).toHaveLength(1);
-      expect(refreshes[0]?.variables).toEqual(privateGrid({ orderDirection: 'DESC', after: createPrivateCursor(1, 2) }));
-      expect(refreshes[0]?.page.request.key).toBe(7);
-    });
-
-    it('start from the first page with no cursor, and keep the direction they were served in', async () => {
-      const { view, refreshes } = await served();
-      view.answer(privateGrid());
-      view.answer(privateGrid({ orderDirection: 'ASC', after: createPrivateCursor(1, 2) }));
-      view.handleMutation(locked([{ cardId: 'id-c', modifier: 0 }]));
-      view.handleMutation(locked([{ cardId: 'id-e', modifier: 0 }], false));
-      expect(refreshes.map((entry) => entry.variables)).toEqual([
-        privateGrid({ orderDirection: 'DESC', after: null }),
-        privateGrid({ orderDirection: 'ASC', after: createPrivateCursor(1, 2) }),
-      ]);
-    });
-
-    it('are not written for a card on a page that was not served, nor for a card of another user', async () => {
-      const { view, refreshes } = await served();
-      view.answer(privateGrid());
-      view.handleMutation(locked([{ cardId: 'id-d', modifier: 0 }]));
-      view.handleMutation(locked([{ cardId: 'id-c', modifier: 0 }], true, 'USER:2'));
-      expect(refreshes).toHaveLength(0);
-    });
-
-    it('are written once for a card that sits on served pages of both directions, and once for two cards on one page', async () => {
-      const { view, refreshes } = await served();
-      view.answer(privateGrid());
-      view.answer(privateGrid({ orderDirection: 'ASC', after: createPrivateCursor(1, 2) }));
-      view.handleMutation(locked([{ cardId: 'id-a', modifier: 0 }]));
-      expect(refreshes).toHaveLength(1);
-      view.handleMutation(
-        locked(
-          [
-            { cardId: 'id-c', modifier: 0 },
-            { cardId: 'id-a', modifier: 0 },
-          ],
-          false
-        )
-      );
-      expect(refreshes).toHaveLength(2);
-    });
-
-    it('are forgotten when the list is replaced, and counted again once they are served again', async () => {
-      const { view, refreshes, rows } = await served();
-      view.answer(privateGrid());
-      view.receiveOrder({ viewId: rows[0]?.viewId ?? -1, revision: 2, descending: DESCENDING, ascending: ASCENDING });
-      view.handleMutation(locked([{ cardId: 'id-c', modifier: 0 }]));
-      expect(refreshes).toHaveLength(0);
-      view.answer(privateGrid({ orderField: privateFieldOf(2) }));
-      view.handleMutation(locked([{ cardId: 'id-c', modifier: 0 }], false));
-      expect(refreshes.map((entry) => entry.variables)).toEqual([privateGrid({ orderField: privateFieldOf(2), orderDirection: 'DESC', after: null })]);
-    });
-
-    it('are not written for a lock that came while the view is not serving anything', async () => {
-      const { view, refreshes } = await crawled();
-      view.handleMutation(locked([{ cardId: 'id-c', modifier: 0 }]));
-      expect(refreshes).toHaveLength(0);
-    });
-  });
-
-  it('leaves a request for a private list alone, its cursor included, whether the view serves or not', async () => {
-    const serving = await served();
     const crawling = await crawled();
-    for (const { view } of [serving, crawling]) {
-      const asked = request(gridVariables({ orderField: privateFieldOf(1), after: createPrivateCursor(1, 2) }));
-      expect(view.rewrite(asked)).toBe(asked);
-    }
+    crawling.view.handleMutation(locked([{ cardId: 'id-c', modifier: 0 }]));
+    expect(crawling.redrives).toHaveLength(0);
   });
 
   it('crawls again for a lock that came while the list was still being crawled, because the crawl may have read the old state', () => {
     const { view, crawls } = rig();
-    view.watch(request(gridVariables()), {});
+    view.watch(listOperation(gridVariables()));
     view.start();
     view.handleMutation(locked([{ cardId: 'id-c', modifier: 0 }]));
     expect(crawls).toHaveLength(2);
@@ -613,18 +545,20 @@ describe('what the site does to the inventory meanwhile', () => {
   });
 
   it('ignores a lock that is not whole', async () => {
-    const { view } = await served();
-    view.handleMutation({
-      operation: request({ input: { userId: 'USER:1', cards: 'x', locked: true } }, 'bulkUpdateUserCardLock'),
-      data: { bulkUpdateUserCardLock: { success: true } },
-    });
-    view.handleMutation({
-      operation: request({ input: { userId: 'USER:1', cards: [{ cardId: 'id-c', modifier: 0 }] } }, 'bulkUpdateUserCardLock'),
-      data: { bulkUpdateUserCardLock: { success: true } },
-    });
-    view.handleMutation({ operation: request({}, 'bulkUpdateUserCardLock'), data: { bulkUpdateUserCardLock: { success: true } } });
-    view.handleMutation({ ...locked([{ cardId: 'id-c', modifier: 0 }]), data: { bulkUpdateUserCardLock: { success: false } } });
-    expect(view.answer(gridVariables({ orderField: privateFieldOf(1) })).data.userCards.edges.map((row) => row.node.locked)).toEqual([false, false]);
+    const { view, redrives } = await served();
+    const success = { bulkUpdateUserCardLock: { success: true } };
+    view.handleMutation(mutationOf('bulkUpdateUserCardLock', { input: { userId: 'USER:1', cards: 'x', locked: true } }, success));
+    view.handleMutation(mutationOf('bulkUpdateUserCardLock', { input: { userId: 'USER:1', cards: [{ cardId: 'id-c', modifier: 0 }] } }, success));
+    view.handleMutation(mutationOf('bulkUpdateUserCardLock', {}, success));
+    view.handleMutation(
+      mutationOf(
+        'bulkUpdateUserCardLock',
+        { input: { userId: 'USER:1', cards: [{ cardId: 'id-c', modifier: 0 }], locked: true } },
+        { bulkUpdateUserCardLock: { success: false } }
+      )
+    );
+    expect(lockedOf(view.answer(listOperation(gridVariables())))).toEqual([false, false]);
+    expect(redrives).toHaveLength(1);
   });
 });
 
@@ -669,7 +603,7 @@ const deckVariables = (extra: Variables = {}): Variables => ({
 
 const servedIn = async (scope: ListScope, variables: Variables) => {
   const harness = rig({ scope });
-  harness.view.watch(request(variables), {});
+  harness.view.watch(listOperation(variables));
   harness.view.start();
   harness.crawls[0]?.finish(listOf(SLUGS));
   await settle();
@@ -680,24 +614,23 @@ const servedIn = async (scope: ListScope, variables: Variables) => {
 describe('the lists of the site as they are asked since the 29.10 build, the same names in every place', () => {
   it('keeps the grid on its list when a window of the same user asks for its picker with the same names', async () => {
     const { view, crawls } = await servedIn('grid', siteGridVariables());
-    view.watch(request(windowVariables(), 'fetchUserCards', 3), {});
-    view.watch(request(deckVariables(), 'fetchUserCards', 4), {});
+    view.watch(listOperation(windowVariables(), 3));
+    view.watch(listOperation(deckVariables(), 4));
     expect(crawls).toHaveLength(1);
-    const asked = request(windowVariables());
-    expect(view.rewrite(asked)).toBe(asked);
+    expect(view.answer(listOperation(windowVariables()))).toBeNull();
   });
 });
 
 describe('a view of the pickers', () => {
   it('crawls the picker the site asked for last and never the grid', () => {
     const { view, crawls } = rig({ scope: 'picker' });
-    view.watch(request(windowVariables(), 'fetchUserCards', 1), {});
-    view.watch(request(siteGridVariables(), 'fetchUserCards', 2), {});
+    view.watch(listOperation(windowVariables(), 1));
+    view.watch(listOperation(siteGridVariables(), 2));
     view.start();
     expect(crawls).toHaveLength(1);
-    expect(crawls[0]?.page.request.key).toBe(1);
+    expect(crawls[0]?.operation.key).toBe(1);
     const gridOnly = rig({ scope: 'picker' });
-    gridOnly.view.watch(request(siteGridVariables()), {});
+    gridOnly.view.watch(listOperation(siteGridVariables()));
     gridOnly.view.start();
     expect(gridOnly.crawls).toHaveLength(0);
     expect(gridOnly.states).toEqual([{ name: 'unavailable', loaded: 0, total: null }]);
@@ -705,57 +638,57 @@ describe('a view of the pickers', () => {
 
   it('serves its window the sorted list and leaves the grid to the grid', async () => {
     const { view, redrives } = await servedIn('picker', windowVariables());
-    expect(redrives[0]?.variables).toEqual(windowVariables({ orderField: privateFieldOf(1), after: null }));
-    expect(view.rewrite(request(windowVariables())).variables).toEqual(windowVariables({ orderField: privateFieldOf(1), after: null }));
-    const grid = request(siteGridVariables({ after: createPrivateCursor(1, 2) }));
-    expect(view.rewrite(grid)).toBe(grid);
-    expect(slugsOf(view.answer(windowVariables({ orderField: privateFieldOf(1) })))).toEqual(['c', 'a']);
+    expect(slugsOf(view.answer(redrives[0]!))).toEqual(['c', 'a']);
+    expect(slugsOf(view.answer(listOperation(windowVariables())))).toEqual(['c', 'a']);
+    const grid = listOperation(siteGridVariables({ after: createPrivateCursor(1, 2) }));
+    expect(view.answer(grid)).toBeNull();
+    expect(view.forwarded(grid)).toBe(grid);
   });
 
   it('follows its window to the list of another user, as the two steps of a trade window list the partner and then the own cards', async () => {
     const { view, crawls } = await servedIn('picker', windowVariables({ userId: 'USER:2' }));
-    view.watch(request(windowVariables({ userId: 'USER:1' })), {});
+    view.watch(listOperation(windowVariables({ userId: 'USER:1' })));
     expect(crawls).toHaveLength(2);
-    expect(crawls[1]?.page.request.variables?.userId).toBe('USER:1');
+    expect((crawls[1]?.operation.variables as Variables).userId).toBe('USER:1');
   });
 
   it('is not moved by a picker of another kind, told apart by the fields of its filters: a window over the deck builder', async () => {
     const { view, crawls } = await servedIn('picker', deckVariables());
-    view.watch(request(windowVariables()), {});
-    view.watch(request(windowVariables({ userId: 'USER:2' })), {});
+    view.watch(listOperation(windowVariables()));
+    view.watch(listOperation(windowVariables({ userId: 'USER:2' })));
     expect(crawls).toHaveLength(1);
   });
 });
 
 describe('restarting', () => {
-  it('crawls the list it serves again, gives the site its real list meanwhile, and serves the new crawl as another private list', async () => {
+  it('crawls the list it serves again, gives the site its real list meanwhile, and serves the new crawl under a new version', async () => {
     const { view, redrives, crawls, rows } = await servedIn('picker', windowVariables());
     view.restart();
     expect(crawls).toHaveLength(2);
-    expect(redrives.at(-1)?.variables).toEqual(windowVariables({ after: null }));
-    const asked = request(windowVariables());
-    expect(view.rewrite(asked)).toBe(asked);
+    expect(redrives).toHaveLength(2);
+    expect(view.answer(listOperation(windowVariables()))).toBeNull();
     crawls[1]?.finish(listOf(['n', 'm', 'k']));
     await settle();
     view.receiveOrder({ viewId: rows.at(-1)?.viewId ?? -1, revision: 1, descending: [0, 1, 2], ascending: [2, 1, 0] });
-    expect(redrives.at(-1)?.variables).toEqual(windowVariables({ orderField: privateFieldOf(2), after: null }));
-    expect(slugsOf(view.answer(windowVariables({ orderField: privateFieldOf(2) })))).toEqual(['n', 'm']);
+    expect(redrives).toHaveLength(3);
+    expect(slugsOf(view.answer(listOperation(windowVariables())))).toEqual(['n', 'm']);
+    expect(view.answer(listOperation(windowVariables()))?.userCards.pageInfo.endCursor).toBe(createPrivateCursor(2, 2));
   });
 
   it('crawls in the direction of its first crawl, so equal prices keep their order, and gives back the list in the direction the site shows', async () => {
     const { view, redrives, crawls } = await servedIn('picker', windowVariables());
-    view.watch(request(windowVariables({ orderDirection: 'ASC', after: createPrivateCursor(1, 2) }), 'fetchUserCards', 9), {});
+    view.watch(listOperation(windowVariables({ orderDirection: 'ASC', after: createPrivateCursor(1, 2) }), 9));
     view.restart();
-    expect(crawls[1]?.page.request.variables?.orderDirection).toBe('DESC');
-    expect(crawls[1]?.page.request.key).toBe(9);
-    expect(redrives.at(-1)?.variables).toEqual(windowVariables({ orderDirection: 'ASC', after: null }));
+    expect((crawls[1]?.operation.variables as Variables).orderDirection).toBe('DESC');
+    expect(crawls[1]?.operation.key).toBe(9);
+    expect(view.forwarded(redrives.at(-1)!).variables).toEqual(windowVariables({ orderDirection: 'ASC', after: null }));
     view.handleMutation(forged());
-    expect(crawls[2]?.page.request.variables?.orderDirection).toBe('DESC');
+    expect((crawls[2]?.operation.variables as Variables).orderDirection).toBe('DESC');
   });
 
   it('does nothing while it is off', () => {
     const { view, crawls, redrives } = rig({ scope: 'picker' });
-    view.watch(request(windowVariables()), {});
+    view.watch(listOperation(windowVariables()));
     view.restart();
     expect(crawls).toHaveLength(0);
     expect(redrives).toHaveLength(0);

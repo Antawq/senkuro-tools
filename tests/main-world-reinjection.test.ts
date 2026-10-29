@@ -73,7 +73,7 @@ const swappedPage = (installs: SwapModules[]) => {
   installs.forEach((modules) =>
     modules.installClientSwap(typed, () => {
       const inventory = modules.installInventoryGuard(typed);
-      return { exchangesFor: () => [inventory.exchange], onSwapped: inventory.attach };
+      return { exchangesFor: () => inventory.exchanges, onSwapped: inventory.attach };
     })
   );
   (pageWindow.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = { _context: { provides: { $urql: clientRef } } };

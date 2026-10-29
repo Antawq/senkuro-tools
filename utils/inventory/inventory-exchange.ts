@@ -4,7 +4,6 @@ import { pipe, tap } from 'wonka';
 import { callerContextOf, defaultContextOf } from '../shared/delegate-exchange';
 import { isSettled } from '../shared/urql-source';
 import { hasCursor, listVariablesOf, type PageRequest } from './list-families';
-import { hasPrivateCursor } from './price-private';
 
 const POLICY_OPTION = 'requestPolicy';
 const CACHE_HIT = 'hit';
@@ -38,7 +37,7 @@ export function inventoryExchange(host: InventoryHost): Exchange {
       const handleOperation = (operation: Operation): void => {
         firstPagesByKey.delete(operation.key);
         const variables = listVariablesOf(operation);
-        if (!variables || host.isSilent(operation.context) || hasPrivateCursor(variables.after)) return;
+        if (!variables || host.isSilent(operation.context)) return;
         defaults ??= defaultContextOf(client);
         const page: PageRequest = { document: operation.query, variables, options: withoutPolicy(callerContextOf(operation.context, defaults)) };
         const isRevisit = host.record(page);
