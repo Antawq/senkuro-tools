@@ -38,7 +38,7 @@ export function callerContextOf(context: OperationContext, defaults: OperationCo
   return callerContext;
 }
 
-export function siteRequestOf(operation: Operation): GraphQLRequest {
+function siteRequestOf(operation: Operation): GraphQLRequest {
   const request = createRequest(operation.query, operation.variables, operation.extensions);
   if (request.key !== operation.key) return request;
   return { key: operation.key, query: operation.query, variables: operation.variables, extensions: operation.extensions };

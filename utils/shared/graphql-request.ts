@@ -1,6 +1,6 @@
 const STREAMED = /multipart|event-stream/;
 
-export const requestUrl = (input: unknown): string => {
+const requestUrl = (input: unknown): string => {
   if (typeof input === 'string') return input;
   if (input instanceof URL) return input.href;
   return (input as { url?: string } | null)?.url ?? '';
