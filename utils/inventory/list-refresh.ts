@@ -35,19 +35,34 @@ interface Boundary {
   nextRaw: RawPage | null;
 }
 
-async function fetchPage(run: Run, page: PageRequest): Promise<RawPage | null> {
+interface PageAnswer {
+  isOwn: boolean;
+  raw: RawPage | null;
+}
+
+interface RefreshResult {
+  error?: unknown;
+  operation?: { context?: { fetch?: unknown } };
+}
+
+async function requestPage(run: Run, page: PageRequest): Promise<PageAnswer> {
   const seen: { raw: RawPage | null } = { raw: null };
   const capture: Fetch = async (input, init) => {
+    run.requests += 1;
     const response = await run.fetch(input, init);
     seen.raw = readRawPage(parseJson(await response.clone().text())) ?? seen.raw;
     return response;
   };
   run.silent.add(capture);
-  run.requests += 1;
   const result = (await run.client.query(page.document, page.variables, { ...page.options, requestPolicy: REFRESH_POLICY, fetch: capture }).toPromise()) as
-    { error?: unknown } | undefined;
+    RefreshResult | undefined;
   if (result?.error) throw new Error('list refresh failed');
-  return seen.raw;
+  return { isOwn: result?.operation?.context?.fetch === capture, raw: seen.raw };
+}
+
+async function fetchPage(run: Run, page: PageRequest): Promise<RawPage | null> {
+  const answer = await requestPage(run, page);
+  return answer.isOwn ? answer.raw : (await requestPage(run, page)).raw;
 }
 
 async function fillBoundary(run: Run, family: Family, boundary: Boundary): Promise<PageRequest[]> {
