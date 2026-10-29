@@ -149,6 +149,18 @@ describe('readRawPage', () => {
     expect(readRawPage({ data: { userCards: null } })).toBeNull();
   });
 
+  it('tells a shard from its whole card, counts a row without a modifier as a whole card, and skips a row without a card id', () => {
+    const page = readRawPage({
+      data: {
+        userCards: {
+          pageInfo: {},
+          edges: [{ node: { modifier: 1, card: { id: 'a' } } }, { node: { card: { id: 'b' } } }, { node: { modifier: 0, card: null } }, {}],
+        },
+      },
+    });
+    expect([...(page?.ids ?? [])]).toEqual(['a:1', 'b:0']);
+  });
+
   it('copes with an empty page and a missing cursor', () => {
     const page = readRawPage({ data: { userCards: { pageInfo: {}, edges: [] } } });
     expect(page).toEqual({ endCursor: null, hasNextPage: false, ids: new Set() });
