@@ -1,4 +1,5 @@
-import { operationName, type QueryRequest } from '../shared/urql-client';
+import type { DocumentNode } from '@0no-co/graphql.web';
+import { getOperationName } from '@urql/core';
 
 export const SEARCH_OPERATION = 'search';
 const PAGE_ARGUMENT = 'first';
@@ -9,13 +10,13 @@ interface AstNode {
   kind?: string;
   name?: { value?: string };
   value?: { kind?: string; value?: string };
-  arguments?: AstNode[];
-  selections?: AstNode[];
+  arguments?: readonly AstNode[];
+  selections?: readonly AstNode[];
   selectionSet?: AstNode;
-  definitions?: AstNode[];
+  definitions?: readonly AstNode[];
 }
 
-const widenedByQueryDocument = new WeakMap<object, unknown>();
+const widenedByQueryDocument = new WeakMap<DocumentNode, DocumentNode | null>();
 
 const isPageArgument = (node: AstNode, pageSize: number): boolean =>
   node.kind === 'Argument' && node.name?.value === PAGE_ARGUMENT && node.value?.kind === INT_LITERAL && Number(node.value.value) < pageSize;
@@ -33,17 +34,13 @@ function setPageSizeInQuery(node: AstNode | undefined, pageSize: number): boolea
   return children.map((child) => setPageSizeInQuery(child, pageSize)).some(Boolean) || didChange;
 }
 
-function widenQueryDocument(queryDocument: object, pageSize: number): unknown {
-  if (widenedByQueryDocument.has(queryDocument)) return widenedByQueryDocument.get(queryDocument);
-  const copy = structuredClone(queryDocument) as AstNode & Record<string, unknown>;
+export function widenSearchQuery(query: DocumentNode, pageSize: number): DocumentNode | null {
+  if (getOperationName(query) !== SEARCH_OPERATION) return null;
+  const known = widenedByQueryDocument.get(query);
+  if (known !== undefined) return known;
+  const copy = structuredClone(query);
   Reflect.deleteProperty(copy, DOCUMENT_KEY);
   const widenedQuery = setPageSizeInQuery(copy, pageSize) ? copy : null;
-  widenedByQueryDocument.set(queryDocument, widenedQuery);
+  widenedByQueryDocument.set(query, widenedQuery);
   return widenedQuery;
-}
-
-export function widenSearchRequest(request: QueryRequest, pageSize: number): QueryRequest {
-  if (operationName(request) !== SEARCH_OPERATION || !request.query) return request;
-  const query = widenQueryDocument(request.query, pageSize);
-  return query ? { ...request, query } : request;
 }
