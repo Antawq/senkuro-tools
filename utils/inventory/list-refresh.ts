@@ -1,6 +1,5 @@
 import { parseJson } from '../shared/json';
 import { FAST_PAGES, delayForPage } from '../shared/paging';
-import type { QueryClient } from '../shared/urql-client';
 import { linked, readRawPage, type Family, type ListRecord, type PageRequest, type RawPage } from './list-families';
 
 export const REFRESH_POLICY = 'network-only';
@@ -8,8 +7,12 @@ export const MAX_FILL_ROUNDS = 10;
 
 type Fetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
+export interface PageClient {
+  query(document: unknown, variables: Record<string, unknown>, context?: Record<string, unknown>): { toPromise(): Promise<unknown> };
+}
+
 export interface RefreshEnv {
-  client: QueryClient;
+  client: PageClient;
   fetch: Fetch;
   silent: WeakSet<object>;
   record: ListRecord;

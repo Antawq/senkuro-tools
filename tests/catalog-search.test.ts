@@ -101,7 +101,7 @@ describe('installCatalogRouting with the client swap', () => {
     });
     const clientRef = { __v_isRef: true, value: siteClient as unknown };
     const typed = pageWindow as unknown as Parameters<typeof installClientSwap>[0];
-    const install = () => installClientSwap(typed, { exchangesFor: () => [catalogFallbackExchange(installCatalogRouting(typed.document))] });
+    const install = () => installClientSwap(typed, () => ({ exchangesFor: () => [catalogFallbackExchange(installCatalogRouting(typed.document))] }));
     const mount = (withRouter = true) => {
       (pageWindow.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = {
         _context: { provides: { $urql: clientRef } },

@@ -1,25 +1,49 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { Window } from 'happy-dom';
-import { make } from 'wonka';
+import { Client, gql, makeResult, type Exchange, type Operation } from '@urql/core';
+import { filter, fromArray, mergeMap, pipe } from 'wonka';
 
-import type { MutationResult } from '../utils/inventory/client-hooks';
 import { installInventoryGuard } from '../utils/inventory/inventory-guard';
-import { LIST_OPERATION, type Variables } from '../utils/inventory/list-families';
-import type { QueryClient, QueryRequest } from '../utils/shared/urql-client';
+import type { Variables } from '../utils/inventory/list-families';
+import { installClientSwap } from '../utils/shared/client-swap';
 import { TRADES_EVENT, installCapture, type Capture } from '../utils/trades/trade-capture';
 
 const GRAPHQL = 'https://api.senkuro.me/graphql';
 
-type InstallGuard = typeof installInventoryGuard;
+interface SwapModules {
+  installClientSwap: typeof installClientSwap;
+  installInventoryGuard: typeof installInventoryGuard;
+}
+
 type InstallCapture = typeof installCapture;
-type Init = NonNullable<Parameters<Window['fetch']>[1]>;
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 30));
 
-const reinjectedGuard = async (): Promise<InstallGuard> => {
+const LIST = gql`
+  query fetchUserCards($userId: ID!) {
+    userCards(first: 20, userId: $userId) {
+      edges {
+        node {
+          modifier
+        }
+      }
+    }
+  }
+`;
+
+const ACCEPT = gql`
+  mutation acceptCardTrade($id: ID!) {
+    acceptCardTrade(id: $id) {
+      success
+    }
+  }
+`;
+
+const reinjectedSwap = async (): Promise<SwapModules> => {
   vi.resetModules();
-  return (await import('../utils/inventory/inventory-guard')).installInventoryGuard;
+  const [swap, guard] = await Promise.all([import('../utils/shared/client-swap'), import('../utils/inventory/inventory-guard')]);
+  return { installClientSwap: swap.installClientSwap, installInventoryGuard: guard.installInventoryGuard };
 };
 
 const reinjectedCapture = async (): Promise<InstallCapture> => {
@@ -27,55 +51,40 @@ const reinjectedCapture = async (): Promise<InstallCapture> => {
   return (await import('../utils/trades/trade-capture')).installCapture;
 };
 
-const request = (name: string, variables: Variables = {}): QueryRequest => ({
-  key: 1,
-  variables,
-  query: { definitions: [{ kind: 'OperationDefinition', name: { value: name } }] },
-});
-
-const acceptedTrade: MutationResult = { operation: request('acceptCardTrade'), data: { acceptCardTrade: { success: true } } };
-
 const page = { data: { userCards: { pageInfo: { endCursor: 'c1', hasNextPage: false }, edges: [{ node: { modifier: 0, card: { id: 'c1' } } }] } } };
 
-const guardedPage = (installs: InstallGuard[]) => {
+const swappedPage = (installs: SwapModules[]) => {
   const pageWindow = new Window({ url: 'https://senkuro.me/forge/split' });
   pageWindow.document.body.innerHTML = '<div id="app"></div>';
   const refreshes: Variables[] = [];
-  const pending = [acceptedTrade];
-  const client: QueryClient = {
-    executeQuery: () => null,
-    executeMutation: () =>
-      make<MutationResult>((observer) => {
-        const next = pending.shift();
-        if (next) observer.next(next);
-        observer.complete();
-        return () => undefined;
-      }),
-    query: (_document, variables, options = {}) => ({
-      toPromise: async () => {
-        refreshes.push(variables);
-        await (options.fetch as (input: string, init: Init) => Promise<Response>)(GRAPHQL, {
-          method: 'POST',
-          body: JSON.stringify({ operationName: LIST_OPERATION, variables }),
-        });
-        return {};
-      },
-    }),
-  };
   pageWindow.fetch = (() => Promise.resolve(new Response(JSON.stringify(page)))) as unknown as typeof pageWindow.fetch;
-  (pageWindow.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = { _context: { provides: { $urql: { value: client } } } };
-  installs.forEach((install) => install(pageWindow as unknown as Parameters<InstallGuard>[0]));
-  const respond = () => pageWindow.fetch(GRAPHQL, { method: 'POST', body: JSON.stringify({ operationName: 'fetchViewer' }) });
-  const browse = (variables: Variables) => client.executeQuery(request(LIST_OPERATION, variables));
-  const mutate = (name: string) => (client.executeMutation(request(name)) as { toPromise(): Promise<MutationResult> }).toPromise();
-  return { pageWindow, refreshes, respond, browse, mutate };
+  const site: Exchange = () => (operations$) =>
+    pipe(
+      operations$,
+      filter((operation: Operation) => operation.kind !== 'teardown'),
+      mergeMap((operation: Operation) => {
+        if (operation.kind === 'mutation') return fromArray([makeResult(operation, { data: { acceptCardTrade: { success: true } } })]);
+        if (typeof operation.context.fetch === 'function') refreshes.push(operation.variables as Variables);
+        return fromArray([makeResult(operation, { data: page.data })]);
+      })
+    );
+  const clientRef = { __v_isRef: true, value: new Client({ url: GRAPHQL, exchanges: [site] }) as unknown };
+  const typed = pageWindow as unknown as Parameters<typeof installClientSwap>[0];
+  installs.forEach((modules) =>
+    modules.installClientSwap(typed, () => {
+      const inventory = modules.installInventoryGuard(typed);
+      return { exchangesFor: () => [inventory.exchange], onSwapped: inventory.attach };
+    })
+  );
+  (pageWindow.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = { _context: { provides: { $urql: clientRef } } };
+  const client = clientRef.value as Client;
+  return { pageWindow, refreshes, client };
 };
 
-const refreshesAfterTrade = async (installs: InstallGuard[]): Promise<number> => {
-  const { pageWindow, refreshes, respond, browse, mutate } = guardedPage(installs);
-  await respond();
-  browse({ userId: 'USER:1' });
-  await mutate('acceptCardTrade');
+const refreshesAfterTrade = async (installs: SwapModules[]): Promise<number> => {
+  const { pageWindow, refreshes, client } = swappedPage(installs);
+  client.query(LIST, { userId: 'USER:1' }).subscribe(() => undefined);
+  await client.mutation(ACCEPT, { id: 't1' }).toPromise();
   await settle();
   await pageWindow.happyDOM.close();
   return refreshes.length;
@@ -114,16 +123,16 @@ const eventsPerAnswer = async (installs: InstallCapture[]): Promise<number> => {
   return seen.length;
 };
 
-describe('inventory guard re-injection', () => {
+describe('client swap re-injection', () => {
   it('refreshes a recorded list once after an accepted trade when installed once', async () => {
-    expect(await refreshesAfterTrade([installInventoryGuard])).toBe(1);
+    expect(await refreshesAfterTrade([{ installClientSwap, installInventoryGuard }])).toBe(1);
   });
 
   it('ignores a re-injection into the same page, so an accepted trade refreshes each list only once', async () => {
-    const again = await reinjectedGuard();
-    expect(again).not.toBe(installInventoryGuard);
-    const single = await refreshesAfterTrade([installInventoryGuard]);
-    const double = await refreshesAfterTrade([installInventoryGuard, again]);
+    const again = await reinjectedSwap();
+    expect(again.installClientSwap).not.toBe(installClientSwap);
+    const single = await refreshesAfterTrade([{ installClientSwap, installInventoryGuard }]);
+    const double = await refreshesAfterTrade([{ installClientSwap, installInventoryGuard }, again]);
     expect(single).toBeGreaterThan(0);
     expect(double).toBe(single);
   });

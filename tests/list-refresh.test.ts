@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { FAST_PAGES, THROTTLED_DELAY_MS, delayForPage } from '../utils/shared/paging';
-import type { QueryClient } from '../utils/shared/urql-client';
 import { createListRecord, type Family, type PageRequest, type Variables } from '../utils/inventory/list-families';
-import { MAX_FILL_ROUNDS, REFRESH_POLICY, refreshFamilies, type RefreshEnv } from '../utils/inventory/list-refresh';
+import { MAX_FILL_ROUNDS, REFRESH_POLICY, refreshFamilies, type PageClient, type RefreshEnv } from '../utils/inventory/list-refresh';
 
 const PAGE_SIZE = 2;
 
@@ -68,7 +67,7 @@ const setup = ({
     }),
     executeQuery: () => null,
     executeMutation: () => null,
-  } as unknown as QueryClient;
+  } as unknown as PageClient;
   const sleeps: number[] = [];
   const sleep = (delayMs: number) => {
     sleeps.push(delayMs);

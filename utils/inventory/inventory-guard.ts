@@ -1,6 +1,7 @@
+import type { Client, Exchange, OperationContext, OperationResult } from '@urql/core';
+
 import { debugLogger } from '../shared/debug';
 import type { Transport } from '../shared/graphql';
-import { claimPage } from '../shared/page-claim';
 import type { PageWindow } from '../shared/page-window';
 import {
   PRICE_ORDER_EVENT,
@@ -22,8 +23,9 @@ import {
   type RefreshOutcome,
 } from '../shared/refresh-signal';
 import type { ListScope } from '../shared/list-scope';
-import { operationName, runWhenClientFound, type QueryClient } from '../shared/urql-client';
-import { recordLists, rewriteLists, tapMutations, type MutationResult } from './client-hooks';
+import { operationName, type QueryClient } from '../shared/urql-client';
+import { rewriteLists, type MutationResult } from './client-hooks';
+import { inventoryExchange } from './inventory-exchange';
 import {
   createListRecord,
   familyIdOf,
@@ -39,7 +41,6 @@ import { REFRESH_POLICY, refreshFamilies, type RefreshEnv, type RefreshReport } 
 import { crawlList } from './price-crawl';
 import { crawlDocumentOf } from './price-document';
 import { answerPrivateRequests } from './price-fetch';
-import { isPrivateVariables } from './price-private';
 import type { ListPage, ViewHost } from './price-view';
 import { createPriceViews, type PriceViews } from './price-views';
 
@@ -90,7 +91,13 @@ interface Guard {
   pendingFamilyIds: Set<string>;
   sleep: (ms: number) => Promise<void>;
   queue: Promise<unknown>;
-  client: QueryClient | null;
+  client: Client | null;
+  siteClient: QueryClient | null;
+}
+
+export interface InventoryGuard {
+  exchange: Exchange;
+  attach: (client: Client, siteClient: Client) => void;
 }
 
 const sleepIn =
@@ -98,7 +105,7 @@ const sleepIn =
   (ms: number): Promise<void> =>
     ms > 0 ? new Promise<void>((resolve) => pageWindow.setTimeout(resolve, ms)) : Promise.resolve();
 
-function enqueueRefresh(guard: Guard, client: QueryClient, families: Family[]): Promise<RefreshReport> {
+function enqueueRefresh(guard: Guard, client: Client, families: Family[]): Promise<RefreshReport> {
   const environment: RefreshEnv = {
     client,
     fetch: (input, init) => guard.pageWindow.fetch(input, init),
@@ -118,11 +125,11 @@ const publish = (guard: Guard, eventName: string, detail: string) =>
   guard.pageWindow.document.dispatchEvent(new guard.pageWindow.CustomEvent(eventName, { detail }));
 
 const isViewReady = (guard: Guard): boolean =>
-  typeof guard.client?.createRequestOperation === 'function' && typeof guard.client.reexecuteOperation === 'function';
+  typeof guard.siteClient?.createRequestOperation === 'function' && typeof guard.siteClient.reexecuteOperation === 'function';
 
 function crawlForView(guard: Guard, ...[page, report, signal]: Parameters<ViewHost['crawl']>): ReturnType<ViewHost['crawl']> {
   const crawlDocument = crawlDocumentOf(page.request.query);
-  const url = apiUrlOf(guard.client, page);
+  const url = apiUrlOf(guard.siteClient, page);
   if (!crawlDocument || !url) {
     guard.debug('price view cannot crawl', { hasDocument: crawlDocument !== null, hasUrl: url !== null });
     return Promise.resolve(null);
@@ -140,13 +147,13 @@ function crawlForView(guard: Guard, ...[page, report, signal]: Parameters<ViewHo
 }
 
 function redriveList(guard: Guard, ...[page, variables]: Parameters<ViewHost['redrive']>): void {
-  const client = guard.client;
+  const client = guard.siteClient;
   if (!client?.createRequestOperation || !client.reexecuteOperation) return;
   client.reexecuteOperation(client.createRequestOperation('query', { ...page.request, variables }, { ...page.options, requestPolicy: REFRESH_POLICY }));
 }
 
 function refreshServedPage(guard: Guard, ...[page, variables]: Parameters<ViewHost['refreshPage']>): void {
-  void guard.client
+  void guard.siteClient
     ?.query(page.request.query, variables, { ...page.options, requestPolicy: REFRESH_POLICY })
     .toPromise()
     .catch(() => undefined);
@@ -163,11 +170,13 @@ const createGuardViews = (guard: Guard): PriceViews =>
     debug: guard.debug,
   });
 
-function handleMutation(guard: Guard, priceViews: PriceViews, client: QueryClient, result: MutationResult): void {
-  priceViews.handleMutation(result);
-  const plan = planRefresh(result, guard.record.families());
+function handleMutation(guard: Guard, priceViews: PriceViews, result: OperationResult): void {
+  const mutation = result as unknown as MutationResult;
+  priceViews.handleMutation(mutation);
+  const plan = planRefresh(mutation, guard.record.families());
+  const client = guard.client;
   guard.debug('inventory change', { recorded: pageCounts(guard.record), refreshing: plan.length });
-  if (plan.length === 0) return;
+  if (!client || plan.length === 0) return;
   enqueueRefresh(guard, client, plan).then(
     (report) => guard.debug('lists refreshed', report),
     () => undefined
@@ -227,25 +236,24 @@ function handlePriceOrder(priceViews: PriceViews, event: Event): void {
   if (scoped) priceViews.receiveOrder(scoped.scope, scoped.order);
 }
 
-function attachClient(guard: Guard, priceViews: PriceViews, client: QueryClient): void {
-  guard.client = client;
-  const isRecording = recordLists(
-    client,
-    (page) => {
-      if (!isPrivateVariables(page.variables)) guard.record.record(page, guard.pageWindow.location.pathname);
-    },
-    guard.silent,
-    (page) => refreshOnCacheHit(guard, page)
-  );
-  const isTapping = tapMutations(client, (result) => handleMutation(guard, priceViews, client, result));
-  const isRewriting = rewriteLists(client, priceViews, guard.silent);
-  const isAttached = isRecording && isTapping && isRewriting;
-  if (isAttached) guard.pageWindow.document.documentElement.setAttribute(GUARD_ATTRIBUTE, GUARD_READY);
-  guard.debug('urql client', isAttached ? 'attached' : 'not replaceable');
+function recordPage(guard: Guard, page: PageRequest): boolean {
+  const id = familyIdOf(page.variables);
+  const isKnown = guard.record.families().some((family) => family.id === id);
+  guard.record.record(page, guard.pageWindow.location.pathname);
+  return isKnown;
 }
 
-export function installInventoryGuard(pageWindow: PageWindow): void {
-  if (!claimPage(pageWindow, 'inventory-guard')) return;
+const isSilent = (guard: Guard, context: OperationContext): boolean => typeof context.fetch === 'function' && guard.silent.has(context.fetch);
+
+function attach(guard: Guard, priceViews: PriceViews, client: Client, siteClient: Client): void {
+  guard.client = client;
+  guard.siteClient = siteClient as unknown as QueryClient;
+  const isRewriting = rewriteLists(guard.siteClient, priceViews, guard.silent);
+  if (isRewriting) guard.pageWindow.document.documentElement.setAttribute(GUARD_ATTRIBUTE, GUARD_READY);
+  guard.debug('urql client', isRewriting ? 'attached' : 'not replaceable');
+}
+
+export function installInventoryGuard(pageWindow: PageWindow): InventoryGuard {
   const guard: Guard = {
     pageWindow,
     debug: debugLogger(pageWindow),
@@ -255,11 +263,18 @@ export function installInventoryGuard(pageWindow: PageWindow): void {
     sleep: sleepIn(pageWindow),
     queue: Promise.resolve(),
     client: null,
+    siteClient: null,
   };
   const priceViews = createGuardViews(guard);
   pageWindow.document.addEventListener(REFRESH_REQUEST_EVENT, (event) => handleRefreshRequest(guard, priceViews, event));
   pageWindow.document.addEventListener(PRICE_VIEW_EVENT, (event) => handlePriceSwitch(priceViews, event));
   pageWindow.document.addEventListener(PRICE_ORDER_EVENT, (event) => handlePriceOrder(priceViews, event));
   answerPrivateRequests(pageWindow, priceViews);
-  runWhenClientFound(pageWindow, (client) => attachClient(guard, priceViews, client));
+  const exchange = inventoryExchange({
+    isSilent: (context) => isSilent(guard, context),
+    record: (page) => recordPage(guard, page),
+    handleCacheHit: (page) => refreshOnCacheHit(guard, page),
+    handleMutation: (result) => handleMutation(guard, priceViews, result),
+  });
+  return { exchange, attach: (client, siteClient) => attach(guard, priceViews, client, siteClient) };
 }

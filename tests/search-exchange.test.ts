@@ -125,7 +125,7 @@ describe('searchExchange', () => {
     const site = createSiteClient(() => ({ data: searchData() }));
     const ref = { __v_isRef: true, value: site.client as unknown };
     const typed = pageWindow as unknown as Parameters<typeof installClientSwap>[0];
-    installClientSwap(typed, { exchangesFor: () => [searchExchange(createSearchPublisher(typed))] });
+    installClientSwap(typed, () => ({ exchangesFor: () => [searchExchange(createSearchPublisher(typed))] }));
     (pageWindow.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = { _context: { provides: { $urql: ref } } };
     const heard: unknown[] = [];
     pageWindow.document.addEventListener(SEARCH_EVENT, (event) => heard.push(JSON.parse((event as unknown as CustomEvent<string>).detail)));

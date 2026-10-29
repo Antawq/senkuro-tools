@@ -1,12 +1,6 @@
-import type { Sink } from 'wonka';
-
 import { operationName, type QueryClient, type QueryRequest } from '../shared/urql-client';
-import { tapSource, type SourceResult } from '../shared/urql-source';
-import { hasCursor, LIST_OPERATION, type PageRequest } from './list-families';
+import { LIST_OPERATION } from './list-families';
 import type { PriceView } from './price-view';
-
-const POLICY_OPTION = 'requestPolicy';
-const CACHE_HIT = 'hit';
 
 export type PriceRewriter = Pick<PriceView, 'watch' | 'rewrite'>;
 
@@ -18,54 +12,10 @@ export interface MutationResult {
   hasNext?: boolean;
 }
 
-interface ListOperationResult extends SourceResult {
-  operation?: { context?: { meta?: { cacheOutcome?: unknown } } };
-}
-
-const recording = new WeakSet<QueryClient>();
 const rewriting = new WeakSet<QueryClient>();
-const tapping = new WeakSet<QueryClient>();
-
-const withoutPolicy = (options: Record<string, unknown> | undefined): Record<string, unknown> =>
-  Object.fromEntries(Object.entries(options ?? {}).filter(([name]) => name !== POLICY_OPTION));
 
 const isSilent = (options: Record<string, unknown> | undefined, silent: WeakSet<object>): boolean =>
   typeof options?.fetch === 'function' && silent.has(options.fetch);
-
-function tapFirstCacheHit(source: unknown, onCacheHit: () => void): unknown {
-  if (typeof source !== 'function') return source;
-  let isFirstResult = true;
-  return tapSource(source as (sink: Sink<ListOperationResult>) => void, {
-    onSettled: (listResult) => {
-      if (!isFirstResult) return;
-      isFirstResult = false;
-      if (listResult.operation?.context?.meta?.cacheOutcome === CACHE_HIT) onCacheHit();
-    },
-  });
-}
-
-export function recordLists(
-  client: QueryClient,
-  onPage: (page: PageRequest) => void,
-  silent: WeakSet<object>,
-  onCacheHit?: (page: PageRequest) => void
-): boolean {
-  if (recording.has(client)) return true;
-  const original = client.executeQuery.bind(client);
-  try {
-    client.executeQuery = (request, options) => {
-      if (operationName(request) !== LIST_OPERATION || !request.variables || isSilent(options, silent)) return original(request, options);
-      const page = { document: request.query, variables: request.variables, options: withoutPolicy(options) };
-      onPage(page);
-      const source = original(request, options);
-      return onCacheHit && !hasCursor(page.variables) ? tapFirstCacheHit(source, () => onCacheHit(page)) : source;
-    };
-  } catch {
-    return false;
-  }
-  recording.add(client);
-  return true;
-}
 
 export function rewriteLists(client: QueryClient, view: PriceRewriter, silent: WeakSet<object>): boolean {
   if (rewriting.has(client)) return true;
@@ -80,20 +30,5 @@ export function rewriteLists(client: QueryClient, view: PriceRewriter, silent: W
     return false;
   }
   rewriting.add(client);
-  return true;
-}
-
-export function tapMutations(client: QueryClient, onResult: (result: MutationResult) => void): boolean {
-  if (tapping.has(client)) return true;
-  const original = client.executeMutation.bind(client);
-  try {
-    client.executeMutation = (request, options) => {
-      const source = original(request, options);
-      return typeof source === 'function' ? tapSource(source as (sink: Sink<MutationResult>) => void, { onSettled: onResult }) : source;
-    };
-  } catch {
-    return false;
-  }
-  tapping.add(client);
   return true;
 }

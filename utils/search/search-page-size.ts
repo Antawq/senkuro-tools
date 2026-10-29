@@ -9,7 +9,7 @@ const DOCUMENT_KEY = '__key';
 interface AstNode {
   kind?: string;
   name?: { value?: string };
-  value?: { kind?: string; value?: string };
+  value?: { kind?: string; value?: unknown };
   arguments?: readonly AstNode[];
   selections?: readonly AstNode[];
   selectionSet?: AstNode;

@@ -118,8 +118,8 @@ describe('installClientSwap', () => {
     const hooks = siteHooks();
     const ref = clientRef(site.client);
     const swapHost = host();
-    installClientSwap(pageWindow, swapHost);
-    installClientSwap(pageWindow, swapHost);
+    installClientSwap(pageWindow, () => swapHost);
+    installClientSwap(pageWindow, () => swapHost);
     mount(appWith(ref, { hydrating: true, hooks }));
     expect(ref.value).toBe(site.client);
     hooks.emit('app:suspense:resolve');
@@ -134,7 +134,7 @@ describe('installClientSwap', () => {
     const site = createSiteClient(() => null);
     const ref = clientRef(site.client);
     mount(appWith(ref, { hydrating: false, hooks: siteHooks() }));
-    installClientSwap(pageWindow, host());
+    installClientSwap(pageWindow, () => host());
     expect(ref.value).toBeInstanceOf(Client);
     expect(ref.value).not.toBe(site.client);
     await close();
@@ -148,11 +148,11 @@ describe('installClientSwap', () => {
     const hooks = siteHooks();
     const ref = clientRef(site.client);
     const afterOurs = vi.fn();
-    installClientSwap(pageWindow, {
+    installClientSwap(pageWindow, () => ({
       exchangesFor: () => {
         throw new Error('boom');
       },
-    });
+    }));
     mount(appWith(ref, { hydrating: true, hooks }));
     hooks.on('app:suspense:resolve', afterOurs);
     hooks.emit('app:suspense:resolve');

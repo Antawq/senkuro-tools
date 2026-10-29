@@ -58,9 +58,10 @@ export function swapClient(app: VueApp, host: SwapHost, debug: Debug = () => und
   return client;
 }
 
-export function installClientSwap(pageWindow: PageWindow, host: SwapHost): void {
+export function installClientSwap(pageWindow: PageWindow, createHost: () => SwapHost): void {
   if (!claimPage(pageWindow, 'client-swap')) return;
   const debug = debugLogger(pageWindow);
+  const host = createHost();
   runAfterHydration(pageWindow, (app) => {
     try {
       swapClient(app, host, debug);

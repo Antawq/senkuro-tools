@@ -2,11 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import { Client, gql, type Operation, type OperationResult } from '@urql/core';
 
-import { recordLists } from '../utils/inventory/client-hooks';
 import { createCursorLedger, cursorExchange, repairOperation, type CursorLedger } from '../utils/inventory/list-cursors';
-import type { PageRequest, Variables } from '../utils/inventory/list-families';
+import type { Variables } from '../utils/inventory/list-families';
 import { delegateExchange } from '../utils/shared/delegate-exchange';
-import type { QueryClient } from '../utils/shared/urql-client';
 import { SITE_URL, createSiteClient, nameOf, type SiteAnswer } from './helpers/site-client';
 
 const cards = (after?: string | null): Variables => ({
@@ -232,27 +230,5 @@ describe('cursorExchange', () => {
     expect(result.error?.message).toContain('boom');
     expect(ledger.isForeign(shards('c1'))).toBe(true);
     expect(ledger.isForeign(shards('c9'))).toBe(false);
-  });
-});
-
-describe('cursorExchange and the list record', () => {
-  const recordedRig = (ledger: CursorLedger) => {
-    const site = createSiteClient(() => listAnswer('c9'));
-    const pages: PageRequest[] = [];
-    recordLists(site.client as unknown as QueryClient, (page) => pages.push(page), new WeakSet());
-    const client = new Client({ url: SITE_URL, exchanges: [cursorExchange(ledger), delegateExchange(site.client)] });
-    return { client, pages };
-  };
-
-  it('is seen by the list record before it records, so a replay never carries a foreign cursor', async () => {
-    const { client, pages } = recordedRig(knowing([cards(), 'c1']));
-    await client.query(LIST, shards('c1')).toPromise();
-    expect(pages.map((page) => page.variables)).toEqual([shards(null)]);
-  });
-
-  it('keeps a replay that carries a cursor of its own list', async () => {
-    const { client, pages } = recordedRig(knowing([cards(), 'c1']));
-    await client.query(LIST, cards('c1')).toPromise();
-    expect(pages.map((page) => page.variables)).toEqual([cards('c1')]);
   });
 });

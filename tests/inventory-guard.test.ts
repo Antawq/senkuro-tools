@@ -1,15 +1,26 @@
 import { describe, expect, it } from 'vitest';
 
 import { Window } from 'happy-dom';
-import { make, pipe, subscribe } from 'wonka';
-import type { Source } from 'wonka';
-import { parse } from '@0no-co/graphql.web';
+import {
+  Client,
+  createRequest,
+  gql,
+  makeErrorResult,
+  makeOperation,
+  makeResult,
+  type CacheOutcome,
+  type Exchange,
+  type Operation,
+  type OperationResult,
+} from '@urql/core';
+import { filter, fromArray, fromPromise, mergeMap, pipe, subscribe } from 'wonka';
 
 import type { MutationResult } from '../utils/inventory/client-hooks';
 import { LIST_OPERATION, createListRecord, type Variables } from '../utils/inventory/list-families';
 import { AUTO_REFRESH_MAX_PAGES, installInventoryGuard, planRefresh } from '../utils/inventory/inventory-guard';
 import { REFRESH_POLICY } from '../utils/inventory/list-refresh';
 import { privateFieldOf, createPrivateCursor } from '../utils/inventory/price-private';
+import { delegateExchange } from '../utils/shared/delegate-exchange';
 import {
   GUARD_ATTRIBUTE,
   GUARD_READY,
@@ -33,9 +44,31 @@ import {
   type PriceState,
   type ScopedRows,
 } from '../utils/shared/price-signal';
-import type { QueryClient, QueryRequest } from '../utils/shared/urql-client';
+import type { QueryRequest } from '../utils/shared/urql-client';
 
 const GRAPHQL = 'https://api.senkuro.me/graphql';
+
+const LIST = gql`
+  query fetchUserCards($after: String, $userId: ID!, $orderField: UserCardOrderField, $orderDirection: OrderDirection) {
+    userCards(first: 2, after: $after, userId: $userId, orderBy: { field: $orderField, direction: $orderDirection }) {
+      edges {
+        node {
+          modifier
+          card {
+            id
+            slug
+          }
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
+
+const mutationDocument = (name: string) => gql(`mutation ${name}($input: ID) { ${name}(input: $input) { success } }`);
 
 const splitPicker = (userId: string, after?: string): Variables => ({
   userId,
@@ -79,58 +112,37 @@ const until = async (done: () => boolean) => {
 
 type Init = NonNullable<Parameters<Window['fetch']>[1]>;
 
+interface SiteMutation {
+  name: string;
+  data?: Record<string, unknown> | null;
+  error?: Error;
+  variables?: Variables;
+}
+
 interface Rig {
   answer?: unknown;
   mounted?: boolean;
-  results?: MutationResult[];
+  mutations?: SiteMutation[];
   slow?: boolean;
-  outcomes?: string[];
+  outcomes?: CacheOutcome[];
   onFetch?: (body: string) => unknown;
-  withRedrive?: boolean;
 }
 
-const rig = ({ answer = {}, mounted = true, results = [], slow = false, outcomes, onFetch, withRedrive = false }: Rig = {}) => {
+interface SiteCall {
+  variables: Variables;
+  options: Record<string, unknown>;
+}
+
+const keyOf = (variables: Variables): number => createRequest(LIST, variables).key;
+
+const rig = ({ answer = {}, mounted = true, mutations = [], slow = false, outcomes, onFetch }: Rig = {}) => {
   const win = new Window({ url: 'https://senkuro.me/forge/split' });
   win.document.body.innerHTML = '<div id="app"></div>';
-  const queries: { variables: Variables; options: Record<string, unknown> }[] = [];
+  const queries: SiteCall[] = [];
   const reached: Variables[] = [];
+  const redriven: Operation[] = [];
   const log: string[] = [];
-  const pending = [...results];
-  const client: QueryClient = {
-    executeQuery: (asked) => {
-      reached.push(asked.variables ?? {});
-      if (!outcomes) return null;
-      return make<Record<string, unknown>>((observer) => {
-        outcomes.forEach((cacheOutcome) => observer.next({ data: {}, stale: false, hasNext: false, operation: { context: { meta: { cacheOutcome } } } }));
-        observer.complete();
-        return () => undefined;
-      });
-    },
-    executeMutation: () =>
-      make<MutationResult>((observer) => {
-        const next = pending.shift();
-        if (next) observer.next(next);
-        observer.complete();
-        return () => undefined;
-      }),
-    query: (_document, variables, options = {}) => ({
-      toPromise: async () => {
-        client.executeQuery(request(LIST_OPERATION, variables), options);
-        queries.push({ variables, options });
-        const index = queries.length - 1;
-        log.push(`start ${String(variables.userId)}`);
-        if (slow) await new Promise((resolve) => setTimeout(resolve, 15));
-        if (typeof options.fetch === 'function') {
-          await (options.fetch as (input: string, init: Init) => Promise<Response>)(GRAPHQL, {
-            method: 'POST',
-            body: JSON.stringify({ operationName: LIST_OPERATION, variables }),
-          });
-        }
-        log.push(`end ${String(variables.userId)}`);
-        return typeof answer === 'function' ? (answer as (at: number) => unknown)(index) : answer;
-      },
-    }),
-  };
+  const pending = [...mutations];
   const fetched: string[] = [];
   const fetchedUrls: string[] = [];
   win.fetch = ((url: RequestInfo | URL, init?: RequestInit) => {
@@ -139,11 +151,52 @@ const rig = ({ answer = {}, mounted = true, results = [], slow = false, outcomes
     fetchedUrls.push(typeof url === 'string' ? url : url instanceof URL ? url.href : url.url);
     return Promise.resolve(new Response(JSON.stringify(onFetch ? onFetch(body) : page)));
   }) as unknown as typeof win.fetch;
-  const reexecuted: { requested: QueryRequest; options: Record<string, unknown> }[] = [];
-  if (withRedrive) {
-    client.createRequestOperation = (_kind, requested, options = {}) => ({ requested, options, context: { url: GRAPHQL } });
-    client.reexecuteOperation = (operation) => void reexecuted.push(operation as { requested: QueryRequest; options: Record<string, unknown> });
-  }
+
+  const replay = async (operation: Operation): Promise<OperationResult> => {
+    const variables = operation.variables as Variables;
+    const options = operation.context as unknown as Record<string, unknown>;
+    queries.push({ variables, options });
+    const index = queries.length - 1;
+    log.push(`start ${String(variables.userId)}`);
+    if (slow) await new Promise((resolve) => setTimeout(resolve, 15));
+    await (options.fetch as (input: string, init: Init) => Promise<Response>)(GRAPHQL, {
+      method: 'POST',
+      body: JSON.stringify({ operationName: LIST_OPERATION, variables }),
+    });
+    log.push(`end ${String(variables.userId)}`);
+    const answered = (typeof answer === 'function' ? (answer as (at: number) => unknown)(index) : answer) as { data?: unknown; error?: Error };
+    return answered.error ? makeErrorResult(operation, answered.error) : makeResult(operation, { data: answered.data ?? {} });
+  };
+
+  const browseResults = (operation: Operation): OperationResult[] =>
+    (outcomes ?? ['miss']).map((cacheOutcome) =>
+      makeResult(makeOperation(operation.kind, operation, { ...operation.context, meta: { cacheOutcome } }), { data: {} })
+    );
+
+  const mutationResult = (operation: Operation): OperationResult => {
+    const next = pending.shift();
+    return next?.error ? makeErrorResult(operation, next.error) : makeResult(operation, { data: next?.data ?? null });
+  };
+
+  const site: Exchange = () => (operations$) =>
+    pipe(
+      operations$,
+      filter((operation: Operation) => operation.kind !== 'teardown'),
+      mergeMap((operation: Operation) => {
+        if (operation.kind === 'mutation') return fromArray([mutationResult(operation)]);
+        reached.push(operation.variables as Variables);
+        if (typeof operation.context.fetch === 'function') return fromPromise(replay(operation));
+        if (operation.context.requestPolicy === REFRESH_POLICY) redriven.push(operation);
+        return fromArray(browseResults(operation));
+      })
+    );
+
+  const siteClient = new Client({ url: GRAPHQL, exchanges: [site] });
+  const guard = installInventoryGuard(win as unknown as Parameters<typeof installInventoryGuard>[0]);
+  const client = new Client({ url: GRAPHQL, exchanges: [guard.exchange, delegateExchange(siteClient)] });
+  const mount = () => guard.attach(client, siteClient);
+  if (mounted) mount();
+
   const states: PriceState[] = [];
   const rows: PriceRows[] = [];
   const scopedRows: ScopedRows[] = [];
@@ -156,22 +209,14 @@ const rig = ({ answer = {}, mounted = true, results = [], slow = false, outcomes
     if (scoped) rows.push(scoped.rows);
     if (scoped) scopedRows.push(scoped);
   });
-  const mount = () => {
-    (win.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = { _context: { provides: { $urql: { value: client } } } };
+  const browse = (variables: Variables): number => {
+    pipe(
+      client.query(LIST, variables),
+      subscribe(() => undefined)
+    );
+    return keyOf(variables);
   };
-  if (mounted) mount();
-  installInventoryGuard(win as unknown as Parameters<typeof installInventoryGuard>[0]);
-  const respond = () => win.fetch(GRAPHQL, { method: 'POST', body: JSON.stringify({ operationName: 'fetchViewer' }) });
-  const browse = (variables: Variables, options?: Record<string, unknown>, asked: QueryRequest = request(LIST_OPERATION, variables)) => {
-    const source = client.executeQuery(asked, options);
-    if (typeof source === 'function')
-      pipe(
-        source as Source<unknown>,
-        subscribe(() => undefined)
-      );
-    return source;
-  };
-  const mutate = (name: string) => (client.executeMutation(request(name)) as { toPromise(): Promise<MutationResult> }).toPromise();
+  const mutate = (name: string, variables: Variables = {}) => client.mutation(mutationDocument(name), variables).toPromise();
   const refreshed: RefreshResult[] = [];
   win.document.addEventListener(REFRESH_RESULT_EVENT, (event) => {
     const result = readRefreshResult(event as unknown as Event);
@@ -183,15 +228,15 @@ const rig = ({ answer = {}, mounted = true, results = [], slow = false, outcomes
   const switchView = (isOn: boolean, scope: ListScope = 'grid') => send(PRICE_VIEW_EVENT, encodePriceSwitch({ scope, isOn }));
   const order = (sent: { viewId: number; revision: number; descending: number[]; ascending: number[] }, scope: ListScope = 'grid') =>
     send(PRICE_ORDER_EVENT, encodePriceOrder({ scope, order: sent }));
-  const browseList = (asked: QueryRequest) => client.executeQuery(asked);
   return {
     win,
+    client,
     queries,
     reached,
+    redriven,
     log,
     fetched,
     fetchedUrls,
-    reexecuted,
     states,
     rows,
     scopedRows,
@@ -200,15 +245,16 @@ const rig = ({ answer = {}, mounted = true, results = [], slow = false, outcomes
     sendRefreshDetail,
     switchView,
     order,
-    browseList,
     mount,
-    respond,
     browse,
     mutate,
   };
 };
 
 const ROUTE = '/users/u/cards';
+
+const forgeOf = (userId: string, ranks: string[]): SiteMutation => ({ name: 'forgeCards', data: forged(userId, ranks).data });
+const acceptOf = (name: string, success = true): SiteMutation => ({ name, data: accepted(name, success).data });
 
 describe('planRefresh', () => {
   const families = () => {
@@ -241,27 +287,13 @@ describe('planRefresh', () => {
 
 describe('installInventoryGuard', () => {
   it('leaves other requests exactly as they were', async () => {
-    const { win, respond } = rig();
-    expect(await (await respond()).json()).toEqual(page);
-    await win.happyDOM.close();
-  });
-
-  it('attaches on the first response after the app has mounted, so only lists opened afterwards are recorded', async () => {
-    const { win, mount, respond, browse, mutate, queries } = rig({ mounted: false, results: [withOperation(forged('USER:1', ['F']), 'forgeCards')] });
-    await respond();
-    mount();
-    browse(splitPicker('USER:1'));
-    await respond();
-    browse(splitPicker('USER:1', 'c1'));
-    await mutate('forgeCards');
-    await settle();
-    expect(queries.map((query) => query.variables.after)).toEqual([undefined, 'c1']);
+    const { win, client } = rig();
+    expect((await client.query(gql('query fetchViewer { viewer { id } }'), {}).toPromise()).data).toEqual({});
     await win.happyDOM.close();
   });
 
   it('refreshes the lists a forge got wrong, right after the result is applied, from the network', async () => {
-    const { win, respond, browse, mutate, queries } = rig({ results: [withOperation(forged('USER:1', ['F']), 'forgeCards')] });
-    await respond();
+    const { win, browse, mutate, queries } = rig({ mutations: [forgeOf('USER:1', ['F'])] });
     browse(splitPicker('USER:1'));
     browse(splitPicker('USER:1', 'c1'));
     browse(profileGrid('USER:1'));
@@ -273,8 +305,7 @@ describe('installInventoryGuard', () => {
   });
 
   it('does not touch lists that already accept what a forge delivered', async () => {
-    const { win, respond, browse, mutate, queries } = rig({ results: [withOperation(forged('USER:1', ['C']), 'forgeCards')] });
-    await respond();
+    const { win, browse, mutate, queries } = rig({ mutations: [forgeOf('USER:1', ['C'])] });
     browse(splitPicker('USER:1'));
     await mutate('forgeCards');
     await settle();
@@ -283,8 +314,7 @@ describe('installInventoryGuard', () => {
   });
 
   it('refreshes every recorded list after an accepted trade, one list after another', async () => {
-    const { win, respond, browse, mutate, queries, log } = rig({ results: [withOperation(accepted('acceptCardTrade'), 'acceptCardTrade')], slow: true });
-    await respond();
+    const { win, browse, mutate, queries, log } = rig({ mutations: [acceptOf('acceptCardTrade')], slow: true });
     browse(profileGrid('USER:1'));
     browse(splitPicker('USER:2'));
     await mutate('acceptCardTrade');
@@ -296,8 +326,7 @@ describe('installInventoryGuard', () => {
   });
 
   it('does nothing when the action failed', async () => {
-    const { win, respond, browse, mutate, queries } = rig({ results: [withOperation(accepted('acceptCardOffer', false), 'acceptCardOffer')] });
-    await respond();
+    const { win, browse, mutate, queries } = rig({ mutations: [acceptOf('acceptCardOffer', false)] });
     browse(profileGrid('USER:1'));
     await mutate('acceptCardOffer');
     await settle();
@@ -306,9 +335,7 @@ describe('installInventoryGuard', () => {
   });
 
   it('queues a second action behind the first instead of overlapping refreshes', async () => {
-    const result = withOperation(accepted('acceptCardTrade'), 'acceptCardTrade');
-    const { win, respond, browse, mutate, log } = rig({ results: [result, result], slow: true });
-    await respond();
+    const { win, browse, mutate, log } = rig({ mutations: [acceptOf('acceptCardTrade'), acceptOf('acceptCardTrade')], slow: true });
     browse(profileGrid('USER:1'));
     await Promise.all([mutate('acceptCardTrade'), mutate('acceptCardTrade')]);
     await settle();
@@ -318,20 +345,16 @@ describe('installInventoryGuard', () => {
   });
 
   describe('refreshing the open lists on request', () => {
-    it('marks the document ready once it has found the client, and not before', async () => {
-      const { win, mount, respond } = rig({ mounted: false });
-      expect(win.document.documentElement.getAttribute(GUARD_ATTRIBUTE)).toBeNull();
-      await respond();
+    it('marks the document ready once the swap has handed it the clients, and not before', async () => {
+      const { win, mount } = rig({ mounted: false });
       expect(win.document.documentElement.getAttribute(GUARD_ATTRIBUTE)).toBeNull();
       mount();
-      await respond();
       expect(win.document.documentElement.getAttribute(GUARD_ATTRIBUTE)).toBe(GUARD_READY);
       await win.happyDOM.close();
     });
 
     it('replays every page of the grid lists of this route and leaves the pickers alone', async () => {
-      const { win, respond, browse, requestRefresh, refreshed, queries } = rig();
-      await respond();
+      const { win, browse, requestRefresh, refreshed, queries } = rig();
       browse(cardsGrid('USER:1'));
       browse(cardsGrid('USER:1', 'c1'));
       browse(splitPicker('USER:1'));
@@ -344,8 +367,7 @@ describe('installInventoryGuard', () => {
     });
 
     it('replays the picker lists of this route and leaves the grid alone', async () => {
-      const { win, respond, browse, requestRefresh, refreshed, queries } = rig();
-      await respond();
+      const { win, browse, requestRefresh, refreshed, queries } = rig();
       browse(cardsGrid('USER:1'));
       browse(splitPicker('USER:1'));
       browse(splitPicker('USER:2'));
@@ -358,8 +380,7 @@ describe('installInventoryGuard', () => {
     });
 
     it('says there is nothing to refresh when the route holds no list of that kind', async () => {
-      const { win, respond, browse, requestRefresh, refreshed, queries } = rig();
-      await respond();
+      const { win, browse, requestRefresh, refreshed, queries } = rig();
       browse(splitPicker('USER:1'));
       requestRefresh('grid');
       browse(cardsGrid('USER:1'));
@@ -374,7 +395,7 @@ describe('installInventoryGuard', () => {
       await win.happyDOM.close();
     });
 
-    it('says there is nothing to refresh before the client was found', async () => {
+    it('says there is nothing to refresh before the swap handed it the clients', async () => {
       const { win, requestRefresh, refreshed } = rig({ mounted: false });
       requestRefresh('picker');
       await settle();
@@ -383,8 +404,7 @@ describe('installInventoryGuard', () => {
     });
 
     it('says the refresh failed when a page could not be fetched', async () => {
-      const { win, respond, browse, requestRefresh, refreshed } = rig({ answer: { error: new Error('429') } });
-      await respond();
+      const { win, browse, requestRefresh, refreshed } = rig({ answer: { error: new Error('429') } });
       browse(cardsGrid('USER:1'));
       requestRefresh('grid');
       await settle();
@@ -393,8 +413,7 @@ describe('installInventoryGuard', () => {
     });
 
     it('queues a request behind the refresh that is running', async () => {
-      const { win, respond, browse, requestRefresh, refreshed, log } = rig({ slow: true });
-      await respond();
+      const { win, browse, requestRefresh, refreshed, log } = rig({ slow: true });
       browse(cardsGrid('USER:1'));
       requestRefresh('grid');
       requestRefresh('grid');
@@ -407,8 +426,7 @@ describe('installInventoryGuard', () => {
     });
 
     it('ignores a request it cannot read', async () => {
-      const { win, respond, browse, sendRefreshDetail, refreshed, queries } = rig();
-      await respond();
+      const { win, browse, sendRefreshDetail, refreshed, queries } = rig();
       browse(cardsGrid('USER:1'));
       sendRefreshDetail('junk');
       sendRefreshDetail(JSON.stringify({ scope: 'all' }));
@@ -421,8 +439,7 @@ describe('installInventoryGuard', () => {
 
   describe('refreshing a list the site showed from its cache', () => {
     it('refreshes every recorded page of a list when the site shows its first page from the cache', async () => {
-      const { win, respond, browse, queries } = rig({ outcomes: ['hit'] });
-      await respond();
+      const { win, browse, queries } = rig({ outcomes: ['hit'] });
       browse(cardsGrid('USER:1', 'c1'));
       browse(cardsGrid('USER:1'));
       await settle();
@@ -432,8 +449,16 @@ describe('installInventoryGuard', () => {
     });
 
     it('leaves a first page the network answered alone', async () => {
-      const { win, respond, browse, queries } = rig({ outcomes: ['miss'] });
-      await respond();
+      const { win, browse, queries } = rig({ outcomes: ['miss'] });
+      browse(cardsGrid('USER:1', 'c1'));
+      browse(cardsGrid('USER:1'));
+      await settle();
+      expect(queries).toHaveLength(0);
+      await win.happyDOM.close();
+    });
+
+    it('leaves the first page of a list it sees for the first time alone, which is what the swap re-runs', async () => {
+      const { win, browse, queries } = rig({ outcomes: ['hit'] });
       browse(cardsGrid('USER:1'));
       await settle();
       expect(queries).toHaveLength(0);
@@ -441,35 +466,32 @@ describe('installInventoryGuard', () => {
     });
 
     it('refreshes only the list that came from the cache', async () => {
-      const { win, respond, browse, queries } = rig({ outcomes: ['hit'] });
-      await respond();
-      browse(cardsGrid('USER:2'));
-      await settle();
-      queries.length = 0;
+      const { win, browse, queries } = rig({ outcomes: ['hit'] });
+      browse(cardsGrid('USER:2', 'c1'));
+      browse(cardsGrid('USER:1', 'c1'));
       browse(cardsGrid('USER:1'));
       await settle();
-      expect(queries.map((query) => query.variables.userId)).toEqual(['USER:1']);
+      expect(queries.map((query) => query.variables.userId)).toEqual(['USER:1', 'USER:1']);
       await win.happyDOM.close();
     });
 
     it('does not queue a second refresh of a list while one is waiting, nor for the results that follow the first', async () => {
-      const { win, respond, browse, queries } = rig({ outcomes: ['hit', 'hit', 'hit'], slow: true });
-      await respond();
+      const { win, browse, queries } = rig({ outcomes: ['hit', 'hit', 'hit'], slow: true });
+      browse(cardsGrid('USER:1', 'c1'));
       browse(cardsGrid('USER:1'));
-      browse(cardsGrid('USER:1'));
-      await settle();
-      await settle();
-      expect(queries).toHaveLength(1);
       browse(cardsGrid('USER:1'));
       await settle();
       await settle();
       expect(queries).toHaveLength(2);
+      browse(cardsGrid('USER:1'));
+      await settle();
+      await settle();
+      expect(queries).toHaveLength(4);
       await win.happyDOM.close();
     });
 
     it('leaves a list longer than the limit alone', async () => {
-      const { win, respond, browse, queries } = rig({ outcomes: ['hit'] });
-      await respond();
+      const { win, browse, queries } = rig({ outcomes: ['hit'] });
       for (let page = 1; page <= AUTO_REFRESH_MAX_PAGES; page++) browse(cardsGrid('USER:1', `c${page}`));
       browse(cardsGrid('USER:1'));
       await settle();
@@ -478,8 +500,7 @@ describe('installInventoryGuard', () => {
     });
 
     it('refreshes every page of a list that is exactly at the limit', async () => {
-      const { win, respond, browse, queries } = rig({ outcomes: ['hit'] });
-      await respond();
+      const { win, browse, queries } = rig({ outcomes: ['hit'] });
       for (let page = 1; page < AUTO_REFRESH_MAX_PAGES; page++) browse(cardsGrid('USER:1', `c${page}`));
       browse(cardsGrid('USER:1'));
       await until(() => queries.length >= AUTO_REFRESH_MAX_PAGES);
@@ -487,22 +508,19 @@ describe('installInventoryGuard', () => {
       await win.happyDOM.close();
     });
 
-    it('leaves the private list of the price view alone, so a replay never asks the server for it', async () => {
-      const { win, respond, browse, queries } = rig({ outcomes: ['hit'] });
-      await respond();
-      browse({ ...cardsGrid('USER:1'), orderField: privateFieldOf(1) });
+    it('leaves a page of the price view alone, so a replay never asks the server for it', async () => {
+      const { win, browse, queries } = rig({ outcomes: ['hit'] });
+      browse(cardsGrid('USER:1', createPrivateCursor(1, 2)));
+      browse(cardsGrid('USER:1', 'c1'));
+      browse(cardsGrid('USER:1'));
       await settle();
-      expect(queries).toHaveLength(0);
+      expect(queries.map((query) => query.variables.after)).toEqual([undefined, 'c1']);
       await win.happyDOM.close();
     });
   });
 
   describe('the price view', () => {
-    const DOCUMENT = parse(
-      'query fetchUserCards($after: String, $userId: ID!, $orderField: UserCardOrderField, $orderDirection: OrderDirection) { userCards(first: 2, after: $after, userId: $userId, orderBy: { field: $orderField, direction: $orderDirection }) { edges { node { modifier card { id slug } } } pageInfo { hasNextPage endCursor } } }'
-    );
     const grid = { userId: 'USER:1', orderField: 'CREATED_AT', orderDirection: 'DESC', modifier: { include: [0] }, after: null };
-    const listRequest = (variables: Variables = grid, key = 7): QueryRequest => ({ key, variables, query: DOCUMENT as unknown as QueryRequest['query'] });
     const edge = (slug: string) => ({
       __typename: 'UserCardEdge',
       node: { __typename: 'UserCard', modifier: 0, locked: false, card: { __typename: 'Card', id: `id-${slug}`, slug } },
@@ -526,10 +544,11 @@ describe('installInventoryGuard', () => {
     const reversed = { viewId: 1, revision: 1, descending: [3, 2, 1, 0], ascending: [0, 1, 2, 3] };
 
     it('keeps the replays of the guard from becoming the list the view crawls', async () => {
-      const { win, respond, browse, switchView, states, rows } = rig({ onFetch: crawlPages, withRedrive: true, outcomes: ['hit'] });
-      await respond();
-      browse(grid, undefined, listRequest());
+      const { win, browse, switchView, states, rows, queries } = rig({ onFetch: crawlPages, outcomes: ['hit'] });
+      browse({ ...grid, after: 'c1' });
+      browse(grid);
       await settle();
+      expect(queries.length).toBeGreaterThan(0);
       switchView(true);
       await settle();
       expect(states.at(-1)?.name).not.toBe('unavailable');
@@ -537,14 +556,12 @@ describe('installInventoryGuard', () => {
       await win.happyDOM.close();
     });
 
-    it('says it is unavailable when no list was asked for, or the client cannot ask again', async () => {
-      const first = rig({ withRedrive: true });
-      await first.respond();
+    it('says it is unavailable when no list was asked for, or before the swap handed it the clients', async () => {
+      const first = rig();
       first.switchView(true);
       expect(first.states).toEqual([{ name: 'unavailable', loaded: 0, total: null }]);
-      const second = rig({ onFetch: crawlPages });
-      await second.respond();
-      second.browseList(listRequest());
+      const second = rig({ onFetch: crawlPages, mounted: false });
+      second.browse(grid);
       second.switchView(true);
       expect(second.states).toEqual([{ name: 'unavailable', loaded: 0, total: null }]);
       await first.win.happyDOM.close();
@@ -552,25 +569,21 @@ describe('installInventoryGuard', () => {
     });
 
     it('crawls the list with its own requests to the api the site uses, hands over the slugs, and serves the sorted list once the order is back', async () => {
-      const { win, respond, browseList, switchView, order, rows, states, fetched, fetchedUrls, reexecuted } = rig({ onFetch: crawlPages, withRedrive: true });
-      await respond();
-      browseList(listRequest());
+      const { win, browse, switchView, order, rows, states, fetched, fetchedUrls, redriven } = rig({ onFetch: crawlPages });
+      const gridKey = browse(grid);
       switchView(true);
       await settle();
       await settle();
-      expect(fetched.slice(1).map((body) => (JSON.parse(body) as { operationName: string }).operationName)).toEqual([
-        'senkutoolsPriceRows',
-        'senkutoolsPriceRows',
-      ]);
-      expect(fetchedUrls.slice(1)).toEqual([GRAPHQL, GRAPHQL]);
+      expect(fetched.map((body) => (JSON.parse(body) as { operationName: string }).operationName)).toEqual(['senkutoolsPriceRows', 'senkutoolsPriceRows']);
+      expect(fetchedUrls).toEqual([GRAPHQL, GRAPHQL]);
       expect(rows).toEqual([{ viewId: 1, slugs: ['a', 'b', 'c', 'd'] }]);
       expect(states.at(-1)?.name).toBe('loading');
       order(reversed);
+      await settle();
       expect(states.at(-1)).toEqual({ name: 'ready', loaded: 4, total: 4 });
-      expect(reexecuted).toHaveLength(1);
-      expect(reexecuted[0]?.requested.key).toBe(7);
-      expect(reexecuted[0]?.requested.variables).toEqual({ ...grid, orderField: privateFieldOf(1) });
-      expect(reexecuted[0]?.options.requestPolicy).toBe('network-only');
+      expect(redriven).toHaveLength(1);
+      expect(redriven[0]?.key).toBe(gridKey);
+      expect(redriven[0]?.variables).toEqual({ ...grid, orderField: privateFieldOf(1) });
       const before = fetched.length;
       const response = await win.fetch(GRAPHQL, {
         method: 'POST',
@@ -586,71 +599,66 @@ describe('installInventoryGuard', () => {
     });
 
     it('rewrites what the grid asks for into the sorted list, and gives the real list back when it stops', async () => {
-      const { win, respond, browseList, switchView, order, reexecuted, reached } = rig({ onFetch: crawlPages, withRedrive: true });
-      await respond();
-      browseList(listRequest());
+      const { win, browse, switchView, order, redriven, reached } = rig({ onFetch: crawlPages });
+      browse(grid);
       switchView(true);
       await settle();
       await settle();
       order(reversed);
-      browseList(listRequest({ ...grid, after: 'UgECAA_YJe18' }));
+      await settle();
+      browse({ ...grid, after: 'UgECAA_YJe18' });
       expect(reached.at(-1)).toEqual({ ...grid, orderField: privateFieldOf(1), after: null });
-      browseList(listRequest({ ...grid, after: createPrivateCursor(1, 2) }, 9));
+      const servedKey = browse({ ...grid, after: createPrivateCursor(1, 2) });
       switchView(false);
-      expect(reexecuted).toHaveLength(2);
-      expect(reexecuted[1]?.requested.variables).toEqual({ ...grid, after: null });
-      expect(reexecuted[1]?.requested.key).toBe(9);
-      browseList(listRequest({ ...grid, after: createPrivateCursor(1, 2) }));
+      await settle();
+      expect(redriven).toHaveLength(2);
+      expect(redriven[1]?.variables).toEqual({ ...grid, after: null });
+      expect(redriven[1]?.key).toBe(servedKey);
+      browse({ ...grid, after: createPrivateCursor(1, 4) });
       expect(reached.at(-1)).toEqual({ ...grid, after: null });
       await win.happyDOM.close();
     });
 
     it('does not record what it serves as a list of the site, so a later refresh never asks the server for it', async () => {
-      const { win, respond, browseList, switchView, order, mutate, queries, reexecuted } = rig({
-        onFetch: crawlPages,
-        withRedrive: true,
-        results: [withOperation(accepted('acceptCardTrade'), 'acceptCardTrade')],
-      });
-      await respond();
-      browseList(listRequest());
+      const { win, browse, switchView, order, mutate, queries, redriven } = rig({ onFetch: crawlPages, mutations: [acceptOf('acceptCardTrade')] });
+      browse(grid);
       switchView(true);
       await settle();
       await settle();
       order(reversed);
-      browseList(listRequest({ ...grid, orderField: privateFieldOf(1) }));
+      await settle();
+      browse({ ...grid, after: createPrivateCursor(1, 2) });
       await mutate('acceptCardTrade');
       await settle();
       expect(queries.map((query) => query.variables)).toEqual([grid]);
-      expect(reexecuted).toHaveLength(2);
+      expect(redriven).toHaveLength(2);
       await win.happyDOM.close();
     });
 
     it('writes the served page of a locked card again through the client, from the network, answered by the page itself', async () => {
-      const lockMutation: MutationResult = {
-        operation: request('bulkUpdateUserCardLock', { input: { userId: 'USER:1', cards: [{ cardId: 'id-b', modifier: 0 }], locked: true } }),
-        data: { bulkUpdateUserCardLock: { success: true } },
-      };
-      const { win, respond, browseList, switchView, order, mutate, queries, fetched } = rig({
+      const lock = { input: { userId: 'USER:1', cards: [{ cardId: 'id-b', modifier: 0 }], locked: true } };
+      const { win, browse, switchView, order, mutate, redriven, fetched } = rig({
         onFetch: crawlPages,
-        withRedrive: true,
-        results: [lockMutation],
+        mutations: [{ name: 'bulkUpdateUserCardLock', data: { bulkUpdateUserCardLock: { success: true } } }],
       });
-      await respond();
-      browseList(listRequest());
+      browse(grid);
       switchView(true);
       await settle();
       await settle();
       order(reversed);
+      await settle();
       await win.fetch(GRAPHQL, {
         method: 'POST',
         body: JSON.stringify({ operationName: LIST_OPERATION, variables: { ...grid, orderField: privateFieldOf(1), after: createPrivateCursor(1, 2) } }),
       });
       const before = fetched.length;
-      await mutate('bulkUpdateUserCardLock');
+      const redrivenBefore = redriven.length;
+      await mutate('bulkUpdateUserCardLock', lock);
       await settle();
-      expect(queries).toHaveLength(1);
-      expect(queries[0]?.variables).toEqual({ ...grid, orderField: privateFieldOf(1), orderDirection: 'DESC', after: createPrivateCursor(1, 2) });
-      expect(queries[0]?.options.requestPolicy).toBe('network-only');
+      const written = redriven.slice(redrivenBefore);
+      expect(written).toHaveLength(1);
+      expect(written[0]?.variables).toEqual({ ...grid, orderField: privateFieldOf(1), orderDirection: 'DESC', after: createPrivateCursor(1, 2) });
+      expect(written[0]?.context.requestPolicy).toBe('network-only');
       expect(fetched).toHaveLength(before);
       await win.happyDOM.close();
     });
@@ -659,43 +667,44 @@ describe('installInventoryGuard', () => {
     const forOrder = (viewId: number) => ({ ...reversed, viewId });
 
     it('keeps the profile grid and a window picker apart: each switch starts, serves and stops only its own list', async () => {
-      const { win, respond, browseList, switchView, order, scopedRows, reexecuted, reached } = rig({ onFetch: crawlPages, withRedrive: true });
-      await respond();
-      browseList(listRequest(grid, 7));
-      browseList(listRequest(picker, 8));
+      const { win, browse, switchView, order, scopedRows, redriven, reached } = rig({ onFetch: crawlPages });
+      browse(grid);
+      const pickerKey = browse(picker);
       switchView(true, 'grid');
       switchView(true, 'picker');
       await until(() => scopedRows.length === 2);
       expect(scopedRows.map((sent) => sent.scope).sort()).toEqual(['grid', 'picker']);
       for (const sent of scopedRows) order(forOrder(sent.rows.viewId), sent.scope);
-      browseList(listRequest(grid, 7));
+      await settle();
+      browse(grid);
       const gridField = reached.at(-1)?.orderField;
-      browseList(listRequest(picker, 8));
+      browse(picker);
       const pickerField = reached.at(-1)?.orderField;
       expect([gridField, pickerField].sort()).toEqual([privateFieldOf(1), privateFieldOf(2)]);
       switchView(false, 'picker');
-      expect(reexecuted.at(-1)?.requested.key).toBe(8);
-      expect(reexecuted.at(-1)?.requested.variables).toEqual(picker);
-      browseList(listRequest(grid, 7));
+      await settle();
+      expect(redriven.at(-1)?.key).toBe(pickerKey);
+      expect(redriven.at(-1)?.variables).toEqual(picker);
+      browse(grid);
       expect(reached.at(-1)?.orderField).toBe(gridField);
       await win.happyDOM.close();
     });
 
     it('crawls the list of a window again when the window asks for a refresh, and leaves the grid serving its own', async () => {
-      const { win, respond, browseList, switchView, order, scopedRows, requestRefresh, reached } = rig({ onFetch: crawlPages, withRedrive: true });
-      await respond();
-      browseList(listRequest(grid, 7));
-      browseList(listRequest(picker, 8));
+      const { win, browse, switchView, order, scopedRows, requestRefresh, reached } = rig({ onFetch: crawlPages });
+      browse(grid);
+      browse(picker);
       switchView(true, 'grid');
       switchView(true, 'picker');
       await until(() => scopedRows.length === 2);
       for (const sent of scopedRows) order(forOrder(sent.rows.viewId), sent.scope);
+      await settle();
       requestRefresh('picker');
       await until(() => scopedRows.length === 3);
       expect(scopedRows.at(-1)?.scope).toBe('picker');
-      browseList(listRequest(picker, 8));
+      browse(picker);
       expect(reached.at(-1)).toEqual(picker);
-      browseList(listRequest(grid, 7));
+      browse(grid);
       expect(String(reached.at(-1)?.orderField)).toMatch(/^SENKUTOOLS_PRICE_/);
       requestRefresh('grid');
       await settle();
@@ -704,8 +713,7 @@ describe('installInventoryGuard', () => {
     });
 
     it('answers an empty page for the private name when nothing is served, and never lets it reach the network', async () => {
-      const { win, respond, fetched } = rig({ withRedrive: true });
-      await respond();
+      const { win, fetched } = rig();
       const before = fetched.length;
       const response = await win.fetch(GRAPHQL, {
         method: 'POST',
@@ -717,10 +725,9 @@ describe('installInventoryGuard', () => {
     });
   });
 
-  it('keeps working when the site client cannot be found', async () => {
-    const { win, respond } = rig({ mounted: false });
-    expect((await respond()).status).toBe(200);
-    expect((await respond()).status).toBe(200);
+  it('keeps the site working before the swap handed it the clients', async () => {
+    const { win, client } = rig({ mounted: false });
+    expect((await client.query(gql('query fetchViewer { viewer { id } }'), {}).toPromise()).data).toEqual({});
     await win.happyDOM.close();
   });
 });
