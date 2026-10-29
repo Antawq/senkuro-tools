@@ -1,21 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
-import { make, pipe, subscribe, type Source } from 'wonka';
-
-import { installCatalogFallback } from '../utils/catalog/catalog-fallback';
-import type { QueryClient, QueryRequest } from '../utils/shared/urql-client';
 import {
+  answerLater,
+  answersFor,
+  answersOnce,
   catalogRequest,
+  createCatalogClients,
   emptyCatalog,
-  promiseOf,
+  factsAnswer,
   rowsOf,
   searchAnswer,
   searchPage,
   settle,
-  factsAnswer,
-  sourceOf,
   type Answer,
-  type QueryCall,
+  type CatalogRequest,
 } from './helpers/catalog-requests';
 
 const rig = (
@@ -24,31 +22,20 @@ const rig = (
   isHydrating = () => false,
   facts: Answer = { data: {} }
 ) => {
-  const calls: QueryCall[] = [];
-  const client = {
-    executeQuery: () => sourceOf(catalogAnswers),
-    executeMutation: () => null,
-    query: (document: string, variables: Record<string, unknown>, options?: Record<string, unknown>) => {
-      calls.push({ document, variables, options });
-      return promiseOf(document.includes('catalogRowFacts') ? facts : (searchAnswers[0] ?? {}));
+  const { client, calls } = createCatalogClients(
+    {
+      catalogAnswers: () => answersOnce(catalogAnswers),
+      answerOwn: (call) => answersOnce([call.document.includes('catalogRowFacts') ? facts : (searchAnswers[0] ?? {})]),
     },
-  } as unknown as QueryClient;
-  installCatalogFallback(client, isHydrating);
-  const run = async (asked: QueryRequest): Promise<Answer[]> => {
-    const seen: Answer[] = [];
-    pipe(
-      client.executeQuery(asked) as Source<Answer>,
-      subscribe((answer) => seen.push(answer))
-    );
-    await settle();
-    return seen;
-  };
+    isHydrating
+  );
+  const run = (asked: CatalogRequest): Promise<Answer[]> => answersFor(client, asked);
   const searches = () => calls.filter((call) => !call.document.includes('catalogRowFacts'));
   const factRequests = () => calls.filter((call) => call.document.includes('catalogRowFacts'));
   return { calls, searches, factRequests, run };
 };
 
-describe('installCatalogFallback', () => {
+describe('catalogFallbackExchange', () => {
   it('asks the search that finds Russian for the text, many rows at a time, when the catalog finds nothing', async () => {
     const { searches, run } = rig();
     await run(catalogRequest('fetchMangas'));
@@ -60,7 +47,7 @@ describe('installCatalogFallback', () => {
   it('asks with a document of its own and keeps its own queries on the cache, so a changed sort does not ask again', async () => {
     const { searches, run } = rig();
     await run(catalogRequest('fetchMangas'));
-    expect(typeof searches()[0]?.document).toBe('string');
+    expect(searches()[0]?.document).toContain('query catalogSearch');
     expect(searches()[0]?.options).toMatchObject({ requestPolicy: 'cache-first' });
   });
 
@@ -157,56 +144,35 @@ describe('installCatalogFallback', () => {
   });
 
   it('gives the page the first rows as soon as they are there, and the rest when the pages have come, when there is no sort to make', async () => {
-    const calls: QueryCall[] = [];
     const pages: Record<string, Answer> = { null: searchPage(['naruto'], 2, '1'), '1': searchPage(['boruto'], 2) };
     const safe = factsAnswer({ naruto: { containExplicitThemes: false }, boruto: { containExplicitThemes: false } });
-    const client = {
-      executeQuery: () => sourceOf([emptyCatalog]),
-      executeMutation: () => null,
-      query: (document: string, variables: Record<string, unknown>) => {
-        calls.push({ document, variables, options: undefined });
-        return promiseOf(document.includes('catalogRowFacts') ? safe : (pages[String(variables.after)] ?? {}));
-      },
-    } as unknown as QueryClient;
-    installCatalogFallback(client, () => false);
-    const seen: Answer[] = [];
-    pipe(
-      client.executeQuery(catalogRequest('fetchMangas')) as Source<Answer>,
-      subscribe((answer) => seen.push(answer))
-    );
-    await settle();
+    const { client } = createCatalogClients({
+      catalogAnswers: () => answersOnce([emptyCatalog]),
+      answerOwn: (call) => answersOnce([call.document.includes('catalogRowFacts') ? safe : (pages[String(call.variables.after)] ?? {})]),
+    });
+    const seen = await answersFor(client, catalogRequest('fetchMangas'));
     expect(seen.map((answer) => rowsOf(answer).map((edge) => edge.node.slug))).toEqual([['naruto'], ['naruto', 'boruto']]);
   });
 
   describe('a search the page drops for a newer one', () => {
-    const liveCatalog = (): Source<Answer> =>
-      make<Answer>((observer) => {
-        observer.next(emptyCatalog);
-        return () => undefined;
-      });
     const numberedSlugs = (text: string) => Array.from({ length: 300 }, (_, index) => `${text}-${index}`);
 
     const dropRig = () => {
       const asked: string[] = [];
       const waiting: (() => void)[] = [];
-      const client = {
-        executeQuery: liveCatalog,
-        executeMutation: () => null,
-        query: (document: string, variables: Record<string, unknown>) => ({
-          toPromise: () =>
-            new Promise<Answer>((resolve) => {
-              const isFacts = document.includes('catalogRowFacts');
-              asked.push(isFacts ? 'facts' : `search:${String(variables.after)}`);
-              const page = variables.after === null ? 0 : Number(variables.after) / 100;
-              const slugs = numberedSlugs('naruto');
-              const answer = isFacts
-                ? factsAnswer(Object.fromEntries(slugs.map((slug) => [slug, { containExplicitThemes: true, score: 1 }])))
-                : searchPage(slugs.slice(page * 100, page * 100 + 100), 300, String((page + 1) * 100));
-              waiting.push(() => resolve(answer));
-            }),
-        }),
-      } as unknown as QueryClient;
-      installCatalogFallback(client, () => false);
+      const { client } = createCatalogClients({
+        catalogAnswers: () => answersOnce([emptyCatalog]),
+        answerOwn: (call) => {
+          const isFacts = call.document.includes('catalogRowFacts');
+          asked.push(isFacts ? 'facts' : `search:${String(call.variables.after)}`);
+          const page = call.variables.after === null ? 0 : Number(call.variables.after) / 100;
+          const slugs = numberedSlugs('naruto');
+          const answer = isFacts
+            ? factsAnswer(Object.fromEntries(slugs.map((slug) => [slug, { containExplicitThemes: true, score: 1 }])))
+            : searchPage(slugs.slice(page * 100, page * 100 + 100), 300, String((page + 1) * 100));
+          return answerLater(waiting, answer);
+        },
+      });
       const answerWaiting = async () => {
         waiting.splice(0).forEach((answer) => answer());
         await settle();
@@ -223,10 +189,8 @@ describe('installCatalogFallback', () => {
     ] as const) {
       it(`asks nothing more for it once the page lets it go, ${label}`, async () => {
         const { asked, client, answerAll } = dropRig();
-        const subscription = pipe(
-          client.executeQuery(catalogRequest('fetchMangas', variables)) as Source<Answer>,
-          subscribe(() => undefined)
-        );
+        const asking = catalogRequest('fetchMangas', variables);
+        const subscription = client.query(asking.query, asking.variables).subscribe(() => undefined);
         await settle();
         const askedBeforeDrop = asked.length;
         subscription.unsubscribe();
@@ -237,11 +201,9 @@ describe('installCatalogFallback', () => {
 
       it(`asks for no next page once the page lets it go while the values of a page are on their way, ${label}`, async () => {
         const { asked, client, answerWaiting, answerAll } = dropRig();
-        const seen: Answer[] = [];
-        const subscription = pipe(
-          client.executeQuery(catalogRequest('fetchMangas', variables)) as Source<Answer>,
-          subscribe((answer) => seen.push(answer))
-        );
+        const seen: unknown[] = [];
+        const asking = catalogRequest('fetchMangas', variables);
+        const subscription = client.query(asking.query, asking.variables).subscribe((result) => seen.push(result));
         await settle();
         await answerWaiting();
         expect(asked).toEqual(['search:null', 'facts']);

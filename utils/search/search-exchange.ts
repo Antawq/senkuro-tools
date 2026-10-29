@@ -2,6 +2,7 @@ import { getOperationName, makeOperation, type Exchange, type Operation, type Op
 import { map, pipe, tap } from 'wonka';
 
 import type { PageWindow } from '../shared/page-window';
+import { isSettled } from '../shared/urql-source';
 import { SEARCH_EVENT, type SearchSignal } from './search-event';
 import { SEARCH_OPERATION, widenSearchQuery } from './search-page-size';
 
@@ -30,8 +31,6 @@ const firstSlugOf = (result: OperationResult): string | null => {
   const slug = data?.search?.edges?.[0]?.node?.slug;
   return typeof slug === 'string' ? slug : null;
 };
-
-const isSettled = (result: OperationResult): boolean => !result.stale && !result.hasNext;
 
 function widened(operation: Operation, pageSize: number): Operation {
   const query = termsOf(operation) ? widenSearchQuery(operation.query, pageSize) : null;

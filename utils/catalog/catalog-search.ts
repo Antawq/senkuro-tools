@@ -1,8 +1,4 @@
-import { claimPage } from '../shared/page-claim';
-import type { PageWindow } from '../shared/page-window';
-import { runWhenClientFound } from '../shared/urql-client';
 import { findVueApp } from '../shared/vue-app';
-import { installCatalogFallback } from './catalog-fallback';
 
 const CATALOG_ROUTE_NAMES: ReadonlySet<string> = new Set(['browse-manga', 'browse-anime']);
 const QUERY_PARAMETER = 'query';
@@ -40,15 +36,12 @@ export function findRouter(pageDocument: Document): PageRouter | null {
   return typeof router?.beforeEach === 'function' && typeof router.afterEach === 'function' ? (router as PageRouter) : null;
 }
 
-export function installCatalogSearch(pageWindow: PageWindow): void {
-  if (!claimPage(pageWindow, 'catalog-search')) return;
-  runWhenClientFound(pageWindow, (client) => {
-    const router = findRouter(pageWindow.document);
-    let navigations = 0;
-    router?.afterEach(() => {
-      navigations += 1;
-    });
-    installCatalogFallback(client, () => router !== null && navigations === 0);
-    router?.beforeEach(redirectQueryToSearch);
+export function installCatalogRouting(pageDocument: Document): () => boolean {
+  const router = findRouter(pageDocument);
+  let navigationCount = 0;
+  router?.afterEach(() => {
+    navigationCount += 1;
   });
+  router?.beforeEach(redirectQueryToSearch);
+  return () => router !== null && navigationCount === 0;
 }

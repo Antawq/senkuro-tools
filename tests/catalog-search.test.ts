@@ -2,10 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { Window } from 'happy-dom';
 
-import { pipe, subscribe, type Source } from 'wonka';
+import type { Client } from '@urql/core';
 
-import { findRouter, installCatalogSearch, redirectQueryToSearch, type CatalogLocation, type PageRouter } from '../utils/catalog/catalog-search';
-import { catalogRequest, emptyCatalog, promiseOf, searchAnswer, settle, sourceOf, type Answer } from './helpers/catalog-requests';
+import { catalogFallbackExchange } from '../utils/catalog/catalog-fallback';
+import { findRouter, installCatalogRouting, redirectQueryToSearch, type CatalogLocation, type PageRouter } from '../utils/catalog/catalog-search';
+import { installClientSwap } from '../utils/shared/client-swap';
+import { answersFor, answersOnce, catalogRequest, createCatalogSiteClient, emptyCatalog, searchAnswer } from './helpers/catalog-requests';
 
 const location = (name: string, query: Record<string, unknown>, fields?: string[]): CatalogLocation => ({
   name,
@@ -83,7 +85,7 @@ describe('findRouter', () => {
   });
 });
 
-describe('installCatalogSearch', () => {
+describe('installCatalogRouting with the client swap', () => {
   const rig = () => {
     const guards: Parameters<PageRouter['beforeEach']>[0][] = [];
     const navigated: (() => void)[] = [];
@@ -93,99 +95,82 @@ describe('installCatalogSearch', () => {
     };
     const pageWindow = new Window({ url: 'https://senkuro.me/' });
     pageWindow.document.body.innerHTML = '<div id="app"></div>';
-    const client = { executeQuery: () => sourceOf([emptyCatalog]), executeMutation: () => null, query: () => promiseOf(searchAnswer('naruto')) };
-    pageWindow.fetch = (() => Promise.resolve(new Response('{}'))) as unknown as typeof pageWindow.fetch;
+    const { siteClient } = createCatalogSiteClient({
+      catalogAnswers: () => answersOnce([emptyCatalog]),
+      answerOwn: (call) => answersOnce([call.document.includes('catalogRowFacts') ? { data: {} } : searchAnswer('naruto')]),
+    });
+    const clientRef = { __v_isRef: true, value: siteClient as unknown };
+    const typed = pageWindow as unknown as Parameters<typeof installClientSwap>[0];
+    const install = () => installClientSwap(typed, { exchangesFor: () => [catalogFallbackExchange(installCatalogRouting(typed.document))] });
     const mount = (withRouter = true) => {
       (pageWindow.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = {
-        _context: { provides: { $urql: client } },
+        _context: { provides: { $urql: clientRef } },
         config: { globalProperties: withRouter ? { $router: router } : {} },
       };
     };
-    const respond = async () => {
-      await pageWindow.fetch('https://api.senkuro.me/graphql');
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    };
-    return { guards, navigated, router, client, mount, respond, typed: pageWindow as unknown as Parameters<typeof installCatalogSearch>[0] };
+    const answers = () => answersFor(clientRef.value as Client, catalogRequest('fetchMangas'));
+    return { guards, navigated, router, siteClient, clientRef, install, mount, answers };
   };
 
-  it('puts its guard on the site router once the app is up, and not before', async () => {
-    const { typed, router, mount, respond } = rig();
-    installCatalogSearch(typed);
-    await respond();
+  it('puts its guard on the site router once the app is up, and not before', () => {
+    const { router, install, mount } = rig();
+    install();
     expect(router.beforeEach).not.toHaveBeenCalled();
     mount();
-    await respond();
     expect(router.beforeEach).toHaveBeenCalledTimes(1);
   });
 
-  it('puts the fallback of the catalog on the site client at the same time', async () => {
-    const { typed, client, mount, respond } = rig();
-    const before = client.executeQuery;
-    installCatalogSearch(typed);
+  it('puts the fallback of the catalog in front of the site client at the same time', async () => {
+    const { siteClient, clientRef, install, mount, answers } = rig();
+    install();
     mount();
-    await respond();
-    expect(client.executeQuery).not.toBe(before);
+    expect(clientRef.value).not.toBe(siteClient);
+    expect((await answers()).at(-1)?.data).toMatchObject({ mangas: { edges: [{ node: { slug: 'naruto' } }] } });
   });
 
-  it('gives the router the guard that redirects a catalog query', async () => {
-    const { typed, guards, mount, respond } = rig();
-    installCatalogSearch(typed);
+  it('gives the router the guard that redirects a catalog query', () => {
+    const { guards, install, mount } = rig();
+    install();
     mount();
-    await respond();
     expect(guards[0]?.(location('browse-manga', { query: 'naruto' }, []))).toEqual(redirectQueryToSearch(location('browse-manga', { query: 'naruto' }, [])));
     expect(guards[0]?.(location('manga-slug', {}, []))).toBeUndefined();
   });
 
-  const answersFor = async (client: { executeQuery: (request: never) => unknown }): Promise<Answer[]> => {
-    const seen: Answer[] = [];
-    pipe(
-      client.executeQuery(catalogRequest('fetchMangas') as never) as Source<Answer>,
-      subscribe((answer) => seen.push(answer))
-    );
-    await settle();
-    return seen;
-  };
-
   it('hands the page the empty answer first while the router has not navigated yet', async () => {
-    const { typed, client, mount, respond } = rig();
-    installCatalogSearch(typed);
+    const { install, mount, answers } = rig();
+    install();
     mount();
-    await respond();
-    expect(await answersFor(client)).toHaveLength(2);
-    expect(await answersFor(client)).toHaveLength(2);
+    expect(await answers()).toHaveLength(2);
+    expect(await answers()).toHaveLength(2);
   });
 
   it('answers with the rows at once once the router has navigated', async () => {
-    const { typed, client, navigated, mount, respond } = rig();
-    installCatalogSearch(typed);
+    const { navigated, install, mount, answers } = rig();
+    install();
     mount();
-    await respond();
     navigated.forEach((hook) => hook());
-    expect(await answersFor(client)).toHaveLength(1);
+    expect(await answers()).toHaveLength(1);
   });
 
   it('answers with the rows at once when the page has no router to tell', async () => {
-    const { typed, client, mount, respond } = rig();
-    installCatalogSearch(typed);
+    const { install, mount, answers } = rig();
+    install();
     mount(false);
-    await respond();
-    expect(await answersFor(client)).toHaveLength(1);
+    expect(await answers()).toHaveLength(1);
   });
 
-  it('installs once however often it is asked, for a page that was already claimed', async () => {
-    const { typed, router, mount, respond } = rig();
-    installCatalogSearch(typed);
-    installCatalogSearch(typed);
+  it('installs once however often it is asked, for a page that was already claimed', () => {
+    const { router, install, mount } = rig();
+    install();
+    install();
     mount();
-    await respond();
-    await respond();
     expect(router.beforeEach).toHaveBeenCalledTimes(1);
   });
 
-  it('does nothing and does not fail when the app has no router', async () => {
-    const { typed, mount, respond } = rig();
-    installCatalogSearch(typed);
-    mount(false);
-    await expect(respond()).resolves.toBeUndefined();
+  it('does nothing and does not fail when the app has no router', () => {
+    const { install, mount, clientRef, siteClient } = rig();
+    install();
+    expect(() => mount(false)).not.toThrow();
+    expect(clientRef.value).not.toBe(siteClient);
   });
 });

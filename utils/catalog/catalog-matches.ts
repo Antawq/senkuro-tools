@@ -1,4 +1,3 @@
-import type { QueryClient } from '../shared/urql-client';
 import { factVariablesOf, factsDocumentOf, readFacts, type FactsBySlug } from './catalog-facts';
 import { rowPasses, type CatalogFilters } from './catalog-filters';
 import { CATALOG_ROW_LIMIT, SEARCH_PAGE_ROWS, type CatalogKind } from './catalog-results';
@@ -6,6 +5,10 @@ import { sortRows, type SortOrder } from './catalog-sort';
 import { isCatalogRow, type CatalogRow } from './catalog-row';
 
 type QueryOptions = Record<string, unknown> | undefined;
+
+export interface CatalogAsker {
+  query(document: string, variables: Record<string, unknown>, context?: Record<string, unknown>): { toPromise(): Promise<unknown> };
+}
 
 const CACHE_FIRST = { requestPolicy: 'cache-first' };
 
@@ -26,7 +29,7 @@ const factsDocumentFor = (kind: CatalogKind): string => {
   return document;
 };
 
-async function ask(client: QueryClient, document: string, variables: Record<string, unknown>, options: QueryOptions): Promise<CatalogRow> {
+async function ask(client: CatalogAsker, document: string, variables: Record<string, unknown>, options: QueryOptions): Promise<CatalogRow> {
   const answer = await client.query(document, variables, { ...options, ...CACHE_FIRST }).toPromise();
   return isCatalogRow(answer) ? answer : {};
 }
@@ -45,7 +48,7 @@ function nextCursorOf(search: CatalogRow, edges: unknown[]): string | null {
 }
 
 async function* searchPages(
-  client: QueryClient,
+  client: CatalogAsker,
   kind: CatalogKind,
   text: string,
   options: QueryOptions,
@@ -66,7 +69,7 @@ async function* searchPages(
   }
 }
 
-async function lookUpFacts(client: QueryClient, kind: CatalogKind, rows: readonly CatalogRow[], options: QueryOptions): Promise<FactsBySlug> {
+async function lookUpFacts(client: CatalogAsker, kind: CatalogKind, rows: readonly CatalogRow[], options: QueryOptions): Promise<FactsBySlug> {
   const slugs = rows.map((row) => String(row.slug));
   return readFacts((await ask(client, factsDocumentFor(kind), factVariablesOf(slugs, SEARCH_PAGE_ROWS), options)).data);
 }
@@ -85,7 +88,7 @@ function finalListOf(matches: readonly CatalogRow[], factsBySlug: FactsBySlug, {
 const isExplicit = (row: CatalogRow, factsBySlug: FactsBySlug): boolean => factsBySlug.get(String(row.slug))?.containExplicitThemes !== false;
 
 export async function* streamCatalogMatches(
-  client: QueryClient,
+  client: CatalogAsker,
   kind: CatalogKind,
   { text, order, filters }: MatchQuery,
   options: QueryOptions,

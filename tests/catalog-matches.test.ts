@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { streamCatalogMatches, type MatchQuery } from '../utils/catalog/catalog-matches';
+import { streamCatalogMatches, type CatalogAsker, type MatchQuery } from '../utils/catalog/catalog-matches';
 import { CATALOG_ROW_LIMIT, SEARCH_PAGE_ROWS, catalogKindOf } from '../utils/catalog/catalog-results';
 import { searchRequestOf } from '../utils/catalog/catalog-filters';
 import { sortOrderOf } from '../utils/catalog/catalog-sort';
 import type { CatalogRow } from '../utils/catalog/catalog-row';
-import type { QueryClient } from '../utils/shared/urql-client';
 import { factsAnswer, promiseOf, searchPage, type Answer, type QueryCall } from './helpers/catalog-requests';
 
 const manga = catalogKindOf('fetchMangas')!;
@@ -20,7 +19,7 @@ const rig = (pages: Record<string, Answer>, facts: Answer = { data: {} }) => {
       if (document.includes('catalogRowFacts')) return promiseOf(facts);
       return promiseOf(pages[String(variables.after)] ?? { data: null });
     },
-  } as unknown as QueryClient;
+  } as unknown as CatalogAsker;
   const searches = () => calls.filter((call) => !call.document.includes('catalogRowFacts'));
   const factRequests = () => calls.filter((call) => call.document.includes('catalogRowFacts'));
   return { client, searches, factRequests };
