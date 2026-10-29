@@ -69,9 +69,13 @@ const rig = ({ delayMs = 0, foreignCursor }: { delayMs?: number; foreignCursor?:
   });
   const silent = new WeakSet<object>();
   const holder: { client: Client | null } = { client: null };
+  const crawls: number[] = [];
   const views = createPriceViews({
     isReady: () => true,
-    crawl: () => Promise.resolve(crawledList()),
+    crawl: () => {
+      crawls.push(crawls.length);
+      return Promise.resolve(crawledList());
+    },
     redrive: (operation) =>
       holder.client?.reexecuteOperation(makeOperation(operation.kind, operation, { ...operation.context, requestPolicy: 'network-only' })),
     publishState: () => undefined,
@@ -96,7 +100,7 @@ const rig = ({ delayMs = 0, foreignCursor }: { delayMs?: number; foreignCursor?:
     return { results, subscription };
   };
   const siteLists = () => site.operations.filter((operation) => operation.kind === 'query' && nameOf(operation) === 'fetchUserCards');
-  return { site, client, views, silent, rekeyed, browse, siteLists };
+  return { site, client, views, silent, rekeyed, browse, siteLists, crawls };
 };
 
 describe('priceExchange', () => {
@@ -122,8 +126,8 @@ describe('priceExchange', () => {
     subscription.unsubscribe();
   });
 
-  it('answers a later page with every row up to its end, as the cache would have merged the pages', async () => {
-    const { browse, views } = rig();
+  it('answers a later page with every row up to its end, as the cache would have merged the pages, from the one crawl', async () => {
+    const { browse, views, crawls } = rig();
     browse(grid()).subscription.unsubscribe();
     views.start('grid');
     await tick();
@@ -131,6 +135,7 @@ describe('priceExchange', () => {
     const second = browse(grid({ after: createPrivateCursor(1, 2) }));
     await tick();
     expect(slugsOf(second.results.at(-1))).toEqual(['c', 'a', 'e', 'b']);
+    expect(crawls).toHaveLength(1);
     second.subscription.unsubscribe();
   });
 
