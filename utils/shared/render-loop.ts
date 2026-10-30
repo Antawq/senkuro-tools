@@ -39,7 +39,7 @@ function runStep(step: RenderStep, renderArguments: RenderArguments): void {
   try {
     step.render(...renderArguments);
   } catch (error) {
-    reportError(new Error(`SenkuTools: render step ${step.name} failed`, { cause: error }));
+    console.error(`SenkuTools: render step ${step.name} failed`, error);
   }
 }
 

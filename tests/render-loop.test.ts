@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import type { Database } from '../utils/shared/database';
 import { addedCards, createRenderLoop, type RenderStep } from '../utils/shared/render-loop';
@@ -42,20 +42,12 @@ const breakStep = (step: Mock<RenderStep['render']>, error: Error) =>
     throw error;
   });
 
-const stubReportError = (): unknown[] => {
-  const reported: unknown[] = [];
-  vi.stubGlobal('reportError', (error: unknown) => void reported.push(error));
-  return reported;
-};
+const spyConsoleError = () => vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
 const callCounts = (...steps: Mock<RenderStep['render']>[]) => steps.map((step) => step.mock.calls.length);
 
 beforeEach(() => {
   vi.restoreAllMocks();
-});
-
-afterEach(() => {
-  vi.unstubAllGlobals();
 });
 
 describe('createRenderLoop', () => {
@@ -127,21 +119,18 @@ describe('createRenderLoop', () => {
     expect(error).toHaveBeenCalledOnce();
   });
 
-  it('runs the other steps of a full pass when the cards step throws, and reports the error with the step name', async () => {
-    const reported = stubReportError();
+  it('runs the other steps of a full pass when the cards step throws, and logs the error with the step name', async () => {
+    const logged = spyConsoleError();
     const { loop, steps } = setup();
     const broken = new Error('cards broke');
     breakStep(steps.cards, broken);
     await loop.renderAll();
     expect(callCounts(steps.trades, steps.profile, steps.sort)).toEqual([1, 1, 1]);
-    expect(reported).toHaveLength(1);
-    expect(reported[0]).toBeInstanceOf(Error);
-    expect((reported[0] as Error).message).toBe('SenkuTools: render step cards failed');
-    expect((reported[0] as Error).cause).toBe(broken);
+    expect(logged).toHaveBeenCalledExactlyOnceWith('SenkuTools: render step cards failed', broken);
   });
 
   it('runs the other steps of a frame when the cards step throws', async () => {
-    const reported = stubReportError();
+    const logged = spyConsoleError();
     const { loop, steps, runFrame } = setup();
     breakStep(steps.cards, new Error('cards broke'));
     loop.addCards([link('a')]);
@@ -149,18 +138,22 @@ describe('createRenderLoop', () => {
     loop.schedule();
     await runFrame();
     expect(callCounts(steps.cards, steps.trades, steps.profile, steps.sort)).toEqual([1, 1, 1, 1]);
-    expect(reported).toHaveLength(1);
+    expect(logged).toHaveBeenCalledOnce();
   });
 
   it('runs the sort step of a frame and of a full pass when the profile step throws', async () => {
-    const reported = stubReportError();
+    const logged = spyConsoleError();
     const { loop, steps, runFrame } = setup();
-    breakStep(steps.profile, new Error('profile broke'));
+    const broken = new Error('profile broke');
+    breakStep(steps.profile, broken);
     loop.schedule();
     await runFrame();
     await loop.renderAll();
     expect(callCounts(steps.cards, steps.trades, steps.profile, steps.sort)).toEqual([1, 1, 2, 2]);
-    expect(reported.map((error) => (error as Error).message)).toEqual(['SenkuTools: render step profile failed', 'SenkuTools: render step profile failed']);
+    expect(logged.mock.calls).toEqual([
+      ['SenkuTools: render step profile failed', broken],
+      ['SenkuTools: render step profile failed', broken],
+    ]);
   });
 });
 
