@@ -62,13 +62,13 @@ function renderEveryStep(steps: readonly RenderStep[], db: Database): void {
 
 export function createRenderLoop(steps: readonly RenderStep[], loadDatabase: () => Promise<Database>, nextFrame: (run: () => void) => void): RenderLoop {
   const queue = new Set<HTMLAnchorElement>();
-  let tradesDirty = false;
+  let hasTradeChange = false;
   let scheduled = false;
 
   const takePending = (): Pending => {
-    const pending = { cards: [...queue], hasTradeChange: tradesDirty };
+    const pending = { cards: [...queue], hasTradeChange };
     queue.clear();
-    tradesDirty = false;
+    hasTradeChange = false;
     return pending;
   };
 
@@ -87,7 +87,7 @@ export function createRenderLoop(steps: readonly RenderStep[], loadDatabase: () 
       for (const card of cards) queue.add(card);
     },
     markTrades: () => {
-      tradesDirty = true;
+      hasTradeChange = true;
     },
     schedule: () => {
       if (scheduled) return;
