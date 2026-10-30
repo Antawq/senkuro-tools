@@ -56,7 +56,6 @@ interface Delegate {
   deliver: (result: OperationResult) => void;
   defaults: OperationContext | null;
   queries: Map<number, HeldQuery>;
-  mutations: Set<Subscription>;
 }
 
 function siteSourceOf(delegate: Delegate, operation: Operation): OperationResultSource<OperationResult> {
@@ -70,15 +69,7 @@ function siteSourceOf(delegate: Delegate, operation: Operation): OperationResult
 }
 
 function startMutation(delegate: Delegate, operation: Operation): void {
-  let isSettled = false;
-  let subscription: Subscription | null = null;
-  subscription = siteSourceOf(delegate, operation).subscribe((siteResult) => {
-    delegate.deliver(mappedResult(operation, siteResult));
-    if (siteResult.hasNext) return;
-    isSettled = true;
-    if (subscription) delegate.mutations.delete(subscription);
-  });
-  if (!isSettled) delegate.mutations.add(subscription);
+  siteSourceOf(delegate, operation).subscribe((siteResult) => delegate.deliver(mappedResult(operation, siteResult)));
 }
 
 function startQuery(delegate: Delegate, operation: Operation): void {
@@ -107,12 +98,6 @@ function handleOperation(delegate: Delegate, operation: Operation): void {
   else startQuery(delegate, operation);
 }
 
-function releaseAll(delegate: Delegate): void {
-  [...delegate.queries.keys()].forEach((key) => release(delegate, key));
-  delegate.mutations.forEach((subscription) => subscription.unsubscribe());
-  delegate.mutations.clear();
-}
-
 export function delegateExchange(siteClient: Client, onRekey: (operation: Operation) => void = () => undefined): Exchange {
   return ({ client }) =>
     (operations$) =>
@@ -124,15 +109,11 @@ export function delegateExchange(siteClient: Client, onRekey: (operation: Operat
           deliver: (result) => observer.next(result),
           defaults: null,
           queries: new Map(),
-          mutations: new Set(),
         };
         const input = pipe(
           operations$,
           subscribe((operation: Operation) => handleOperation(delegate, operation))
         );
-        return () => {
-          input.unsubscribe();
-          releaseAll(delegate);
-        };
+        return () => input.unsubscribe();
       });
 }
