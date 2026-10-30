@@ -1,4 +1,4 @@
-import { getOperationName, type Operation } from '@urql/core';
+import { getOperationName, type DocumentInput, type Operation } from '@urql/core';
 
 import type { ListScope } from '../shared/list-scope';
 
@@ -12,7 +12,7 @@ const UNJUDGEABLE_FILTERS = ['quantity', 'label', 'color', 'author', 'character'
 export type Variables = Record<string, unknown>;
 
 export interface PageRequest {
-  document: unknown;
+  document: DocumentInput;
   variables: Variables;
   options: Record<string, unknown>;
 }

@@ -1,3 +1,5 @@
+import type { Client } from '@urql/core';
+
 import { parseJson } from '../shared/json';
 import { FAST_PAGES, delayForPage } from '../shared/paging';
 import { linked, readRawPage, type Family, type ListRecord, type PageRequest, type RawPage } from './list-families';
@@ -7,9 +9,7 @@ export const MAX_FILL_ROUNDS = 10;
 
 type Fetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
-export interface PageClient {
-  query(document: unknown, variables: Record<string, unknown>, context?: Record<string, unknown>): { toPromise(): Promise<unknown> };
-}
+export type PageClient = Pick<Client, 'query'>;
 
 export interface RefreshEnv {
   client: PageClient;

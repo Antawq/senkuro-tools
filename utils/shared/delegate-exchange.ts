@@ -9,17 +9,13 @@ import {
   type OperationResult,
   type OperationResultSource,
 } from '@urql/core';
-import { make, pipe, subscribe } from 'wonka';
+import { make, pipe, subscribe, type Subscription } from 'wonka';
 
 const PROBE_DOCUMENT = 'query senkutoolsProbe { __typename }';
 const CLIENT_OPTION_NAMES: ReadonlySet<string> = new Set(['url', 'fetchSubscriptions', 'fetchOptions', 'fetch', 'preferGetMethod', 'suspense']);
 const RESULT_CONTEXT_NAMES: ReadonlySet<string> = new Set(['_instance', 'meta']);
 
 type CallerContext = Partial<OperationContext>;
-
-interface Subscription {
-  unsubscribe(): void;
-}
 
 interface HeldQuery {
   isLive: boolean;

@@ -1,3 +1,5 @@
+import type { Client } from '@urql/core';
+
 import { factVariablesOf, factsDocumentOf, readFacts, type FactsBySlug } from './catalog-facts';
 import { rowPasses, type CatalogFilters } from './catalog-filters';
 import { CATALOG_ROW_LIMIT, SEARCH_PAGE_ROWS, type CatalogKind } from './catalog-results';
@@ -6,11 +8,9 @@ import { isCatalogRow, type CatalogRow } from './catalog-row';
 
 type QueryOptions = Record<string, unknown> | undefined;
 
-export interface CatalogAsker {
-  query(document: string, variables: Record<string, unknown>, context?: Record<string, unknown>): { toPromise(): Promise<unknown> };
-}
+export type CatalogAsker = Pick<Client, 'query'>;
 
-const CACHE_FIRST = { requestPolicy: 'cache-first' };
+const CACHE_FIRST = { requestPolicy: 'cache-first' } as const;
 
 const factsDocuments = new Map<string, string>();
 
