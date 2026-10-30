@@ -1,5 +1,4 @@
-import { makeOperation, type Exchange, type Operation, type OperationResult } from '@urql/core';
-import { map, pipe, tap } from 'wonka';
+import { makeOperation, mapExchange, type Exchange, type Operation, type OperationResult } from '@urql/core';
 
 import { CURSOR_KEY, familyIdOf, listVariablesOf, type Variables } from './list-families';
 
@@ -58,18 +57,17 @@ function learnFromResult(result: OperationResult, ledger: CursorLedger): void {
   if (variables) ledger.learn(variables, (result.data as ListAnswer | null | undefined)?.userCards?.pageInfo?.endCursor);
 }
 
+function repairListCursor(operation: Operation, ledger: CursorLedger, onDrop: (variables: Variables) => void): Operation {
+  const repaired = repairOperation(operation, ledger);
+  const variables = listVariablesOf(repaired);
+  if (repaired !== operation) reportDroppedCursor(onDrop, operation.variables as Variables);
+  if (variables) ledger.learn(variables, variables[CURSOR_KEY]);
+  return repaired;
+}
+
 export function cursorExchange(ledger: CursorLedger, onDrop: (variables: Variables) => void = () => undefined): Exchange {
-  const repairListCursor = (operation: Operation): Operation => {
-    const repaired = repairOperation(operation, ledger);
-    const variables = listVariablesOf(repaired);
-    if (repaired !== operation) reportDroppedCursor(onDrop, operation.variables as Variables);
-    if (variables) ledger.learn(variables, variables[CURSOR_KEY]);
-    return repaired;
-  };
-  return ({ forward }) =>
-    (operations$) =>
-      pipe(
-        forward(pipe(operations$, map(repairListCursor))),
-        tap((result) => learnFromResult(result, ledger))
-      );
+  return mapExchange({
+    onOperation: (operation) => repairListCursor(operation, ledger, onDrop),
+    onResult: (result) => learnFromResult(result, ledger),
+  });
 }
