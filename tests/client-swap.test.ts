@@ -150,6 +150,22 @@ describe('installClientSwap', () => {
     await close();
   });
 
+  it.each(['search-request', 'catalog-search', 'inventory-guard', 'urql-waiting'])(
+    'stays off in a page the %s script of an older version already holds, so two versions never answer the same events',
+    async (name) => {
+      const { pageWindow, mount, close } = openPage();
+      (pageWindow as unknown as Record<symbol, true>)[Symbol.for(`senkutools.${name}`)] = true;
+      const site = createSiteClient(() => null);
+      const ref = clientRef(site.client);
+      const swapHost = host();
+      mount(appWith(ref, { hydrating: false, hooks: siteHooks() }));
+      installClientSwap(pageWindow, () => swapHost);
+      expect(ref.value).toBe(site.client);
+      expect(swapHost.swapped).toEqual([]);
+      await close();
+    }
+  );
+
   it('reports a failing swap and keeps the site client and the hydration handlers of the site running', async () => {
     const reported: unknown[] = [];
     vi.stubGlobal('reportError', (error: unknown) => void reported.push(error));

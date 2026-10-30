@@ -3,12 +3,13 @@ import { Client, getOperationName, type Exchange } from '@urql/core';
 import { runAfterHydration } from './app-mounted';
 import { debugLogger } from './debug';
 import { defaultContextOf, delegateExchange } from './delegate-exchange';
-import { claimPage } from './page-claim';
+import { claimPage, isPageClaimed } from './page-claim';
 import type { PageWindow } from './page-window';
 import type { VueApp } from './vue-app';
 
 const CLIENT_KEY = '$urql';
 const CLIENT_METHODS = ['executeQuery', 'executeMutation', 'executeSubscription', 'createRequestOperation'];
+const OLDER_VERSION_CLAIMS = ['search-request', 'catalog-search', 'inventory-guard', 'urql-waiting'];
 
 interface ClientRef {
   __v_isRef?: unknown;
@@ -59,8 +60,12 @@ export function swapClient(app: VueApp, host: SwapHost, debug: Debug = () => und
 }
 
 export function installClientSwap(pageWindow: PageWindow, createHost: () => SwapHost): void {
-  if (!claimPage(pageWindow, 'client-swap')) return;
   const debug = debugLogger(pageWindow);
+  if (OLDER_VERSION_CLAIMS.some((name) => isPageClaimed(pageWindow, name))) {
+    debug('client not swapped', { olderVersion: true });
+    return;
+  }
+  if (!claimPage(pageWindow, 'client-swap')) return;
   const host = createHost();
   runAfterHydration(pageWindow, (app) => {
     try {
