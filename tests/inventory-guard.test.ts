@@ -219,6 +219,10 @@ const rig = ({ answer = {}, mounted = true, mutations = [], slow = false, outcom
   const sendRefreshDetail = (detail: string) => win.document.dispatchEvent(new win.CustomEvent(refreshRequestSignal.name, { detail } as never));
   const requestRefresh = (scope: ListScope) => sendRefreshDetail(refreshRequestSignal.encode({ scope }));
   const send = (name: string, detail: string) => win.document.dispatchEvent(new win.CustomEvent(name, { detail: detail as unknown as object }));
+  const rawDetails: Record<string, string[]> = {};
+  for (const name of [priceStateSignal.name, priceRowsSignal.name, refreshResultSignal.name]) {
+    win.document.addEventListener(name, (event) => (rawDetails[name] ??= []).push(String((event as unknown as CustomEvent<unknown>).detail)));
+  }
   const switchView = (isOn: boolean, scope: ListScope = 'grid') => send(priceViewSignal.name, priceViewSignal.encode({ scope, isOn }));
   const order = (sent: { viewId: number; revision: number; descending: number[]; ascending: number[] }, scope: ListScope = 'grid') =>
     send(priceOrderSignal.name, priceOrderSignal.encode({ scope, ...sent }));
@@ -228,6 +232,8 @@ const rig = ({ answer = {}, mounted = true, mutations = [], slow = false, outcom
     queries,
     reached,
     redriven,
+    rawDetails,
+    send,
     log,
     fetched,
     fetchedUrls,
@@ -583,6 +589,32 @@ describe('installInventoryGuard', () => {
       expect((results.at(-1)?.data as { userCards: { pageInfo: { endCursor: string } } }).userCards.pageInfo.endCursor).toBe(createPrivateCursor(1, 2));
       expect(reached).toHaveLength(reachedBefore);
       await win.happyDOM.close();
+    });
+
+    it('publishes the price state, the crawled rows and the refresh result with the scope first, as the cross-world details are pinned', async () => {
+      const { browse, switchView, requestRefresh, rawDetails } = rig({ onFetch: crawlPages });
+      browse(grid);
+      switchView(true);
+      await settle();
+      await settle();
+      requestRefresh('picker');
+      await settle();
+      expect(rawDetails[priceStateSignal.name]?.[0]).toMatch(/^\{"scope":"grid","name":"[a-z]+","loaded":\d+,"total":(\d+|null)\}$/);
+      expect(rawDetails[priceRowsSignal.name]?.[0]).toMatch(/^\{"scope":"grid","viewId":\d+,"slugs":\[.*\]\}$/);
+      expect(rawDetails[refreshResultSignal.name]?.at(-1)).toMatch(/^\{"scope":"picker","outcome":"[a-z]+"\}$/);
+    });
+
+    it('ignores a price order it cannot read and asks the grid for nothing', async () => {
+      const { browse, switchView, send, redriven } = rig({ onFetch: crawlPages });
+      browse(grid);
+      switchView(true);
+      await settle();
+      await settle();
+      const before = redriven.length;
+      send(priceOrderSignal.name, 'not a price order');
+      send(priceOrderSignal.name, '{"scope":"grid","viewId":"x"}');
+      await settle();
+      expect(redriven).toHaveLength(before);
     });
 
     it('answers what the grid asks for from the sorted list, and gives the real list back from the site when it stops', async () => {
