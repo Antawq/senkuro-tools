@@ -1,6 +1,6 @@
 import { isAppMounted } from '../shared/app-mounted';
 import { BADGE_INSET, CENTER, CENTERING_SHIFT, centerGapShift, faceGap, gapKey, insetAbove, insetBelow, NO_GAP, type FaceGap } from '../shared/badge-layout';
-import { CARD_LINK, PERCENT, PRICE_DECIMALS, effectivePrice, findShownName, slugFromHref } from '../shared/cards';
+import { CARD_LINK, PERCENT, PRICE_DECIMALS, effectivePrice, slugFromHref } from '../shared/cards';
 import { removeCopyButton, syncCopyButton } from '../shared/copy-button';
 import type { CardEntry, Database } from '../shared/database';
 import type { BadgePositionX, BadgePositionY, Settings } from '../shared/settings';
@@ -18,6 +18,7 @@ const OUTLINE_OFFSETS = ['1px 1px 0', '-1px -1px 0', '1px -1px 0', '-1px 1px 0',
 const UNKNOWN_NAME = 'Неизвестно';
 const NO_EFFECT = 'none';
 const BACK_FACE = '.card-collect-preview__back';
+const SHOWN_NAME_IMAGE = ':scope > .card-collect__front > img.card-collect__img';
 const STACK_ITEM = '.offer-card__cnt-el, .modal-trade__swap-cards > .modal-trade__card';
 const VISIBLE_EDGE: BadgePositionX = 'left';
 
@@ -184,6 +185,8 @@ function position(state: BadgeState, { holders: { target }, isUnpositioned }: Me
   if (isUnpositioned) target.style.position = 'relative';
   state.positioned.add(target);
 }
+
+const findShownName = (card: HTMLAnchorElement): string | null => card.querySelector<HTMLImageElement>(SHOWN_NAME_IMAGE)?.alt.trim() || null;
 
 function syncCardCopyButton(state: BadgeState, { holders, entry }: Measured, settings: Settings, spot: Spot): boolean {
   if (!settings.copyBtn || isSmall(holders)) {
