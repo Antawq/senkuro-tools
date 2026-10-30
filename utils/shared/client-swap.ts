@@ -71,7 +71,7 @@ export function installClientSwap(pageWindow: PageWindow, createHost: () => Swap
     try {
       swapClient(app, host, debug);
     } catch (error) {
-      reportError(error);
+      console.error('SenkuTools: client swap failed', error);
     }
   });
 }

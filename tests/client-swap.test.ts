@@ -166,9 +166,10 @@ describe('installClientSwap', () => {
     }
   );
 
-  it('reports a failing swap and keeps the site client and the hydration handlers of the site running', async () => {
-    const reported: unknown[] = [];
-    vi.stubGlobal('reportError', (error: unknown) => void reported.push(error));
+  it('logs a failing swap to the console, never to the page error handlers, and keeps the site client and the hydration handlers of the site running', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const pageErrors: unknown[] = [];
+    vi.stubGlobal('reportError', (error: unknown) => void pageErrors.push(error));
     const { pageWindow, mount, close } = openPage();
     const site = createSiteClient(() => null);
     const hooks = siteHooks();
@@ -182,7 +183,8 @@ describe('installClientSwap', () => {
     mount(appWith(ref, { hydrating: true, hooks }));
     hooks.on('app:suspense:resolve', afterOurs);
     hooks.emit('app:suspense:resolve');
-    expect(reported).toHaveLength(1);
+    expect(logged).toHaveBeenCalledWith('SenkuTools: client swap failed', expect.any(Error));
+    expect(pageErrors).toEqual([]);
     expect(ref.value).toBe(site.client);
     expect(afterOurs).toHaveBeenCalledOnce();
     await close();
