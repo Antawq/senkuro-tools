@@ -14,7 +14,7 @@ flowchart TB
     ST["storage.local<br/>settings, profileCollections"]
     DB["database.json<br/>bundled card prices"]
     ISO["Content script, isolated world<br/>render loop, price tags, trade totals, profile chip,<br/>price sort, search keys, token bar, switches and buttons"]
-    MAIN["Scripts in the page world, MAIN<br/>app-mounted, trade-capture, inventory-guard,<br/>search-request, catalog-search, avatar-confirm"]
+    MAIN["Scripts in the page world, MAIN<br/>app-mounted, client-swap, trade-capture,<br/>avatar-confirm"]
   end
   subgraph TAB["Browser tab"]
     PAGE["Site page<br/>Vue app, Vue Router, urql and graphcache, page fetch, DOM"]
@@ -30,7 +30,7 @@ flowchart TB
   ISO -->|"senkutools events: price-view, price-order, inventory-refresh, trades-replay, strings only"| MAIN
   MAIN -->|"senkutools events: trades, search, price, refresh, app-mounted, strings only"| ISO
   ISO -->|"draws into the DOM, watches it with MutationObserver"| PAGE
-  MAIN -->|"wraps fetch, executeQuery and executeMutation, adds a router guard, opens the confirm modal"| PAGE
+  MAIN -->|"swaps the site urql client for its own with exchanges in front, wraps fetch for trade capture, adds a router guard, opens the confirm modal"| PAGE
   PAGE -->|"GraphQL over HTTP"| API
   ISO -->|"anonymous GraphQL for the profile chip"| API
   MAIN -->|"anonymous crawl for the price sort, reads /sw.js"| API
@@ -42,7 +42,7 @@ flowchart TB
 sequenceDiagram
   participant U as User
   participant C as Content script
-  participant G as inventory-guard
+  participant G as client-swap, price exchange
   participant A as Site API
   participant S as Site page
   U->>C: picks Цене in the sort menu of a card list: profile, deck builder or a trade or forge window
@@ -50,7 +50,7 @@ sequenceDiagram
   G->>A: crawls the list, 100 cards a page, no token
   G->>C: senkutools:price-rows and price-state, progress
   C->>G: senkutools:price-order, sorted by the bundled prices
-  G->>S: answers that list with a private sorted list, one page at a time
+  G->>S: answers that list itself, page by page from the crawl, the site client never sees it
   G->>C: senkutools:price-state ready
 ```
 
@@ -73,7 +73,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   participant S as Site page
-  participant G as inventory-guard
+  participant G as client-swap, inventory exchange
   participant A as Site API
   S->>G: forge or accepted trade, or a list read from cache
   G->>A: asks the recorded pages again, network only
@@ -86,11 +86,11 @@ sequenceDiagram
 sequenceDiagram
   participant U as User
   participant S as Site page
-  participant R as search-request
+  participant R as client-swap, search exchange
   participant A as Site API
   participant C as Content script
   U->>S: types in the site search
-  S->>R: the search query goes through executeQuery
+  S->>R: the search query passes the search exchange
   R->>A: asks for 30 results instead of 10
   R->>C: senkutools:search, start and end of each search
   C->>S: marks the typed words, fixes Enter, arrows and Ctrl+K
@@ -102,12 +102,12 @@ sequenceDiagram
 sequenceDiagram
   participant U as User
   participant S as Site page
-  participant H as catalog-search
+  participant H as client-swap, catalog exchange
   participant A as Site API
   U->>S: Enter in the site search, Manga or Anime tab
   S->>H: opens the catalog with the text in query
   H->>S: beforeEach guard: query becomes the search filter
-  S->>H: the catalog asks for titles through executeQuery
+  S->>H: the catalog query passes the catalog exchange
   H->>A: empty answer: asks search, up to 300 rows, and catalogRowFacts for each page
   H->>S: hands back rows in the catalog format, with the 18+ flag
 ```

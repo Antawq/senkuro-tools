@@ -14,7 +14,7 @@ flowchart TB
     ST["storage.local<br/>настройки, profileCollections"]
     DB["database.json<br/>цены карт внутри расширения"]
     ISO["Контент-скрипт, изолированный мир<br/>цикл отрисовки, ценники, итоги обмена, значок профиля,<br/>сортировка по цене, клавиши поиска, панель токена, переключатели и кнопки"]
-    MAIN["Скрипты в мире страницы, MAIN<br/>app-mounted, trade-capture, inventory-guard,<br/>search-request, catalog-search, avatar-confirm"]
+    MAIN["Скрипты в мире страницы, MAIN<br/>app-mounted, client-swap, trade-capture,<br/>avatar-confirm"]
   end
   subgraph TAB["Вкладка браузера"]
     PAGE["Страница сайта<br/>приложение Vue, Vue Router, urql и graphcache, fetch страницы, DOM"]
@@ -30,7 +30,7 @@ flowchart TB
   ISO -->|"события senkutools: price-view, price-order, inventory-refresh, trades-replay, только строки"| MAIN
   MAIN -->|"события senkutools: trades, search, price, refresh, app-mounted, только строки"| ISO
   ISO -->|"рисует в DOM, следит за ним через MutationObserver"| PAGE
-  MAIN -->|"оборачивает fetch, executeQuery и executeMutation, ставит хук роутера, открывает окно подтверждения"| PAGE
+  MAIN -->|"подменяет клиент urql сайта своим с обработчиками впереди, оборачивает fetch для захвата обменов, ставит хук роутера, открывает окно подтверждения"| PAGE
   PAGE -->|"GraphQL по HTTP"| API
   ISO -->|"анонимный GraphQL для значка профиля"| API
   MAIN -->|"анонимный обход для сортировки по цене, читает /sw.js"| API
@@ -42,7 +42,7 @@ flowchart TB
 sequenceDiagram
   participant U as Пользователь
   participant C as Контент-скрипт
-  participant G as inventory-guard
+  participant G as client-swap, обработчик цены
   participant A as API сайта
   participant S as Страница сайта
   U->>C: выбирает Цене в меню сортировки списка карт: профиль, конструктор колоды или окно обмена или кузницы
@@ -50,7 +50,7 @@ sequenceDiagram
   G->>A: обходит список по 100 карт, без токена
   G->>C: senkutools:price-rows и price-state, прогресс
   C->>G: senkutools:price-order, порядок по ценам из расширения
-  G->>S: отвечает этому списку служебным отсортированным списком, по странице
+  G->>S: сам отвечает этому списку, по странице из обхода, клиент сайта его не видит
   G->>C: senkutools:price-state готово
 ```
 
@@ -73,7 +73,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   participant S as Страница сайта
-  participant G as inventory-guard
+  participant G as client-swap, обработчик инвентаря
   participant A as API сайта
   S->>G: кузня, принятый обмен или список из кэша
   G->>A: заново запрашивает записанные страницы, только по сети
@@ -86,11 +86,11 @@ sequenceDiagram
 sequenceDiagram
   participant U as Пользователь
   participant S as Страница сайта
-  participant R as search-request
+  participant R as client-swap, обработчик поиска
   participant A as API сайта
   participant C as Контент-скрипт
   U->>S: печатает в поиске сайта
-  S->>R: запрос поиска идёт через executeQuery
+  S->>R: запрос поиска проходит через обработчик поиска
   R->>A: просит 30 результатов вместо 10
   R->>C: senkutools:search, начало и конец каждого поиска
   C->>S: отмечает набранные слова, чинит Enter, стрелки и Ctrl+K
@@ -102,12 +102,12 @@ sequenceDiagram
 sequenceDiagram
   participant U as Пользователь
   participant S as Страница сайта
-  participant H as catalog-search
+  participant H as client-swap, обработчик каталога
   participant A as API сайта
   U->>S: Enter в поиске сайта, вкладка Манга или Аниме
   S->>H: открывает каталог с текстом в query
   H->>S: хук beforeEach: query становится фильтром поиска
-  S->>H: каталог запрашивает тайтлы через executeQuery
+  S->>H: запрос каталога проходит через обработчик каталога
   H->>A: пустой ответ: просит search до 300 строк и catalogRowFacts на каждую страницу
   H->>S: отдаёт строки в формате каталога, с отметкой 18+
 ```
