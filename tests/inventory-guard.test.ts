@@ -21,15 +21,7 @@ import { REFRESH_POLICY } from '../utils/inventory/list-refresh';
 import { createPrivateCursor, hasPrivateCursor } from '../utils/inventory/price-private';
 import type { Row } from '../utils/inventory/price-crawl';
 import { delegateExchange } from '../utils/shared/delegate-exchange';
-import {
-  GUARD_ATTRIBUTE,
-  GUARD_READY,
-  REFRESH_REQUEST_EVENT,
-  REFRESH_RESULT_EVENT,
-  encodeRefreshRequest,
-  readRefreshResult,
-  type RefreshResult,
-} from '../utils/shared/refresh-signal';
+import { GUARD_ATTRIBUTE, GUARD_READY, refreshRequestSignal, refreshResultSignal, type RefreshResult } from '../utils/shared/refresh-signal';
 import type { ListScope } from '../utils/shared/list-scope';
 import {
   priceOrderSignal,
@@ -220,12 +212,12 @@ const rig = ({ answer = {}, mounted = true, mutations = [], slow = false, outcom
   };
   const mutate = (name: string, variables: Variables = {}) => client.mutation(mutationDocument(name), variables).toPromise();
   const refreshed: RefreshResult[] = [];
-  win.document.addEventListener(REFRESH_RESULT_EVENT, (event) => {
-    const result = readRefreshResult(event as unknown as Event);
+  win.document.addEventListener(refreshResultSignal.name, (event) => {
+    const result = refreshResultSignal.read(event as unknown as Event);
     if (result) refreshed.push(result);
   });
-  const sendRefreshDetail = (detail: string) => win.document.dispatchEvent(new win.CustomEvent(REFRESH_REQUEST_EVENT, { detail } as never));
-  const requestRefresh = (scope: ListScope) => sendRefreshDetail(encodeRefreshRequest(scope));
+  const sendRefreshDetail = (detail: string) => win.document.dispatchEvent(new win.CustomEvent(refreshRequestSignal.name, { detail } as never));
+  const requestRefresh = (scope: ListScope) => sendRefreshDetail(refreshRequestSignal.encode({ scope }));
   const send = (name: string, detail: string) => win.document.dispatchEvent(new win.CustomEvent(name, { detail: detail as unknown as object }));
   const switchView = (isOn: boolean, scope: ListScope = 'grid') => send(priceViewSignal.name, priceViewSignal.encode({ scope, isOn }));
   const order = (sent: { viewId: number; revision: number; descending: number[]; ascending: number[] }, scope: ListScope = 'grid') =>

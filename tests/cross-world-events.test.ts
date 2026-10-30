@@ -7,7 +7,7 @@ import { createSearchPublisher } from '../utils/search/search-exchange';
 import { APP_MOUNTED_EVENT, publishAppMounted } from '../utils/shared/app-mounted';
 import type { PageWindow } from '../utils/shared/page-window';
 import { priceOrderSignal, priceRowsSignal, priceStateSignal, priceViewSignal } from '../utils/shared/price-signal';
-import { REFRESH_REQUEST_EVENT, REFRESH_RESULT_EVENT, encodeRefreshRequest, encodeRefreshResult } from '../utils/shared/refresh-signal';
+import { refreshRequestSignal, refreshResultSignal } from '../utils/shared/refresh-signal';
 import { REPLAY_EVENT, TRADES_EVENT, createTradeStore, installCapture, listenForTrades } from '../utils/trades/trade-capture';
 
 const createPage = (): PageWindow => new Window({ url: 'https://senkuro.me/users/sena/cards' }) as unknown as PageWindow;
@@ -35,8 +35,8 @@ describe('cross-world events', () => {
       priceStateSignal.name,
       priceRowsSignal.name,
       priceOrderSignal.name,
-      REFRESH_REQUEST_EVENT,
-      REFRESH_RESULT_EVENT,
+      refreshRequestSignal.name,
+      refreshResultSignal.name,
       SEARCH_EVENT,
       TRADES_EVENT,
       REPLAY_EVENT,
@@ -74,8 +74,8 @@ describe('cross-world events', () => {
   });
 
   it('send the refresh request and its result as the same text', () => {
-    expect(encodeRefreshRequest('grid')).toBe('{"scope":"grid"}');
-    expect(encodeRefreshResult({ scope: 'picker', outcome: 'done' })).toBe('{"scope":"picker","outcome":"done"}');
+    expect(refreshRequestSignal.encode({ scope: 'grid' })).toBe('{"scope":"grid"}');
+    expect(refreshResultSignal.encode({ scope: 'picker', outcome: 'done' })).toBe('{"scope":"picker","outcome":"done"}');
   });
 
   it('publish a search start and a settled search as the same text', () => {

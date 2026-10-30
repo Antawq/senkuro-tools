@@ -4,15 +4,7 @@ import { debugLogger } from '../shared/debug';
 import type { Transport } from '../shared/graphql';
 import type { PageWindow } from '../shared/page-window';
 import { priceOrderSignal, priceRowsSignal, priceStateSignal, priceViewSignal } from '../shared/price-signal';
-import {
-  GUARD_ATTRIBUTE,
-  GUARD_READY,
-  REFRESH_REQUEST_EVENT,
-  REFRESH_RESULT_EVENT,
-  encodeRefreshResult,
-  readRefreshRequest,
-  type RefreshOutcome,
-} from '../shared/refresh-signal';
+import { GUARD_ATTRIBUTE, GUARD_READY, refreshRequestSignal, refreshResultSignal, type RefreshOutcome } from '../shared/refresh-signal';
 import type { ListScope } from '../shared/list-scope';
 import { inventoryExchange } from './inventory-exchange';
 import {
@@ -180,10 +172,12 @@ function refreshOnCacheHit(guard: Guard, page: PageRequest): void {
 }
 
 const publishRefreshResult = (guard: Guard, scope: ListScope, outcome: RefreshOutcome) =>
-  guard.pageWindow.document.dispatchEvent(new guard.pageWindow.CustomEvent(REFRESH_RESULT_EVENT, { detail: encodeRefreshResult({ scope, outcome }) }));
+  guard.pageWindow.document.dispatchEvent(
+    new guard.pageWindow.CustomEvent(refreshResultSignal.name, { detail: refreshResultSignal.encode({ scope, outcome }) })
+  );
 
 function handleRefreshRequest(guard: Guard, priceViews: PriceViews, event: Event): void {
-  const scope = readRefreshRequest(event);
+  const scope = refreshRequestSignal.read(event)?.scope;
   if (!scope) return;
   void refreshOnRequest(guard, priceViews, scope)
     .catch((): RefreshOutcome => 'failed')
@@ -231,7 +225,7 @@ export function installInventoryGuard(pageWindow: PageWindow): InventoryGuard {
     client: null,
   };
   const priceViews = createGuardViews(guard);
-  pageWindow.document.addEventListener(REFRESH_REQUEST_EVENT, (event) => handleRefreshRequest(guard, priceViews, event));
+  pageWindow.document.addEventListener(refreshRequestSignal.name, (event) => handleRefreshRequest(guard, priceViews, event));
   pageWindow.document.addEventListener(priceViewSignal.name, (event) => handlePriceSwitch(priceViews, event));
   pageWindow.document.addEventListener(priceOrderSignal.name, (event) => handlePriceOrder(priceViews, event));
   const isGuardSilent = (context: OperationContext): boolean => isSilent(guard, context);

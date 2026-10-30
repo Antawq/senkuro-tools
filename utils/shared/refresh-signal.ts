@@ -1,12 +1,14 @@
-import { parseJson } from './json';
 import { isListScope, type ListScope } from './list-scope';
+import { defineSignal } from './signal';
 
-export const REFRESH_REQUEST_EVENT = 'senkutools:inventory-refresh';
-export const REFRESH_RESULT_EVENT = 'senkutools:inventory-refresh-result';
 export const GUARD_ATTRIBUTE = 'data-senkutools-guard';
 export const GUARD_READY = 'ready';
 
 export type RefreshOutcome = 'done' | 'nothing' | 'failed';
+
+export interface RefreshRequest {
+  scope: ListScope;
+}
 
 export interface RefreshResult {
   scope: ListScope;
@@ -15,39 +17,23 @@ export interface RefreshResult {
 
 const OUTCOMES: readonly unknown[] = ['done', 'nothing', 'failed'];
 
-function readDetail(event: Event): Record<string, unknown> | null {
-  const detail = (event as CustomEvent<unknown>).detail;
-  if (typeof detail !== 'string') return null;
-  const parsed = parseJson(detail);
-  return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null;
-}
+export const refreshRequestSignal = defineSignal<RefreshRequest>('senkutools:inventory-refresh', ({ scope }) => (isListScope(scope) ? { scope } : null));
 
-export const encodeRefreshRequest = (scope: ListScope): string => JSON.stringify({ scope });
-
-export const encodeRefreshResult = ({ scope, outcome }: RefreshResult): string => JSON.stringify({ scope, outcome });
-
-export function readRefreshRequest(event: Event): ListScope | null {
-  const scope = readDetail(event)?.scope;
-  return isListScope(scope) ? scope : null;
-}
-
-export function readRefreshResult(event: Event): RefreshResult | null {
-  const detail = readDetail(event);
-  if (!detail || !isListScope(detail.scope) || !OUTCOMES.includes(detail.outcome)) return null;
-  return { scope: detail.scope, outcome: detail.outcome as RefreshOutcome };
-}
+export const refreshResultSignal = defineSignal<RefreshResult>('senkutools:inventory-refresh-result', ({ scope, outcome }) =>
+  isListScope(scope) && OUTCOMES.includes(outcome) ? { scope, outcome: outcome as RefreshOutcome } : null
+);
 
 export const isGuardReady = (pageDocument: Document): boolean => pageDocument.documentElement.getAttribute(GUARD_ATTRIBUTE) === GUARD_READY;
 
 export function requestInventoryRefresh(pageDocument: Document, scope: ListScope): Promise<RefreshOutcome> {
   return new Promise((resolve) => {
     const handleResult = (event: Event) => {
-      const refreshResult = readRefreshResult(event);
+      const refreshResult = refreshResultSignal.read(event);
       if (refreshResult?.scope !== scope) return;
-      pageDocument.removeEventListener(REFRESH_RESULT_EVENT, handleResult);
+      pageDocument.removeEventListener(refreshResultSignal.name, handleResult);
       resolve(refreshResult.outcome);
     };
-    pageDocument.addEventListener(REFRESH_RESULT_EVENT, handleResult);
-    pageDocument.dispatchEvent(new CustomEvent(REFRESH_REQUEST_EVENT, { detail: encodeRefreshRequest(scope) }));
+    pageDocument.addEventListener(refreshResultSignal.name, handleResult);
+    pageDocument.dispatchEvent(new CustomEvent(refreshRequestSignal.name, { detail: refreshRequestSignal.encode({ scope }) }));
   });
 }
