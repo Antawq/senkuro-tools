@@ -1,10 +1,5 @@
-import { parseJson } from './json';
 import { isListScope, type ListScope } from './list-scope';
-
-export const PRICE_VIEW_EVENT = 'senkutools:price-view';
-export const PRICE_STATE_EVENT = 'senkutools:price-state';
-export const PRICE_ROWS_EVENT = 'senkutools:price-rows';
-export const PRICE_ORDER_EVENT = 'senkutools:price-order';
+import { defineSignal } from './signal';
 
 export type PriceStateName = 'loading' | 'ready' | 'unavailable' | 'failed';
 
@@ -33,33 +28,17 @@ export interface PriceSwitch {
   isOn: boolean;
 }
 
-export interface ScopedState {
+export interface ScopedState extends PriceState {
   scope: ListScope;
-  state: PriceState;
 }
 
-export interface ScopedRows {
+export interface ScopedRows extends PriceRows {
   scope: ListScope;
-  rows: PriceRows;
 }
 
-export interface ScopedOrder {
+export interface ScopedOrder extends PriceOrder {
   scope: ListScope;
-  order: PriceOrder;
 }
-
-interface ScopedDetail {
-  scope: ListScope;
-  detail: Record<string, unknown>;
-}
-
-const readDetail = (event: Event): ScopedDetail | null => {
-  const raw = (event as CustomEvent<unknown>).detail;
-  const parsed = typeof raw === 'string' ? parseJson(raw) : null;
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
-  const detail = parsed as Record<string, unknown>;
-  return isListScope(detail.scope) ? { scope: detail.scope, detail } : null;
-};
 
 const isCount = (candidate: unknown): candidate is number => typeof candidate === 'number' && Number.isSafeInteger(candidate) && candidate >= 0;
 
@@ -68,39 +47,22 @@ const isCountList = (candidate: unknown): candidate is number[] => Array.isArray
 const isSlugList = (candidate: unknown): candidate is (string | null)[] =>
   Array.isArray(candidate) && candidate.every((slug) => slug === null || typeof slug === 'string');
 
-export const encodePriceSwitch = ({ scope, isOn }: PriceSwitch): string => JSON.stringify({ scope, isOn });
+export const priceViewSignal = defineSignal<PriceSwitch>('senkutools:price-view', ({ scope, isOn }) =>
+  isListScope(scope) && typeof isOn === 'boolean' ? { scope, isOn } : null
+);
 
-export function readPriceSwitch(event: Event): PriceSwitch | null {
-  const scoped = readDetail(event);
-  if (!scoped || typeof scoped.detail.isOn !== 'boolean') return null;
-  return { scope: scoped.scope, isOn: scoped.detail.isOn };
-}
+export const priceStateSignal = defineSignal<ScopedState>('senkutools:price-state', ({ scope, name, loaded, total }) =>
+  isListScope(scope) && STATE_NAMES.includes(name) && isCount(loaded)
+    ? { scope, name: name as PriceStateName, loaded, total: isCount(total) ? total : null }
+    : null
+);
 
-export const encodePriceState = ({ scope, state }: ScopedState): string => JSON.stringify({ scope, ...state });
+export const priceRowsSignal = defineSignal<ScopedRows>('senkutools:price-rows', ({ scope, viewId, slugs }) =>
+  isListScope(scope) && isCount(viewId) && isSlugList(slugs) ? { scope, viewId, slugs } : null
+);
 
-export function readPriceState(event: Event): ScopedState | null {
-  const scoped = readDetail(event);
-  if (!scoped) return null;
-  const { name, loaded, total } = scoped.detail;
-  if (!STATE_NAMES.includes(name) || !isCount(loaded)) return null;
-  return { scope: scoped.scope, state: { name: name as PriceStateName, loaded, total: isCount(total) ? total : null } };
-}
-
-export const encodePriceRows = ({ scope, rows }: ScopedRows): string => JSON.stringify({ scope, ...rows });
-
-export function readPriceRows(event: Event): ScopedRows | null {
-  const scoped = readDetail(event);
-  if (!scoped) return null;
-  const { viewId, slugs } = scoped.detail;
-  return isCount(viewId) && isSlugList(slugs) ? { scope: scoped.scope, rows: { viewId, slugs } } : null;
-}
-
-export const encodePriceOrder = ({ scope, order }: ScopedOrder): string => JSON.stringify({ scope, ...order });
-
-export function readPriceOrder(event: Event): ScopedOrder | null {
-  const scoped = readDetail(event);
-  if (!scoped) return null;
-  const { viewId, revision, descending, ascending } = scoped.detail;
-  if (!isCount(viewId) || !isCount(revision) || !isCountList(descending) || !isCountList(ascending)) return null;
-  return { scope: scoped.scope, order: { viewId, revision, descending, ascending } };
-}
+export const priceOrderSignal = defineSignal<ScopedOrder>('senkutools:price-order', ({ scope, viewId, revision, descending, ascending }) =>
+  isListScope(scope) && isCount(viewId) && isCount(revision) && isCountList(descending) && isCountList(ascending)
+    ? { scope, viewId, revision, descending, ascending }
+    : null
+);

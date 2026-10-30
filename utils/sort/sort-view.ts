@@ -1,7 +1,7 @@
 import { PERCENT } from '../shared/cards';
 import type { Database } from '../shared/database';
 import type { ListScope } from '../shared/list-scope';
-import { readPriceRows, readPriceState, type PriceOrder, type PriceRows } from '../shared/price-signal';
+import { priceRowsSignal, priceStateSignal, type PriceOrder, type PriceRows } from '../shared/price-signal';
 import type { Settings } from '../shared/settings';
 import { createPriceLookup, sortedIndices } from './price-order';
 import { DIRECTION_ASCENDING, MENU, MENU_ITEM, MODE_ATTRIBUTE, OWN_ITEM, PRICE_MODE, WATCHED_AREAS } from './sort-dom';
@@ -187,9 +187,8 @@ function handleSortClick(state: SortState, event: Event): void {
 const isListening = (state: SortState, scope: ListScope): boolean => scope === state.scope && state.phase !== 'idle' && state.phase !== 'partial';
 
 function handleViewState(state: SortState, event: Event): void {
-  const scoped = readPriceState(event);
-  if (!scoped || !isListening(state, scoped.scope)) return;
-  const viewState = scoped.state;
+  const viewState = priceStateSignal.read(event);
+  if (!viewState || !isListening(state, viewState.scope)) return;
   state.eventCount += 1;
   if (viewState.name === 'loading') {
     if (state.phase === 'ready') {
@@ -205,10 +204,10 @@ function handleViewState(state: SortState, event: Event): void {
 }
 
 function handleViewRows(state: SortState, event: Event): void {
-  const scoped = readPriceRows(event);
-  if (!scoped || scoped.scope !== state.scope || state.phase !== 'loading') return;
+  const scopedRows = priceRowsSignal.read(event);
+  if (!scopedRows || scopedRows.scope !== state.scope || state.phase !== 'loading') return;
   state.eventCount += 1;
-  state.rows = scoped.rows;
+  state.rows = { viewId: scopedRows.viewId, slugs: scopedRows.slugs };
   state.revision = 0;
   state.sentWith = null;
   if (state.inputs) sendOrder(state, state.inputs);

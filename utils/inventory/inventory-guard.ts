@@ -3,16 +3,7 @@ import { getOperationName, makeOperation, type Client, type Exchange, type Opera
 import { debugLogger } from '../shared/debug';
 import type { Transport } from '../shared/graphql';
 import type { PageWindow } from '../shared/page-window';
-import {
-  PRICE_ORDER_EVENT,
-  PRICE_ROWS_EVENT,
-  PRICE_STATE_EVENT,
-  PRICE_VIEW_EVENT,
-  encodePriceRows,
-  encodePriceState,
-  readPriceOrder,
-  readPriceSwitch,
-} from '../shared/price-signal';
+import { priceOrderSignal, priceRowsSignal, priceStateSignal, priceViewSignal } from '../shared/price-signal';
 import {
   GUARD_ATTRIBUTE,
   GUARD_READY,
@@ -142,8 +133,8 @@ const createGuardViews = (guard: Guard): PriceViews =>
     isReady: () => guard.client !== null,
     crawl: (...request) => crawlForView(guard, ...request),
     redrive: (operation) => redriveList(guard, operation),
-    publishState: (scope, state) => publish(guard, PRICE_STATE_EVENT, encodePriceState({ scope, state })),
-    publishRows: (scope, rows) => publish(guard, PRICE_ROWS_EVENT, encodePriceRows({ scope, rows })),
+    publishState: (scope, state) => publish(guard, priceStateSignal.name, priceStateSignal.encode({ scope, ...state })),
+    publishRows: (scope, rows) => publish(guard, priceRowsSignal.name, priceRowsSignal.encode({ scope, ...rows })),
     debug: guard.debug,
   });
 
@@ -200,15 +191,17 @@ function handleRefreshRequest(guard: Guard, priceViews: PriceViews, event: Event
 }
 
 function handlePriceSwitch(priceViews: PriceViews, event: Event): void {
-  const priceSwitch = readPriceSwitch(event);
+  const priceSwitch = priceViewSignal.read(event);
   if (!priceSwitch) return;
   if (priceSwitch.isOn) priceViews.start(priceSwitch.scope);
   else priceViews.stop(priceSwitch.scope);
 }
 
 function handlePriceOrder(priceViews: PriceViews, event: Event): void {
-  const scoped = readPriceOrder(event);
-  if (scoped) priceViews.receiveOrder(scoped.scope, scoped.order);
+  const scopedOrder = priceOrderSignal.read(event);
+  if (!scopedOrder) return;
+  const { scope, ...order } = scopedOrder;
+  priceViews.receiveOrder(scope, order);
 }
 
 function recordPage(guard: Guard, page: PageRequest): boolean {
@@ -239,8 +232,8 @@ export function installInventoryGuard(pageWindow: PageWindow): InventoryGuard {
   };
   const priceViews = createGuardViews(guard);
   pageWindow.document.addEventListener(REFRESH_REQUEST_EVENT, (event) => handleRefreshRequest(guard, priceViews, event));
-  pageWindow.document.addEventListener(PRICE_VIEW_EVENT, (event) => handlePriceSwitch(priceViews, event));
-  pageWindow.document.addEventListener(PRICE_ORDER_EVENT, (event) => handlePriceOrder(priceViews, event));
+  pageWindow.document.addEventListener(priceViewSignal.name, (event) => handlePriceSwitch(priceViews, event));
+  pageWindow.document.addEventListener(priceOrderSignal.name, (event) => handlePriceOrder(priceViews, event));
   const isGuardSilent = (context: OperationContext): boolean => isSilent(guard, context);
   const exchanges = [
     priceExchange(priceViews, isGuardSilent),

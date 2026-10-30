@@ -6,16 +6,7 @@ import { SEARCH_EVENT } from '../utils/search/search-event';
 import { createSearchPublisher } from '../utils/search/search-exchange';
 import { APP_MOUNTED_EVENT, publishAppMounted } from '../utils/shared/app-mounted';
 import type { PageWindow } from '../utils/shared/page-window';
-import {
-  PRICE_ORDER_EVENT,
-  PRICE_ROWS_EVENT,
-  PRICE_STATE_EVENT,
-  PRICE_VIEW_EVENT,
-  encodePriceOrder,
-  encodePriceRows,
-  encodePriceState,
-  encodePriceSwitch,
-} from '../utils/shared/price-signal';
+import { priceOrderSignal, priceRowsSignal, priceStateSignal, priceViewSignal } from '../utils/shared/price-signal';
 import { REFRESH_REQUEST_EVENT, REFRESH_RESULT_EVENT, encodeRefreshRequest, encodeRefreshResult } from '../utils/shared/refresh-signal';
 import { REPLAY_EVENT, TRADES_EVENT, createTradeStore, installCapture, listenForTrades } from '../utils/trades/trade-capture';
 
@@ -40,10 +31,10 @@ describe('cross-world events', () => {
   it('keep the ten event names', () => {
     expect([
       APP_MOUNTED_EVENT,
-      PRICE_VIEW_EVENT,
-      PRICE_STATE_EVENT,
-      PRICE_ROWS_EVENT,
-      PRICE_ORDER_EVENT,
+      priceViewSignal.name,
+      priceStateSignal.name,
+      priceRowsSignal.name,
+      priceOrderSignal.name,
       REFRESH_REQUEST_EVENT,
       REFRESH_RESULT_EVENT,
       SEARCH_EVENT,
@@ -64,22 +55,20 @@ describe('cross-world events', () => {
   });
 
   it('send the price view switch as the same text', () => {
-    expect(encodePriceSwitch({ scope: 'grid', isOn: true })).toBe('{"scope":"grid","isOn":true}');
-    expect(encodePriceSwitch({ scope: 'picker', isOn: false })).toBe('{"scope":"picker","isOn":false}');
+    expect(priceViewSignal.encode({ scope: 'grid', isOn: true })).toBe('{"scope":"grid","isOn":true}');
+    expect(priceViewSignal.encode({ scope: 'picker', isOn: false })).toBe('{"scope":"picker","isOn":false}');
   });
 
   it('send the price view state as the same text, with and without a total', () => {
-    expect(encodePriceState({ scope: 'picker', state: { name: 'loading', loaded: 40, total: 100 } })).toBe(
+    expect(priceStateSignal.encode({ scope: 'picker', name: 'loading', loaded: 40, total: 100 })).toBe(
       '{"scope":"picker","name":"loading","loaded":40,"total":100}'
     );
-    expect(encodePriceState({ scope: 'grid', state: { name: 'failed', loaded: 0, total: null } })).toBe(
-      '{"scope":"grid","name":"failed","loaded":0,"total":null}'
-    );
+    expect(priceStateSignal.encode({ scope: 'grid', name: 'failed', loaded: 0, total: null })).toBe('{"scope":"grid","name":"failed","loaded":0,"total":null}');
   });
 
   it('send the crawled rows and the price order as the same text', () => {
-    expect(encodePriceRows({ scope: 'grid', rows: { viewId: 3, slugs: ['a-b', null] } })).toBe('{"scope":"grid","viewId":3,"slugs":["a-b",null]}');
-    expect(encodePriceOrder({ scope: 'picker', order: { viewId: 3, revision: 2, descending: [1, 0], ascending: [0, 1] } })).toBe(
+    expect(priceRowsSignal.encode({ scope: 'grid', viewId: 3, slugs: ['a-b', null] })).toBe('{"scope":"grid","viewId":3,"slugs":["a-b",null]}');
+    expect(priceOrderSignal.encode({ scope: 'picker', viewId: 3, revision: 2, descending: [1, 0], ascending: [0, 1] })).toBe(
       '{"scope":"picker","viewId":3,"revision":2,"descending":[1,0],"ascending":[0,1]}'
     );
   });

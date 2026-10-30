@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Database } from '../utils/shared/database';
 import type { ListScope } from '../utils/shared/list-scope';
-import { PRICE_STATE_EVENT, PRICE_ROWS_EVENT, encodePriceRows, encodePriceState, type PriceOrder, type PriceStateName } from '../utils/shared/price-signal';
+import { priceRowsSignal, priceStateSignal, type PriceOrder, type PriceStateName } from '../utils/shared/price-signal';
 import { createPriceSort, hasSortMutation, type PriceSort, type SortHost } from '../utils/sort/sort-view';
 
 const database: Database = {
@@ -75,9 +75,9 @@ const setup = (scope: ListScope = 'grid') => {
   const sort = createPriceSort(document, scope, host);
   const choose = () => press(sort, own());
   const state = (name: PriceStateName, loaded = 0, total: number | null = null, from: ListScope = scope) =>
-    sort.handleState(new CustomEvent(PRICE_STATE_EVENT, { detail: encodePriceState({ scope: from, state: { name, loaded, total } }) }));
+    sort.handleState(new CustomEvent(priceStateSignal.name, { detail: priceStateSignal.encode({ scope: from, name, loaded, total }) }));
   const rows = (viewId: number, slugs: (string | null)[], from: ListScope = scope) =>
-    sort.handleRows(new CustomEvent(PRICE_ROWS_EVENT, { detail: encodePriceRows({ scope: from, rows: { viewId, slugs } }) }));
+    sort.handleRows(new CustomEvent(priceRowsSignal.name, { detail: priceRowsSignal.encode({ scope: from, viewId, slugs }) }));
   return { sort, host, views, orders, timers, choose, state, rows };
 };
 
@@ -584,16 +584,16 @@ describe('what the page says', () => {
   it('is ignored when it is not a message of the view, or the price is not on', () => {
     render();
     const { sort, host, views, orders } = setup();
-    sort.handleState(new CustomEvent(PRICE_STATE_EVENT, { detail: encodePriceState({ scope: 'grid', state: { name: 'failed', loaded: 0, total: null } }) }));
-    sort.handleRows(new CustomEvent(PRICE_ROWS_EVENT, { detail: encodePriceRows({ scope: 'grid', rows: { viewId: 1, slugs: ['mid'] } }) }));
+    sort.handleState(new CustomEvent(priceStateSignal.name, { detail: priceStateSignal.encode({ scope: 'grid', name: 'failed', loaded: 0, total: null }) }));
+    sort.handleRows(new CustomEvent(priceRowsSignal.name, { detail: priceRowsSignal.encode({ scope: 'grid', viewId: 1, slugs: ['mid'] }) }));
     expect(host.schedule).not.toHaveBeenCalled();
     enablePriceMode();
     sort.sync(database, settings);
     const before = vi.mocked(host.schedule).mock.calls.length;
-    sort.handleState(new CustomEvent(PRICE_STATE_EVENT, { detail: 'nonsense' }));
-    sort.handleState(new CustomEvent(PRICE_STATE_EVENT));
-    sort.handleRows(new CustomEvent(PRICE_ROWS_EVENT, { detail: 'nonsense' }));
-    sort.handleRows(new CustomEvent(PRICE_ROWS_EVENT));
+    sort.handleState(new CustomEvent(priceStateSignal.name, { detail: 'nonsense' }));
+    sort.handleState(new CustomEvent(priceStateSignal.name));
+    sort.handleRows(new CustomEvent(priceRowsSignal.name, { detail: 'nonsense' }));
+    sort.handleRows(new CustomEvent(priceRowsSignal.name));
     expect(vi.mocked(host.schedule).mock.calls.length).toBe(before);
     expect(views).toEqual([true]);
     expect(orders).toEqual([]);

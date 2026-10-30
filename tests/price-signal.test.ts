@@ -1,22 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  encodePriceOrder,
-  encodePriceRows,
-  encodePriceState,
-  encodePriceSwitch,
-  readPriceOrder,
-  readPriceRows,
-  readPriceState,
-  readPriceSwitch,
-} from '../utils/shared/price-signal';
+import { priceOrderSignal, priceRowsSignal, priceStateSignal, priceViewSignal, type ScopedOrder, type ScopedRows } from '../utils/shared/price-signal';
 
 const event = (detail?: unknown) => new CustomEvent('x', detail === undefined ? undefined : { detail });
 
 describe('the switch', () => {
   it('says whether the view is wanted, and for which list', () => {
-    expect(readPriceSwitch(event(encodePriceSwitch({ scope: 'grid', isOn: true })))).toEqual({ scope: 'grid', isOn: true });
-    expect(readPriceSwitch(event(encodePriceSwitch({ scope: 'picker', isOn: false })))).toEqual({ scope: 'picker', isOn: false });
+    expect(priceViewSignal.read(event(priceViewSignal.encode({ scope: 'grid', isOn: true })))).toEqual({ scope: 'grid', isOn: true });
+    expect(priceViewSignal.read(event(priceViewSignal.encode({ scope: 'picker', isOn: false })))).toEqual({ scope: 'picker', isOn: false });
   });
 
   it('is not read from anything else, nor without a list it knows', () => {
@@ -31,20 +22,24 @@ describe('the switch', () => {
       5,
       { isOn: true },
     ]) {
-      expect(readPriceSwitch(event(detail))).toBeNull();
+      expect(priceViewSignal.read(event(detail))).toBeNull();
     }
   });
 });
 
 describe('the state', () => {
   it('names the list, the state and how far the list is', () => {
-    expect(readPriceState(event(encodePriceState({ scope: 'grid', state: { name: 'loading', loaded: 40, total: 100 } })))).toEqual({
+    expect(priceStateSignal.read(event(priceStateSignal.encode({ scope: 'grid', name: 'loading', loaded: 40, total: 100 })))).toEqual({
       scope: 'grid',
-      state: { name: 'loading', loaded: 40, total: 100 },
+      name: 'loading',
+      loaded: 40,
+      total: 100,
     });
-    expect(readPriceState(event(encodePriceState({ scope: 'picker', state: { name: 'failed', loaded: 0, total: null } })))).toEqual({
+    expect(priceStateSignal.read(event(priceStateSignal.encode({ scope: 'picker', name: 'failed', loaded: 0, total: null })))).toEqual({
       scope: 'picker',
-      state: { name: 'failed', loaded: 0, total: null },
+      name: 'failed',
+      loaded: 0,
+      total: null,
     });
   });
 
@@ -58,19 +53,21 @@ describe('the state', () => {
       'nonsense',
       undefined,
     ]) {
-      expect(readPriceState(event(detail))).toBeNull();
+      expect(priceStateSignal.read(event(detail))).toBeNull();
     }
-    expect(readPriceState(event('{"scope":"grid","name":"ready","loaded":3,"total":"7"}'))).toEqual({
+    expect(priceStateSignal.read(event('{"scope":"grid","name":"ready","loaded":3,"total":"7"}'))).toEqual({
       scope: 'grid',
-      state: { name: 'ready', loaded: 3, total: null },
+      name: 'ready',
+      loaded: 3,
+      total: null,
     });
   });
 });
 
 describe('the rows', () => {
   it('carry the list and the view they belong to and the slugs in the order of the list, with a null for a card without one', () => {
-    const rows = { viewId: 4, slugs: ['a-a', null, 'b-b'] };
-    expect(readPriceRows(event(encodePriceRows({ scope: 'picker', rows })))).toEqual({ scope: 'picker', rows });
+    const rows: ScopedRows = { scope: 'picker', viewId: 4, slugs: ['a-a', null, 'b-b'] };
+    expect(priceRowsSignal.read(event(priceRowsSignal.encode(rows)))).toEqual(rows);
   });
 
   it('are not read when the slugs are not slugs or the list is not named', () => {
@@ -82,15 +79,15 @@ describe('the rows', () => {
       '{"viewId":1,"slugs":[]}',
       'nonsense',
     ]) {
-      expect(readPriceRows(event(detail))).toBeNull();
+      expect(priceRowsSignal.read(event(detail))).toBeNull();
     }
   });
 });
 
 describe('the order', () => {
   it('carries the list, both directions for the view and the revision of the prices', () => {
-    const order = { viewId: 4, revision: 2, descending: [2, 0, 1], ascending: [1, 0, 2] };
-    expect(readPriceOrder(event(encodePriceOrder({ scope: 'grid', order })))).toEqual({ scope: 'grid', order });
+    const order: ScopedOrder = { scope: 'grid', viewId: 4, revision: 2, descending: [2, 0, 1], ascending: [1, 0, 2] };
+    expect(priceOrderSignal.read(event(priceOrderSignal.encode(order)))).toEqual(order);
   });
 
   it('is not read when a part is missing or is not a list of places', () => {
@@ -102,7 +99,7 @@ describe('the order', () => {
       '{"viewId":1,"revision":1,"descending":[0],"ascending":[0]}',
       'nonsense',
     ]) {
-      expect(readPriceOrder(event(detail))).toBeNull();
+      expect(priceOrderSignal.read(event(detail))).toBeNull();
     }
   });
 });

@@ -32,14 +32,10 @@ import {
 } from '../utils/shared/refresh-signal';
 import type { ListScope } from '../utils/shared/list-scope';
 import {
-  PRICE_ORDER_EVENT,
-  PRICE_ROWS_EVENT,
-  PRICE_STATE_EVENT,
-  PRICE_VIEW_EVENT,
-  encodePriceOrder,
-  encodePriceSwitch,
-  readPriceRows,
-  readPriceState,
+  priceOrderSignal,
+  priceRowsSignal,
+  priceStateSignal,
+  priceViewSignal,
   type PriceRows,
   type PriceState,
   type ScopedRows,
@@ -198,13 +194,13 @@ const rig = ({ answer = {}, mounted = true, mutations = [], slow = false, outcom
   const states: PriceState[] = [];
   const rows: PriceRows[] = [];
   const scopedRows: ScopedRows[] = [];
-  win.document.addEventListener(PRICE_STATE_EVENT, (event) => {
-    const scoped = readPriceState(event as unknown as Event);
-    if (scoped) states.push(scoped.state);
+  win.document.addEventListener(priceStateSignal.name, (event) => {
+    const scopedState = priceStateSignal.read(event as unknown as Event);
+    if (scopedState) states.push({ name: scopedState.name, loaded: scopedState.loaded, total: scopedState.total });
   });
-  win.document.addEventListener(PRICE_ROWS_EVENT, (event) => {
-    const scoped = readPriceRows(event as unknown as Event);
-    if (scoped) rows.push(scoped.rows);
+  win.document.addEventListener(priceRowsSignal.name, (event) => {
+    const scoped = priceRowsSignal.read(event as unknown as Event);
+    if (scoped) rows.push({ viewId: scoped.viewId, slugs: scoped.slugs });
     if (scoped) scopedRows.push(scoped);
   });
   const browse = (variables: Variables): number => {
@@ -231,9 +227,9 @@ const rig = ({ answer = {}, mounted = true, mutations = [], slow = false, outcom
   const sendRefreshDetail = (detail: string) => win.document.dispatchEvent(new win.CustomEvent(REFRESH_REQUEST_EVENT, { detail } as never));
   const requestRefresh = (scope: ListScope) => sendRefreshDetail(encodeRefreshRequest(scope));
   const send = (name: string, detail: string) => win.document.dispatchEvent(new win.CustomEvent(name, { detail: detail as unknown as object }));
-  const switchView = (isOn: boolean, scope: ListScope = 'grid') => send(PRICE_VIEW_EVENT, encodePriceSwitch({ scope, isOn }));
+  const switchView = (isOn: boolean, scope: ListScope = 'grid') => send(priceViewSignal.name, priceViewSignal.encode({ scope, isOn }));
   const order = (sent: { viewId: number; revision: number; descending: number[]; ascending: number[] }, scope: ListScope = 'grid') =>
-    send(PRICE_ORDER_EVENT, encodePriceOrder({ scope, order: sent }));
+    send(priceOrderSignal.name, priceOrderSignal.encode({ scope, ...sent }));
   return {
     win,
     client,
@@ -677,7 +673,7 @@ describe('installInventoryGuard', () => {
       switchView(true, 'picker');
       await until(() => scopedRows.length === 2);
       expect(scopedRows.map((sent) => sent.scope).sort()).toEqual(['grid', 'picker']);
-      for (const sent of scopedRows) order(forOrder(sent.rows.viewId), sent.scope);
+      for (const sent of scopedRows) order(forOrder(sent.viewId), sent.scope);
       await settle();
       const reachedBefore = reached.length;
       expect(slugsOf(watchList(grid).at(-1))).toEqual(['d', 'c']);
@@ -698,7 +694,7 @@ describe('installInventoryGuard', () => {
       switchView(true, 'grid');
       switchView(true, 'picker');
       await until(() => scopedRows.length === 2);
-      for (const sent of scopedRows) order(forOrder(sent.rows.viewId), sent.scope);
+      for (const sent of scopedRows) order(forOrder(sent.viewId), sent.scope);
       await settle();
       requestRefresh('picker');
       await until(() => scopedRows.length === 3);
