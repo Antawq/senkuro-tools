@@ -107,6 +107,7 @@ sequenceDiagram
   U->>S: Enter in the site search, Manga or Anime tab
   S->>H: opens the catalog with the text in query
   H->>S: beforeEach guard: query becomes the search filter
+  H->>S: afterEach hook: a changed filter set the catalog left unread is replaced once more with force
   S->>H: the catalog query passes the catalog exchange
   H->>A: empty answer: asks search, up to 300 rows, and catalogRowFacts for each page
   H->>S: hands back rows in the catalog format, with the 18+ flag
