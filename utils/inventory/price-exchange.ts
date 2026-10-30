@@ -1,5 +1,5 @@
 import { makeOperation, makeResult, type Exchange, type Operation, type OperationContext, type OperationResult } from '@urql/core';
-import { filter, makeSubject, map, merge, pipe, share, type Subject } from 'wonka';
+import { filter, makeSubject, map, merge, pipe, share, tap, type Subject } from 'wonka';
 
 import { isSettled } from '../shared/urql-result';
 import { listScopeOf, listVariablesOf } from './list-families';
@@ -39,11 +39,11 @@ function routeOperation(route: PriceRoute, operation: Operation): Operation | nu
   return route.views.forwarded(operation);
 }
 
-function answered(views: PriceViews, result: OperationResult): OperationResult {
-  if (result.operation.kind === 'mutation') {
-    if (isSettled(result)) views.handleMutation(result);
-    return result;
-  }
+function noteSettledMutation(views: PriceViews, result: OperationResult): void {
+  if (result.operation.kind === 'mutation' && isSettled(result)) views.handleMutation(result);
+}
+
+function answerServedList(views: PriceViews, result: OperationResult): OperationResult {
   const data = isViewList(result.operation) ? views.answer(result.operation) : null;
   return data ? { ...makeResult(result.operation, { data }), stale: result.stale } : result;
 }
@@ -59,7 +59,8 @@ export function priceExchange(views: PriceViews, isSilent: (context: OperationCo
       );
       const results$ = pipe(
         forward(merge([forwarded$, route.releases.source])),
-        map((result: OperationResult) => answered(views, result))
+        tap((result: OperationResult) => noteSettledMutation(views, result)),
+        map((result: OperationResult) => answerServedList(views, result))
       );
       return merge([results$, route.answers.source]);
     };

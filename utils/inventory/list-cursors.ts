@@ -59,7 +59,7 @@ function learnFromResult(result: OperationResult, ledger: CursorLedger): void {
 }
 
 export function cursorExchange(ledger: CursorLedger, onDrop: (variables: Variables) => void = () => undefined): Exchange {
-  const guard = (operation: Operation): Operation => {
+  const repairListCursor = (operation: Operation): Operation => {
     const repaired = repairOperation(operation, ledger);
     const variables = listVariablesOf(repaired);
     if (repaired !== operation) reportDroppedCursor(onDrop, operation.variables as Variables);
@@ -69,7 +69,7 @@ export function cursorExchange(ledger: CursorLedger, onDrop: (variables: Variabl
   return ({ forward }) =>
     (operations$) =>
       pipe(
-        forward(pipe(operations$, map(guard))),
+        forward(pipe(operations$, map(repairListCursor))),
         tap((result) => learnFromResult(result, ledger))
       );
 }
