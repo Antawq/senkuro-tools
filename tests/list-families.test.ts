@@ -51,6 +51,30 @@ describe('family and page ids', () => {
     expect(familyIdOf({ a: 1 })).not.toBe(familyIdOf({ a: 2 }));
   });
 
+  it('names a family of site-shaped variables the same whatever the order of keys inside its filters', () => {
+    const grid = {
+      userId: 'U1',
+      orderField: 'CREATED_AT',
+      orderDirection: 'DESC',
+      rank: { include: [] },
+      modifier: { include: [0] },
+      animated: null,
+      explicit: null,
+    };
+    const reordered = {
+      explicit: null,
+      animated: null,
+      modifier: { include: [0] },
+      rank: { include: [] },
+      orderDirection: 'DESC',
+      orderField: 'CREATED_AT',
+      userId: 'U1',
+    };
+    expect(familyIdOf({ ...grid, after: 'c20' })).toBe(familyIdOf(reordered));
+    expect(familyIdOf({ ...grid, modifier: { include: [1] } })).not.toBe(familyIdOf(grid));
+    expect(familyIdOf({ userId: 'U1', modifier: { exclude: [0], include: [1] } })).toBe(familyIdOf({ modifier: { include: [1], exclude: [0] }, userId: 'U1' }));
+  });
+
   it('treats an absent, an undefined and a null cursor as the same first page', () => {
     expect(pageIdOf({ a: 1, after: undefined })).toBe(pageIdOf({ a: 1 }));
     expect(pageIdOf({ a: 1, after: null })).toBe(pageIdOf({ a: 1 }));

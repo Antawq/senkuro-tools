@@ -1,4 +1,6 @@
-import { CURSOR_KEY, stableJson, type Variables } from './list-families';
+import { stringifyVariables } from '@urql/core';
+
+import { CURSOR_KEY, type Variables } from './list-families';
 
 const CURSOR_PREFIX = 'senkutools:price:';
 const CURSOR_SEPARATOR = ':';
@@ -22,7 +24,7 @@ export function readCursor(after: unknown): PrivateCursor | null {
 }
 
 export const viewKeyOf = (variables: Variables): string =>
-  stableJson(Object.fromEntries(Object.entries(variables).filter(([name]) => name !== CURSOR_KEY && name !== DIRECTION_KEY)));
+  stringifyVariables(Object.fromEntries(Object.entries(variables).filter(([name]) => name !== CURSOR_KEY && name !== DIRECTION_KEY)));
 
 const fieldNamesOf = (name: string, value: unknown): string[] =>
   value && typeof value === 'object' && !Array.isArray(value) ? Object.keys(value).map((field) => `${name}.${field}`) : [];

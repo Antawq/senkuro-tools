@@ -1,4 +1,4 @@
-import { getOperationName, type DocumentInput, type Operation } from '@urql/core';
+import { getOperationName, stringifyVariables, type DocumentInput, type Operation } from '@urql/core';
 
 import type { ListScope } from '../shared/list-scope';
 
@@ -50,16 +50,9 @@ interface RawEdge {
   node?: { modifier?: unknown; card?: { id?: unknown } | null } | null;
 }
 
-const sortKeys = (_key: string, value: unknown): unknown =>
-  value && typeof value === 'object' && !Array.isArray(value)
-    ? Object.fromEntries(Object.entries(value).sort(([left], [right]) => left.localeCompare(right)))
-    : value;
-
-export const stableJson = (value: unknown): string => JSON.stringify(value, sortKeys);
-
 const withoutCursor = (variables: Variables): Variables => Object.fromEntries(Object.entries(variables).filter(([key]) => key !== CURSOR_KEY));
 
-export const familyIdOf = (variables: Variables): string => stableJson(withoutCursor(variables));
+export const familyIdOf = (variables: Variables): string => stringifyVariables(withoutCursor(variables));
 
 export function listVariablesOf(operation: Operation): Variables | null {
   if (operation.kind !== 'query' || getOperationName(operation.query) !== LIST_OPERATION) return null;
@@ -69,7 +62,7 @@ export function listVariablesOf(operation: Operation): Variables | null {
 
 export const hasCursor = (variables: Variables): boolean => variables[CURSOR_KEY] != null;
 
-export const pageIdOf = (variables: Variables): string => stableJson(hasCursor(variables) ? variables : withoutCursor(variables));
+export const pageIdOf = (variables: Variables): string => stringifyVariables(hasCursor(variables) ? variables : withoutCursor(variables));
 
 export const isNewestFirst = (filters: Variables): boolean =>
   (filters.orderField == null || filters.orderField === NEWEST_FIRST_FIELD) &&
