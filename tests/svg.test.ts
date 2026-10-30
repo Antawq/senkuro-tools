@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { chevronIcon, copyIcon, doneIcon, refreshIcon } from '../utils/shared/svg';
+import { chevronIcon, copyIcon, doneIcon, questionMarkIcon, refreshIcon } from '../utils/shared/svg';
 
 describe('refreshIcon', () => {
   it('is a filled glyph in the 960 grid of the site icon set', () => {
@@ -23,6 +23,7 @@ describe('copy, done and chevron icons', () => {
     ['copyIcon', () => copyIcon(18)],
     ['doneIcon', () => doneIcon(18)],
     ['chevronIcon', () => chevronIcon()],
+    ['questionMarkIcon', () => questionMarkIcon(16)],
   ])('%s is a filled glyph in the 960 grid with no stroke', (_name, create) => {
     const icon = create();
     expect(icon.getAttribute('viewBox')).toBe('0 -960 960 960');

@@ -4,6 +4,7 @@ import { CARD_LINK, PERCENT, PRICE_DECIMALS, effectivePrice, slugFromHref } from
 import { removeCopyButton, syncCopyButton } from '../shared/copy-button';
 import type { CardEntry, Database } from '../shared/database';
 import type { BadgePositionX, BadgePositionY, Settings } from '../shared/settings';
+import { questionMarkIcon } from '../shared/svg';
 import { tierOf } from './tiers';
 
 const BADGE_ATTRIBUTES = ['data-senkuro-price', 'data-senkuro-style', 'data-senkuro-eff', 'data-senkuro-tier'];
@@ -19,6 +20,8 @@ const UNKNOWN_NAME = 'Неизвестно';
 const NO_EFFECT = 'none';
 const BACK_FACE = '.card-collect-preview__back';
 const SHOWN_NAME_IMAGE = ':scope > .card-collect__front > img.card-collect__img';
+const UNPRICED_BADGE = 'senkutools-unpriced-badge';
+const UNPRICED_OUTLINE = `${UNPRICED_BADGE}--outline`;
 const STACK_ITEM = '.offer-card__cnt-el, .modal-trade__swap-cards > .modal-trade__card';
 const VISIBLE_EDGE: BadgePositionX = 'left';
 
@@ -92,7 +95,8 @@ interface Spot {
 interface Measured {
   holders: Holders;
   slug: string;
-  entry: CardEntry;
+  entry: CardEntry | null;
+  name: string | null;
   isUndrawn: boolean;
   isUnpositioned: boolean;
   isCovered: boolean;
@@ -110,11 +114,14 @@ const isSmall = ({ width }: Holders): boolean => width > 0 && width < SMALL_CARD
 
 const isTooNarrow = ({ width }: Holders): boolean => width > 0 && width < MIN_PRICED_CARD_WIDTH;
 
+const removeUnpricedBadge = (holder: Element): void => holder.querySelector(`:scope > .${UNPRICED_BADGE}`)?.remove();
+
 function clearHolders({ card, front, preview }: Holders, keep?: HTMLElement): void {
   for (const el of [card, front, preview]) {
     if (el && el !== keep) {
       clearBadge(el);
       removeCopyButton(el);
+      removeUnpricedBadge(el);
     }
   }
 }
@@ -158,27 +165,43 @@ function place({ target }: Holders, settings: Settings, { isCovered, gap }: Pick
 interface BadgeState {
   touch: boolean;
   positioned: WeakSet<HTMLElement>;
+  isFilledByDatabase: WeakMap<Database, boolean>;
 }
 
-function pricedEntryOf(card: HTMLAnchorElement, db: Database): { slug: string; entry: CardEntry } | null {
+function isFilled(state: BadgeState, db: Database): boolean {
+  let isFilledDatabase = state.isFilledByDatabase.get(db);
+  if (isFilledDatabase === undefined) {
+    isFilledDatabase = Object.keys(db).length > 0;
+    state.isFilledByDatabase.set(db, isFilledDatabase);
+  }
+  return isFilledDatabase;
+}
+
+function cardEntryOf(card: HTMLAnchorElement, db: Database, hasDatabase: boolean): { slug: string; entry: CardEntry | null } | null {
   if (!card.isConnected || card.closest(BACK_FACE)) return null;
   const slug = slugFromHref(card.getAttribute('href'));
   if (!slug || card.dataset.priceBadgeAdded === slug) return null;
   const entry = db[slug];
-  return entry && Number.isFinite(entry.price) ? { slug, entry } : null;
+  if (entry && Number.isFinite(entry.price)) return { slug, entry };
+  return hasDatabase ? { slug, entry: null } : null;
 }
 
-const isUndrawnFor = (holders: Holders, settings: Settings): boolean =>
-  isTooNarrow(holders) || (!settings.showBadges && (!settings.copyBtn || isSmall(holders)));
+const findShownName = (card: HTMLAnchorElement): string | null => card.querySelector<HTMLImageElement>(SHOWN_NAME_IMAGE)?.alt.trim() || null;
 
-function measure(state: BadgeState, card: HTMLAnchorElement, db: Database, settings: Settings): Measured | null {
-  const priced = pricedEntryOf(card, db);
-  if (!priced) return null;
+const copiedNameOf = (card: HTMLAnchorElement, entry: CardEntry | null): string | null => findShownName(card) || (entry ? entry.name || UNKNOWN_NAME : null);
+
+const isUndrawnFor = (holders: Holders, settings: Settings, name: string | null): boolean =>
+  isTooNarrow(holders) || (!settings.showBadges && (!settings.copyBtn || isSmall(holders) || !name));
+
+function measure(state: BadgeState, card: HTMLAnchorElement, db: Database, settings: Settings, hasDatabase: boolean): Measured | null {
+  const known = cardEntryOf(card, db, hasDatabase);
+  if (!known) return null;
   const holders = holdersOf(card, settings.showBadges || settings.copyBtn);
   const { target } = holders;
-  const isUndrawn = isUndrawnFor(holders, settings);
+  const name = copiedNameOf(card, known.entry);
+  const isUndrawn = isUndrawnFor(holders, settings, name);
   const isUnpositioned = !isUndrawn && !state.positioned.has(target) && getComputedStyle(target).position === 'static';
-  return { holders, ...priced, isUndrawn, isUnpositioned, isCovered: !isUndrawn && coveredInStack(target), gap: NO_GAP };
+  return { holders, ...known, name, isUndrawn, isUnpositioned, isCovered: !isUndrawn && coveredInStack(target), gap: NO_GAP };
 }
 
 function position(state: BadgeState, { holders: { target }, isUnpositioned }: Measured): void {
@@ -186,26 +209,50 @@ function position(state: BadgeState, { holders: { target }, isUnpositioned }: Me
   state.positioned.add(target);
 }
 
-const findShownName = (card: HTMLAnchorElement): string | null => card.querySelector<HTMLImageElement>(SHOWN_NAME_IMAGE)?.alt.trim() || null;
-
-function syncCardCopyButton(state: BadgeState, { holders, entry }: Measured, settings: Settings, spot: Spot): boolean {
-  if (!settings.copyBtn || isSmall(holders)) {
+function syncCardCopyButton(state: BadgeState, { holders, name }: Measured, settings: Settings, spot: Spot): boolean {
+  if (!settings.copyBtn || isSmall(holders) || !name) {
     removeCopyButton(holders.target);
     return true;
   }
   if (!isAppMounted(document)) return false;
-  syncCopyButton(holders.target, { name: findShownName(holders.card) || entry.name || UNKNOWN_NAME, size: settings.copyBtnSize, ...spot, touch: state.touch });
+  syncCopyButton(holders.target, { name, size: settings.copyBtnSize, ...spot, touch: state.touch });
+  return true;
+}
+
+function syncUnpricedBadge(holders: Holders, settings: Settings, shades: Shades): boolean {
+  const { target } = holders;
+  clearBadge(target);
+  if (!isAppMounted(document)) return false;
+  target.style.setProperty('--s-size', `${fontSizeOf(holders, settings.fontSize)}px`);
+  target.style.setProperty('--s-pad', isSmall(holders) ? SMALL_PADDING : PADDING);
+  target.style.setProperty('--s-bg-color', shades.background);
+  let badge = target.querySelector<HTMLElement>(`:scope > .${UNPRICED_BADGE}`);
+  if (!badge) {
+    badge = document.createElement('span');
+    badge.className = UNPRICED_BADGE;
+    badge.append(questionMarkIcon(settings.fontSize));
+    target.append(badge);
+  }
+  badge.classList.toggle(UNPRICED_OUTLINE, settings.badgeStyle === 'outline');
+  return true;
+}
+
+function markCard({ holders, entry }: Measured, settings: Settings, shades: Shades): boolean {
+  if (!settings.showBadges || entry) removeUnpricedBadge(holders.target);
+  if (!settings.showBadges) return true;
+  if (!entry) return syncUnpricedBadge(holders, settings, shades);
+  paint(holders, entry.price, settings, shades);
   return true;
 }
 
 function show(state: BadgeState, measured: Measured, settings: Settings, shades: Shades): void {
-  const { holders, entry, slug, isUndrawn } = measured;
+  const { holders, slug, isUndrawn } = measured;
   let isDone = true;
   if (isUndrawn) clearHolders(holders);
   else {
     clearHolders(holders, holders.target);
-    if (settings.showBadges) paint(holders, entry.price, settings, shades);
-    isDone = syncCardCopyButton(state, measured, settings, place(holders, settings, measured));
+    const isMarked = markCard(measured, settings, shades);
+    isDone = syncCardCopyButton(state, measured, settings, place(holders, settings, measured)) && isMarked;
   }
   if (isDone) holders.card.dataset.priceBadgeAdded = slug;
 }
@@ -218,13 +265,14 @@ function resetBadges(): void {
 function resetPageBadges(): void {
   resetBadges();
   document.querySelectorAll<HTMLElement>('[data-badge-pos]').forEach((el) => delete el.dataset.badgePos);
-  document.querySelectorAll('.senkuro-copy-btn').forEach((el) => el.remove());
+  document.querySelectorAll(`.senkuro-copy-btn, .${UNPRICED_BADGE}`).forEach((el) => el.remove());
 }
 
 function updateBadges(state: BadgeState, db: Database, settings: Settings, cards?: Iterable<HTMLAnchorElement>): void {
   const shades = shadesOf(settings.opacity);
   const list = cards ?? document.querySelectorAll<HTMLAnchorElement>(CARD_LINK);
-  const batch = [...new Set(list)].flatMap((card) => measure(state, card, db, settings) ?? []);
+  const hasDatabase = isFilled(state, db);
+  const batch = [...new Set(list)].flatMap((card) => measure(state, card, db, settings, hasDatabase) ?? []);
   const drawn = batch.filter(({ isUndrawn }) => !isUndrawn);
   drawn.forEach((item) => position(state, item));
   for (const item of drawn) if (item.holders.preview) item.gap = faceGap(item.holders.preview);
@@ -232,7 +280,7 @@ function updateBadges(state: BadgeState, db: Database, settings: Settings, cards
 }
 
 export function createPriceBadges({ touch }: { touch: boolean }): PriceBadges {
-  const state: BadgeState = { touch, positioned: new WeakSet<HTMLElement>() };
+  const state: BadgeState = { touch, positioned: new WeakSet<HTMLElement>(), isFilledByDatabase: new WeakMap<Database, boolean>() };
   return {
     update: (db, settings, cards) => updateBadges(state, db, settings, cards),
     reset: resetBadges,

@@ -139,6 +139,55 @@ a.card-collect[data-senkuro-style='outline']::after {
   animation: senkuro-bg-pulse var(--senkuro-swing-period) infinite alternate ease-in-out var(--senkuro-effect-delay);
 }
 
+.card-collect-preview:has(> .senkutools-unpriced-badge),
+a.card-collect:has(> .senkutools-unpriced-badge) {
+  isolation: isolate;
+}
+
+.senkutools-unpriced-badge {
+  position: absolute;
+  z-index: 99;
+  pointer-events: none;
+  display: flex;
+  color: var(--s-color, var(--senkuro-tier-white));
+  font-size: var(--s-size, 14px);
+  top: var(--s-top, auto);
+  bottom: var(--s-bottom, auto);
+  left: var(--s-left, auto);
+  right: var(--s-right, auto);
+  margin-top: var(--s-mt, 0);
+  translate: var(--s-tx, 0) var(--s-ty, 0);
+  background-color: var(--s-bg-color, color-mix(in srgb, var(--senkuro-shade) 75%, transparent));
+  padding: var(--s-pad, 2px 6px);
+  border-radius: 4px;
+  backface-visibility: hidden;
+}
+
+.card-collect-preview > .senkutools-unpriced-badge {
+  z-index: 2;
+}
+
+.senkutools-unpriced-badge > svg {
+  width: 1em;
+  height: 1em;
+}
+
+.senkutools-unpriced-badge--outline {
+  background-color: transparent;
+  padding: 0;
+}
+
+.senkutools-unpriced-badge--outline > svg {
+  stroke: var(--s-bg-color, var(--senkuro-shade));
+  stroke-width: 2px;
+  paint-order: stroke;
+  filter: drop-shadow(0 2px 4px var(--s-bg-color, var(--senkuro-shade)));
+}
+
+.senkutools-unpriced-badge--outline path {
+  vector-effect: non-scaling-stroke;
+}
+
 .senkuro-copy-btn {
   appearance: none;
   margin: 0;

@@ -327,6 +327,110 @@ describe('createPriceBadges', () => {
     expect(Math.min(...paints)).toBeGreaterThan(Math.max(...read.mock.invocationCallOrder));
   });
 
+  describe('on a card the price database does not know', () => {
+    const unknownCard = (front = '<img class="card-collect__img" alt="Кафка">') =>
+      `<a class="card-collect" href="/cards/hsr-kafka-c"><div class="card-collect__front">${front}</div></a>`;
+    const markOf = () => document.querySelector('a.card-collect > .senkutools-unpriced-badge');
+
+    it('puts the site question mark where the price would be and no price', () => {
+      document.body.innerHTML = unknownCard();
+      createPriceBadges({ touch: false }).update(db, DEFAULT_SETTINGS);
+      expect(markOf()?.querySelector('path')?.getAttribute('d')).toMatch(/^M584-637q0-43/);
+      expect(markOf()?.classList.contains('senkutools-unpriced-badge--outline')).toBe(false);
+      const card = document.querySelector('a.card-collect') as HTMLElement;
+      expect(card.hasAttribute('data-senkuro-price')).toBe(false);
+      expect(card.style.getPropertyValue('--s-size')).toBe('16px');
+    });
+
+    it('draws the question mark in the outline style when the badges use it', () => {
+      document.body.innerHTML = unknownCard();
+      createPriceBadges({ touch: false }).update(db, { ...DEFAULT_SETTINGS, badgeStyle: 'outline' });
+      expect(markOf()?.classList.contains('senkutools-unpriced-badge--outline')).toBe(true);
+    });
+
+    it('gives the card a copy button with the name its front shows', () => {
+      document.body.innerHTML = unknownCard();
+      createPriceBadges({ touch: false }).update(db, { ...DEFAULT_SETTINGS, copyBtn: true });
+      expect((document.querySelector('.senkuro-copy-btn') as HTMLElement).title).toBe('Копировать имя: Кафка');
+    });
+
+    it('gives the card no copy button when its front shows no name, and keeps the question mark', () => {
+      document.body.innerHTML = unknownCard('<video class="card-collect__video"></video>');
+      createPriceBadges({ touch: false }).update(db, { ...DEFAULT_SETTINGS, copyBtn: true });
+      expect(document.querySelector('.senkuro-copy-btn')).toBeNull();
+      expect(markOf()).not.toBeNull();
+    });
+
+    it('draws no question mark with the prices switched off, and leaves the card alone without a name to copy', () => {
+      document.body.innerHTML = unknownCard('');
+      createPriceBadges({ touch: false }).update(db, { ...DEFAULT_SETTINGS, showBadges: false, copyBtn: true });
+      expect(markOf()).toBeNull();
+      expect(document.querySelector('.senkuro-copy-btn')).toBeNull();
+      expect((document.querySelector('a.card-collect') as HTMLElement).getAttribute('style')).toBeNull();
+    });
+
+    it('swaps the question mark for the price once the database knows the card, and back', () => {
+      document.body.innerHTML = unknownCard();
+      const badges = createPriceBadges({ touch: false });
+      badges.update(db, DEFAULT_SETTINGS);
+      expect(markOf()).not.toBeNull();
+      const pricedDb = { ...db, 'hsr-kafka-c': { price: 2.5, name: 'Кафка', rank: 'C' } };
+      badges.reset();
+      badges.update(pricedDb, DEFAULT_SETTINGS);
+      expect(markOf()).toBeNull();
+      expect(document.querySelector('a.card-collect')?.getAttribute('data-senkuro-price')).toBe('2.00');
+      badges.reset();
+      badges.update(db, DEFAULT_SETTINGS);
+      expect(markOf()).not.toBeNull();
+      expect(document.querySelector('a.card-collect')?.hasAttribute('data-senkuro-price')).toBe(false);
+    });
+
+    it('inserts nothing before the site has mounted its app and draws the mark on the next render after the mount', () => {
+      document.documentElement.removeAttribute(APP_MOUNTED_ATTRIBUTE);
+      document.body.innerHTML = unknownCard();
+      const badges = createPriceBadges({ touch: false });
+      badges.update(db, DEFAULT_SETTINGS);
+      expect(markOf()).toBeNull();
+      expect((document.querySelector('a.card-collect') as HTMLElement).dataset.priceBadgeAdded).toBeUndefined();
+      document.documentElement.setAttribute(APP_MOUNTED_ATTRIBUTE, '');
+      badges.update(db, DEFAULT_SETTINGS);
+      expect(markOf()).not.toBeNull();
+    });
+
+    it('marks nothing while the price database is empty, as after a failed load', () => {
+      document.body.innerHTML = unknownCard();
+      createPriceBadges({ touch: false }).update({}, { ...DEFAULT_SETTINGS, copyBtn: true });
+      expect(markOf()).toBeNull();
+      expect(document.querySelector('.senkuro-copy-btn')).toBeNull();
+    });
+
+    it('puts one question mark on the preview holder and none on the flip side', () => {
+      document.body.innerHTML = preview().replaceAll('/cards/soran', '/cards/hsr-kafka-c');
+      createPriceBadges({ touch: false }).update(db, DEFAULT_SETTINGS);
+      expect(document.querySelectorAll('.senkutools-unpriced-badge')).toHaveLength(1);
+      expect(holderOf().querySelector(':scope > .senkutools-unpriced-badge')).not.toBeNull();
+    });
+
+    it('reads the size of one database once however often the cards are drawn', () => {
+      const keys = vi.spyOn(Object, 'keys');
+      const badges = createPriceBadges({ touch: false });
+      for (let round = 0; round < 3; round++) {
+        document.body.innerHTML = unknownCard();
+        badges.update(db, DEFAULT_SETTINGS);
+      }
+      expect(keys.mock.calls.filter(([target]) => target === db)).toHaveLength(1);
+      expect(document.querySelectorAll('.senkutools-unpriced-badge')).toHaveLength(1);
+    });
+
+    it('removes the question marks with the rest of the page marks', () => {
+      document.body.innerHTML = unknownCard();
+      const badges = createPriceBadges({ touch: false });
+      badges.update(db, DEFAULT_SETTINGS);
+      badges.resetPage();
+      expect(markOf()).toBeNull();
+    });
+  });
+
   it('prices only the provided batch of cards when specified', () => {
     document.body.innerHTML = `
       <div id="c1" class="card-collect-preview"><div class="card-collect-preview__front"><a class="card-collect" href="/cards/soran"></a></div></div>
