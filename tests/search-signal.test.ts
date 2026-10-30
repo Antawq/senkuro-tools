@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { createSearchSignals } from '../utils/search/search-signal';
-import type { SearchSignal } from '../utils/search/search-event';
+import type { SearchProgress } from '../utils/search/search-event';
 
-const event = (signal: Partial<SearchSignal>) => new CustomEvent('senkutools:search', { detail: JSON.stringify(signal) });
+const event = (signal: Partial<SearchProgress>) => new CustomEvent('senkutools:search', { detail: JSON.stringify(signal) });
 const start = (query = 'naruto') => event({ phase: 'start', query, type: 'MANGA' });
 const done = (query = 'naruto', firstSlug: string | null = 'naruto-first') => event({ phase: 'done', query, type: 'MANGA', settled: true, firstSlug });
 const cancelled = (query = 'naruto') => event({ phase: 'done', query, type: 'MANGA' });

@@ -4,7 +4,7 @@ import { Window } from 'happy-dom';
 import { Client, gql, makeResult, type Exchange, type Operation, type OperationResult } from '@urql/core';
 import { filter, fromArray, mergeMap, never, pipe } from 'wonka';
 
-import { searchSignal, type SearchSignal } from '../utils/search/search-event';
+import { searchSignal, type SearchProgress } from '../utils/search/search-event';
 import { SEARCH_PAGE_SIZE, createSearchPublisher, searchExchange } from '../utils/search/search-exchange';
 import { installClientSwap } from '../utils/shared/client-swap';
 import { delegateExchange } from '../utils/shared/delegate-exchange';
@@ -29,7 +29,7 @@ const searchData = (...slugs: string[]) => ({ search: { edges: slugs.map((slug) 
 
 const rig = (answer: SiteAnswer = () => ({ data: searchData('naruto') })) => {
   const site = createSiteClient(answer);
-  const signals: SearchSignal[] = [];
+  const signals: SearchProgress[] = [];
   const client = new Client({ url: SITE_URL, exchanges: [searchExchange((signal) => signals.push(signal)), delegateExchange(site.client)] });
   return { site, client, signals };
 };
@@ -45,7 +45,7 @@ const streamingRig = (results: { stale?: boolean; data?: unknown }[], isComplete
       })
     );
   const siteClient = new Client({ url: SITE_URL, exchanges: [site] });
-  const signals: SearchSignal[] = [];
+  const signals: SearchProgress[] = [];
   const client = new Client({ url: SITE_URL, exchanges: [searchExchange((signal) => signals.push(signal)), delegateExchange(siteClient)] });
   return { client, signals };
 };

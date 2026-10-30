@@ -3,12 +3,12 @@ import { map, pipe, tap } from 'wonka';
 
 import type { PageWindow } from '../shared/page-window';
 import { isSettled } from '../shared/urql-result';
-import { searchSignal, type SearchSignal } from './search-event';
+import { searchSignal, type SearchProgress } from './search-event';
 import { SEARCH_OPERATION, widenSearchQuery } from './search-page-size';
 
 export const SEARCH_PAGE_SIZE = 30;
 
-type PublishSearch = (signal: SearchSignal) => void;
+type PublishSearch = (signal: SearchProgress) => void;
 
 interface SearchTerms {
   query: string;

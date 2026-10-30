@@ -1,6 +1,6 @@
 import { defineSignal } from '../shared/signal';
 
-export interface SearchSignal {
+export interface SearchProgress {
   phase: 'start' | 'done';
   query: string;
   type: string;
@@ -8,6 +8,6 @@ export interface SearchSignal {
   firstSlug?: string | null;
 }
 
-export const searchSignal = defineSignal<SearchSignal>('senkutools:search', (detail) =>
-  (detail.phase === 'start' || detail.phase === 'done') && typeof detail.query === 'string' ? (detail as unknown as SearchSignal) : null
+export const searchSignal = defineSignal<SearchProgress>('senkutools:search', (detail) =>
+  (detail.phase === 'start' || detail.phase === 'done') && typeof detail.query === 'string' ? (detail as unknown as SearchProgress) : null
 );
