@@ -45,6 +45,29 @@ describe('redirectQueryToSearch', () => {
     expect(redirectQueryToSearch(location('browse-manga', { query: 'naruto' }, ['genres', 'romance']))).toBeUndefined();
   });
 
+  it('starts a fresh search when the filters only came over from the address it leaves, as the router carries them on a push to the same catalog', () => {
+    const leaving = location('browse-manga', {}, ['search', 'наруто']);
+    expect(redirectQueryToSearch(location('browse-manga', { query: 'берсерк' }, ['search', 'наруто']), leaving)).toEqual({
+      name: 'browse-manga',
+      params: { fields: ['search', 'берсерк'] },
+      query: {},
+    });
+    const filtered = location('browse-manga', {}, ['genres', 'romance']);
+    expect(redirectQueryToSearch(location('browse-manga', { query: 'берсерк' }, ['genres', 'romance']), filtered)?.params).toEqual({
+      fields: ['search', 'берсерк'],
+    });
+  });
+
+  it('keeps filters an address brings itself, coming from another page or another catalog', () => {
+    expect(redirectQueryToSearch(location('browse-manga', { query: 'берсерк' }, ['search', 'наруто']), location('main', {}))).toBeUndefined();
+    expect(
+      redirectQueryToSearch(location('browse-manga', { query: 'берсерк' }, ['search', 'наруто']), location('browse-anime', {}, ['search', 'наруто']))
+    ).toBeUndefined();
+    expect(
+      redirectQueryToSearch(location('browse-manga', { query: 'берсерк' }, ['search', 'наруто']), location('browse-manga', {}, ['search', 'блич']))
+    ).toBeUndefined();
+  });
+
   it('does nothing without a usable query', () => {
     for (const query of [{}, { query: '' }, { query: '   ' }, { query: ['a', 'b'] }, { query: null }, { query: 5 }]) {
       expect(redirectQueryToSearch(location('browse-manga', query, []))).toBeUndefined();
@@ -132,8 +155,11 @@ describe('installCatalogRouting with the client swap', () => {
     const { guards, install, mount } = rig();
     install();
     mount();
-    expect(guards[0]?.(location('browse-manga', { query: 'naruto' }, []))).toEqual(redirectQueryToSearch(location('browse-manga', { query: 'naruto' }, [])));
-    expect(guards[0]?.(location('manga-slug', {}, []))).toBeUndefined();
+    const leaving = location('main', {});
+    expect(guards[0]?.(location('browse-manga', { query: 'naruto' }, []), leaving)).toEqual(
+      redirectQueryToSearch(location('browse-manga', { query: 'naruto' }, []), leaving)
+    );
+    expect(guards[0]?.(location('manga-slug', {}, []), leaving)).toBeUndefined();
   });
 
   it('hands the page the empty answer first while the router has not navigated yet', async () => {

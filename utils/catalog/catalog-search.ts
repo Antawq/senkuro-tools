@@ -18,16 +18,22 @@ export interface CatalogRedirect {
 }
 
 export interface PageRouter {
-  beforeEach: (guard: (destination: CatalogLocation) => CatalogRedirect | undefined) => unknown;
+  beforeEach: (guard: (destination: CatalogLocation, origin: CatalogLocation) => CatalogRedirect | undefined) => unknown;
   afterEach: (hook: () => void) => unknown;
 }
 
-export function redirectQueryToSearch(destination: CatalogLocation): CatalogRedirect | undefined {
-  const { name, params, query } = destination;
+const isCarriedOver = (destination: CatalogLocation, origin?: CatalogLocation): boolean =>
+  origin !== undefined && origin.name === destination.name && JSON.stringify(origin.params.fields) === JSON.stringify(destination.params.fields);
+
+const hasOwnFilters = (destination: CatalogLocation, origin?: CatalogLocation): boolean =>
+  Array.isArray(destination.params.fields) && destination.params.fields.length > 0 && !isCarriedOver(destination, origin);
+
+export function redirectQueryToSearch(destination: CatalogLocation, origin?: CatalogLocation): CatalogRedirect | undefined {
+  const { name, query } = destination;
   const { [QUERY_PARAMETER]: queryText, ...otherQuery } = query;
   if (typeof name !== 'string' || !CATALOG_ROUTE_NAMES.has(name)) return undefined;
   if (typeof queryText !== 'string' || queryText.trim() === '') return undefined;
-  if (Array.isArray(params.fields) && params.fields.length > 0) return undefined;
+  if (hasOwnFilters(destination, origin)) return undefined;
   return { name, params: { fields: [SEARCH_FILTER, queryText.trim()] }, query: otherQuery };
 }
 
