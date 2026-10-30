@@ -1,4 +1,4 @@
-export const SEARCH_EVENT = 'senkutools:search';
+import { defineSignal } from '../shared/signal';
 
 export interface SearchSignal {
   phase: 'start' | 'done';
@@ -8,13 +8,6 @@ export interface SearchSignal {
   firstSlug?: string | null;
 }
 
-export const parseSearchSignal = (event: Event): SearchSignal | null => {
-  const detail = (event as CustomEvent<unknown>).detail;
-  if (typeof detail !== 'string') return null;
-  try {
-    const signal = JSON.parse(detail) as Partial<SearchSignal>;
-    return (signal.phase === 'start' || signal.phase === 'done') && typeof signal.query === 'string' ? (signal as SearchSignal) : null;
-  } catch {
-    return null;
-  }
-};
+export const searchSignal = defineSignal<SearchSignal>('senkutools:search', (detail) =>
+  (detail.phase === 'start' || detail.phase === 'done') && typeof detail.query === 'string' ? (detail as unknown as SearchSignal) : null
+);

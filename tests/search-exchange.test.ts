@@ -4,7 +4,7 @@ import { Window } from 'happy-dom';
 import { Client, gql, makeResult, type Exchange, type Operation, type OperationResult } from '@urql/core';
 import { filter, fromArray, mergeMap, never, pipe } from 'wonka';
 
-import { SEARCH_EVENT, type SearchSignal } from '../utils/search/search-event';
+import { searchSignal, type SearchSignal } from '../utils/search/search-event';
 import { SEARCH_PAGE_SIZE, createSearchPublisher, searchExchange } from '../utils/search/search-exchange';
 import { installClientSwap } from '../utils/shared/client-swap';
 import { delegateExchange } from '../utils/shared/delegate-exchange';
@@ -128,7 +128,7 @@ describe('searchExchange', () => {
     installClientSwap(typed, () => ({ exchangesFor: () => [searchExchange(createSearchPublisher(typed))] }));
     (pageWindow.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = { _context: { provides: { $urql: ref } } };
     const heard: unknown[] = [];
-    pageWindow.document.addEventListener(SEARCH_EVENT, (event) => heard.push(JSON.parse((event as unknown as CustomEvent<string>).detail)));
+    pageWindow.document.addEventListener(searchSignal.name, (event) => heard.push(JSON.parse((event as unknown as CustomEvent<string>).detail)));
     await (ref.value as Client).query(searchDocument(), TERMS).toPromise();
     expect(heard).toEqual([
       { phase: 'start', ...TERMS },

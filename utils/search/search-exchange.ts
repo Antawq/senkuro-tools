@@ -3,7 +3,7 @@ import { map, pipe, tap } from 'wonka';
 
 import type { PageWindow } from '../shared/page-window';
 import { isSettled } from '../shared/urql-result';
-import { SEARCH_EVENT, type SearchSignal } from './search-event';
+import { searchSignal, type SearchSignal } from './search-event';
 import { SEARCH_OPERATION, widenSearchQuery } from './search-page-size';
 
 export const SEARCH_PAGE_SIZE = 30;
@@ -40,7 +40,7 @@ function widened(operation: Operation, pageSize: number): Operation {
 export const createSearchPublisher =
   (pageWindow: PageWindow): PublishSearch =>
   (signal) =>
-    pageWindow.document.dispatchEvent(new pageWindow.CustomEvent(SEARCH_EVENT, { detail: JSON.stringify(signal) }));
+    pageWindow.document.dispatchEvent(new pageWindow.CustomEvent(searchSignal.name, { detail: searchSignal.encode(signal) }));
 
 interface SearchWatch {
   publish: PublishSearch;

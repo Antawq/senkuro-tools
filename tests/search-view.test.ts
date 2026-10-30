@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { SEARCH_EVENT } from '../utils/search/search-event';
+import { searchSignal } from '../utils/search/search-event';
 import { createSearchSignals, type SearchSignals } from '../utils/search/search-signal';
 import { createSearchView, type SearchView } from '../utils/search/search-view';
 
@@ -37,7 +37,7 @@ const results = () => document.querySelector('.nav-search__cnt') as HTMLElement;
 const settle = (ms = 0) => vi.advanceTimersByTimeAsync(ms);
 
 const say = (phase: 'start' | 'done', query = 'naruto') => {
-  signals.handleEvent(new CustomEvent(SEARCH_EVENT, { detail: JSON.stringify({ phase, query, type: 'MANGA' }) }));
+  signals.handleEvent(new CustomEvent(searchSignal.name, { detail: searchSignal.encode({ phase, query, type: 'MANGA' }) }));
 };
 
 let registry: Map<string, Set<Range>>;

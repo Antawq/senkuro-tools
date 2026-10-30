@@ -1,4 +1,4 @@
-import { parseSearchSignal } from './search-event';
+import { searchSignal } from './search-event';
 
 export const MAX_PENDING_MS = 5000;
 
@@ -24,7 +24,7 @@ export function createSearchSignals(readClock: () => number = Date.now): SearchS
 
   return {
     handleEvent(event) {
-      const signal = parseSearchSignal(event);
+      const signal = searchSignal.read(event);
       if (!signal) return;
       hasReceivedSignal = true;
       if (signal.phase === 'start') startTimes.push(readClock());

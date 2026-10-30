@@ -23,7 +23,7 @@ import {
   updateProfileBadge,
 } from '@/utils/profile/profile-dom';
 import { createSearchKeys } from '@/utils/search/search-keys';
-import { SEARCH_EVENT } from '@/utils/search/search-event';
+import { searchSignal } from '@/utils/search/search-event';
 import { createSearchSignals } from '@/utils/search/search-signal';
 import { createSearchView } from '@/utils/search/search-view';
 import { LIST_SCOPES } from '@/utils/shared/list-scope';
@@ -129,7 +129,7 @@ export default defineContentScript({
     };
     const searchKeys = createSearchKeys(document, searchHost);
     const searchView = createSearchView(document, searchHost);
-    ctx.addEventListener(document, SEARCH_EVENT, searchSignals.handleEvent);
+    ctx.addEventListener(document, searchSignal.name, searchSignals.handleEvent);
     ctx.onInvalidated(searchKeys.dispose);
     ctx.onInvalidated(searchView.dispose);
     ctx.addEventListener(document, 'focusin', searchView.syncView, { capture: true });

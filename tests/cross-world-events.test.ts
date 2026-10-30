@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { Window } from 'happy-dom';
 
-import { SEARCH_EVENT } from '../utils/search/search-event';
+import { searchSignal } from '../utils/search/search-event';
 import { createSearchPublisher } from '../utils/search/search-exchange';
 import { APP_MOUNTED_EVENT, publishAppMounted } from '../utils/shared/app-mounted';
 import type { PageWindow } from '../utils/shared/page-window';
@@ -37,7 +37,7 @@ describe('cross-world events', () => {
       priceOrderSignal.name,
       refreshRequestSignal.name,
       refreshResultSignal.name,
-      SEARCH_EVENT,
+      searchSignal.name,
       TRADES_EVENT,
       REPLAY_EVENT,
     ]).toEqual([
@@ -80,7 +80,7 @@ describe('cross-world events', () => {
 
   it('publish a search start and a settled search as the same text', () => {
     const pageWindow = createPage();
-    const details = detailsHeard(pageWindow, SEARCH_EVENT);
+    const details = detailsHeard(pageWindow, searchSignal.name);
     const publish = createSearchPublisher(pageWindow);
     publish({ phase: 'start', query: 'наруто', type: 'MANGA' });
     publish({ phase: 'done', query: 'наруто', type: 'MANGA', settled: true, firstSlug: 'naruto' });
