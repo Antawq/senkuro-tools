@@ -84,7 +84,7 @@ interface Guard {
   client: Client | null;
 }
 
-export interface InventoryGuard {
+interface InventoryGuard {
   exchanges: Exchange[];
   attach: (client: Client) => void;
 }

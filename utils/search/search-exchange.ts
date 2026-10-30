@@ -8,7 +8,7 @@ import { SEARCH_OPERATION, widenSearchQuery } from './search-page-size';
 
 export const SEARCH_PAGE_SIZE = 30;
 
-export type PublishSearch = (signal: SearchSignal) => void;
+type PublishSearch = (signal: SearchSignal) => void;
 
 interface SearchTerms {
   query: string;

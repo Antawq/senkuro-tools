@@ -1,4 +1,4 @@
-export interface SourceResult {
+interface SourceResult {
   stale?: boolean;
   hasNext?: boolean;
 }
