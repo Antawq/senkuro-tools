@@ -108,6 +108,60 @@ describe('findRouter', () => {
   });
 });
 
+describe('installCatalogRouting on a catalog search page', () => {
+  const pageWithRouter = () => {
+    const guards: Parameters<PageRouter['beforeEach']>[0][] = [];
+    const router: PageRouter = {
+      beforeEach: (guard) => void guards.push(guard),
+      afterEach: () => undefined,
+      resolve: (target) => ({ href: `/browse/manga/${target.params.fields.join('/')}` }),
+    };
+    const pageWindow = new Window({ url: 'https://senkuro.me/browse/manga/search/naruto' });
+    pageWindow.document.body.innerHTML = '<div id="app"></div>';
+    (pageWindow.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = { config: { globalProperties: { $router: router } } };
+    const assign = vi.spyOn(pageWindow.location, 'assign').mockImplementation(() => undefined);
+    installCatalogRouting(pageWindow.document as unknown as Document);
+    return { guard: guards[0]!, assign };
+  };
+
+  it('loads the new search as a page when the query leaves a search of the same catalog, whose list the site keeps', () => {
+    const { guard, assign } = pageWithRouter();
+    const leaving = location('browse-manga', {}, ['search', 'наруто']);
+    expect(guard(location('browse-manga', { query: 'берсерк' }, ['search', 'наруто']), leaving)).toBe(false);
+    expect(assign).toHaveBeenCalledOnce();
+    expect(assign).toHaveBeenCalledWith('/browse/manga/search/берсерк');
+  });
+
+  it('keeps the push inside the page when the query comes from a catalog without a search, which the site refreshes', () => {
+    const { guard, assign } = pageWithRouter();
+    expect(guard(location('browse-manga', { query: 'берсерк' }, []), location('browse-manga', {}, []))).toEqual({
+      name: 'browse-manga',
+      params: { fields: ['search', 'берсерк'] },
+      query: {},
+    });
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it('keeps the push inside the page when the query repeats the search the page already shows', () => {
+    const { guard, assign } = pageWithRouter();
+    const leaving = location('browse-manga', {}, ['search', 'наруто']);
+    expect(guard(location('browse-manga', { query: 'наруто' }, ['search', 'наруто']), leaving)).toEqual({
+      name: 'browse-manga',
+      params: { fields: ['search', 'наруто'] },
+      query: {},
+    });
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it('leaves a navigation without a query alone, the site filters and links included', () => {
+    const { guard, assign } = pageWithRouter();
+    const leaving = location('browse-manga', {}, ['search', 'наруто']);
+    expect(guard(location('browse-manga', {}, []), leaving)).toBeUndefined();
+    expect(guard(location('browse-manga', {}, ['search', 'наруто', 'labels', 'male_protagonist']), leaving)).toBeUndefined();
+    expect(assign).not.toHaveBeenCalled();
+  });
+});
+
 describe('installCatalogRouting with the client swap', () => {
   const rig = () => {
     const guards: Parameters<PageRouter['beforeEach']>[0][] = [];

@@ -18,8 +18,9 @@ export interface CatalogRedirect {
 }
 
 export interface PageRouter {
-  beforeEach: (guard: (destination: CatalogLocation, origin: CatalogLocation) => CatalogRedirect | undefined) => unknown;
+  beforeEach: (guard: (destination: CatalogLocation, origin: CatalogLocation) => CatalogRedirect | false | undefined) => unknown;
   afterEach: (hook: () => void) => unknown;
+  resolve?: (target: CatalogRedirect) => { href: string };
 }
 
 const isCarriedOver = (destination: CatalogLocation, origin?: CatalogLocation): boolean =>
@@ -42,12 +43,25 @@ export function findRouter(pageDocument: Document): PageRouter | null {
   return typeof router?.beforeEach === 'function' && typeof router.afterEach === 'function' ? (router as PageRouter) : null;
 }
 
+const hasSearchFilter = ({ params }: CatalogLocation): boolean =>
+  Array.isArray(params.fields) && params.fields.some((field, index) => index % 2 === 0 && field === SEARCH_FILTER);
+
+function routeCatalogQuery(router: PageRouter, pageDocument: Document) {
+  return (destination: CatalogLocation, origin: CatalogLocation): CatalogRedirect | false | undefined => {
+    const redirect = redirectQueryToSearch(destination, origin);
+    if (!redirect || origin.name !== redirect.name || !hasSearchFilter(origin) || typeof router.resolve !== 'function') return redirect;
+    if (JSON.stringify(origin.params.fields) === JSON.stringify(redirect.params.fields)) return redirect;
+    pageDocument.location.assign(router.resolve(redirect).href);
+    return false;
+  };
+}
+
 export function installCatalogRouting(pageDocument: Document): () => boolean {
   const router = findRouter(pageDocument);
   let navigationCount = 0;
   router?.afterEach(() => {
     navigationCount += 1;
   });
-  router?.beforeEach(redirectQueryToSearch);
+  router?.beforeEach(routeCatalogQuery(router, pageDocument));
   return () => router !== null && navigationCount === 0;
 }
