@@ -1,7 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import type { Database } from '../utils/shared/database';
-import { addedCards, createRenderLoop, type RenderSteps } from '../utils/shared/render-loop';
+import { addedCards, createRenderLoop, type RenderStep } from '../utils/shared/render-loop';
 
 const db: Database = {};
 
@@ -14,13 +14,22 @@ const link = (slug: string): HTMLAnchorElement => {
 
 const setup = (load: () => Promise<Database> = () => Promise.resolve(db)) => {
   const steps = {
-    cards: vi.fn<RenderSteps['cards']>(),
-    trades: vi.fn<RenderSteps['trades']>(),
-    profile: vi.fn<RenderSteps['profile']>(),
-    sort: vi.fn<RenderSteps['sort']>(),
+    cards: vi.fn<RenderStep['render']>(),
+    trades: vi.fn<RenderStep['render']>(),
+    profile: vi.fn<RenderStep['render']>(),
+    sort: vi.fn<RenderStep['render']>(),
   };
   const frames: (() => void)[] = [];
-  const loop = createRenderLoop(steps, load, (run) => frames.push(run));
+  const loop = createRenderLoop(
+    [
+      { name: 'cards', trigger: 'cards', render: steps.cards },
+      { name: 'trades', trigger: 'trades', render: steps.trades },
+      { name: 'profile', render: steps.profile },
+      { name: 'sort', render: steps.sort },
+    ],
+    load,
+    (run) => frames.push(run)
+  );
   const runFrame = async () => {
     frames.shift()?.();
     await vi.waitFor(() => expect(steps.profile).toHaveBeenCalled());
@@ -28,8 +37,25 @@ const setup = (load: () => Promise<Database> = () => Promise.resolve(db)) => {
   return { steps, frames, loop, runFrame };
 };
 
+const breakStep = (step: Mock<RenderStep['render']>, error: Error) =>
+  step.mockImplementation(() => {
+    throw error;
+  });
+
+const stubReportError = (): unknown[] => {
+  const reported: unknown[] = [];
+  vi.stubGlobal('reportError', (error: unknown) => void reported.push(error));
+  return reported;
+};
+
+const callCounts = (...steps: Mock<RenderStep['render']>[]) => steps.map((step) => step.mock.calls.length);
+
 beforeEach(() => {
   vi.restoreAllMocks();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe('createRenderLoop', () => {
@@ -99,6 +125,42 @@ describe('createRenderLoop', () => {
     await expect(loop.renderAll()).resolves.toBeUndefined();
     expect(steps.cards).not.toHaveBeenCalled();
     expect(error).toHaveBeenCalledOnce();
+  });
+
+  it('runs the other steps of a full pass when the cards step throws, and reports the error with the step name', async () => {
+    const reported = stubReportError();
+    const { loop, steps } = setup();
+    const broken = new Error('cards broke');
+    breakStep(steps.cards, broken);
+    await loop.renderAll();
+    expect(callCounts(steps.trades, steps.profile, steps.sort)).toEqual([1, 1, 1]);
+    expect(reported).toHaveLength(1);
+    expect(reported[0]).toBeInstanceOf(Error);
+    expect((reported[0] as Error).message).toBe('SenkuTools: render step cards failed');
+    expect((reported[0] as Error).cause).toBe(broken);
+  });
+
+  it('runs the other steps of a frame when the cards step throws', async () => {
+    const reported = stubReportError();
+    const { loop, steps, runFrame } = setup();
+    breakStep(steps.cards, new Error('cards broke'));
+    loop.addCards([link('a')]);
+    loop.markTrades();
+    loop.schedule();
+    await runFrame();
+    expect(callCounts(steps.cards, steps.trades, steps.profile, steps.sort)).toEqual([1, 1, 1, 1]);
+    expect(reported).toHaveLength(1);
+  });
+
+  it('runs the sort step of a frame and of a full pass when the profile step throws', async () => {
+    const reported = stubReportError();
+    const { loop, steps, runFrame } = setup();
+    breakStep(steps.profile, new Error('profile broke'));
+    loop.schedule();
+    await runFrame();
+    await loop.renderAll();
+    expect(callCounts(steps.cards, steps.trades, steps.profile, steps.sort)).toEqual([1, 1, 2, 2]);
+    expect(reported.map((error) => (error as Error).message)).toEqual(['SenkuTools: render step profile failed', 'SenkuTools: render step profile failed']);
   });
 });
 

@@ -1,11 +1,12 @@
 import { CARD_LINK } from './cards';
 import type { Database } from './database';
 
-export interface RenderSteps {
-  cards(db: Database, cards?: HTMLAnchorElement[]): void;
-  trades(db: Database): void;
-  profile(db: Database): void;
-  sort(db: Database): void;
+export type RenderTrigger = 'cards' | 'trades';
+
+export interface RenderStep {
+  name: string;
+  trigger?: RenderTrigger;
+  render: (db: Database, cards?: HTMLAnchorElement[]) => void;
 }
 
 export interface RenderLoop {
@@ -14,6 +15,13 @@ export interface RenderLoop {
   schedule: () => void;
   renderAll: () => Promise<void>;
 }
+
+interface Pending {
+  cards: HTMLAnchorElement[];
+  hasTradeChange: boolean;
+}
+
+type RenderArguments = Parameters<RenderStep['render']>;
 
 export function addedCards(mutations: Iterable<MutationRecord>): HTMLAnchorElement[] {
   const cards: HTMLAnchorElement[] = [];
@@ -27,13 +35,38 @@ export function addedCards(mutations: Iterable<MutationRecord>): HTMLAnchorEleme
   return cards;
 }
 
-export function createRenderLoop(steps: RenderSteps, loadDatabase: () => Promise<Database>, nextFrame: (run: () => void) => void): RenderLoop {
+function runStep(step: RenderStep, renderArguments: RenderArguments): void {
+  try {
+    step.render(...renderArguments);
+  } catch (error) {
+    reportError(new Error(`SenkuTools: render step ${step.name} failed`, { cause: error }));
+  }
+}
+
+function frameArgumentsOf(step: RenderStep, db: Database, pending: Pending): RenderArguments | null {
+  if (step.trigger === 'cards') return pending.cards.length > 0 ? [db, pending.cards] : null;
+  if (step.trigger === 'trades') return pending.hasTradeChange ? [db] : null;
+  return [db];
+}
+
+function renderFrame(steps: readonly RenderStep[], db: Database, pending: Pending): void {
+  for (const step of steps) {
+    const renderArguments = frameArgumentsOf(step, db, pending);
+    if (renderArguments) runStep(step, renderArguments);
+  }
+}
+
+function renderEveryStep(steps: readonly RenderStep[], db: Database): void {
+  for (const step of steps) runStep(step, [db]);
+}
+
+export function createRenderLoop(steps: readonly RenderStep[], loadDatabase: () => Promise<Database>, nextFrame: (run: () => void) => void): RenderLoop {
   const queue = new Set<HTMLAnchorElement>();
   let tradesDirty = false;
   let scheduled = false;
 
-  const takePending = () => {
-    const pending = { cards: [...queue], trades: tradesDirty };
+  const takePending = (): Pending => {
+    const pending = { cards: [...queue], hasTradeChange: tradesDirty };
     queue.clear();
     tradesDirty = false;
     return pending;
@@ -41,13 +74,9 @@ export function createRenderLoop(steps: RenderSteps, loadDatabase: () => Promise
 
   async function flush(): Promise<void> {
     scheduled = false;
-    const { cards, trades } = takePending();
+    const pending = takePending();
     try {
-      const db = await loadDatabase();
-      if (cards.length > 0) steps.cards(db, cards);
-      if (trades) steps.trades(db);
-      steps.profile(db);
-      steps.sort(db);
+      renderFrame(steps, await loadDatabase(), pending);
     } catch (error) {
       console.error('SenkuTools: batch render error', error);
     }
@@ -68,11 +97,7 @@ export function createRenderLoop(steps: RenderSteps, loadDatabase: () => Promise
     renderAll: async () => {
       takePending();
       try {
-        const db = await loadDatabase();
-        steps.cards(db);
-        steps.trades(db);
-        steps.profile(db);
-        steps.sort(db);
+        renderEveryStep(steps, await loadDatabase());
       } catch (error) {
         console.error('SenkuTools: render error', error);
       }

@@ -62,15 +62,18 @@ export default defineContentScript({
       redraw: () => loop.schedule(),
     };
     const loop = createRenderLoop(
-      {
-        cards: (db, cards) => badges.update(db, settings, cards),
-        trades: (db) => updateTradeSummaries(db, settings, tradeStore),
-        profile: (db) => {
-          updateProfileBadge({ db, valuation: settings, redraw: loop.schedule });
-          syncRefreshButton(inventoryRefresh);
+      [
+        { name: 'cards', trigger: 'cards', render: (db, cards) => badges.update(db, settings, cards) },
+        { name: 'trades', trigger: 'trades', render: (db) => updateTradeSummaries(db, settings, tradeStore) },
+        {
+          name: 'profile',
+          render: (db) => {
+            updateProfileBadge({ db, valuation: settings, redraw: loop.schedule });
+            syncRefreshButton(inventoryRefresh);
+          },
         },
-        sort: (db) => priceSorts.forEach((priceSort) => priceSort.sync(db, settings)),
-      },
+        { name: 'sort', render: (db) => priceSorts.forEach((priceSort) => priceSort.sync(db, settings)) },
+      ],
       loadDatabase,
       nextFrame
     );
