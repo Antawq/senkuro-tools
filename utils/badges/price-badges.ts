@@ -1,6 +1,6 @@
 import { isAppMounted } from '../shared/app-mounted';
 import { BADGE_INSET, CENTER, CENTERING_SHIFT, centerGapShift, faceGap, gapKey, insetAbove, insetBelow, NO_GAP, type FaceGap } from '../shared/badge-layout';
-import { CARD_LINK, PERCENT, PRICE_DECIMALS, effectivePrice, slugFromHref } from '../shared/cards';
+import { CARD_LINK, PERCENT, PRICE_DECIMALS, effectivePrice, findShownName, slugFromHref } from '../shared/cards';
 import { removeCopyButton, syncCopyButton } from '../shared/copy-button';
 import type { CardEntry, Database } from '../shared/database';
 import type { BadgePositionX, BadgePositionY, Settings } from '../shared/settings';
@@ -191,7 +191,7 @@ function syncCardCopyButton(state: BadgeState, { holders, entry }: Measured, set
     return true;
   }
   if (!isAppMounted(document)) return false;
-  syncCopyButton(holders.target, { name: entry.name || UNKNOWN_NAME, size: settings.copyBtnSize, ...spot, touch: state.touch });
+  syncCopyButton(holders.target, { name: findShownName(holders.card) || entry.name || UNKNOWN_NAME, size: settings.copyBtnSize, ...spot, touch: state.touch });
   return true;
 }
 

@@ -131,6 +131,34 @@ describe('createPriceBadges', () => {
     expect(control.classList.contains('senkuro-copy-btn--done')).toBe(true);
   });
 
+  it('copies the name the card shows on its front, not an older one from the price database', async () => {
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
+    document.body.innerHTML = `<a class="card-collect" href="/cards/soran">
+      <div class="card-collect__front"><img class="card-collect__img" alt=" Соран Мин "></div>
+      <div class="card-collect__back"><img class="card-collect__img" alt="Рубашка карты Соран Мин"></div>
+    </a>`;
+    createPriceBadges({ touch: false }).update(db, { ...DEFAULT_SETTINGS, copyBtn: true });
+    const control = document.querySelector('.senkuro-copy-btn') as HTMLElement;
+    control.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await Promise.resolve();
+    expect(writeText).toHaveBeenCalledWith('Соран Мин');
+    expect(control.title).toBe('Копировать имя: Соран Мин');
+  });
+
+  it.each([
+    ['a video', '<video class="card-collect__video"></video>'],
+    ['only the rank frame', '<img class="card-collect__frame" alt="Рамка F ранга">'],
+    ['an image without a name', '<img class="card-collect__img">'],
+    ['nothing', ''],
+  ])('copies the database name when the card front shows %s', (_case, front) => {
+    document.body.innerHTML = `<a class="card-collect" href="/cards/soran">
+      <div class="card-collect__front">${front}</div>
+      <div class="card-collect__back"><img class="card-collect__img" alt="Рубашка карты Соран Мин"></div>
+    </a>`;
+    createPriceBadges({ touch: false }).update(db, { ...DEFAULT_SETTINGS, copyBtn: true });
+    expect((document.querySelector('.senkuro-copy-btn') as HTMLElement).title).toBe('Копировать имя: Соран');
+  });
+
   it('restores the copy icon after the done mark, and says nothing is copied when the clipboard refuses', async () => {
     vi.useFakeTimers();
     const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('denied'));
