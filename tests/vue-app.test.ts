@@ -48,6 +48,17 @@ describe('runOnAppAssigned', () => {
     expect(run).toHaveBeenCalledExactlyOnceWith(first);
   });
 
+  it('runs only once a page, even when the site replaces its root and assigns an app to the new one', () => {
+    const { pageWindow, assign } = createPage();
+    const run = vi.fn();
+    runOnAppAssigned(pageWindow, run);
+    const first = {};
+    assign(first);
+    pageWindow.document.querySelector('#app')?.replaceWith(Object.assign(pageWindow.document.createElement('div'), { id: 'app' }));
+    assign({});
+    expect(run).toHaveBeenCalledExactlyOnceWith(first);
+  });
+
   it('waits for the page to draw its root, which may not be there at the start', () => {
     const { pageWindow, assign } = createPage('');
     const run = vi.fn();
