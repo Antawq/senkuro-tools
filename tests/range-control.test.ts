@@ -47,6 +47,7 @@ describe('the price range control', () => {
     expect(trigger()?.type).toBe('button');
     expect(trigger()?.textContent).toBe('Цена');
     expect(trigger()?.querySelectorAll('svg')).toHaveLength(2);
+    expect(trigger()?.lastElementChild?.getAttribute('class')).toBe('senkutools-price-filter__chevron');
     document.body.innerHTML = toolbarHtml();
     draw(offView, null);
     expect(trigger()?.className).toBe('button button--secondary button--auto button-size--md senkutools-price-filter__trigger');

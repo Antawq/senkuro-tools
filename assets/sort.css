@@ -71,6 +71,17 @@
   }
 }
 
+@media (width < 992px) {
+  .senkutools-price-filter__trigger:is(.modal-trade__header-form__mob, .card-browse__form__mob) {
+    width: var(--height-md);
+    padding: 0;
+  }
+
+  .senkutools-price-filter__trigger:is(.modal-trade__header-form__mob, .card-browse__form__mob) .senkutools-price-filter__chevron {
+    display: none;
+  }
+}
+
 [data-senkutools-price-empty] > .empty {
   display: none;
 }

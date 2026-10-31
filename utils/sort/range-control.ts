@@ -9,6 +9,7 @@ const FIELDS_CLASS = `${PRICE_FILTER_CLASS}__fields`;
 const FIELD_CLASS = `${PRICE_FILTER_CLASS}__field`;
 const INPUT_CLASS = `${PRICE_FILTER_CLASS}__input`;
 const ERROR_CLASS = `${PRICE_FILTER_CLASS}__error`;
+const CHEVRON_CLASS = `${PRICE_FILTER_CLASS}__chevron`;
 const SITE_ERROR = 'dropdown-filter__info dropdown-filter__info--error';
 const SITE_TRIGGER = 'button button--secondary button--auto button-size--md';
 const SITE_ICON_BUTTON = 'button button--secondary button--icon button-size--md';
@@ -72,7 +73,7 @@ function createTrigger(mobileClass: string | null): { trigger: HTMLButtonElement
   const label = element('span', undefined, RANGE_TEXT.trigger);
   const icon = priceTagIcon(ICON_SIZE_PX);
   icon.setAttribute('aria-hidden', 'true');
-  const chevron = chevronIcon();
+  const chevron = chevronIcon(CHEVRON_CLASS);
   chevron.setAttribute('aria-hidden', 'true');
   trigger.append(icon, label, chevron);
   return { trigger, label };
