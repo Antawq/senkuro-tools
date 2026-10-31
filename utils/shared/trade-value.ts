@@ -24,11 +24,11 @@ export interface SideValue {
   f: number;
   bank: Map<string, number>;
   count: Map<string, number>;
-  unknown: number;
+  unknown: Map<string, number>;
   beyondF: boolean;
   shards: Map<string, number>;
   shardBank: Map<string, number>;
-  shardUnknown: number;
+  shardUnknown: Map<string, number>;
   r: RValue;
   complete: boolean;
 }
@@ -52,13 +52,15 @@ export interface Valuation {
 }
 
 export const R_RANK = 'R';
+export const X_RANK = 'X';
 export const SHARD_MARK = 'o';
 export const UNKNOWN_MARK = '?';
 export const UNKNOWN_LEGEND = `${UNKNOWN_MARK} - нет цены в базе`;
 export const F_UNIT = 'F';
 
 const FORGE_LADDER = [F_UNIT, 'D', 'C', 'B', 'A', 'S'];
-const RANK_ORDER = [R_RANK, ...[...FORGE_LADDER].reverse()];
+const RANK_ORDER = [X_RANK, R_RANK, ...[...FORGE_LADDER].reverse()];
+const NO_RANK = '';
 
 export const CRAFT_PER_RANK = 3;
 export const SPLIT_PER_RANK = 2;
@@ -71,7 +73,7 @@ const rateInF = (rank: string | undefined, perRank: number): number | null => {
 };
 
 const rankPosition = (rank: string): number => {
-  if (rank === UNKNOWN_MARK) return RANK_ORDER.length + 1;
+  if (rank === NO_RANK) return RANK_ORDER.length + 1;
   const position = RANK_ORDER.indexOf(rank);
   return position === -1 ? RANK_ORDER.length : position;
 };
@@ -91,13 +93,22 @@ const emptyTally = (hidden: number): Tally => ({
   f: 0,
   bank: new Map<string, number>(),
   count: new Map<string, number>(),
-  unknown: hidden,
+  unknown: new Map<string, number>(hidden > 0 ? [[NO_RANK, hidden]] : []),
   beyondF: false,
   shards: new Map<string, number>(),
   shardBank: new Map<string, number>(),
-  shardUnknown: 0,
+  shardUnknown: new Map<string, number>(),
   r: { value: 0, count: 0, shards: 0 },
 });
+
+export const rankFromSlug = (slug: string | null): string =>
+  (slug ?? '')
+    .split('-')
+    .reverse()
+    .map((part) => part.toUpperCase())
+    .find((part) => RANK_ORDER.includes(part)) ?? NO_RANK;
+
+const unpricedRank = (slug: string | null, db: Database): string => (slug ? db[slug]?.rank : undefined) || rankFromSlug(slug);
 
 const pricedEntry = (slug: string | null, db: Database): CardEntry | null => {
   const entry = slug ? db[slug] : undefined;
@@ -133,7 +144,7 @@ function addShards(tally: Tally, { rank, price }: CardEntry, quantity: number, {
 }
 
 function settle(tally: Tally, excludeShards: boolean): SideValue {
-  const settled = tally.unknown === 0 && (excludeShards || tally.shardUnknown === 0);
+  const settled = tally.unknown.size === 0 && (excludeShards || tally.shardUnknown.size === 0);
   return {
     ...tally,
     r: { ...tally.r, complete: settled && tally.r.shards === 0 },
@@ -147,8 +158,7 @@ export function valueSide({ cards, hidden }: Side, db: Database, { commission, v
   for (const { slug, quantity, shard } of cards) {
     const entry = pricedEntry(slug, db);
     if (entry) (shard ? addShards : addCards)(tally, entry, quantity, pricing);
-    else if (shard) tally.shardUnknown += quantity;
-    else tally.unknown += quantity;
+    else addTo(shard ? tally.shardUnknown : tally.unknown, unpricedRank(slug, db), quantity);
   }
   return settle(tally, excludeShards);
 }
@@ -157,11 +167,22 @@ export const hasR = ({ r }: Pick<SideValue, 'r'>): boolean => r.count > 0 || r.s
 
 export const formatAmount = (amount: number): string => String(+amount.toFixed(PRICE_DECIMALS));
 
-export const formatByRank = (map: Map<string, number>): string[] =>
-  [...map.keys()].sort((a, b) => rankPosition(a) - rankPosition(b)).map((rank) => `${formatAmount(map.get(rank) ?? 0)}${rank}`);
+interface RankMarks {
+  shard?: boolean;
+  unpriced?: boolean;
+}
 
-export const formatShardsByRank = (map: Map<string, number>): string[] =>
-  [...map.keys()].sort((a, b) => rankPosition(a) - rankPosition(b)).map((rank) => `${formatAmount(map.get(rank) ?? 0)}${SHARD_MARK}${rank}`);
+const formatRanks = (map: Map<string, number>, { shard = false, unpriced = false }: RankMarks): string[] =>
+  [...map.keys()]
+    .sort((a, b) => rankPosition(a) - rankPosition(b))
+    .map((rank) => `${formatAmount(map.get(rank) ?? 0)}${shard ? SHARD_MARK : ''}${rank}${unpriced ? UNKNOWN_MARK : ''}`);
+
+export const formatByRank = (map: Map<string, number>): string[] => formatRanks(map, {});
+
+export const formatShardsByRank = (map: Map<string, number>): string[] => formatRanks(map, { shard: true });
+
+export const formatUnpriced = (map: Map<string, number>, { shard = false }: Pick<RankMarks, 'shard'> = {}): string[] =>
+  formatRanks(map, { shard, unpriced: true });
 
 const F_SCALE: Scale = { prefix: '', unit: F_UNIT };
 const R_SCALE: Scale = { prefix: 'R: ', unit: R_RANK };

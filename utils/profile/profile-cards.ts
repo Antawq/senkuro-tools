@@ -1,6 +1,6 @@
 import type { Database } from '../shared/database';
 import { execute, type Transport } from '../shared/graphql';
-import { F_UNIT, R_RANK, UNKNOWN_MARK, formatAmount, formatByRank, formatShardsByRank, valueSide, type Valuation } from '../shared/trade-value';
+import { F_UNIT, formatAmount, formatByRank, formatShardsByRank, formatUnpriced, valueSide, type Valuation } from '../shared/trade-value';
 import { decodeSafely } from '../shared/uri';
 import { fetchUserCards, type FetchOptions, type UserCard } from './user-cards';
 
@@ -17,7 +17,6 @@ export interface ProfileValueSummary {
 const USER_BY_SLUG = 'query User($slug: String!) { user(slug: $slug) { id name } }';
 const PROFILE_PATH = /^\/users\/([^/?#]+)/;
 const RESERVED_PATHS = ['settings', 'notifications', 'card-trades'];
-const R_SLUG_SUFFIX = `-${R_RANK.toLowerCase()}`;
 
 interface UserData {
   user?: { id?: string; name?: string | null } | null;
@@ -33,18 +32,7 @@ export async function fetchProfileUser(slug: string, transport?: Transport, sign
 export const fetchProfileCards = (userId: string, options?: FetchOptions, transport?: Transport): Promise<UserCard[]> =>
   fetchUserCards(null, userId, options, transport);
 
-const rankOf = (slug: string, db: Database): string => db[slug]?.rank || (slug.endsWith(R_SLUG_SUFFIX) ? R_RANK : UNKNOWN_MARK);
-
 const sumQuantity = (cards: UserCard[]): number => cards.reduce((total, card) => total + card.quantity, 0);
-
-const countByRank = (cards: UserCard[], db: Database): Map<string, number> => {
-  const counts = new Map<string, number>();
-  for (const card of cards) {
-    const rank = rankOf(card.slug, db);
-    counts.set(rank, (counts.get(rank) ?? 0) + card.quantity);
-  }
-  return counts;
-};
 
 export function calculateProfileValue(cards: UserCard[], db: Database, valuation: Valuation): ProfileValueSummary {
   const value = valueSide({ cards, hidden: 0 }, db, valuation);
@@ -53,8 +41,8 @@ export function calculateProfileValue(cards: UserCard[], db: Database, valuation
   return {
     formattedF: `${formatAmount(value.f)}${F_UNIT}`,
     bank: formatByRank(value.bank),
-    cards: formatByRank(countByRank(whole, db)),
-    shards: formatShardsByRank(countByRank(shards, db)),
+    cards: [...formatByRank(value.count), ...formatUnpriced(value.unknown)],
+    shards: [...formatShardsByRank(value.shards), ...formatUnpriced(value.shardUnknown, { shard: true })],
     shardBank: formatShardsByRank(value.shardBank),
     totalCards: sumQuantity(whole),
     totalShards: sumQuantity(shards),

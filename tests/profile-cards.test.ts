@@ -144,19 +144,19 @@ describe('profile-cards', () => {
       expect(summary.totalShards).toBe(2);
     });
 
-    it('counts an R card the database does not know yet by its slug', () => {
+    it('counts an R card the database does not know yet by its slug, marked as one without a price', () => {
       const summary = calculateProfileValue([{ slug: 'new-hero-r', quantity: 3, shard: false }], mockDb, plain);
-      expect(summary.cards).toEqual(['3R']);
+      expect(summary.cards).toEqual(['3R?']);
     });
 
-    it('lists cards the database does not know under ?, so the rows add up to the totals', () => {
+    it('lists cards the database does not know by the rank in their slug with ?, so the rows add up to the totals', () => {
       const cards: UserCard[] = [
         { slug: 'luffy-s', quantity: 1, shard: false },
         { slug: 'brand-new-s', quantity: 2, shard: false },
       ];
       const summary = calculateProfileValue(cards, mockDb, plain);
       expect(summary.totalCards).toBe(3);
-      expect(summary.cards).toEqual(['1S', '2?']);
+      expect(summary.cards).toEqual(['1S', '2S?']);
     });
 
     it('keeps an X rank card from the database apart from cards the database does not know and lists ? last', () => {
@@ -165,10 +165,10 @@ describe('profile-cards', () => {
         { slug: 'brand-new-s', quantity: 2, shard: false },
         { slug: 'boss-x', quantity: 1, shard: false },
       ];
-      expect(calculateProfileValue(cards, database, plain).cards).toEqual(['1X', '2?']);
+      expect(calculateProfileValue(cards, database, plain).cards).toEqual(['1X', '2S?']);
     });
 
-    it('lists shards by rank, an R shard the database does not know by its slug and other unknown shards under o?', () => {
+    it('lists priced shards by rank and then the shards the database does not know by the rank in their slug with ?', () => {
       const cards: UserCard[] = [
         { slug: 'nami-d', quantity: 2, shard: true },
         { slug: 'new-hero-r', quantity: 4, shard: true },
@@ -176,7 +176,7 @@ describe('profile-cards', () => {
       ];
       const summary = calculateProfileValue(cards, mockDb, plain);
       expect(summary.totalShards).toBe(8);
-      expect(summary.shards).toEqual(['4oR', '2oD', '2o?']);
+      expect(summary.shards).toEqual(['2oD', '4oR?', '2oS?']);
     });
   });
 });

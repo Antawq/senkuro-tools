@@ -7,12 +7,12 @@ import {
   R_RANK,
   SHARD_MARK,
   UNKNOWN_LEGEND,
-  UNKNOWN_MARK,
   compareR,
   compareSides,
   formatAmount,
   formatByRank,
   formatShardsByRank,
+  formatUnpriced,
   hasR,
   valueSide,
   type SideValue,
@@ -80,9 +80,7 @@ const describe = (column: Column, db: Database, settings: SummarySettings): Side
   const countArray = formatByRank(value.count);
   const shardsArray = formatShardsByRank(value.shards);
 
-  let unknownStr = '';
-  if (value.unknown > 0) unknownStr += `${value.unknown}${UNKNOWN_MARK}`;
-  if (value.shardUnknown > 0) unknownStr += (unknownStr ? ' ' : '') + `${value.shardUnknown}${SHARD_MARK}${UNKNOWN_MARK}`;
+  const unknownStr = [...formatUnpriced(value.unknown), ...formatUnpriced(value.shardUnknown, { shard: true })].join(' ');
 
   return {
     role: column.role,

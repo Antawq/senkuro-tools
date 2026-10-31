@@ -250,6 +250,22 @@ describe('profile-dom', () => {
       expect(popover?.querySelector('.senkuro-popover-meta')?.textContent).toBe('Всего: 3 карт · 2 осколков');
     });
 
+    it('keeps an R card without a price first and highlighted as R, with the mark of a missing price', async () => {
+      window.history.pushState({}, '', '/users/phaivroh');
+      document.body.innerHTML = header;
+      await store([
+        ['luffy-s', 1, 0],
+        ['new-hero-r', 1, 0],
+      ]);
+      await draw();
+      const popover = widget()?.querySelector('.senkuro-profile-f-popover');
+      const [, cards] = [...(popover?.querySelectorAll('.senkuro-row-val') ?? [])].map((cell) => cell.textContent);
+      expect(cards).toBe('1R? 1S');
+      const highlighted = popover?.querySelector('.senkuro-rank-r');
+      expect(highlighted?.textContent).toBe('1R?');
+      expect(highlighted?.getAttribute('title')).toBe('? - нет цены в базе');
+    });
+
     it('lists cards and shards the database does not know under ?, so the cards row adds up to the totals', async () => {
       window.history.pushState({}, '', '/users/phaivroh');
       document.body.innerHTML = header;
@@ -261,10 +277,10 @@ describe('profile-dom', () => {
       await draw();
       const popover = widget()?.querySelector('.senkuro-profile-f-popover');
       const [, cards] = [...(popover?.querySelectorAll('.senkuro-row-val') ?? [])].map((cell) => cell.textContent);
-      expect(cards).toBe('1S 2? 2o?');
+      expect(cards).toBe('1S 2S? 2oS?');
       expect([...(popover?.querySelectorAll('span[title]') ?? [])].map((item) => [item.textContent, item.getAttribute('title')])).toEqual([
-        ['2?', '? - нет цены в базе'],
-        ['2o?', '? - нет цены в базе'],
+        ['2S?', '? - нет цены в базе'],
+        ['2oS?', '? - нет цены в базе'],
       ]);
       expect(popover?.querySelector('.senkuro-popover-meta')?.textContent).toBe('Всего: 3 карт · 2 осколков');
     });

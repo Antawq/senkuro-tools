@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Database } from '../utils/shared/database';
-import { compareR, compareSides, formatByRank, formatShardsByRank, hasR, valueSide, type CardRef, type Valuation } from '../utils/shared/trade-value';
+import {
+  compareR,
+  compareSides,
+  formatByRank,
+  formatShardsByRank,
+  formatUnpriced,
+  hasR,
+  rankFromSlug,
+  valueSide,
+  type CardRef,
+  type Valuation,
+} from '../utils/shared/trade-value';
 
 const db: Database = {
   's-card': { price: 1.25, name: 'S', rank: 'S' },
@@ -16,6 +27,12 @@ const db: Database = {
 const plain: Valuation = { commission: true, valueBySplit: false, valueBasis: 'bank', excludeShards: false };
 
 const card = (slug: string, quantity = 1, shard = false): CardRef => ({ slug, quantity, shard });
+
+describe('rankFromSlug', () => {
+  it('reads the last segment of a slug that is a rank, past a suffix such as plus', () => {
+    expect(['luffy-s', 'agj-magnus-d-cloud-f', 'taotgsithw-senkuro-r-plus', 'boss-x', 'missing', ''].map(rankFromSlug)).toEqual(['S', 'F', 'R', 'X', '', '']);
+  });
+});
 
 describe('valueSide', () => {
   it('converts every forge rank into F at three cards per step', () => {
@@ -78,7 +95,7 @@ describe('valueSide', () => {
 
     it('still cannot settle hidden cards or cards missing from the database', () => {
       const side = valueSide({ cards: [card('s-card'), card('unlisted')], hidden: 2 }, db, { ...plain, valueBasis: 'cards' });
-      expect(side.unknown).toBe(3);
+      expect(formatUnpriced(side.unknown)).toEqual(['3?']);
       expect(side.complete).toBe(false);
     });
   });
@@ -158,8 +175,8 @@ describe('valueSide', () => {
 
   it('marks shards of a card missing from the database apart from unknown cards', () => {
     const side = valueSide({ cards: [card('missing', 4, true)], hidden: 0 }, db, plain);
-    expect(side.unknown).toBe(0);
-    expect(side.shardUnknown).toBe(4);
+    expect(formatUnpriced(side.unknown)).toEqual([]);
+    expect(formatUnpriced(side.shardUnknown, { shard: true })).toEqual(['4o?']);
     expect(side.complete).toBe(false);
   });
 
@@ -171,9 +188,22 @@ describe('valueSide', () => {
     expect(side.complete).toBe(true);
   });
 
+  it('names the rank of a card missing from the database by its slug, X first as on the site, and leaves hidden cards without one', () => {
+    const cards = [card('brand-new-s', 2), card('new-hero-r'), card('boss-x'), card('new-hero-r', 3, true), card('missing')];
+    const side = valueSide({ cards, hidden: 1 }, db, plain);
+    expect(formatUnpriced(side.unknown)).toEqual(['1X?', '1R?', '2S?', '2?']);
+    expect(formatUnpriced(side.shardUnknown, { shard: true })).toEqual(['3oR?']);
+    expect(side.complete).toBe(false);
+  });
+
+  it('takes the rank of a database card without a price from the database', () => {
+    const side = valueSide({ cards: [card('odd-name')], hidden: 0 }, { 'odd-name': { price: Number.NaN, name: '', rank: 'B' } }, plain);
+    expect(formatUnpriced(side.unknown)).toEqual(['1B?']);
+  });
+
   it('marks hidden cards and cards missing from the database as unknown', () => {
     const side = valueSide({ cards: [card('f-card'), card('missing', 2)], hidden: 3 }, db, plain);
-    expect(side.unknown).toBe(5);
+    expect(formatUnpriced(side.unknown)).toEqual(['5?']);
     expect(side.f).toBeCloseTo(1);
     expect(side.complete).toBe(false);
   });

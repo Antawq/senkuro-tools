@@ -113,16 +113,15 @@ export function findNicknameTarget(): NicknameTarget | null {
   return null;
 }
 
-const isR = (item: string): boolean => item.endsWith(R_RANK);
-
 const isUnknown = (item: string): boolean => item.endsWith(UNKNOWN_MARK);
 
+const isR = (item: string): boolean => (isUnknown(item) ? item.slice(0, -UNKNOWN_MARK.length) : item).endsWith(R_RANK);
+
 function rankItem(item: string): HTMLElement | string {
-  if (isR(item)) return element('span', R_HIGHLIGHT, item);
-  if (!isUnknown(item)) return item;
-  const unknownElement = element('span', undefined, item);
-  unknownElement.title = UNKNOWN_LEGEND;
-  return unknownElement;
+  if (!isR(item) && !isUnknown(item)) return item;
+  const span = element('span', isR(item) ? R_HIGHLIGHT : undefined, item);
+  if (isUnknown(item)) span.title = UNKNOWN_LEGEND;
+  return span;
 }
 
 const rFirst = (items: string[]): string[] => [...items.filter(isR), ...items.filter((item) => !isR(item))];

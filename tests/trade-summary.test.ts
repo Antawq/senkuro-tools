@@ -265,6 +265,12 @@ describe('updateTradeSummaries', () => {
     expect(el.querySelector('.senkuro-trade-summary__verdict--shards')).toBeNull();
   });
 
+  it('names the rank of a card missing from the database by its slug next to the gray ?', () => {
+    const el = modal('', constructorFooter([card('brand-new-s', 2), card('brand-new-a', 3, true), card('missing')], [card('f-card')]));
+    updateTradeSummaries(db, settings, store);
+    expect(summaryOf(el)?.sides[0]).toContain('Карты 2S? 1? 3oA?');
+  });
+
   it('marks shards of a card missing from the database as gray o?', () => {
     const el = modal('', constructorFooter([card('missing', 3, true), card('missing')], [card('f-card')]));
     updateTradeSummaries(db, settings, store);
