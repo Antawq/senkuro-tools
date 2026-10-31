@@ -48,6 +48,15 @@ describe('card list toolbars with the price range control', () => {
   });
 });
 
+describe('a price range that leaves a list empty', () => {
+  it('hides the empty message of the site, because the note of the range stands in the list instead', () => {
+    document.body.innerHTML =
+      '<section data-senkutools-price-empty><div class="empty"></div><div class="senkutools-price-filter__empty"></div></section><section><div class="empty"></div></section>';
+    expect(styleOf('[data-senkutools-price-empty] > .empty').display).toBe('none');
+    expect(styleOf('section:not([data-senkutools-price-empty]) > .empty').display).not.toBe('none');
+  });
+});
+
 describe('avatar price coin', () => {
   it('is sized with the text it stands in, and wins over the image rules of the site', () => {
     document.head.insertAdjacentHTML('afterbegin', '<style>img{vertical-align:middle;max-width:100%}</style>');
