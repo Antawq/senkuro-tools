@@ -118,6 +118,20 @@ describe('the paging sentinel of a site list', () => {
     expect(observers.observations).toHaveLength(2);
   });
 
+  it('is parked again when only the first or only the last row of the same count is new', () => {
+    const freshRow = () => Object.assign(document.createElement('div'), { className: 'card-collect-preview' });
+    render(3);
+    retriggerPaging(results());
+    cycle();
+    results().querySelector('.card-collect-preview')?.replaceWith(freshRow());
+    retriggerPaging(results());
+    expect(observers.observations).toHaveLength(2);
+    cycle();
+    [...results().querySelectorAll('.card-collect-preview')].at(-1)?.replaceWith(freshRow());
+    retriggerPaging(results());
+    expect(observers.observations).toHaveLength(3);
+  });
+
   it('looks again once a park ends, so a list drawn anew meanwhile gets its own', () => {
     render(2);
     retriggerPaging(results());
