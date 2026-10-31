@@ -11,10 +11,10 @@
   --senkuro-delay: calc(var(--senkuro-order, 0) * var(--senkuro-step));
   --senkuro-line: var(--border-tertiary, color-mix(in srgb, var(--text-primary) 12%, transparent));
   --senkuro-radius: var(--border-radius-md, 12px);
-  --senkuro-gain-fill: var(--success-tertiary, color-mix(in srgb, var(--success) 18%, transparent));
-  --senkuro-loss-fill: var(--error-tertiary, color-mix(in srgb, var(--error) 18%, transparent));
-  --senkuro-gain-text: color-mix(in srgb, var(--success) 50%, var(--text-primary));
-  --senkuro-loss-text: color-mix(in srgb, var(--error) 50%, var(--text-primary));
+  --senkuro-gain-fill: var(--success-tertiary, color-mix(in srgb, var(--success, var(--senkuro-tier-green, #4ade80)) 18%, transparent));
+  --senkuro-loss-fill: var(--error-tertiary, color-mix(in srgb, var(--error, var(--senkuro-tier-red, #f87171)) 18%, transparent));
+  --senkuro-gain-text: color-mix(in srgb, var(--success, var(--senkuro-tier-green, #4ade80)) 50%, var(--text-primary));
+  --senkuro-loss-text: color-mix(in srgb, var(--error, var(--senkuro-tier-red, #f87171)) 50%, var(--text-primary));
   --senkuro-accent-fill: var(--accent-tertiary, color-mix(in srgb, var(--accent) 10%, transparent));
   --senkuro-accent-line: color-mix(in srgb, var(--accent) 40%, transparent);
   --senkuro-neutral-fill: color-mix(in srgb, var(--text-tertiary) 22%, transparent);
@@ -158,7 +158,7 @@
     display: inline-flex;
   }
 
-  .senkuro-trade-summary--collapsible .senkuro-trade-summary__verdict:not(.senkuro-trade-summary__verdict--r) {
+  .senkuro-trade-summary--collapsible .senkuro-trade-summary__verdict:not(.senkuro-trade-summary__verdict--r):not(.senkuro-trade-summary__verdict--x) {
     position: relative;
     display: inline-flex;
     align-items: center;
@@ -168,7 +168,7 @@
     cursor: pointer;
   }
 
-  .senkuro-trade-summary--collapsible:not(.senkuro-trade-summary--offer) .senkuro-trade-summary__verdict:not(.senkuro-trade-summary__verdict--r) {
+  .senkuro-trade-summary--collapsible:not(.senkuro-trade-summary--offer) .senkuro-trade-summary__verdict:not(.senkuro-trade-summary__verdict--r):not(.senkuro-trade-summary__verdict--x) {
     min-height: var(--senkuro-touch);
     padding-inline: var(--senkuro-pill-inset);
     border-radius: 999px;
@@ -180,7 +180,7 @@
     padding-bottom: max(var(--senkuro-spacing), var(--senkuro-host-gap, 0px));
   }
 
-  .senkuro-trade-summary--collapsible.senkuro-trade-summary--offer .senkuro-trade-summary__verdict:not(.senkuro-trade-summary__verdict--r) {
+  .senkuro-trade-summary--collapsible.senkuro-trade-summary--offer .senkuro-trade-summary__verdict:not(.senkuro-trade-summary__verdict--r):not(.senkuro-trade-summary__verdict--x) {
     margin-left: 0;
   }
 
@@ -249,7 +249,8 @@
   text-align: center;
 }
 
-.senkuro-trade-summary__verdict--r {
+.senkuro-trade-summary__verdict--r,
+.senkuro-trade-summary__verdict--x {
   order: 2;
   font-weight: 500;
 }
@@ -305,7 +306,8 @@
   white-space: nowrap;
 }
 
-.senkuro-trade-summary--offer .senkuro-trade-summary__content > .senkuro-trade-summary__verdict--r {
+.senkuro-trade-summary--offer .senkuro-trade-summary__content > .senkuro-trade-summary__verdict--r,
+.senkuro-trade-summary__verdict--x {
   order: 4;
 }
 

@@ -16,6 +16,7 @@ const db: Database = {
   'f-card': { price: 1.25, name: '', rank: 'F' },
   'r-card': { price: 1.25, name: '', rank: 'R' },
   'r-rare': { price: 2, name: '', rank: 'R' },
+  'x-card': { price: 1.25, name: '', rank: 'X' },
   atiss: { price: 1.25, rank: 'D', name: 'Атисс' },
   mikhail: { price: 1.25, name: '', rank: 'F' },
   soran: { price: 1.25, name: '', rank: 'F' },
@@ -539,6 +540,64 @@ describe('R window', () => {
     updateTradeSummaries(db, settings, store);
     expect(windowOf(el)).toBeNull();
   });
+
+  it('does not open a special window for unpriced cards alone, keeping them in the main table', () => {
+    const el = composing([card('mystery-c')], [card('s-card')]);
+    updateTradeSummaries(db, settings, store);
+    expect(windowOf(el)).toBeNull();
+    expect(summaryOf(el)?.sides[0]).toBe('Получаешь 9F Банк ?C Карты 1C');
+  });
+
+  it('shows X cards in the special window with title X', () => {
+    const el = composing([card('x-card', 2)], [card('s-card')]);
+    updateTradeSummaries(db, settings, store);
+    expect(windowOf(el)).toEqual({
+      title: 'X',
+      rows: [
+        ['Ценность', '2X', '-'],
+        ['Карты', '2X', '-'],
+      ],
+      verdict: null,
+    });
+    expect(el.querySelector('.senkuro-trade-summary__verdict--x')?.textContent).toBe('X: Выгода +2X');
+  });
+
+  it('combines R and X into a single window together when both are present, keeping unpriced cards out', () => {
+    const el = composing([card('r-card'), card('x-card'), card('mystery-c')], [card('s-card')]);
+    updateTradeSummaries(db, settings, store);
+    expect(windowOf(el)).toEqual({
+      title: 'R, X',
+      rows: [
+        ['Ценность', '1R 1X', '-'],
+        ['Карты', '1R 1X', '-'],
+      ],
+      verdict: 'R: Выгода +1R',
+    });
+    expect(el.querySelector('.senkuro-trade-summary__verdict--x')?.textContent).toBe('X: Выгода +1X');
+    expect(el.querySelector('.senkuro-trade-summary__verdict--unknown')).toBeNull();
+  });
+
+  it('marks special trades involving R, X, or ? with special styling class', () => {
+    const normal = composing([card('a-card')], [card('s-card')]);
+    updateTradeSummaries(db, settings, store);
+    expect(normal.querySelector('.senkuro-trade-summary--special')).toBeNull();
+    expect(normal.querySelector('.senkuro-trade-summary__verdict--special')).toBeNull();
+
+    const withR = composing([card('r-card')], [card('s-card')]);
+    updateTradeSummaries(db, settings, store);
+    expect(withR.querySelector('.senkuro-trade-summary--special')).not.toBeNull();
+    expect(withR.querySelector('.senkuro-trade-summary__verdict--special')).not.toBeNull();
+
+    const withX = composing([card('x-card')], [card('s-card')]);
+    updateTradeSummaries(db, settings, store);
+    expect(withX.querySelector('.senkuro-trade-summary--special')).not.toBeNull();
+    expect(withX.querySelector('.senkuro-trade-summary__verdict--special')).not.toBeNull();
+
+    const withMystery = composing([card('mystery-c')], [card('s-card')]);
+    updateTradeSummaries(db, settings, store);
+    expect(withMystery.querySelector('.senkuro-trade-summary--special')).not.toBeNull();
+    expect(withMystery.querySelector('.senkuro-trade-summary__verdict--special')).not.toBeNull();
+  });
 });
 
 describe('summary variants', () => {
@@ -822,5 +881,15 @@ describe('isTradeMutation', () => {
     expect(summaryOf(el)).not.toBeNull();
     expect(first.some(isTradeMutation)).toBe(false);
     expect(recordsOf(() => updateTradeSummaries(db, settings, store))).toEqual([]);
+  });
+
+  it('displays estimated ?C bank price and evaluates value at 1.25 for unpriced cards', () => {
+    const el = modal('', constructorFooter([card('s-card')], [card('naruto-uzumaki-c')]));
+    updateTradeSummaries(db, settings, store);
+    expect(summaryOf(el)).toEqual({
+      sides: ['Получаешь 243F Банк 1S Карты 1S', 'Отдаёшь 9F Банк ?C Карты 1C'],
+      verdict: 'Выгода +234F (+2600%)',
+      grayVerdict: false,
+    });
   });
 });

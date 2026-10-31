@@ -7,12 +7,18 @@ import {
   SHARD_MARK,
   UNKNOWN_LEGEND,
   UNKNOWN_MARK,
+  X_RANK,
   compareR,
   compareSides,
+  compareX,
   formatAmount,
+  formatBankWithEstimated,
   formatByRank,
+  formatShardBankWithEstimated,
   formatShardsByRank,
   hasR,
+  hasSpecialTrade,
+  hasX,
   valueSide,
   type SideValue,
   type Valuation,
@@ -50,7 +56,7 @@ export interface SummarySettings extends Valuation {
   showSummaryVerdict: boolean;
 }
 
-interface RView {
+interface BranchView {
   value: string;
   cards: string[];
   complete: boolean;
@@ -64,13 +70,26 @@ interface SideView {
   bank: string[];
   count: string[];
   unknown: string;
-  r: RView | null;
+  r: BranchView | null;
+  x: BranchView | null;
 }
 
-const describeR = ({ r }: SideValue): RView => ({
+const describeR = ({ r }: SideValue): BranchView => ({
   value: `${formatAmount(r.value)}${R_RANK}`,
-  cards: [...(r.count > 0 ? [`${formatAmount(r.count)}${R_RANK}`] : []), ...(r.shards > 0 ? [`${formatAmount(r.shards)}${SHARD_MARK}${R_RANK}`] : [])],
+  cards: [
+    ...(r.count > 0 ? [`${formatAmount(r.count)}${R_RANK}`] : []),
+    ...(r.shards > 0 ? [`${formatAmount(r.shards)}${SHARD_MARK}${R_RANK}`] : []),
+  ],
   complete: r.complete,
+});
+
+const describeX = ({ x }: SideValue): BranchView => ({
+  value: `${formatAmount(x.value)}${X_RANK}`,
+  cards: [
+    ...(x.count > 0 ? [`${formatAmount(x.count)}${X_RANK}`] : []),
+    ...(x.shards > 0 ? [`${formatAmount(x.shards)}${SHARD_MARK}${X_RANK}`] : []),
+  ],
+  complete: x.complete,
 });
 
 const describe = (column: Column, db: Database, settings: SummarySettings): SideView => {
@@ -88,10 +107,11 @@ const describe = (column: Column, db: Database, settings: SummarySettings): Side
     label: column.label,
     value,
     f: `${formatAmount(value.f)}${F_UNIT}`,
-    bank: [...formatByRank(value.bank), ...formatShardsByRank(value.shardBank)],
+    bank: [...formatBankWithEstimated(value.bank, value.estimatedBank), ...formatShardBankWithEstimated(value.shardBank, value.estimatedShardBank)],
     count: [...countArray, ...shardsArray],
     unknown: unknownStr,
     r: hasR(value) ? describeR(value) : null,
+    x: hasX(value) ? describeX(value) : null,
   };
 };
 
@@ -113,24 +133,52 @@ function cellOf(side: SideView, key: RowKey): HTMLElement {
   return amounts(cell, side.count, side.unknown);
 }
 
-function rCell(side: SideView, key: RowKey): HTMLElement {
-  const cell = element('span', `${SUMMARY}__cell`);
-  if (!side.r) return amounts(cell, [], '');
-  if (key === 'value') cell.append(element('strong', side.r.complete ? '' : UNKNOWN, side.r.value));
-  else amounts(cell, side.r.cards, '');
-  return cell;
-}
-
 const rowsShown = (rows: RowKey[], settings: SummarySettings): RowKey[] => rows.filter((key) => settings[ROW_SETTINGS[key]]);
 
-function rBlock(sides: SideView[], settings: SummarySettings): HTMLElement | null {
+function specialBlock(sides: SideView[], settings: SummarySettings): HTMLElement | null {
   const rows = rowsShown(R_ROWS, settings);
-  if (rows.length === 0 || !sides.some((side) => side.r)) return null;
+  if (rows.length === 0) return null;
+
+  const hasAnyR = sides.some((side) => hasR(side.value));
+  const hasAnyX = sides.some((side) => hasX(side.value));
+
+  if (!hasAnyR && !hasAnyX) return null;
+
+  const titles: string[] = [];
+  if (hasAnyR) titles.push(R_RANK);
+  if (hasAnyX) titles.push(X_RANK);
+  const windowTitle = titles.join(', ');
+
   const grid = element('div', `${SUMMARY}__table`);
   grid.style.setProperty('--senkuro-columns', String(sides.length));
-  for (const key of rows) grid.append(element('span', `${SUMMARY}__label`, ROW_LABELS[key]), ...sides.map((side) => rCell(side, key)));
+
+  for (const key of rows) {
+    grid.append(element('span', `${SUMMARY}__label`, ROW_LABELS[key]));
+    for (const side of sides) {
+      const cell = element('span', `${SUMMARY}__cell`);
+      if (key === 'value') {
+        const parts: string[] = [];
+        if (hasAnyR && hasR(side.value) && side.r) parts.push(side.r.value);
+        if (hasAnyX && hasX(side.value) && side.x) parts.push(side.x.value);
+        if (parts.length > 0) {
+          const isComplete = (!hasAnyR || !side.r || side.r.complete) &&
+                             (!hasAnyX || !side.x || side.x.complete);
+          cell.append(element('strong', isComplete ? '' : UNKNOWN, parts.join(' ')));
+        } else {
+          cell.append(EMPTY_CELL);
+        }
+      } else {
+        const cardParts: string[] = [];
+        if (hasAnyR && side.r) cardParts.push(...side.r.cards);
+        if (hasAnyX && side.x) cardParts.push(...side.x.cards);
+        amounts(cell, cardParts, '');
+      }
+      grid.append(cell);
+    }
+  }
+
   const window = element('div', `${SUMMARY}__window`);
-  window.append(element('div', `${SUMMARY}__window-title`, R_RANK), grid);
+  window.append(element('div', `${SUMMARY}__window-title`, windowTitle), grid);
   return window;
 }
 
@@ -138,7 +186,7 @@ function panel(sides: SideView[], settings: SummarySettings): HTMLElement | null
   const showsUnknown = settings.showSummaryBank || settings.showSummaryCards;
   const parts = [
     table(sides, settings),
-    rBlock(sides, settings),
+    specialBlock(sides, settings),
     showsUnknown && sides.some((side) => side.unknown) ? element('div', UNKNOWN, UNKNOWN_LEGEND) : null,
   ].filter((part): part is HTMLElement => part !== null);
   if (parts.length === 0) return null;
@@ -194,22 +242,33 @@ interface View {
   settings: SummarySettings;
   verdict: Verdict | null;
   rVerdict: Verdict | null;
+  xVerdict: Verdict | null;
 }
 
 function viewOf(caption: string | undefined, columns: Column[], db: Database, settings: SummarySettings): View {
   const sides = columns.map((column) => describe(column, db, settings));
   const give = sides.find((side) => side.role === 'give')?.value;
   const get = sides.find((side) => side.role === 'get')?.value;
-  if (!settings.showSummaryVerdict || !give || !get) return { caption, sides, settings, verdict: null, rVerdict: null };
-  return { caption, sides, settings, verdict: compareSides(give, get), rVerdict: compareR(give, get) };
+  if (!settings.showSummaryVerdict || !give || !get) {
+    return { caption, sides, settings, verdict: null, rVerdict: null, xVerdict: null };
+  }
+  return {
+    caption,
+    sides,
+    settings,
+    verdict: compareSides(give, get),
+    rVerdict: compareR(give, get),
+    xVerdict: compareX(give, get),
+  };
 }
 
-const signatureOf = ({ caption, sides, settings, verdict, rVerdict }: View): string =>
+const signatureOf = ({ caption, sides, settings, verdict, rVerdict, xVerdict }: View): string =>
   JSON.stringify([
     caption,
-    sides.map(({ label, f, bank, count, unknown, r, value }) => [label, f, bank, count, unknown, r, value.complete]),
+    sides.map(({ label, f, bank, count, unknown, r, x, value }) => [label, f, bank, count, unknown, r, x, value.complete]),
     verdict,
     rVerdict,
+    xVerdict,
     settings.showSummaryF,
     settings.showSummaryBank,
     settings.showSummaryCards,
@@ -224,18 +283,28 @@ function detailsOf(body: HTMLElement): HTMLElement {
   return details;
 }
 
-function partsOf({ caption, verdict, rVerdict }: View, summary: HTMLElement, body: HTMLElement | null): HTMLElement[] {
+const hasSpecial = (sides: SideView[]): boolean => sides.some((side) => hasSpecialTrade(side.value));
+
+function partsOf({ caption, sides, verdict, rVerdict, xVerdict }: View, summary: HTMLElement, body: HTMLElement | null): HTMLElement[] {
   const lead = caption ? [element('div', `${SUMMARY}__label`, caption)] : [];
   const details = body ? [detailsOf(body)] : [];
   if (!verdict) return [...lead, ...details];
-  const main = verdictLine(verdict);
+  const specialClass = hasSpecial(sides) ? `${SUMMARY}__verdict--special` : '';
+  const main = verdictLine(verdict, ...(specialClass ? [specialClass] : []));
   if (body) main.append(expandToggle(summary));
-  return [...lead, main, ...details, ...(rVerdict ? [verdictLine(rVerdict, `${SUMMARY}__verdict--r`)] : [])];
+  return [
+    ...lead,
+    main,
+    ...details,
+    ...(rVerdict ? [verdictLine(rVerdict, `${SUMMARY}__verdict--r`, ...(specialClass ? [specialClass] : []))] : []),
+    ...(xVerdict ? [verdictLine(xVerdict, `${SUMMARY}__verdict--x`, ...(specialClass ? [specialClass] : []))] : []),
+  ];
 }
 
 function render(place: Place, view: View, nextOrder: () => number): void {
   const summary = place.host.querySelector<HTMLElement>(`:scope > .${SUMMARY}`) ?? mount(place, nextOrder());
   summary.classList.remove(CLOSED);
+  summary.classList.toggle(`${SUMMARY}--special`, hasSpecial(view.sides));
   const signature = signatureOf(view);
   if (summary.dataset.signature !== signature) {
     summary.dataset.signature = signature;

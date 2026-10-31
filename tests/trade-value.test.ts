@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Database } from '../utils/shared/database';
-import { compareR, compareSides, formatByRank, formatShardsByRank, hasR, valueSide, type CardRef, type Valuation } from '../utils/shared/trade-value';
+import { compareEstimated, compareR, compareSides, compareX, extractRankFromSlug, formatBankWithEstimated, formatByRank, formatShardBankWithEstimated, formatShardsByRank, hasEstimated, hasR, hasX, valueSide, type CardRef, type Valuation } from '../utils/shared/trade-value';
 
 const db: Database = {
   's-card': { price: 1.25, name: 'S', rank: 'S' },
@@ -207,11 +207,20 @@ describe('valueSide', () => {
     expect(side.complete).toBe(false);
   });
 
-  it('still flags a rank the forge and R both do not know', () => {
-    const side = valueSide({ cards: [card('x-card')], hidden: 0 }, { 'x-card': { price: 1.25, name: 'X', rank: 'X' } }, plain);
+  it('still flags a rank the forge and special branches do not know', () => {
+    const side = valueSide({ cards: [card('z-card')], hidden: 0 }, { 'z-card': { price: 1.25, name: 'Z', rank: 'Z' } }, plain);
     expect(side.beyondF).toBe(true);
     expect(side.complete).toBe(false);
     expect(hasR(side)).toBe(false);
+    expect(hasX(side)).toBe(false);
+  });
+
+  it('keeps X out of the F total and counts it as a branch of its own', () => {
+    const side = valueSide({ cards: [card('hero-x', 3)], hidden: 0 }, db, plain);
+    expect(side.f).toBe(0);
+    expect(formatByRank(side.count)).toEqual(['3X']);
+    expect(side.x).toEqual({ value: 3, count: 3, shards: 0, complete: true });
+    expect(side.complete).toBe(true);
   });
 });
 
@@ -292,5 +301,90 @@ describe('compareR', () => {
   it('is uncertain only when a side holds nothing but unvalued R', () => {
     expect(compareR(sideOf([card('r-card')]), sideOf([card('r-card', 1, true)]))?.certain).toBe(false);
     expect(compareR(sideOf([card('r-card'), card('missing')]), sideOf([card('r-card')]))?.certain).toBe(true);
+  });
+});
+
+
+describe('extractRankFromSlug', () => {
+  it('extracts rank from slug suffixes', () => {
+    expect(extractRankFromSlug('naruto-uzumaki-c')).toBe('C');
+    expect(extractRankFromSlug('sce-akush-s')).toBe('S');
+    expect(extractRankFromSlug('hero-a')).toBe('A');
+    expect(extractRankFromSlug('hero-b')).toBe('B');
+    expect(extractRankFromSlug('hero-d')).toBe('D');
+    expect(extractRankFromSlug('hero-f')).toBe('F');
+    expect(extractRankFromSlug('sce-lloyd-frontera-r')).toBe('R');
+  });
+
+  it('handles special R-plus and F-plus suffixes', () => {
+    expect(extractRankFromSlug('taotgsithw-senkuro-r-plus')).toBe('R');
+    expect(extractRankFromSlug('taotgsithw-senkuro-r+')).toBe('R');
+    expect(extractRankFromSlug('taotgsithw-senkuro-f-plus')).toBe('F');
+  });
+
+  it('returns null for slugs without rank or non-standard suffixes', () => {
+    expect(extractRankFromSlug(null)).toBeNull();
+    expect(extractRankFromSlug('')).toBeNull();
+    expect(extractRankFromSlug('missing')).toBeNull();
+    expect(extractRankFromSlug('s-card')).toBeNull();
+    expect(extractRankFromSlug('a')).toBeNull();
+  });
+});
+
+describe('unindexed card fallback', () => {
+  it('estimates an unpriced card by rank at 1.25 minimum bank price', () => {
+    const side = valueSide({ cards: [card('naruto-uzumaki-c')], hidden: 0 }, db, { ...plain, commission: false });
+    expect(side.complete).toBe(true);
+    expect(side.f).toBeCloseTo(1.25 * 9);
+    expect(formatBankWithEstimated(side.bank, side.estimatedBank)).toEqual(['?C']);
+    expect(formatByRank(side.count)).toEqual(['1C']);
+  });
+
+  it('formats multiple unpriced cards as 2?C', () => {
+    const side = valueSide({ cards: [card('naruto-uzumaki-c', 2)], hidden: 0 }, db, { ...plain, commission: false });
+    expect(side.f).toBeCloseTo(2.5 * 9);
+    expect(formatBankWithEstimated(side.bank, side.estimatedBank)).toEqual(['2?C']);
+    expect(formatByRank(side.count)).toEqual(['2C']);
+  });
+
+  it('values an unpriced R card at 1.25R', () => {
+    const side = valueSide({ cards: [card('brand-new-r')], hidden: 0 }, db, { ...plain, commission: false });
+    expect(side.complete).toBe(true);
+    expect(side.r.value).toBeCloseTo(1.25);
+    expect(side.r.count).toBe(1);
+    expect(formatBankWithEstimated(side.bank, side.estimatedBank)).toEqual(['?R']);
+  });
+
+  it('formats unpriced shards as ?oC', () => {
+    const side = valueSide({ cards: [card('naruto-uzumaki-c', 2, true)], hidden: 0 }, db, { ...plain, commission: false });
+    expect(formatShardBankWithEstimated(side.shardBank, side.estimatedShardBank)).toEqual(['2?oC']);
+    expect(formatShardsByRank(side.shards)).toEqual(['2oC']);
+  });
+});
+
+describe('hasX and compareX', () => {
+  it('is true for X cards or X shards and false otherwise', () => {
+    expect(hasX(valueSide({ cards: [card('hero-x')], hidden: 0 }, db, plain))).toBe(true);
+    expect(hasX(valueSide({ cards: [card('hero-x', 1, true)], hidden: 0 }, db, plain))).toBe(true);
+    expect(hasX(valueSide({ cards: [card('s-card')], hidden: 0 }, db, plain))).toBe(false);
+  });
+
+  it('reports the gain and loss in X', () => {
+    const give = valueSide({ cards: [card('hero-x')], hidden: 0 }, db, plain);
+    const get = valueSide({ cards: [card('hero-x', 3)], hidden: 0 }, db, plain);
+    expect(compareX(give, get)).toEqual({
+      kind: 'gain',
+      text: 'X: Выгода +2X (+200%)',
+      certain: true,
+    });
+  });
+});
+
+describe('hasEstimated and compareEstimated', () => {
+  it('detects unpriced cards and compares their estimated F value', () => {
+    const give = valueSide({ cards: [card('naruto-uzumaki-c')], hidden: 0 }, db, { ...plain, commission: false });
+    const get = valueSide({ cards: [card('sce-akush-s')], hidden: 0 }, db, { ...plain, commission: false });
+    expect(hasEstimated(give)).toBe(true);
+    expect(compareEstimated(give, get)?.text).toContain('?: Выгода');
   });
 });

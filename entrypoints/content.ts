@@ -7,10 +7,12 @@ import '@/assets/shard-switch.css';
 import '@/assets/site-fixes.css';
 import '@/assets/token-bar.css';
 import '@/assets/trade-summary.css';
+import '@/assets/lock-filter.css';
+import '@/assets/modal-search.css';
 import { defineContentScript } from '#imports';
 
 import { APP_MOUNTED_EVENT } from '@/utils/shared/app-mounted';
-import { loadDatabase } from '@/utils/shared/database';
+import { loadDatabase, type Database } from '@/utils/shared/database';
 import { SENKURO_MATCHES } from '@/utils/shared/hosts';
 import { createPriceBadges } from '@/utils/badges/price-badges';
 import { isRefreshButtonMissing, syncRefreshButton, type RefreshHost } from '@/utils/profile/inventory-refresh';
@@ -33,6 +35,8 @@ import { loadSettings, watchSettings } from '@/utils/shared/settings';
 import { createPriceSort, hasSortMutation } from '@/utils/sort/sort-view';
 import { createTokenBar } from '@/utils/token/token-bar';
 import { createModalRefreshWatcher } from '@/utils/trades/modal-refresh';
+import { createLockFilterWatcher } from '@/utils/trades/lock-filter';
+import { createModalSearchWatcher } from '@/utils/trades/modal-search';
 import { createShardSwitchWatcher } from '@/utils/trades/shard-switch';
 import { createTradeStore, listenForTrades } from '@/utils/trades/trade-capture';
 import { isTradeMutation, updateTradeSummaries } from '@/utils/trades/trade-summary';
@@ -60,15 +64,29 @@ export default defineContentScript({
       reload: () => window.location.reload(),
       redraw: () => loop.schedule(),
     };
+    let currentDb: Database = {};
+    void loadDatabase().then((db) => {
+      currentDb = db;
+    });
     const loop = createRenderLoop(
       {
-        cards: (db, cards) => badges.update(db, settings, cards),
-        trades: (db) => updateTradeSummaries(db, settings, tradeStore),
+        cards: (db, cards) => {
+          currentDb = db;
+          badges.update(db, settings, cards);
+        },
+        trades: (db) => {
+          currentDb = db;
+          updateTradeSummaries(db, settings, tradeStore);
+        },
         profile: (db) => {
+          currentDb = db;
           updateProfileBadge({ db, valuation: settings, redraw: loop.schedule });
           syncRefreshButton(inventoryRefresh);
         },
-        sort: (db) => priceSort.sync(db, settings),
+        sort: (db) => {
+          currentDb = db;
+          priceSort.sync(db, settings);
+        },
       },
       loadDatabase,
       nextFrame
@@ -86,12 +104,16 @@ export default defineContentScript({
       refresh: () => requestInventoryRefresh(document, 'picker'),
       nextFrame,
     });
+    const lockFilters = createLockFilterWatcher({ nextFrame });
+    const modalSearch = createModalSearchWatcher({ nextFrame }, () => currentDb);
 
     const observer = new MutationObserver((mutations) => {
       const cards = addedCards(mutations);
       const tradesChanged = mutations.some(isTradeMutation);
       shardSwitches.watch(mutations);
       modalRefresh.watch(mutations);
+      lockFilters.watch(mutations);
+      modalSearch.watch(mutations);
       loop.addCards(cards);
       if (tradesChanged) loop.markTrades();
       if (cards.length > 0 || tradesChanged || profileBadgeMissing() || isRefreshButtonMissing() || hasSortMutation(mutations)) loop.schedule();

@@ -1,0 +1,106 @@
+.senkutools-modal-lock-popper {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.senkutools-modal-lock {
+  flex-shrink: 0;
+}
+
+.senkutools-modal-lock.button--accent {
+  background: var(--color-primary, var(--senkuro-accent, #6366f1));
+  color: var(--color-on-primary, #ffffff);
+}
+
+.senkutools-lock-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 1000;
+  min-width: 170px;
+  padding: 6px;
+  background: var(--bg-other, var(--senkuro-fallback-surface, #202023));
+  border: 1px solid var(--border-secondary, color-mix(in srgb, var(--text-primary, #ffffff) 15%, transparent));
+  border-radius: var(--border-radius-md, 12px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: senkutools-dropdown-fade 150ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.senkutools-lock-dropdown[hidden] {
+  display: none !important;
+}
+
+@keyframes senkutools-dropdown-fade {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.senkutools-lock-dropdown .dropdown-menu__caption {
+  padding: 6px 10px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary, #9ca3af);
+  user-select: none;
+}
+
+.senkutools-lock-dropdown .radio--list {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--border-radius-sm, 8px);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary, #ffffff);
+  user-select: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.senkutools-lock-dropdown .radio--list:hover {
+  background: var(--bg-secondary, color-mix(in srgb, var(--text-primary, #ffffff) 10%, transparent));
+}
+
+.senkutools-lock-dropdown .radio--list.is-active {
+  color: var(--accent, #6366f1);
+  font-weight: 600;
+}
+
+.senkutools-lock-dropdown .radio--list input[type='radio'] {
+  cursor: pointer;
+  accent-color: var(--accent, #6366f1);
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.senkutools-lock-empty {
+  margin-top: 20px;
+  color: var(--text-tertiary);
+  text-align: center;
+  font-size: var(--text-size-sm, 14px);
+}
+
+[data-senkutools-lock-view='unlocked'] .modal-trade__body-result [data-senkutools-locked='true'],
+[data-senkutools-lock-view='unlocked'] .modal-trade__body-result .card-collect-preview--locked,
+[data-senkutools-lock-view='unlocked'] .modal-trade__body-result .card-collect-preview.is-locked,
+[data-senkutools-lock-view='unlocked'] .modal-trade__body-result .card-collect-preview:has(.card-collect-preview__lock),
+[data-senkutools-lock-view='unlocked'] .modal-trade__body-result .card-collect-preview:has([class*='lock' i]) {
+  display: none !important;
+}
+
+[data-senkutools-lock-view='locked'] .modal-trade__body-result [data-senkutools-locked='false'] {
+  display: none !important;
+}

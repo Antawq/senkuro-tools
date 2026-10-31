@@ -1,0 +1,100 @@
+.senkutools-modal-search {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.senkutools-modal-search-btn {
+  flex-shrink: 0;
+}
+
+.senkutools-modal-search__box {
+  display: none;
+  align-items: center;
+  background: var(--bg-secondary, color-mix(in srgb, var(--text-primary, #ffffff) 8%, transparent));
+  border: 1px solid var(--border-secondary, color-mix(in srgb, var(--text-primary, #ffffff) 15%, transparent));
+  border-radius: var(--border-radius-md, 10px);
+  padding: 0 8px 0 10px;
+  height: 38px;
+  gap: 6px;
+  width: 210px;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.senkutools-modal-search--open .senkutools-modal-search-btn {
+  display: none !important;
+}
+
+.senkutools-modal-search--open .senkutools-modal-search__box {
+  display: flex !important;
+}
+
+.senkutools-modal-search__box:focus-within {
+  border-color: var(--accent, #6366f1);
+  background: var(--bg-other, color-mix(in srgb, var(--text-primary, #ffffff) 12%, transparent));
+}
+
+.senkutools-modal-search__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary, #9ca3af);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.senkutools-modal-search__input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary, #ffffff);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 0;
+  margin: 0;
+}
+
+.senkutools-modal-search__input::placeholder {
+  color: var(--text-tertiary, #9ca3af);
+}
+
+.senkutools-modal-search__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  padding: 2px;
+  margin: 0;
+  cursor: pointer;
+  color: var(--text-tertiary, #9ca3af);
+  border-radius: 4px;
+  transition: color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.senkutools-modal-search__clear:hover {
+  color: var(--text-primary, #ffffff);
+}
+
+.senkutools-modal-search__clear[hidden] {
+  display: none !important;
+}
+
+.senkutools-search-empty {
+  margin-top: 20px;
+  color: var(--text-tertiary, #9ca3af);
+  text-align: center;
+  font-size: var(--text-size-sm, 14px);
+}
+
+[data-senkutools-search-active='true'] .modal-trade__body-result [data-senkutools-search-hidden='true'],
+[data-senkutools-search-active='true'] .modal-trade__body-result .card-collect-preview[data-senkutools-search-hidden='true'],
+[data-senkutools-search-active='true'] .modal-trade__body-result .modal-trade__card[data-senkutools-search-hidden='true'] {
+  display: none !important;
+}
+
