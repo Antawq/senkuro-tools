@@ -1,5 +1,6 @@
 import { stringifyVariables } from '@urql/core';
 
+import type { ViewSort } from '../shared/price-signal';
 import { CURSOR_KEY, type Variables } from './list-families';
 
 const CURSOR_PREFIX = 'senkutools:price:';
@@ -23,8 +24,10 @@ export function readCursor(after: unknown): PrivateCursor | null {
   return { version: Number(version), offset: Number(offset) };
 }
 
-export const viewKeyOf = (variables: Variables): string =>
-  stringifyVariables(Object.fromEntries(Object.entries(variables).filter(([name]) => name !== CURSOR_KEY && name !== DIRECTION_KEY)));
+const isKeyName = (name: string, sort: ViewSort): boolean => name !== CURSOR_KEY && (sort === 'site' || name !== DIRECTION_KEY);
+
+export const viewKeyOf = (variables: Variables, sort: ViewSort): string =>
+  stringifyVariables(Object.fromEntries(Object.entries(variables).filter(([name]) => isKeyName(name, sort))));
 
 const fieldNamesOf = (name: string, value: unknown): string[] =>
   value && typeof value === 'object' && !Array.isArray(value) ? Object.keys(value).map((field) => `${name}.${field}`) : [];

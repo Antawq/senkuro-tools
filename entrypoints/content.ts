@@ -80,7 +80,7 @@ export default defineContentScript({
     const badges = createPriceBadges({ touch });
     const priceSorts = LIST_SCOPES.map((scope) =>
       createPriceSort(document, scope, {
-        setView: (isOn) => void document.dispatchEvent(new CustomEvent(priceViewSignal.name, { detail: priceViewSignal.encode({ scope, isOn }) })),
+        setView: (isOn, sort) => void document.dispatchEvent(new CustomEvent(priceViewSignal.name, { detail: priceViewSignal.encode({ scope, isOn, sort }) })),
         sendOrder: (order) => void document.dispatchEvent(new CustomEvent(priceOrderSignal.name, { detail: priceOrderSignal.encode({ scope, ...order }) })),
         runAfter: (run, delayMs) => void ctx.setTimeout(run, delayMs),
         schedule: loop.schedule,

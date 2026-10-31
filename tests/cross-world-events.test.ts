@@ -55,8 +55,8 @@ describe('cross-world events', () => {
   });
 
   it('send the price view switch as the same text', () => {
-    expect(priceViewSignal.encode({ scope: 'grid', isOn: true })).toBe('{"scope":"grid","isOn":true}');
-    expect(priceViewSignal.encode({ scope: 'picker', isOn: false })).toBe('{"scope":"picker","isOn":false}');
+    expect(priceViewSignal.encode({ scope: 'grid', isOn: true, sort: 'price' })).toBe('{"scope":"grid","isOn":true,"sort":"price"}');
+    expect(priceViewSignal.encode({ scope: 'picker', isOn: false, sort: 'site' })).toBe('{"scope":"picker","isOn":false,"sort":"site"}');
   });
 
   it('send the price view state as the same text, with and without a total', () => {

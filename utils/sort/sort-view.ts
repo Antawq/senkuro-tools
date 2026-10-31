@@ -1,7 +1,7 @@
 import { PERCENT } from '../shared/cards';
 import type { Database } from '../shared/database';
 import type { ListScope } from '../shared/list-scope';
-import { priceRowsSignal, priceStateSignal, type PriceOrder, type PriceRows } from '../shared/price-signal';
+import { priceRowsSignal, priceStateSignal, type PriceOrder, type PriceRows, type ViewSort } from '../shared/price-signal';
 import type { Settings } from '../shared/settings';
 import { createPriceLookup, sortedIndices } from './price-order';
 import { DIRECTION_ASCENDING, MENU, MENU_ITEM, MODE_ATTRIBUTE, OWN_ITEM, PRICE_MODE, WATCHED_AREAS } from './sort-dom';
@@ -19,7 +19,7 @@ interface PriceInputs {
 }
 
 export interface SortHost {
-  setView: (isOn: boolean) => void;
+  setView: (isOn: boolean, sort: ViewSort) => void;
   sendOrder: (order: PriceOrder) => void;
   runAfter: (run: () => void, delayMs: number) => void;
   schedule: () => void;
@@ -72,7 +72,7 @@ function fallBack(state: SortState): void {
   state.phase = 'partial';
   state.rows = null;
   state.sentWith = null;
-  state.host.setView(false);
+  state.host.setView(false, 'price');
   state.host.schedule();
 }
 
@@ -82,7 +82,7 @@ function beginView(state: SortState, place: SortPlace): void {
   state.percent = null;
   state.rows = null;
   state.sentWith = null;
-  state.host.setView(true);
+  state.host.setView(true, 'price');
   watchStall(state, state.eventCount);
 }
 
@@ -92,7 +92,7 @@ function endView(state: SortState): void {
   state.place = null;
   state.rows = null;
   state.sentWith = null;
-  state.host.setView(false);
+  state.host.setView(false, 'price');
 }
 
 function endMode(state: SortState, toolbar: Element): void {

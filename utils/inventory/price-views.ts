@@ -1,7 +1,7 @@
 import type { Operation, OperationResult } from '@urql/core';
 
 import type { ListScope } from '../shared/list-scope';
-import type { PriceOrder, PriceRows, PriceState } from '../shared/price-signal';
+import type { PriceOrder, PriceRows, PriceState, ViewSort } from '../shared/price-signal';
 import { listScopeOf } from './list-families';
 import { createPriceView, createViewCounters, type PageAnswer, type PriceView, type ViewHost } from './price-view';
 
@@ -14,7 +14,7 @@ export interface PriceViews {
   watch: (operation: Operation) => void;
   answer: (operation: Operation) => PageAnswer | null;
   forwarded: (operation: Operation) => Operation;
-  start: (scope: ListScope) => void;
+  start: (scope: ListScope, sort: ViewSort) => void;
   stop: (scope: ListScope) => void;
   restart: (scope: ListScope) => void;
   receiveOrder: (scope: ListScope, order: PriceOrder) => void;
@@ -46,7 +46,7 @@ export function createPriceViews(host: ViewsHost): PriceViews {
     watch: (operation) => viewOf(views, operation)?.watch(operation),
     answer: (operation) => viewOf(views, operation)?.answer(operation) ?? null,
     forwarded: (operation) => viewOf(views, operation)?.forwarded(operation) ?? operation,
-    start: (scope) => views[scope].start(),
+    start: (scope, sort) => views[scope].start(sort),
     stop: (scope) => views[scope].stop(),
     restart: (scope) => views[scope].restart(),
     receiveOrder: (scope, order) => views[scope].receiveOrder(order),

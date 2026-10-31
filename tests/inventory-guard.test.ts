@@ -31,6 +31,7 @@ import {
   type PriceRows,
   type PriceState,
   type ScopedRows,
+  type ViewSort,
 } from '../utils/shared/price-signal';
 
 const GRAPHQL = 'https://api.senkuro.me/graphql';
@@ -223,7 +224,8 @@ const rig = ({ answer = {}, mounted = true, mutations = [], slow = false, outcom
   for (const name of [priceStateSignal.name, priceRowsSignal.name, refreshResultSignal.name]) {
     win.document.addEventListener(name, (event) => (rawDetails[name] ??= []).push(String((event as unknown as CustomEvent<unknown>).detail)));
   }
-  const switchView = (isOn: boolean, scope: ListScope = 'grid') => send(priceViewSignal.name, priceViewSignal.encode({ scope, isOn }));
+  const switchView = (isOn: boolean, scope: ListScope = 'grid', sort: ViewSort = 'price') =>
+    send(priceViewSignal.name, priceViewSignal.encode({ scope, isOn, sort }));
   const order = (sent: { viewId: number; revision: number; descending: number[]; ascending: number[] }, scope: ListScope = 'grid') =>
     send(priceOrderSignal.name, priceOrderSignal.encode({ scope, ...sent }));
   return {
@@ -731,6 +733,22 @@ describe('installInventoryGuard', () => {
       requestRefresh('grid');
       await settle();
       expect(scopedRows).toHaveLength(3);
+      await win.happyDOM.close();
+    });
+
+    it('starts the view in the order the switch names: in the order of the site the other direction is crawled again', async () => {
+      const { win, browse, switchView, order, scopedRows, fetched } = rig({ onFetch: crawlPages });
+      browse(grid);
+      switchView(true, 'grid', 'site');
+      await until(() => scopedRows.length === 1);
+      order({ ...reversed, descending: [0, 1, 2, 3], ascending: [0, 1, 2, 3] });
+      await settle();
+      browse({ ...grid, orderDirection: 'ASC' });
+      await until(() => scopedRows.length === 2);
+      const crawled = fetched
+        .map((body) => JSON.parse(body) as { operationName: string; variables: Variables })
+        .filter((body) => body.operationName === 'senkutoolsPriceRows');
+      expect(crawled.map((body) => body.variables.orderDirection)).toEqual(['DESC', 'DESC', 'ASC', 'ASC']);
       await win.happyDOM.close();
     });
 

@@ -93,7 +93,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 const crawled = async (slugs = SLUGS) => {
   const harness = rig();
   harness.view.watch(listOperation(gridVariables()));
-  harness.view.start();
+  harness.view.start('price');
   harness.crawls[0]?.finish(listOf(slugs));
   await settle();
   return harness;
@@ -102,7 +102,7 @@ const crawled = async (slugs = SLUGS) => {
 const served = async (variables: Variables = gridVariables()) => {
   const harness = rig();
   harness.view.watch(listOperation(variables));
-  harness.view.start();
+  harness.view.start('price');
   harness.crawls[0]?.finish(listOf(SLUGS));
   await settle();
   harness.view.receiveOrder({ viewId: harness.rows[0]?.viewId ?? -1, revision: 1, descending: DESCENDING, ascending: ASCENDING });
@@ -123,12 +123,12 @@ const locked = (cards: { cardId: string; modifier: number }[], isLocked = true, 
 describe('starting', () => {
   it('says it is unavailable when no list was asked for yet, and when the page cannot run it', () => {
     const noList = rig();
-    noList.view.start();
+    noList.view.start('price');
     expect(noList.states).toEqual([{ name: 'unavailable', loaded: 0, total: null }]);
     expect(noList.crawls).toHaveLength(0);
     const notReady = rig({ isReady: false });
     notReady.view.watch(listOperation(gridVariables()));
-    notReady.view.start();
+    notReady.view.start('price');
     expect(notReady.states).toEqual([{ name: 'unavailable', loaded: 0, total: null }]);
     expect(notReady.crawls).toHaveLength(0);
   });
@@ -138,12 +138,12 @@ describe('starting', () => {
     const withGrid = rig();
     withGrid.view.watch(listOperation(gridVariables(), 1));
     withGrid.view.watch(listOperation(picker, 2));
-    withGrid.view.start();
+    withGrid.view.start('price');
     expect(withGrid.crawls).toHaveLength(1);
     expect(withGrid.crawls[0]?.operation.key).toBe(1);
     const onlyPicker = rig();
     onlyPicker.view.watch(listOperation(picker, 3));
-    onlyPicker.view.start();
+    onlyPicker.view.start('price');
     expect(onlyPicker.crawls).toHaveLength(0);
     expect(onlyPicker.states).toEqual([{ name: 'unavailable', loaded: 0, total: null }]);
   });
@@ -152,7 +152,7 @@ describe('starting', () => {
     const { view, states, crawls } = rig();
     view.watch(listOperation(gridVariables({ rank: { include: ['S'] } }), 1));
     view.watch(listOperation(gridVariables(), 2));
-    view.start();
+    view.start('price');
     expect(crawls).toHaveLength(1);
     expect(crawls[0]?.operation.key).toBe(2);
     expect(crawls[0]?.operation.context.suspense).toBe(true);
@@ -169,7 +169,7 @@ describe('starting', () => {
   it('gives a null for a card that has no slug', async () => {
     const harness = rig();
     harness.view.watch(listOperation(gridVariables()));
-    harness.view.start();
+    harness.view.start('price');
     harness.crawls[0]?.finish({ ...listOf(['a']), rows: [rowOf('a'), { node: { modifier: 0, card: { id: 'x' } } }] });
     await settle();
     expect(harness.rows[0]?.slugs).toEqual(['a', null]);
@@ -178,19 +178,19 @@ describe('starting', () => {
   it('says it is unavailable when the crawl cannot start, and failed when it fails or finds nothing', async () => {
     const cannot = rig();
     cannot.view.watch(listOperation(gridVariables()));
-    cannot.view.start();
+    cannot.view.start('price');
     cannot.crawls[0]?.finish(null);
     await settle();
     expect(cannot.states.at(-1)).toEqual({ name: 'unavailable', loaded: 0, total: null });
     const broken = rig();
     broken.view.watch(listOperation(gridVariables()));
-    broken.view.start();
+    broken.view.start('price');
     broken.crawls[0]?.fail();
     await settle();
     expect(broken.states.at(-1)).toEqual({ name: 'failed', loaded: 0, total: null });
     const empty = rig();
     empty.view.watch(listOperation(gridVariables()));
-    empty.view.start();
+    empty.view.start('price');
     empty.crawls[0]?.finish(listOf([]));
     await settle();
     expect(empty.states.at(-1)).toEqual({ name: 'failed', loaded: 0, total: null });
@@ -200,7 +200,7 @@ describe('starting', () => {
   it('forgets a crawl that was left for another one', async () => {
     const { view, crawls, rows, states } = rig();
     view.watch(listOperation(gridVariables()));
-    view.start();
+    view.start('price');
     view.watch(listOperation(gridVariables({ rank: { include: ['S'] } })));
     expect(crawls[0]?.signal.aborted).toBe(true);
     crawls[0]?.finish(listOf(['old']));
@@ -359,7 +359,7 @@ describe('the order', () => {
   it('is dropped while the list is still being crawled', () => {
     const { view, redrives } = rig();
     view.watch(listOperation(gridVariables()));
-    view.start();
+    view.start('price');
     view.receiveOrder({ viewId: 1, revision: 1, descending: [], ascending: [] });
     expect(redrives).toHaveLength(0);
   });
@@ -396,7 +396,7 @@ describe('stopping', () => {
   it('asks for nothing when it was not serving, and stops the crawl', () => {
     const { view, redrives, crawls } = rig();
     view.watch(listOperation(gridVariables()));
-    view.start();
+    view.start('price');
     view.stop();
     expect(crawls[0]?.signal.aborted).toBe(true);
     expect(redrives).toHaveLength(0);
@@ -412,7 +412,7 @@ describe('stopping', () => {
   it('serves a view that is started again under another version, so a cursor of the first one starts over', async () => {
     const { view, crawls, rows } = await served();
     view.stop();
-    view.start();
+    view.start('price');
     crawls[1]?.finish(listOf(SLUGS));
     await settle();
     view.receiveOrder({ viewId: rows.at(-1)?.viewId ?? -1, revision: 1, descending: DESCENDING, ascending: ASCENDING });
@@ -423,7 +423,7 @@ describe('stopping', () => {
   it('can start again', async () => {
     const { view, crawls } = await served();
     view.stop();
-    view.start();
+    view.start('price');
     expect(crawls).toHaveLength(2);
   });
 });
@@ -463,7 +463,7 @@ describe('the grid asking for another list', () => {
   it('does not start over while there is no view, after a crawl that failed', async () => {
     const { view, crawls } = rig();
     view.watch(listOperation(gridVariables()));
-    view.start();
+    view.start('price');
     crawls[0]?.fail();
     await settle();
     view.watch(listOperation(gridVariables({ rank: { include: ['S'] } })));
@@ -571,7 +571,7 @@ describe('what the site does to the inventory meanwhile', () => {
   it('crawls again for a lock that came while the list was still being crawled, because the crawl may have read the old state', () => {
     const { view, crawls } = rig();
     view.watch(listOperation(gridVariables()));
-    view.start();
+    view.start('price');
     view.handleMutation(locked([{ cardId: 'id-c', modifier: 0 }]));
     expect(crawls).toHaveLength(2);
     expect(crawls[0]?.signal.aborted).toBe(true);
@@ -637,7 +637,7 @@ const deckVariables = (extra: Variables = {}): Variables => ({
 const servedIn = async (scope: ListScope, variables: Variables) => {
   const harness = rig({ scope });
   harness.view.watch(listOperation(variables));
-  harness.view.start();
+  harness.view.start('price');
   harness.crawls[0]?.finish(listOf(SLUGS));
   await settle();
   harness.view.receiveOrder({ viewId: harness.rows[0]?.viewId ?? -1, revision: 1, descending: DESCENDING, ascending: ASCENDING });
@@ -659,12 +659,12 @@ describe('a view of the pickers', () => {
     const { view, crawls } = rig({ scope: 'picker' });
     view.watch(listOperation(windowVariables(), 1));
     view.watch(listOperation(siteGridVariables(), 2));
-    view.start();
+    view.start('price');
     expect(crawls).toHaveLength(1);
     expect(crawls[0]?.operation.key).toBe(1);
     const gridOnly = rig({ scope: 'picker' });
     gridOnly.view.watch(listOperation(siteGridVariables()));
-    gridOnly.view.start();
+    gridOnly.view.start('price');
     expect(gridOnly.crawls).toHaveLength(0);
     expect(gridOnly.states).toEqual([{ name: 'unavailable', loaded: 0, total: null }]);
   });
@@ -725,5 +725,75 @@ describe('restarting', () => {
     view.restart();
     expect(crawls).toHaveLength(0);
     expect(redrives).toHaveLength(0);
+  });
+});
+
+describe('in the order of the site', () => {
+  const IDENTITY = [0, 1, 2, 3, 4];
+
+  const servedInSiteOrder = async (variables: Variables = gridVariables()) => {
+    const harness = rig();
+    harness.view.watch(listOperation(variables));
+    harness.view.start('site');
+    harness.crawls[0]?.finish(listOf(SLUGS));
+    await settle();
+    harness.view.receiveOrder({ viewId: harness.rows[0]?.viewId ?? -1, revision: 1, descending: IDENTITY, ascending: IDENTITY });
+    return harness;
+  };
+
+  it('serves the crawl as it came for the direction it was crawled in', async () => {
+    const { view, crawls } = await servedInSiteOrder();
+    expect((crawls[0]?.operation.variables as Variables).orderDirection).toBe('DESC');
+    expect(slugsOf(view.answer(listOperation(gridVariables())))).toEqual(['a', 'b']);
+  });
+
+  it('takes the other direction for another list of the server: crawls it, and serves nothing of the first crawl for it', async () => {
+    const { view, crawls } = await servedInSiteOrder();
+    const flipped = listOperation(gridVariables({ orderDirection: 'ASC' }), 9);
+    expect(view.answer(flipped)).toBeNull();
+    view.watch(flipped);
+    expect(crawls).toHaveLength(2);
+    expect(crawls[0]?.signal.aborted).toBe(true);
+    expect((crawls[1]?.operation.variables as Variables).orderDirection).toBe('ASC');
+  });
+
+  it('keeps the crawl when the price order takes over, and then follows a flip of the direction without crawling', async () => {
+    const { view, crawls, rows } = await servedInSiteOrder();
+    view.start('price');
+    expect(crawls).toHaveLength(1);
+    view.receiveOrder({ viewId: rows[0]?.viewId ?? -1, revision: 2, descending: DESCENDING, ascending: ASCENDING });
+    view.watch(listOperation(gridVariables({ orderDirection: 'ASC' }), 9));
+    expect(crawls).toHaveLength(1);
+    expect(slugsOf(view.answer(listOperation(gridVariables({ orderDirection: 'ASC' }))))).toEqual(['d', 'b']);
+  });
+
+  it('keeps a price crawl of the direction the site shows when the order of the site takes over', async () => {
+    const { view, crawls, rows } = await served();
+    view.start('site');
+    expect(crawls).toHaveLength(1);
+    view.receiveOrder({ viewId: rows[0]?.viewId ?? -1, revision: 2, descending: IDENTITY, ascending: IDENTITY });
+    expect(slugsOf(view.answer(listOperation(gridVariables())))).toEqual(['a', 'b']);
+    expect(view.answer(listOperation(gridVariables({ orderDirection: 'ASC' })))).toBeNull();
+  });
+
+  it('crawls again when the site shows the other direction than the price crawl had, giving the site its real list meanwhile', async () => {
+    const { view, crawls, redrives } = await served();
+    const flipped = listOperation(gridVariables({ orderDirection: 'ASC' }), 9);
+    view.watch(flipped);
+    expect(crawls).toHaveLength(1);
+    view.start('site');
+    expect(crawls).toHaveLength(2);
+    expect(crawls[1]?.operation.key).toBe(9);
+    expect((crawls[1]?.operation.variables as Variables).orderDirection).toBe('ASC');
+    expect(redrives.at(-1)?.key).toBe(9);
+    expect(view.answer(flipped)).toBeNull();
+  });
+
+  it('changes nothing when it is started again in the order it already has', async () => {
+    const { view, crawls, redrives } = await servedInSiteOrder();
+    view.start('site');
+    expect(crawls).toHaveLength(1);
+    expect(redrives).toHaveLength(1);
+    expect(slugsOf(view.answer(listOperation(gridVariables())))).toEqual(['a', 'b']);
   });
 });

@@ -5,6 +5,10 @@ export type PriceStateName = 'loading' | 'ready' | 'unavailable' | 'failed';
 
 const STATE_NAMES: readonly unknown[] = ['loading', 'ready', 'unavailable', 'failed'];
 
+export type ViewSort = 'price' | 'site';
+
+const VIEW_SORTS: readonly unknown[] = ['price', 'site'];
+
 export interface PriceState {
   name: PriceStateName;
   loaded: number;
@@ -26,6 +30,7 @@ export interface PriceOrder {
 export interface PriceSwitch {
   scope: ListScope;
   isOn: boolean;
+  sort: ViewSort;
 }
 
 export interface ScopedState extends PriceState {
@@ -47,8 +52,8 @@ const isCountList = (candidate: unknown): candidate is number[] => Array.isArray
 const isSlugList = (candidate: unknown): candidate is (string | null)[] =>
   Array.isArray(candidate) && candidate.every((slug) => slug === null || typeof slug === 'string');
 
-export const priceViewSignal = defineSignal<PriceSwitch>('senkutools:price-view', ({ scope, isOn }) =>
-  isListScope(scope) && typeof isOn === 'boolean' ? { scope, isOn } : null
+export const priceViewSignal = defineSignal<PriceSwitch>('senkutools:price-view', ({ scope, isOn, sort }) =>
+  isListScope(scope) && typeof isOn === 'boolean' && VIEW_SORTS.includes(sort) ? { scope, isOn, sort: sort as ViewSort } : null
 );
 
 export const priceStateSignal = defineSignal<ScopedState>('senkutools:price-state', ({ scope, name, loaded, total }) =>

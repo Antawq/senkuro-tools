@@ -44,20 +44,27 @@ describe('the private cursor', () => {
 });
 
 describe('viewKeyOf', () => {
-  it('ignores the cursor and the direction, and the order the names come in', () => {
+  it('ignores the cursor and the direction in price order, and the order the names come in', () => {
     const reordered = { rank: { include: [] }, modifier: { include: [0] }, orderField: 'CREATED_AT', userId: 'USER:1', orderDirection: 'ASC', after: 'c9' };
-    expect(viewKeyOf(reordered)).toBe(viewKeyOf(grid()));
-    expect(viewKeyOf(grid({ after: undefined }))).toBe(viewKeyOf(grid()));
+    expect(viewKeyOf(reordered, 'price')).toBe(viewKeyOf(grid(), 'price'));
+    expect(viewKeyOf(grid({ after: undefined }), 'price')).toBe(viewKeyOf(grid(), 'price'));
+  });
+
+  it('keeps the direction in the order of the site, since the other direction is another list of the server', () => {
+    expect(viewKeyOf(grid({ orderDirection: 'ASC' }), 'site')).not.toBe(viewKeyOf(grid(), 'site'));
+    expect(viewKeyOf(grid({ after: 'c9' }), 'site')).toBe(viewKeyOf(grid(), 'site'));
   });
 
   it('tells lists apart by user, field, filters and the names asked, so a picker of the same user is another list', () => {
-    const key = viewKeyOf(grid());
-    expect(viewKeyOf(grid({ userId: 'USER:2' }))).not.toBe(key);
-    expect(viewKeyOf(grid({ orderField: 'RANK' }))).not.toBe(key);
-    expect(viewKeyOf(grid({ modifier: { include: [1] } }))).not.toBe(key);
-    expect(viewKeyOf(grid({ rank: { include: ['S'] } }))).not.toBe(key);
-    expect(viewKeyOf(grid({ animated: null }))).not.toBe(key);
-    expect(viewKeyOf(pickerOf(grid()))).not.toBe(key);
+    for (const sort of ['price', 'site'] as const) {
+      const key = viewKeyOf(grid(), sort);
+      expect(viewKeyOf(grid({ userId: 'USER:2' }), sort)).not.toBe(key);
+      expect(viewKeyOf(grid({ orderField: 'RANK' }), sort)).not.toBe(key);
+      expect(viewKeyOf(grid({ modifier: { include: [1] } }), sort)).not.toBe(key);
+      expect(viewKeyOf(grid({ rank: { include: ['S'] } }), sort)).not.toBe(key);
+      expect(viewKeyOf(grid({ animated: null }), sort)).not.toBe(key);
+      expect(viewKeyOf(pickerOf(grid()), sort)).not.toBe(key);
+    }
   });
 });
 

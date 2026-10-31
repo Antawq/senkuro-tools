@@ -117,7 +117,7 @@ describe('priceExchange', () => {
     const { browse, views, site, siteLists } = rig();
     const { results, subscription } = browse(grid());
     await tick();
-    views.start('grid');
+    views.start('grid', 'price');
     await tick();
     await tick();
     expect(slugsOf(results.at(-1))).toEqual(['c', 'a']);
@@ -129,7 +129,7 @@ describe('priceExchange', () => {
   it('answers a later page with every row up to its end, as the cache would have merged the pages, from the one crawl', async () => {
     const { browse, views, crawls } = rig();
     browse(grid()).subscription.unsubscribe();
-    views.start('grid');
+    views.start('grid', 'price');
     await tick();
     await tick();
     const second = browse(grid({ after: createPrivateCursor(1, 2) }));
@@ -142,7 +142,7 @@ describe('priceExchange', () => {
   it('turns the order around in place for the other direction, keeping the cursor', async () => {
     const { browse, views } = rig();
     browse(grid()).subscription.unsubscribe();
-    views.start('grid');
+    views.start('grid', 'price');
     await tick();
     await tick();
     const ascending = browse(grid({ orderDirection: 'ASC', after: createPrivateCursor(1, 2) }));
@@ -154,7 +154,7 @@ describe('priceExchange', () => {
   it('gives the site list back when it is switched off, from the first page, and never sends a private cursor to the site', async () => {
     const { browse, views, siteLists, rekeyed } = rig();
     browse(grid()).subscription.unsubscribe();
-    views.start('grid');
+    views.start('grid', 'price');
     await tick();
     await tick();
     const later = browse(grid({ after: createPrivateCursor(1, 2) }));
@@ -172,7 +172,7 @@ describe('priceExchange', () => {
   it('answers a list the site still had on its way when the order came, instead of the late answer of the site', async () => {
     const { browse, views } = rig({ delayMs: 30 });
     const { results, subscription } = browse(grid());
-    views.start('grid');
+    views.start('grid', 'price');
     await tick();
     await tick();
     await new Promise((resolve) => setTimeout(resolve, 60));
@@ -184,7 +184,7 @@ describe('priceExchange', () => {
     const { client, browse, views, silent, site, siteLists } = rig();
     const { results, subscription } = browse(grid());
     await tick();
-    views.start('grid');
+    views.start('grid', 'price');
     await tick();
     await tick();
     const capture = (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init);
@@ -202,7 +202,7 @@ describe('priceExchange', () => {
     const { client, browse, views, siteLists } = rig();
     const { results, subscription } = browse(grid());
     await tick();
-    views.start('grid');
+    views.start('grid', 'price');
     await tick();
     await tick();
     await client.mutation(LOCK, { input: { userId: 'USER:1', cards: [{ cardId: 'id-a', modifier: 0 }], locked: true } }).toPromise();
@@ -217,7 +217,7 @@ describe('priceExchange', () => {
     const { browse, views, siteLists } = rig({ foreignCursor: 'c1' });
     const { results, subscription } = browse(grid({ after: 'c1' }));
     await tick();
-    views.start('grid');
+    views.start('grid', 'price');
     await tick();
     await tick();
     expect(slugsOf(results.at(-1))).toEqual(['c', 'a']);

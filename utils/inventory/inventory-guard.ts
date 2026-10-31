@@ -187,7 +187,7 @@ function handleRefreshRequest(guard: Guard, priceViews: PriceViews, event: Event
 function handlePriceSwitch(priceViews: PriceViews, event: Event): void {
   const priceSwitch = priceViewSignal.read(event);
   if (!priceSwitch) return;
-  if (priceSwitch.isOn) priceViews.start(priceSwitch.scope);
+  if (priceSwitch.isOn) priceViews.start(priceSwitch.scope, priceSwitch.sort);
   else priceViews.stop(priceSwitch.scope);
 }
 

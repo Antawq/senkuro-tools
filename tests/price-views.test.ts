@@ -88,8 +88,8 @@ const bothServed = async () => {
   const harness = rig();
   harness.views.watch(listOperation(gridVariables(), 1));
   harness.views.watch(listOperation(pickerVariables(), 2));
-  harness.views.start('grid');
-  harness.views.start('picker');
+  harness.views.start('grid', 'price');
+  harness.views.start('picker', 'price');
   harness.crawls[0]?.finish(listOf(['g1', 'g2', 'g3']));
   harness.crawls[1]?.finish(listOf(['p1', 'p2', 'p3']));
   await settle();

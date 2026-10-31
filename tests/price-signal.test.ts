@@ -5,9 +5,17 @@ import { priceOrderSignal, priceRowsSignal, priceStateSignal, priceViewSignal, t
 const event = (detail?: unknown) => new CustomEvent('x', detail === undefined ? undefined : { detail });
 
 describe('the switch', () => {
-  it('says whether the view is wanted, and for which list', () => {
-    expect(priceViewSignal.read(event(priceViewSignal.encode({ scope: 'grid', isOn: true })))).toEqual({ scope: 'grid', isOn: true });
-    expect(priceViewSignal.read(event(priceViewSignal.encode({ scope: 'picker', isOn: false })))).toEqual({ scope: 'picker', isOn: false });
+  it('says whether the view is wanted, for which list, and in which order', () => {
+    expect(priceViewSignal.read(event(priceViewSignal.encode({ scope: 'grid', isOn: true, sort: 'price' })))).toEqual({
+      scope: 'grid',
+      isOn: true,
+      sort: 'price',
+    });
+    expect(priceViewSignal.read(event(priceViewSignal.encode({ scope: 'picker', isOn: false, sort: 'site' })))).toEqual({
+      scope: 'picker',
+      isOn: false,
+      sort: 'site',
+    });
   });
 
   it('is not read from anything else, nor without a list it knows', () => {
@@ -15,9 +23,11 @@ describe('the switch', () => {
       undefined,
       'nonsense',
       '{}',
-      '{"scope":"grid","isOn":1}',
-      '{"isOn":true}',
-      '{"scope":"deck","isOn":true}',
+      '{"scope":"grid","isOn":1,"sort":"price"}',
+      '{"isOn":true,"sort":"price"}',
+      '{"scope":"deck","isOn":true,"sort":"price"}',
+      '{"scope":"grid","isOn":true}',
+      '{"scope":"grid","isOn":true,"sort":"rank"}',
       '[true]',
       5,
       { isOn: true },

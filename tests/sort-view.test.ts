@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Database } from '../utils/shared/database';
 import type { ListScope } from '../utils/shared/list-scope';
-import { priceRowsSignal, priceStateSignal, type PriceOrder, type PriceStateName } from '../utils/shared/price-signal';
+import { priceRowsSignal, priceStateSignal, type PriceOrder, type PriceStateName, type ViewSort } from '../utils/shared/price-signal';
 import { createPriceSort, hasSortMutation, type PriceSort, type SortHost } from '../utils/sort/sort-view';
 
 const database: Database = {
@@ -64,10 +64,14 @@ const press = (sort: PriceSort, element: Element | null): void => {
 
 const setup = (scope: ListScope = 'grid') => {
   const views: boolean[] = [];
+  const sorts: ViewSort[] = [];
   const orders: PriceOrder[] = [];
   const timers: (() => void)[] = [];
   const host: SortHost = {
-    setView: (isOn) => void views.push(isOn),
+    setView: (isOn, sort) => {
+      views.push(isOn);
+      sorts.push(sort);
+    },
     sendOrder: (order) => void orders.push(order),
     runAfter: (run) => void timers.push(run),
     schedule: vi.fn<() => void>(),
@@ -78,7 +82,7 @@ const setup = (scope: ListScope = 'grid') => {
     sort.handleState(new CustomEvent(priceStateSignal.name, { detail: priceStateSignal.encode({ scope: from, name, loaded, total }) }));
   const rows = (viewId: number, slugs: (string | null)[], from: ListScope = scope) =>
     sort.handleRows(new CustomEvent(priceRowsSignal.name, { detail: priceRowsSignal.encode({ scope: from, viewId, slugs }) }));
-  return { sort, host, views, orders, timers, choose, state, rows };
+  return { sort, host, views, sorts, orders, timers, choose, state, rows };
 };
 
 const enablePriceMode = () => filters()?.setAttribute('data-senkutools-sort', 'price');
@@ -149,7 +153,7 @@ describe('the menu', () => {
 describe('choosing the price', () => {
   it('turns it on, closes the menu through its button, starts the view, labels the button and shows the item as the checked one', () => {
     render({ hasMenu: true });
-    const { sort, host, choose, views } = setup();
+    const { sort, host, choose, views, sorts } = setup();
     sort.sync(database, settings);
     const closed = vi.fn();
     document.querySelector('#sort-trigger')?.addEventListener('click', closed);
@@ -157,6 +161,7 @@ describe('choosing the price', () => {
     expect(closed).toHaveBeenCalledTimes(1);
     expect(filters()?.getAttribute('data-senkutools-sort')).toBe('price');
     expect(views).toEqual([true]);
+    expect(sorts).toEqual(['price']);
     expect(host.schedule).toHaveBeenCalled();
     sort.sync(database, settings);
     expect(label()).toBe('По цене');

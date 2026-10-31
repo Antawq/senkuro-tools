@@ -1,7 +1,7 @@
 import { getOperationName, makeOperation, type Operation, type OperationResult } from '@urql/core';
 
 import type { ListScope } from '../shared/list-scope';
-import type { PriceOrder, PriceRows, PriceState } from '../shared/price-signal';
+import type { PriceOrder, PriceRows, PriceState, ViewSort } from '../shared/price-signal';
 import { listScopeOf, type Variables } from './list-families';
 import { DEFAULT_CONNECTION_TYPE, DEFAULT_PAGE_INFO_TYPE, modifierOf, slugOf, type CrawledList, type Row } from './price-crawl';
 import { createPrivateCursor, hasPrivateCursor, readCursor, realVariablesOf, variableNamesOf, viewKeyOf } from './price-private';
@@ -36,7 +36,7 @@ export interface PriceView {
   watch: (operation: Operation) => void;
   answer: (operation: Operation) => PageAnswer | null;
   forwarded: (operation: Operation) => Operation;
-  start: () => void;
+  start: (sort: ViewSort) => void;
   stop: () => void;
   restart: () => void;
   receiveOrder: (order: PriceOrder) => void;
@@ -120,6 +120,7 @@ interface ViewState {
   scope: ListScope;
   counters: ViewCounters;
   isOn: boolean;
+  sort: ViewSort;
   latest: Operation | null;
   current: Operation | null;
   view: View | null;
@@ -146,10 +147,10 @@ function arrive(state: ViewState, arrived: View, list: ViewList | null): void {
   state.host.publishRows({ viewId: arrived.id, slugs: list.rows.map(slugOf) });
 }
 
-function createView(id: number, variables: Variables, crawled: Variables): View {
+function createView(id: number, variables: Variables, crawled: Variables, sort: ViewSort): View {
   return {
     id,
-    key: viewKeyOf(variables),
+    key: viewKeyOf(variables, sort),
     names: variableNamesOf(variables),
     userId: variables.userId,
     crawled,
@@ -169,7 +170,7 @@ function begin(state: ViewState, operation: Operation, crawled: Variables = vari
   const { host } = state;
   state.view?.controller.abort();
   state.counters.lastId += 1;
-  const started = createView(state.counters.lastId, variablesOf(operation), crawled);
+  const started = createView(state.counters.lastId, variablesOf(operation), crawled, state.sort);
   state.view = started;
   state.current = operation;
   host.debug('price view begins', { viewId: started.id });
@@ -209,7 +210,7 @@ const canFollowOtherUsers = (scope: ListScope): boolean => scope === 'picker';
 function followList(state: ViewState, operation: Operation, variables: Variables): void {
   const view = state.view;
   if (!state.isOn || !view) return;
-  if (viewKeyOf(variables) === view.key) state.current = operation;
+  if (viewKeyOf(variables, state.sort) === view.key) state.current = operation;
   else if (variableNamesOf(variables) === view.names && (canFollowOtherUsers(state.scope) || variables.userId === view.userId)) begin(state, operation);
 }
 
@@ -224,7 +225,7 @@ function watchList(state: ViewState, operation: Operation): void {
 
 function servedViewOf(state: ViewState, variables: Variables): ServedView | null {
   const view = state.view;
-  if (!isServing(state) || !view?.orders || !isOwnList(state, variables) || viewKeyOf(variables) !== view.key) return null;
+  if (!isServing(state) || !view?.orders || !isOwnList(state, variables) || viewKeyOf(variables, state.sort) !== view.key) return null;
   return view as ServedView;
 }
 
@@ -251,8 +252,25 @@ function forwardedList(state: ViewState, operation: Operation): Operation {
   return isOwnList(state, variables) && hasPrivateCursor(variables.after) ? withVariables(operation, realVariablesOf(variables)) : operation;
 }
 
-function startView(state: ViewState): void {
+function changeSort(state: ViewState, sort: ViewSort): void {
+  const { view, current } = state;
+  if (state.sort === sort) return;
+  state.sort = sort;
+  if (!view || !current) return;
+  state.host.debug('price view sort', { viewId: view.id, sort });
+  if (sort === 'price' || directionOf(view.crawled) === directionOf(variablesOf(current))) {
+    view.key = viewKeyOf(variablesOf(current), sort);
+    return;
+  }
+  const wasServing = isServing(state);
+  begin(state, current);
+  if (wasServing) state.host.redrive(current);
+}
+
+function startView(state: ViewState, sort: ViewSort): void {
+  if (state.isOn) return changeSort(state, sort);
   state.isOn = true;
+  state.sort = sort;
   const isReady = state.host.isReady();
   state.host.debug('price view start', { isReady, hasList: state.latest !== null });
   if (!isReady || !state.latest) return state.host.publishState(UNAVAILABLE);
@@ -306,12 +324,12 @@ function handleViewMutation(state: ViewState, result: OperationResult): void {
 }
 
 export function createPriceView(host: ViewHost, { scope, counters }: ViewOptions): PriceView {
-  const state: ViewState = { host, scope, counters, isOn: false, latest: null, current: null, view: null };
+  const state: ViewState = { host, scope, counters, isOn: false, sort: 'price', latest: null, current: null, view: null };
   return {
     watch: (operation) => watchList(state, operation),
     answer: (operation) => answerList(state, operation),
     forwarded: (operation) => forwardedList(state, operation),
-    start: () => startView(state),
+    start: (sort) => startView(state, sort),
     stop: () => stopView(state),
     restart: () => invalidate(state),
     receiveOrder: (order) => receiveOrder(state, order),
