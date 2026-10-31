@@ -5,6 +5,7 @@ import type { ListScope } from '../utils/shared/list-scope';
 import { priceRowsSignal, priceStateSignal, type PriceOrder, type PriceStateName, type ViewSort } from '../utils/shared/price-signal';
 import type { PriceRange } from '../utils/sort/price-range';
 import { createPriceSort, hasSortMutation, type PriceSort, type SortHost } from '../utils/sort/sort-view';
+import { installIntersectionObservers } from './helpers/intersection-observer';
 
 const database: Database = {
   cheap: { price: 1.5, name: 'Cheap', rank: 'F' },
@@ -1189,5 +1190,67 @@ describe('the empty note of a price range', () => {
     sort.applyRange(filters() as Element, null);
     sort.sync(database, settings);
     expect(note()).toBeNull();
+  });
+});
+
+describe('the paging sentinel of a list the view serves', () => {
+  let observers: ReturnType<typeof installIntersectionObservers>;
+  const sentinel = () => grid()?.querySelector(':scope > div:not(.card-collect-preview)');
+  const isParked = () => sentinel()?.hasAttribute('data-senkutools-paging-parked') ?? false;
+  const redraw = (slugs: string[], hasMoreCards: boolean) => {
+    const list = grid() as HTMLElement;
+    list.innerHTML = `${slugs.map(cardHtml).join('')}${hasMoreCards ? '<div></div>' : ''}`;
+  };
+
+  const served = () => {
+    const harness = setup('grid');
+    harness.sort.sync(database, settings);
+    harness.sort.applyRange(filters() as Element, { min: 1, max: null });
+    harness.state('loading');
+    harness.rows(1, ['mid', 'dear', 'cheap']);
+    harness.state('ready', 3, 3);
+    harness.sort.sync(database, settings);
+    return harness;
+  };
+
+  beforeEach(() => {
+    observers = installIntersectionObservers();
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('is moved out of view and back when a served list is drawn again shorter, with its end in view, so the site asks for the next page', () => {
+    render({ slugs: ['mid', 'dear', 'cheap'] });
+    const { sort } = served();
+    redraw(['dear', 'mid'], true);
+    sort.sync(database, settings);
+    observers.report(true);
+    expect(isParked()).toBe(true);
+    observers.report(false);
+    expect(isParked()).toBe(false);
+  });
+
+  it('is moved again when the site draws the real list back after the view stops', () => {
+    render({ slugs: ['mid', 'dear', 'cheap'] });
+    const { sort, views } = served();
+    sort.applyRange(filters() as Element, null);
+    sort.sync(database, settings);
+    expect(views).toEqual([true, false]);
+    redraw(['cheap', 'mid'], true);
+    sort.sync(database, settings);
+    observers.report(true);
+    expect(isParked()).toBe(true);
+  });
+
+  it('is left to the site in a list the view never served', () => {
+    render({ slugs: ['mid', 'dear'], hasMoreCards: true });
+    const { sort, state, rows } = setup('grid');
+    sort.sync(database, settings);
+    sort.applyRange(filters() as Element, { min: 1, max: null });
+    state('loading');
+    rows(1, ['mid', 'dear']);
+    redraw(['mid'], true);
+    sort.sync(database, settings);
+    expect(observers.observations).toHaveLength(0);
   });
 });

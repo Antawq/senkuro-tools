@@ -1,6 +1,7 @@
 import { PERCENT } from '../shared/cards';
 import type { Database } from '../shared/database';
 import type { ListScope } from '../shared/list-scope';
+import { retriggerPaging } from '../shared/paging-sentinel';
 import { priceRowsSignal, priceStateSignal, type PriceOrder, type PriceRows, type ViewSort } from '../shared/price-signal';
 import { isGuardReady } from '../shared/refresh-signal';
 import type { Settings } from '../shared/settings';
@@ -72,6 +73,7 @@ interface SortState {
   revision: number;
   inputs: PriceInputs | null;
   sentWith: SentOrder | null;
+  servedResults: WeakSet<Element>;
 }
 
 const isViewRunning = (state: SortState): boolean => state.phase === 'loading' || state.phase === 'ready';
@@ -248,12 +250,19 @@ function syncActivePlace(state: SortState, current: PriceInputs, places: SortPla
   showPlace(state, place, current);
 }
 
+function retriggerServedPaging(state: SortState, places: SortPlace[]): void {
+  const served = state.phase === 'ready' ? state.place?.results : null;
+  if (served) state.servedResults.add(served);
+  for (const { results } of places) if (results && state.servedResults.has(results)) retriggerPaging(results);
+}
+
 function syncSort(state: SortState, current: PriceInputs): void {
   state.inputs = current;
   const places = findPlaces(state.pageDocument, state.scope);
   decorateOpenMenu(state);
   syncActivePlace(state, current, places);
   syncRangeControls(state, places);
+  retriggerServedPaging(state, places);
 }
 
 function findClickedItem(state: SortState, event: Event): { menuItem: Element; clicked: ClickedPlace } | null {
@@ -314,6 +323,7 @@ export function createPriceSort(pageDocument: Document, scope: ListScope, host: 
     revision: 0,
     inputs: null,
     sentWith: null,
+    servedResults: new WeakSet(),
   };
   return {
     sync: (database, { commission }) => syncSort(state, { database, commission }),
