@@ -75,10 +75,6 @@ const emptyTextOf = (results: Element, view: ShardView): string | null => {
   return isViewEmpty && !hasMorePages ? (EMPTY_TEXTS[view] ?? null) : null;
 };
 
-const retriggerFilteredPaging = (results: Element, view: ShardView) => {
-  if (view !== 'all') retriggerPaging(results);
-};
-
 const canListShards = (modal: Element): boolean => {
   const header = modal.querySelector(HEADER)?.textContent ?? '';
   return header.trim() !== '' && !WINDOWS_WITHOUT_SHARDS.some((phrase) => header.includes(phrase));
@@ -91,32 +87,39 @@ const syncEmptyNote = (picker: HTMLElement, shardSwitch: Element, text: string |
   else shardSwitch.after(element('div', EMPTY_NOTE, text));
 };
 
+const clearShardSwitch = (picker: HTMLElement) => {
+  childWithClass(picker, SWITCH)?.remove();
+  childWithClass(picker, EMPTY_NOTE)?.remove();
+  picker.removeAttribute(VIEW_ATTRIBUTE);
+};
+
+const placeShardSwitch = (picker: HTMLElement, results: Element, shardSwitch: Element) => {
+  const note = childWithClass(picker, EMPTY_NOTE);
+  if (results.previousElementSibling === (note ?? shardSwitch)) return;
+  results.before(shardSwitch);
+  if (note) shardSwitch.after(note);
+};
+
+const showView = (picker: HTMLElement, results: Element, view: ShardView) => {
+  if (view === 'all') return picker.removeAttribute(VIEW_ATTRIBUTE);
+  picker.setAttribute(VIEW_ATTRIBUTE, view);
+  retriggerPaging(results);
+};
+
 const syncPicker = (modal: Element, picker: HTMLElement) => {
   const results = childWithClass(picker, RESULTS_CLASS);
-  const existing = childWithClass(picker, SWITCH);
-  if (!results || (results.querySelector(SHARD_ROW) === null && !canListShards(modal))) {
-    existing?.remove();
-    childWithClass(picker, EMPTY_NOTE)?.remove();
-    picker.removeAttribute(VIEW_ATTRIBUTE);
-    return;
-  }
+  if (!results || (results.querySelector(SHARD_ROW) === null && !canListShards(modal))) return clearShardSwitch(picker);
   const view = viewsByModal.get(modal) ?? 'all';
   const shardSwitch =
-    existing ??
+    childWithClass(picker, SWITCH) ??
     createShardSwitch(view, (next) => {
       viewsByModal.set(modal, next);
       syncPicker(modal, picker);
     });
-  const note = childWithClass(picker, EMPTY_NOTE);
-  if (results.previousElementSibling !== (note ?? shardSwitch)) {
-    results.before(shardSwitch);
-    if (note) shardSwitch.after(note);
-  }
+  placeShardSwitch(picker, results, shardSwitch);
   markActive(shardSwitch, view);
   syncEmptyNote(picker, shardSwitch, emptyTextOf(results, view));
-  if (view === 'all') picker.removeAttribute(VIEW_ATTRIBUTE);
-  else picker.setAttribute(VIEW_ATTRIBUTE, view);
-  retriggerFilteredPaging(results, view);
+  showView(picker, results, view);
 };
 
 export function updateShardSwitches(pageDocument: Document = document): void {
