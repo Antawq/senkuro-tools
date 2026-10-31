@@ -176,6 +176,17 @@ describe('installClientSwap', () => {
     }
   );
 
+  it('says in the debug log that an older version kept the swap off', async () => {
+    const logged = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const { pageWindow, close } = openPage();
+    pageWindow.localStorage.setItem('senkutoolsDebug', '1');
+    (pageWindow as unknown as Record<symbol, true>)[Symbol.for('senkutools.catalog-search')] = true;
+    installClientSwap(pageWindow, () => host());
+    expect(logged).toHaveBeenCalledWith('[SenkuTools]', 'client not swapped', { olderVersion: true });
+    logged.mockRestore();
+    await close();
+  });
+
   it('logs a failing swap to the console, never to the page error handlers, and keeps the site client and its mount and hydration handlers running', async () => {
     const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const pageErrors: unknown[] = [];
