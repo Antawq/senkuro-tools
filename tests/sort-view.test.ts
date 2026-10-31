@@ -1131,3 +1131,63 @@ describe('the range control in the lists', () => {
     expect(triggerIn(windowToolbar())?.classList.contains('button--chip')).toBe(true);
   });
 });
+
+describe('the empty note of a price range', () => {
+  const note = () => document.querySelector('.senkutools-price-filter__empty');
+
+  const emptied = (scope: ListScope, toolbar: () => Element | null) => {
+    const harness = setup(scope);
+    harness.sort.sync(database, settings);
+    harness.sort.applyRange(toolbar() as Element, { min: 1000, max: null });
+    harness.state('loading');
+    harness.rows(1, ['mid', 'dear', 'cheap']);
+    return harness;
+  };
+
+  it('says the range holds no card once the empty list is served, hides the empty text of the site meanwhile, and goes when cards come back', () => {
+    render();
+    document.body.innerHTML = `<section>${document.body.innerHTML}<div class="empty">Нет карточек</div></section>`;
+    const { sort, orders, state } = emptied('grid', filters);
+    expect(orders.at(-1)).toMatchObject({ descending: [], ascending: [] });
+    sort.sync(database, settings);
+    expect(note()).toBeNull();
+    state('ready', 3, 3);
+    sort.sync(database, settings);
+    expect(note()?.textContent).toBe('Нет карт в этом диапазоне цен');
+    expect(note()?.parentElement?.tagName).toBe('SECTION');
+    expect(note()?.parentElement?.hasAttribute('data-senkutools-price-empty')).toBe(true);
+    sort.applyRange(filters() as Element, { min: 1, max: null });
+    sort.sync(database, settings);
+    expect(note()).toBeNull();
+    expect(document.querySelector('section')?.hasAttribute('data-senkutools-price-empty')).toBe(false);
+  });
+
+  it('stands after the list of a window, and goes when the range is cleared', () => {
+    document.body.innerHTML = windowHtml();
+    const { sort, state, views } = emptied('picker', windowToolbar);
+    state('ready', 3, 3);
+    sort.sync(database, settings);
+    expect(note()?.previousElementSibling).toBe(windowResults());
+    sort.applyRange(windowToolbar() as Element, null);
+    sort.sync(database, settings);
+    expect(note()).toBeNull();
+    expect(views).toEqual([true, false]);
+  });
+
+  it('is not shown while a range lets cards through, nor for an empty list with no range', () => {
+    render();
+    document.body.innerHTML = `<section>${document.body.innerHTML}</section>`;
+    const { sort, state, rows } = setup('grid');
+    sort.sync(database, settings);
+    sort.applyRange(filters() as Element, { min: 1, max: null });
+    state('loading');
+    rows(1, ['mid']);
+    state('ready', 1, 1);
+    sort.sync(database, settings);
+    expect(note()).toBeNull();
+    enablePriceMode();
+    sort.applyRange(filters() as Element, null);
+    sort.sync(database, settings);
+    expect(note()).toBeNull();
+  });
+});

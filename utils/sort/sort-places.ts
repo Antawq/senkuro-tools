@@ -11,6 +11,7 @@ export interface SortPlace {
   isCardList: boolean;
   canOrderLoadedCards: boolean;
   mobileClass: string | null;
+  listArea: Element | null;
 }
 
 export interface ClickedPlace {
@@ -24,10 +25,14 @@ interface PlaceKind {
   canOrderLoadedCards: boolean;
   mobileClass: string | null;
   resultsOf: (toolbar: Element) => HTMLElement | null;
+  listAreaOf: (toolbar: Element) => Element | null;
   isCardList: (toolbar: Element) => boolean;
 }
 
 const WINDOW_TOOLBAR = `${MODAL} ${TOOLBAR}`;
+const GRID_AREA = 'section';
+const DECK_AREA = '.card-browse__cnt';
+const WINDOW_AREA = '.modal-trade__body';
 const PAGE_TOOLBARS = `${USER_CARD_FILTERS}, ${DECK_TOOLBAR}`;
 
 const withinWindow = (toolbar: Element): Element | null => toolbar.closest(MODAL);
@@ -39,6 +44,7 @@ const PLACE_KINDS: readonly PlaceKind[] = [
     canOrderLoadedCards: true,
     mobileClass: null,
     resultsOf: (toolbar) => toolbar.ownerDocument.querySelector<HTMLElement>(GRID),
+    listAreaOf: (toolbar) => toolbar.closest(GRID_AREA),
     isCardList: () => true,
   },
   {
@@ -47,6 +53,7 @@ const PLACE_KINDS: readonly PlaceKind[] = [
     canOrderLoadedCards: false,
     mobileClass: 'card-browse__form__mob',
     resultsOf: (toolbar) => toolbar.closest(DECK)?.querySelector<HTMLElement>(DECK_RESULTS) ?? null,
+    listAreaOf: (toolbar) => toolbar.closest(DECK)?.querySelector(DECK_AREA) ?? null,
     isCardList: () => true,
   },
   {
@@ -55,6 +62,7 @@ const PLACE_KINDS: readonly PlaceKind[] = [
     canOrderLoadedCards: false,
     mobileClass: 'modal-trade__header-form__mob',
     resultsOf: (toolbar) => withinWindow(toolbar)?.querySelector<HTMLElement>(`.${RESULTS_CLASS}`) ?? null,
+    listAreaOf: (toolbar) => withinWindow(toolbar)?.querySelector(WINDOW_AREA) ?? null,
     isCardList: (toolbar) => {
       const modal = withinWindow(toolbar);
       return modal !== null && !isCatalogStep(modal);
@@ -68,7 +76,15 @@ function placeOf(toolbar: Element): SortPlace | null {
   const kind = PLACE_KINDS.find((candidate) => toolbar.matches(candidate.toolbar));
   if (!kind) return null;
   const { scope, canOrderLoadedCards, mobileClass } = kind;
-  return { scope, toolbar, results: kind.resultsOf(toolbar), isCardList: kind.isCardList(toolbar), canOrderLoadedCards, mobileClass };
+  return {
+    scope,
+    toolbar,
+    results: kind.resultsOf(toolbar),
+    listArea: kind.listAreaOf(toolbar),
+    isCardList: kind.isCardList(toolbar),
+    canOrderLoadedCards,
+    mobileClass,
+  };
 }
 
 export const findPlaces = (pageDocument: Document, scope: ListScope): SortPlace[] =>

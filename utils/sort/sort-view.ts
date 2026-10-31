@@ -7,6 +7,7 @@ import type { Settings } from '../shared/settings';
 import { createPriceLookup, listOrders } from './price-order';
 import { rangeKeyOf, readRange, writeRange, type PriceRange } from './price-range';
 import { RANGE_TEXT, rangeLabelOf, removeRangeControl, syncRangeControl } from './range-control';
+import { syncRangeNote } from './range-note';
 import { DIRECTION_ASCENDING, MENU, MENU_ITEM, MODE_ATTRIBUTE, OWN_ITEM, PRICE_MODE, WATCHED_AREAS } from './sort-dom';
 import { cardsOf, clearOrder, markState, orderCards } from './sort-grid';
 import { decorateMenu, isPriceMode, reflectLabel } from './sort-menu';
@@ -24,6 +25,7 @@ interface PriceInputs {
 interface SentOrder extends PriceInputs {
   sort: ViewSort;
   rangeKey: string | null;
+  shownCount: number;
 }
 
 export interface SortHost {
@@ -134,7 +136,7 @@ function sendOrder(state: SortState, current: PriceInputs): void {
   state.revision += 1;
   const orders = listOrders(rows.slugs, createPriceLookup(current.database, current.commission), state.sort, range);
   state.host.sendOrder({ viewId: rows.viewId, revision: state.revision, ...orders });
-  state.sentWith = { ...current, sort: state.sort, rangeKey: rangeKeyOf(range) };
+  state.sentWith = { ...current, sort: state.sort, rangeKey: rangeKeyOf(range), shownCount: orders.descending.length };
 }
 
 function releasePlace(place: SortPlace): void {
@@ -217,9 +219,16 @@ function rangeLabelFor(state: SortState, place: SortPlace): string {
   return isLoading ? rangeLabelOf(state.percent) : RANGE_TEXT.trigger;
 }
 
+function isEmptyRange(state: SortState, place: SortPlace): boolean {
+  const range = readRange(place.toolbar);
+  const sent = state.sentWith;
+  return state.phase === 'ready' && state.place?.toolbar === place.toolbar && range !== null && sent?.shownCount === 0 && sent.rangeKey === rangeKeyOf(range);
+}
+
 function syncRangeControls(state: SortState, places: SortPlace[]): void {
   const canFilter = isGuardReady(state.pageDocument);
   for (const place of places) {
+    syncRangeNote(place.listArea, isEmptyRange(state, place));
     if (!canFilter || !place.isCardList) removeRangeControl(place.toolbar);
     else
       syncRangeControl(place.toolbar, place.mobileClass, { label: rangeLabelFor(state, place), range: readRange(place.toolbar) }, (toolbar, range) =>
