@@ -6,8 +6,8 @@ const PARKED_ATTRIBUTE = 'data-senkutools-paging-parked';
 interface PagingState {
   sentinel: Element;
   rowCount: number;
-  firstRow: Element | null;
-  lastRow: Element | null;
+  firstRow: Element | undefined;
+  lastRow: Element | undefined;
 }
 
 const parkedStates = new WeakMap<Element, PagingState>();
@@ -18,7 +18,7 @@ const findSentinel = (results: Element): HTMLElement | undefined =>
 
 function pagingStateOf(results: Element, sentinel: Element): PagingState {
   const rows = results.querySelectorAll(`:scope > .${CARD_ROW_CLASS}`);
-  return { sentinel, rowCount: rows.length, firstRow: rows[0] ?? null, lastRow: rows[rows.length - 1] ?? null };
+  return { sentinel, rowCount: rows.length, firstRow: rows[0], lastRow: rows[rows.length - 1] };
 }
 
 const isSameState = (known: PagingState | undefined, current: PagingState): boolean =>
