@@ -200,9 +200,11 @@ function setText(target: HTMLElement, text: string): void {
 }
 
 export function syncRangeControl(toolbar: Element, mobileClass: string | null, view: RangeView, apply: ApplyRange): void {
-  const known = controls.get(toolbar);
-  const control = known ?? createControl(toolbar, mobileClass, apply);
-  if (!known) controls.set(toolbar, control);
+  let control = controls.get(toolbar);
+  if (!control) {
+    control = createControl(toolbar, mobileClass, apply);
+    controls.set(toolbar, control);
+  }
   if (control.wrapper.parentElement !== toolbar) insertControl(toolbar, control);
   setText(control.label, view.label);
   control.trigger.classList.toggle(SITE_APPLIED, view.range !== null);
