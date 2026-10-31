@@ -18,11 +18,9 @@ export function parseBound(text: string): number | null {
   return Number.isFinite(bound) ? bound : null;
 }
 
-export function createRange(min: number | null, max: number | null): PriceRange | null {
-  if (min === null && max === null) return null;
-  if (min !== null && max !== null && min > max) return { min: max, max: min };
-  return { min, max };
-}
+export const createRange = (min: number | null, max: number | null): PriceRange | null => (min === null && max === null ? null : { min, max });
+
+export const isReversed = ({ min, max }: PriceRange): boolean => min !== null && max !== null && min > max;
 
 export const isInRange = (price: number | null, { min, max }: PriceRange): boolean =>
   price !== null && (min === null || price >= min) && (max === null || price <= max);
@@ -34,7 +32,8 @@ export const rangeKeyOf = (range: PriceRange | null): string | null => (range ? 
 export function readRange(toolbar: Element): PriceRange | null {
   const [min, max, ...rest] = (toolbar.getAttribute(RANGE_ATTRIBUTE) ?? '').split(BOUND_SEPARATOR);
   if (min === undefined || max === undefined || rest.length > 0) return null;
-  return createRange(parseBound(min), parseBound(max));
+  const range = createRange(parseBound(min), parseBound(max));
+  return range && !isReversed(range) ? range : null;
 }
 
 export const writeRange = (toolbar: Element, range: PriceRange | null): void => writeAttribute(toolbar, RANGE_ATTRIBUTE, rangeKeyOf(range));

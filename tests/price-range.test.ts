@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createRange, formatBound, isInRange, parseBound, rangeKeyOf, readRange, writeRange } from '../utils/sort/price-range';
+import { createRange, formatBound, isInRange, isReversed, parseBound, rangeKeyOf, readRange, writeRange } from '../utils/sort/price-range';
 
 describe('parseBound', () => {
   it('reads a number typed with a comma or a point, with spaces between the digits', () => {
@@ -24,9 +24,12 @@ describe('createRange', () => {
     expect(createRange(null, 50)).toEqual({ min: null, max: 50 });
   });
 
-  it('turns bounds typed the wrong way round into the range they name', () => {
-    expect(createRange(50, 10)).toEqual({ min: 10, max: 50 });
-    expect(createRange(7, 7)).toEqual({ min: 7, max: 7 });
+  it('keeps bounds typed the wrong way round as they are, and tells them apart', () => {
+    expect(createRange(50, 10)).toEqual({ min: 50, max: 10 });
+    expect(isReversed({ min: 50, max: 10 })).toBe(true);
+    expect(isReversed({ min: 7, max: 7 })).toBe(false);
+    expect(isReversed({ min: 7, max: null })).toBe(false);
+    expect(isReversed({ min: null, max: 7 })).toBe(false);
   });
 });
 
@@ -72,7 +75,7 @@ describe('the range on a toolbar', () => {
     writeRange(toolbar, null);
     expect(toolbar.hasAttribute('data-senkutools-price-range')).toBe(false);
     expect(readRange(toolbar)).toBeNull();
-    for (const text of ['', ':', 'a:b', '1:2:3', '5']) {
+    for (const text of ['', ':', 'a:b', '1:2:3', '5', '50:10']) {
       toolbar.setAttribute('data-senkutools-price-range', text);
       expect(readRange(toolbar), text).toBeNull();
     }

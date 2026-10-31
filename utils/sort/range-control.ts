@@ -1,13 +1,15 @@
 import { element } from '../shared/dom';
 import { PRICE_FILTER_CLASS } from '../shared/price-filter-nodes';
 import { chevronIcon, closeIcon, priceTagIcon, resetIcon } from '../shared/svg';
-import { createRange, formatBound, parseBound, type PriceRange } from './price-range';
+import { createRange, formatBound, isReversed, parseBound, type PriceRange } from './price-range';
 
 const TRIGGER_CLASS = `${PRICE_FILTER_CLASS}__trigger`;
 const PANEL_CLASS = `${PRICE_FILTER_CLASS}__panel`;
 const FIELDS_CLASS = `${PRICE_FILTER_CLASS}__fields`;
 const FIELD_CLASS = `${PRICE_FILTER_CLASS}__field`;
 const INPUT_CLASS = `${PRICE_FILTER_CLASS}__input`;
+const ERROR_CLASS = `${PRICE_FILTER_CLASS}__error`;
+const SITE_ERROR = 'dropdown-filter__info dropdown-filter__info--error';
 const SITE_TRIGGER = 'button button--secondary button--auto button-size--md';
 const SITE_ICON_BUTTON = 'button button--secondary button--icon button-size--md';
 const SITE_APPLIED = 'button--chip';
@@ -20,6 +22,7 @@ export const RANGE_TEXT = {
   trigger: 'Цена',
   from: 'от',
   to: 'до',
+  reversed: '«От» больше, чем «до»',
 } as const;
 
 export const rangeLabelOf = (percent: number | null): string => (percent === null ? RANGE_TEXT.trigger : `${RANGE_TEXT.trigger} ${percent}%`);
@@ -38,6 +41,7 @@ interface RangeControl {
   panel: HTMLElement;
   minInput: HTMLInputElement;
   maxInput: HTMLInputElement;
+  error: HTMLElement;
 }
 
 const controls = new WeakMap<Element, RangeControl>();
@@ -105,8 +109,18 @@ function closePanel(control: RangeControl, shouldFocusTrigger: boolean): void {
   if (shouldFocusTrigger) control.trigger.focus();
 }
 
-function applyInputs(control: RangeControl, toolbar: Element, apply: ApplyRange): void {
+function markReversed(control: RangeControl, changed: EventTarget | null): void {
+  for (const input of [control.minInput, control.maxInput]) {
+    if (input === changed) input.setAttribute('aria-invalid', 'true');
+    else input.removeAttribute('aria-invalid');
+  }
+  control.error.hidden = changed === null;
+}
+
+function applyInputs(control: RangeControl, toolbar: Element, apply: ApplyRange, changed: EventTarget | null): void {
   const range = createRange(parseBound(control.minInput.value), parseBound(control.maxInput.value));
+  if (range && isReversed(range)) return markReversed(control, changed);
+  markReversed(control, null);
   showRange(control, range);
   apply(toolbar, range);
 }
@@ -118,11 +132,11 @@ function handlePanelKeydown(control: RangeControl, toolbar: Element, apply: Appl
     closePanel(control, true);
   } else if (event.key === 'Enter' && event.target instanceof HTMLInputElement) {
     event.preventDefault();
-    applyInputs(control, toolbar, apply);
+    applyInputs(control, toolbar, apply, event.target);
   }
 }
 
-function createPanel(): Pick<RangeControl, 'panel' | 'minInput' | 'maxInput'> & { actions: HTMLElement } {
+function createPanel(): Pick<RangeControl, 'panel' | 'minInput' | 'maxInput' | 'error'> & { actions: HTMLElement } {
   const panel = element('div', `${PANEL_CLASS} ${SITE_DROPDOWN}`);
   panel.hidden = true;
   const menu = element('div', 'dropdown-menu dropdown-menu--lg');
@@ -133,21 +147,25 @@ function createPanel(): Pick<RangeControl, 'panel' | 'minInput' | 'maxInput'> & 
   const min = createField(RANGE_TEXT.from);
   const max = createField(RANGE_TEXT.to);
   fields.append(min.field, max.field);
-  menu.append(header, fields);
+  const error = element('div', `${SITE_ERROR} ${ERROR_CLASS}`, RANGE_TEXT.reversed);
+  error.setAttribute('role', 'alert');
+  error.hidden = true;
+  menu.append(header, fields, error);
   const inner = element('div', 'v-popper__inner');
   inner.append(menu);
   const wrapper = element('div', 'v-popper__wrapper');
   wrapper.append(inner);
   panel.append(wrapper);
-  return { panel, minInput: min.input, maxInput: max.input, actions };
+  return { panel, minInput: min.input, maxInput: max.input, error, actions };
 }
 
 function createControl(toolbar: Element, mobileClass: string | null, apply: ApplyRange): RangeControl {
   const wrapper = element('div', PRICE_FILTER_CLASS);
   const { trigger, label } = createTrigger(mobileClass);
-  const { panel, minInput, maxInput, actions } = createPanel();
-  const control: RangeControl = { wrapper, trigger, label, panel, minInput, maxInput };
+  const { panel, minInput, maxInput, error, actions } = createPanel();
+  const control: RangeControl = { wrapper, trigger, label, panel, minInput, maxInput, error };
   const reset = createIconButton(resetIcon(ICON_SIZE_PX), () => {
+    markReversed(control, null);
     showRange(control, null);
     apply(toolbar, null);
   });
@@ -157,7 +175,7 @@ function createControl(toolbar: Element, mobileClass: string | null, apply: Appl
   );
   trigger.addEventListener('click', () => (panel.hidden ? openPanel(control) : closePanel(control, true)));
   panel.addEventListener('keydown', (event) => handlePanelKeydown(control, toolbar, apply, event));
-  for (const input of [minInput, maxInput]) input.addEventListener('change', () => applyInputs(control, toolbar, apply));
+  for (const input of [minInput, maxInput]) input.addEventListener('change', (event) => applyInputs(control, toolbar, apply, event.target));
   wrapper.append(trigger, panel);
   return control;
 }
@@ -181,7 +199,9 @@ export function syncRangeControl(toolbar: Element, mobileClass: string | null, v
   if (control.wrapper.parentElement !== toolbar) insertControl(toolbar, control);
   setText(control.label, view.label);
   control.trigger.classList.toggle(SITE_APPLIED, view.range !== null);
-  if (control.panel.hidden) showRange(control, view.range);
+  if (!control.panel.hidden) return;
+  markReversed(control, null);
+  showRange(control, view.range);
 }
 
 export function removeRangeControl(toolbar: Element): void {

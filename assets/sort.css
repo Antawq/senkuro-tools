@@ -51,6 +51,10 @@
   transition: background var(--senkuro-hover);
 }
 
+.senkutools-price-filter__input[aria-invalid='true'] {
+  border-color: var(--error);
+}
+
 .senkutools-price-filter__input:focus {
   background: var(--bg-secondary);
 }

@@ -134,13 +134,39 @@ describe('the price range control', () => {
     expect(applied.at(-1)).toEqual({ min: 1.5, max: 20 });
   });
 
-  it('swaps bounds typed the wrong way round and clears a field that holds no number, before it applies', () => {
+  it('applies nothing for bounds the wrong way round: marks the field just changed, says why, and applies once the bounds agree again', () => {
+    const { applied } = draw({ label: 'Цена', range: { min: 1, max: 2 } });
+    trigger()?.click();
+    type(inputs()[0], '99');
+    expect(applied).toEqual([]);
+    expect(inputs().map((input) => input.value)).toEqual(['99', '2']);
+    expect(inputs()[0]?.getAttribute('aria-invalid')).toBe('true');
+    expect(inputs()[1]?.hasAttribute('aria-invalid')).toBe(false);
+    const error = document.querySelector<HTMLElement>('.senkutools-price-filter__error');
+    expect(error?.textContent).toBe('«От» больше, чем «до»');
+    expect(error?.className).toContain('dropdown-filter__info dropdown-filter__info--error');
+    expect(error?.hidden).toBe(false);
+    type(inputs()[1], '');
+    expect(applied).toEqual([{ min: 99, max: null }]);
+    expect(inputs()[0]?.hasAttribute('aria-invalid')).toBe(false);
+    expect(document.querySelector<HTMLElement>('.senkutools-price-filter__error')?.hidden).toBe(true);
+  });
+
+  it('marks the upper bound when it is the one typed below the lower bound', () => {
+    const { applied } = draw({ label: 'Цена', range: { min: 10, max: null } });
+    trigger()?.click();
+    press(inputs()[1], 'Enter');
+    if (inputs()[1]) inputs()[1]!.value = '5';
+    press(inputs()[1], 'Enter');
+    expect(applied).toEqual([{ min: 10, max: null }]);
+    expect(inputs()[1]?.getAttribute('aria-invalid')).toBe('true');
+    expect(inputs()[0]?.hasAttribute('aria-invalid')).toBe(false);
+  });
+
+  it('clears a field that holds no number before it applies', () => {
     const { applied } = draw();
     trigger()?.click();
-    if (inputs()[0]) inputs()[0]!.value = '50';
-    type(inputs()[1], '10');
-    expect(applied.at(-1)).toEqual({ min: 10, max: 50 });
-    expect(inputs().map((input) => input.value)).toEqual(['10', '50']);
+    if (inputs()[1]) inputs()[1]!.value = '50';
     type(inputs()[0], 'abc');
     expect(applied.at(-1)).toEqual({ min: null, max: 50 });
     expect(inputs()[0]?.value).toBe('');
