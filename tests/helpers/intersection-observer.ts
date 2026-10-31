@@ -33,5 +33,11 @@ export function installIntersectionObservers() {
       observation.callback(entries, {} as IntersectionObserver);
     }
   };
-  return { observations, connected, report };
+  const reportBatch = (...flags: boolean[]): void => {
+    for (const observation of connected()) {
+      const entries = flags.map((isIntersecting) => ({ target: observation.targets[0], isIntersecting }) as unknown as IntersectionObserverEntry);
+      observation.callback(entries, {} as IntersectionObserver);
+    }
+  };
+  return { observations, connected, report, reportBatch };
 }

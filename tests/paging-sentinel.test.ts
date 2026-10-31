@@ -75,6 +75,28 @@ describe('the paging sentinel of a site list', () => {
     expect(observers.connected()).toHaveLength(0);
   });
 
+  it('is parked when the last entry of a batch has it in view, whatever the entries before say', () => {
+    render(2);
+    retriggerPaging(results());
+    observers.reportBatch(false, true);
+    expect(isParked()).toBe(true);
+  });
+
+  it('is left alone when the last entry of a batch has it out of view, whatever the entries before say', () => {
+    render(2);
+    retriggerPaging(results());
+    observers.reportBatch(true, false);
+    expect(isParked()).toBe(false);
+    expect(observers.connected()).toHaveLength(0);
+  });
+
+  it('is left unparked by a batch with no entries', () => {
+    render(2);
+    retriggerPaging(results());
+    expect(() => observers.reportBatch()).not.toThrow();
+    expect(isParked()).toBe(false);
+  });
+
   it('is parked once for the rows a list has, and again when rows come or go or the site draws a new sentinel', () => {
     render(2);
     retriggerPaging(results());
