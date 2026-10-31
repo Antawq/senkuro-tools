@@ -1,3 +1,4 @@
+import { writeAttribute } from '../shared/dom';
 import {
   ACTIVE_ROW_CLASS,
   ACTIVE_TAB,
@@ -33,12 +34,6 @@ export interface SearchView {
 
 const setFlagAttribute = (element: HTMLElement, name: string, isOn: boolean): void => {
   if (element.hasAttribute(name) !== isOn) element.toggleAttribute(name, isOn);
-};
-
-const writeAttribute = (element: HTMLElement, name: string, attributeValue: string | null): void => {
-  if (attributeValue === null) {
-    if (element.hasAttribute(name)) element.removeAttribute(name);
-  } else if (element.getAttribute(name) !== attributeValue) element.setAttribute(name, attributeValue);
 };
 
 const wordsOf = (query: string): string[] => [

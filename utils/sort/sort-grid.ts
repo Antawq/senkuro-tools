@@ -1,7 +1,8 @@
 import { CARD_LINK, slugFromHref } from '../shared/cards';
 import type { Database } from '../shared/database';
 import { createPriceLookup, priceOrder } from './price-order';
-import { CARD, STATE_ATTRIBUTE, writeAttribute, type GridState } from './sort-dom';
+import { writeAttribute } from '../shared/dom';
+import { CARD, STATE_ATTRIBUTE, type GridState } from './sort-dom';
 
 const slugOf = (card: HTMLElement | undefined): string | null => slugFromHref(card?.querySelector(CARD_LINK)?.getAttribute('href'));
 

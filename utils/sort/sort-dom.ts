@@ -37,8 +37,3 @@ const isProgressLabel = (text: string): boolean => text.startsWith(`${SORT_TEXT.
 
 export const isOwnLabel = (text: string | null | undefined): boolean =>
   text === SORT_TEXT.label || text === SORT_TEXT.partialLabel || isProgressLabel(text ?? '');
-
-export function writeAttribute(target: Element, name: string, value: string | null): void {
-  if (value === null) target.removeAttribute(name);
-  else if (target.getAttribute(name) !== value) target.setAttribute(name, value);
-}

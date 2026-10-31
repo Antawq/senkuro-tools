@@ -1,4 +1,4 @@
-import { writeAttribute } from './sort-dom';
+import { writeAttribute } from '../shared/dom';
 
 export interface PriceRange {
   min: number | null;
