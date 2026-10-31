@@ -122,7 +122,7 @@ describe('findClientRef', () => {
 describe('installClientSwap', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('swaps only after the site has finished hydrating its page, and once per page', async () => {
+  it('swaps the moment the app is assigned, while the site still hydrates its page, and once per page', async () => {
     const { pageWindow, mount, close } = openPage();
     const site = createSiteClient(() => null);
     const hooks = siteHooks();
@@ -131,11 +131,21 @@ describe('installClientSwap', () => {
     installClientSwap(pageWindow, () => swapHost);
     installClientSwap(pageWindow, () => swapHost);
     mount(appWith(ref, { hydrating: true, hooks }));
-    expect(ref.value).toBe(site.client);
-    hooks.emit('app:suspense:resolve');
     expect(ref.value).toBeInstanceOf(Client);
     expect(ref.value).not.toBe(site.client);
+    hooks.emit('app:suspense:resolve');
     expect(swapHost.swapped).toHaveLength(1);
+    await close();
+  });
+
+  it('swaps at once in a page whose app was assigned and was still hydrating before the script ran', async () => {
+    const { pageWindow, mount, close } = openPage();
+    const site = createSiteClient(() => null);
+    const ref = clientRef(site.client);
+    mount(appWith(ref, { hydrating: true, hooks: siteHooks() }));
+    installClientSwap(pageWindow, () => host());
+    expect(ref.value).toBeInstanceOf(Client);
+    expect(ref.value).not.toBe(site.client);
     await close();
   });
 
@@ -166,7 +176,7 @@ describe('installClientSwap', () => {
     }
   );
 
-  it('logs a failing swap to the console, never to the page error handlers, and keeps the site client and the hydration handlers of the site running', async () => {
+  it('logs a failing swap to the console, never to the page error handlers, and keeps the site client and its mount and hydration handlers running', async () => {
     const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const pageErrors: unknown[] = [];
     vi.stubGlobal('reportError', (error: unknown) => void pageErrors.push(error));
@@ -180,7 +190,7 @@ describe('installClientSwap', () => {
         throw new Error('boom');
       },
     }));
-    mount(appWith(ref, { hydrating: true, hooks }));
+    expect(() => mount(appWith(ref, { hydrating: true, hooks }))).not.toThrow();
     hooks.on('app:suspense:resolve', afterOurs);
     hooks.emit('app:suspense:resolve');
     expect(logged).toHaveBeenCalledWith('SenkuTools: client swap failed', expect.any(Error));

@@ -1,11 +1,10 @@
 import { Client, getOperationName, type Exchange } from '@urql/core';
 
-import { runAfterHydration } from './app-mounted';
 import { debugLogger } from './debug';
 import { defaultContextOf, delegateExchange } from './delegate-exchange';
 import { claimPage, isPageClaimed } from './page-claim';
 import type { PageWindow } from './page-window';
-import type { VueApp } from './vue-app';
+import { runOnAppAssigned, type VueApp } from './vue-app';
 
 const CLIENT_KEY = '$urql';
 const CLIENT_METHODS = ['executeQuery', 'executeMutation', 'executeSubscription', 'createRequestOperation'];
@@ -67,7 +66,7 @@ export function installClientSwap(pageWindow: PageWindow, createHost: () => Swap
   }
   if (!claimPage(pageWindow, 'client-swap')) return;
   const host = createHost();
-  runAfterHydration(pageWindow, (app) => {
+  runOnAppAssigned(pageWindow, (app) => {
     try {
       swapClient(app, host, debug);
     } catch (error) {
