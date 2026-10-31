@@ -1,3 +1,4 @@
+import { isAppMounted } from '../shared/app-mounted';
 import { PERCENT } from '../shared/cards';
 import type { Database } from '../shared/database';
 import type { ListScope } from '../shared/list-scope';
@@ -227,8 +228,10 @@ function isEmptyRange(state: SortState, place: SortPlace): boolean {
   return state.phase === 'ready' && state.place?.toolbar === place.toolbar && range !== null && sent?.shownCount === 0 && sent.rangeKey === rangeKeyOf(range);
 }
 
+const canDrawRangeControls = (pageDocument: Document): boolean => isAppMounted(pageDocument) && isGuardReady(pageDocument) && canLeaveRowsOut(pageDocument);
+
 function syncRangeControls(state: SortState, places: SortPlace[]): void {
-  const canFilter = isGuardReady(state.pageDocument) && canLeaveRowsOut(state.pageDocument);
+  const canFilter = canDrawRangeControls(state.pageDocument);
   for (const place of places) {
     syncRangeNote(place.listArea, isEmptyRange(state, place));
     if (!canFilter || !place.isCardList) removeRangeControl(place.toolbar);

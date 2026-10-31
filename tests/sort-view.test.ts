@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { APP_MOUNTED_ATTRIBUTE } from '../utils/shared/app-mounted';
 import type { Database } from '../utils/shared/database';
 import type { ListScope } from '../utils/shared/list-scope';
 import { priceRowsSignal, priceStateSignal, type PriceOrder, type PriceStateName, type ViewSort } from '../utils/shared/price-signal';
@@ -1051,10 +1052,23 @@ describe('the range control in the lists', () => {
   beforeEach(() => {
     document.documentElement.setAttribute('data-senkutools-guard', 'ready');
     document.documentElement.setAttribute('data-senkutools-price-view', '2');
+    document.documentElement.setAttribute(APP_MOUNTED_ATTRIBUTE, '');
   });
   afterEach(() => {
     document.documentElement.removeAttribute('data-senkutools-guard');
     document.documentElement.removeAttribute('data-senkutools-price-view');
+    document.documentElement.removeAttribute(APP_MOUNTED_ATTRIBUTE);
+  });
+
+  it('is not drawn before the site has hydrated its page, even with the page script in place', () => {
+    document.documentElement.removeAttribute(APP_MOUNTED_ATTRIBUTE);
+    render();
+    const grid = setup('grid');
+    grid.sort.sync(database, settings);
+    expect(controlIn(filters())).toBeNull();
+    document.documentElement.setAttribute(APP_MOUNTED_ATTRIBUTE, '');
+    grid.sort.sync(database, settings);
+    expect(controlIn(filters())).not.toBeNull();
   });
 
   it('is not drawn while the page script in place is an older one that marks the guard but cannot leave rows out', () => {
