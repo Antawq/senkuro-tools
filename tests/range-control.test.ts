@@ -164,15 +164,35 @@ describe('the price range control', () => {
     expect(inputs()[0]?.hasAttribute('aria-invalid')).toBe(false);
   });
 
-  it('clears a field that holds no number before it applies', () => {
+  it('marks a field that holds no number with its own message and applies nothing until it is fixed', () => {
     const { applied } = draw();
     trigger()?.click();
     if (inputs()[1]) inputs()[1]!.value = '50';
     type(inputs()[0], 'abc');
-    expect(applied.at(-1)).toEqual({ min: null, max: 50 });
-    expect(inputs()[0]?.value).toBe('');
-    type(inputs()[1], '');
-    expect(applied.at(-1)).toBeNull();
+    const error = document.querySelector<HTMLElement>('.senkutools-price-filter__error');
+    expect(applied).toEqual([]);
+    expect(inputs()[0]?.value).toBe('abc');
+    expect(inputs()[0]?.getAttribute('aria-invalid')).toBe('true');
+    expect(inputs()[1]?.hasAttribute('aria-invalid')).toBe(false);
+    expect(error?.textContent).toBe('Введите число');
+    expect(error?.hidden).toBe(false);
+    type(inputs()[0], '99');
+    expect(applied).toEqual([]);
+    expect(error?.textContent).toBe('«От» больше, чем «до»');
+    type(inputs()[0], '   ');
+    expect(applied).toEqual([{ min: null, max: 50 }]);
+    expect(inputs()[0]?.hasAttribute('aria-invalid')).toBe(false);
+    expect(error?.hidden).toBe(true);
+  });
+
+  it('marks the field that holds no number even when the other one was changed', () => {
+    const { applied } = draw();
+    trigger()?.click();
+    if (inputs()[0]) inputs()[0]!.value = '1e';
+    type(inputs()[1], '50');
+    expect(applied).toEqual([]);
+    expect(inputs()[0]?.getAttribute('aria-invalid')).toBe('true');
+    expect(inputs()[1]?.hasAttribute('aria-invalid')).toBe(false);
   });
 
   it('clears both fields and the range with its reset button', () => {
