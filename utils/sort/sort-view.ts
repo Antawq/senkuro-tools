@@ -2,9 +2,11 @@ import { PERCENT } from '../shared/cards';
 import type { Database } from '../shared/database';
 import type { ListScope } from '../shared/list-scope';
 import { priceRowsSignal, priceStateSignal, type PriceOrder, type PriceRows, type ViewSort } from '../shared/price-signal';
+import { isGuardReady } from '../shared/refresh-signal';
 import type { Settings } from '../shared/settings';
 import { createPriceLookup, listOrders } from './price-order';
 import { rangeKeyOf, readRange, writeRange, type PriceRange } from './price-range';
+import { RANGE_TEXT, rangeLabelOf, removeRangeControl, syncRangeControl } from './range-control';
 import { DIRECTION_ASCENDING, MENU, MENU_ITEM, MODE_ATTRIBUTE, OWN_ITEM, PRICE_MODE, WATCHED_AREAS } from './sort-dom';
 import { cardsOf, clearOrder, markState, orderCards } from './sort-grid';
 import { decorateMenu, isPriceMode, reflectLabel } from './sort-menu';
@@ -210,10 +212,23 @@ function decorateOpenMenu(state: SortState): void {
   if (menuPlace?.scope === state.scope && menuPlace.isCardList) decorateMenu(state.pageDocument, isPriceMode(menuPlace.toolbar));
 }
 
-function syncSort(state: SortState, current: PriceInputs): void {
-  state.inputs = current;
-  const places = findPlaces(state.pageDocument, state.scope);
-  decorateOpenMenu(state);
+function rangeLabelFor(state: SortState, place: SortPlace): string {
+  const isLoading = state.phase === 'loading' && state.place?.toolbar === place.toolbar && readRange(place.toolbar) !== null;
+  return isLoading ? rangeLabelOf(state.percent) : RANGE_TEXT.trigger;
+}
+
+function syncRangeControls(state: SortState, places: SortPlace[]): void {
+  const canFilter = isGuardReady(state.pageDocument);
+  for (const place of places) {
+    if (!canFilter || !place.isCardList) removeRangeControl(place.toolbar);
+    else
+      syncRangeControl(place.toolbar, place.mobileClass, { label: rangeLabelFor(state, place), range: readRange(place.toolbar) }, (toolbar, range) =>
+        applyRange(state, toolbar, range)
+      );
+  }
+}
+
+function syncActivePlace(state: SortState, current: PriceInputs, places: SortPlace[]): void {
   const place = places.find((candidate) => candidate.isCardList && isActive(candidate.toolbar));
   for (const other of places) if (other !== place) releasePlace(other);
   if (!place) return endView(state);
@@ -222,6 +237,14 @@ function syncSort(state: SortState, current: PriceInputs): void {
   state.place = place;
   if (needsNewOrder(state, current, place)) sendOrder(state, current);
   showPlace(state, place, current);
+}
+
+function syncSort(state: SortState, current: PriceInputs): void {
+  state.inputs = current;
+  const places = findPlaces(state.pageDocument, state.scope);
+  decorateOpenMenu(state);
+  syncActivePlace(state, current, places);
+  syncRangeControls(state, places);
 }
 
 function findClickedItem(state: SortState, event: Event): { menuItem: Element; clicked: ClickedPlace } | null {

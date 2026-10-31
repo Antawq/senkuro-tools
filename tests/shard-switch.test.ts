@@ -344,6 +344,17 @@ describe('isPickerMutation', () => {
     expect(isPickerMutation(record(own, [document.createElement('span')]))).toBe(false);
   });
 
+  it('is false for the price range control and its empty note being added, removed or relabelled', () => {
+    document.body.innerHTML = tradeModal(row('shard'));
+    for (const className of ['senkutools-price-filter', 'senkutools-price-filter__empty']) {
+      const own = document.createElement('div');
+      own.className = className;
+      expect(isPickerMutation(record(picker(), [own]))).toBe(false);
+      expect(isPickerMutation(record(picker(), [], [own]))).toBe(false);
+      expect(isPickerMutation(record(own, [document.createElement('span')]))).toBe(false);
+    }
+  });
+
   it('is false for a change outside the trade window', () => {
     document.body.innerHTML = tradeModal('') + '<div class="elsewhere"></div>';
     expect(isPickerMutation(record(document.querySelector('.elsewhere') as Element, [document.createElement('div')]))).toBe(false);

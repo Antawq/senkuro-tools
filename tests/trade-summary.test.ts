@@ -797,6 +797,16 @@ describe('isTradeMutation', () => {
     ).toBe(false);
   });
 
+  it('ignores the price range control the extension adds to the list toolbar of a trade window, and its label changing', () => {
+    modal('Выбери до 50 карт, которые готов отдать взамен', '<div class="modal-trade__body"><div class="modal-trade__header-form"></div></div>');
+    const toolbar = document.querySelector('.modal-trade__header-form') as Element;
+    const own = document.createElement('div');
+    own.className = 'senkutools-price-filter';
+    own.append(document.createElement('span'));
+    expect(recordsOf(() => toolbar.append(own)).some(isTradeMutation)).toBe(false);
+    expect(recordsOf(() => (own.firstElementChild!.textContent = 'Цена 40%')).some(isTradeMutation)).toBe(false);
+  });
+
   it('ignores cards drawn anywhere else', () => {
     const list = document.createElement('div');
     document.body.append(list);

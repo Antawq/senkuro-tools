@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Database } from '../utils/shared/database';
 import type { ListScope } from '../utils/shared/list-scope';
@@ -1039,5 +1039,95 @@ describe('a price range', () => {
     picker.sort.applyRange(filters() as Element, { min: 1, max: 2 });
     expect(rangeOf(filters())).toBeNull();
     expect(picker.views).toEqual([]);
+  });
+});
+
+describe('the range control in the lists', () => {
+  const controlIn = (toolbar: Element | null) => toolbar?.querySelector(':scope > .senkutools-price-filter') ?? null;
+  const triggerIn = (toolbar: Element | null) => toolbar?.querySelector<HTMLButtonElement>('.senkutools-price-filter__trigger') ?? null;
+  const fieldsIn = (toolbar: Element | null) => [...(toolbar?.querySelectorAll<HTMLInputElement>('.senkutools-price-filter__input') ?? [])];
+
+  beforeEach(() => document.documentElement.setAttribute('data-senkutools-guard', 'ready'));
+  afterEach(() => document.documentElement.removeAttribute('data-senkutools-guard'));
+
+  it('is drawn in every list of its own kind once the page script is in place, and nowhere before', () => {
+    document.documentElement.removeAttribute('data-senkutools-guard');
+    render();
+    const grid = setup('grid');
+    grid.sort.sync(database, settings);
+    expect(controlIn(filters())).toBeNull();
+    document.documentElement.setAttribute('data-senkutools-guard', 'ready');
+    setup('picker').sort.sync(database, settings);
+    expect(controlIn(filters())).toBeNull();
+    grid.sort.sync(database, settings);
+    expect(controlIn(filters())).not.toBeNull();
+    expect(triggerIn(filters())?.className).not.toContain('__mob');
+  });
+
+  it('is drawn in the windows and the deck builder with the class the place hides labels with on phones, and not on the catalog step', () => {
+    document.body.innerHTML = windowHtml() + deckHtml();
+    const { sort } = setup('picker');
+    sort.sync(database, settings);
+    expect(triggerIn(windowToolbar())?.classList.contains('modal-trade__header-form__mob')).toBe(true);
+    expect(triggerIn(deckToolbar())?.classList.contains('card-browse__form__mob')).toBe(true);
+    setHint('Выбор карт из общего каталога');
+    sort.sync(database, settings);
+    expect(controlIn(windowToolbar())).toBeNull();
+    expect(controlIn(deckToolbar())).not.toBeNull();
+  });
+
+  it('applies what is typed into it: the range goes on the toolbar and the view starts in the order of the site', () => {
+    render();
+    const { sort, views, sorts } = setup('grid');
+    sort.sync(database, settings);
+    const [min, max] = fieldsIn(filters());
+    triggerIn(filters())?.click();
+    if (min) min.value = '10';
+    if (max) max.value = '400';
+    max?.dispatchEvent(new Event('change'));
+    expect(filters()?.getAttribute('data-senkutools-price-range')).toBe('10:400');
+    expect(views).toEqual([true]);
+    expect(sorts).toEqual(['site']);
+  });
+
+  it('says how far the list is while it loads for a range, and only Цена otherwise', () => {
+    render();
+    const { sort, state } = setup('grid');
+    sort.sync(database, settings);
+    sort.applyRange(filters() as Element, { min: 10, max: null });
+    state('loading', 30, 120);
+    sort.sync(database, settings);
+    expect(triggerIn(filters())?.textContent).toBe('Цена 25%');
+    expect(triggerIn(filters())?.classList.contains('button--chip')).toBe(true);
+    state('ready', 120, 120);
+    sort.sync(database, settings);
+    expect(triggerIn(filters())?.textContent).toBe('Цена');
+  });
+
+  it('shows the price sort progress on the sort button and not on itself when no range is on', () => {
+    render();
+    enablePriceMode();
+    const { sort, state } = setup('grid');
+    sort.sync(database, settings);
+    state('loading', 30, 120);
+    sort.sync(database, settings);
+    expect(label()).toBe('По цене 25%');
+    expect(triggerIn(filters())?.textContent).toBe('Цена');
+  });
+
+  it('loses its mark when its range is ended by a range in another place of the same kind', () => {
+    document.body.innerHTML = deckHtml();
+    const { sort } = setup('picker');
+    sort.sync(database, settings);
+    sort.applyRange(deckToolbar() as Element, { min: 1, max: 2 });
+    sort.sync(database, settings);
+    expect(triggerIn(deckToolbar())?.classList.contains('button--chip')).toBe(true);
+    document.body.insertAdjacentHTML('beforeend', windowHtml());
+    sort.sync(database, settings);
+    sort.applyRange(windowToolbar() as Element, { min: 5, max: null });
+    sort.sync(database, settings);
+    expect(triggerIn(deckToolbar())?.classList.contains('button--chip')).toBe(false);
+    expect(fieldsIn(deckToolbar()).map((field) => field.value)).toEqual(['', '']);
+    expect(triggerIn(windowToolbar())?.classList.contains('button--chip')).toBe(true);
   });
 });

@@ -31,6 +31,7 @@ import { addedCards, createRenderLoop } from '@/utils/shared/render-loop';
 import { priceOrderSignal, priceRowsSignal, priceStateSignal, priceViewSignal } from '@/utils/shared/price-signal';
 import { isGuardReady, requestInventoryRefresh } from '@/utils/shared/refresh-signal';
 import { loadSettings, watchSettings } from '@/utils/shared/settings';
+import { closeRangePanels } from '@/utils/sort/range-control';
 import { createPriceSort, hasSortMutation } from '@/utils/sort/sort-view';
 import { createTokenBar } from '@/utils/token/token-bar';
 import { createModalRefreshWatcher } from '@/utils/trades/modal-refresh';
@@ -135,6 +136,7 @@ export default defineContentScript({
     ctx.addEventListener(document, 'focusin', searchView.syncView, { capture: true });
     ctx.addEventListener(document, 'input', searchView.syncView, { capture: true });
     ctx.addEventListener(document, 'click', searchView.handleClick, { capture: true });
+    ctx.addEventListener(document, 'pointerdown', (event) => closeRangePanels(document, event.target), { capture: true });
     for (const priceSort of priceSorts) {
       ctx.addEventListener(document, 'click', priceSort.handleClick, { capture: true });
       ctx.addEventListener(document, priceStateSignal.name, priceSort.handleState);

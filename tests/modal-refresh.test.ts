@@ -233,6 +233,17 @@ describe('isModalMutation', () => {
     expect(isModalMutation(record(own, [document.createElement('span')]))).toBe(false);
   });
 
+  it('is false for the price range control and its empty note being added, removed or relabelled', () => {
+    document.body.innerHTML = modalHtml();
+    for (const className of ['senkutools-price-filter', 'senkutools-price-filter__empty']) {
+      const own = document.createElement('div');
+      own.className = className;
+      expect(isModalMutation(record(findToolbar(), [own]))).toBe(false);
+      expect(isModalMutation(record(findToolbar(), [], [own]))).toBe(false);
+      expect(isModalMutation(record(own, [document.createElement('span')]))).toBe(false);
+    }
+  });
+
   it('is false for a change outside every window', () => {
     document.body.innerHTML = modalHtml() + '<div class="elsewhere"></div>';
     expect(isModalMutation(record(document.querySelector('.elsewhere') as Element, [document.createElement('div')]))).toBe(false);

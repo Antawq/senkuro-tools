@@ -13,3 +13,56 @@
 :is(.user-cards-grid, .card-browse__cnt-result, .modal-trade__body-result)[data-senkutools-sort-state='loading'] {
   opacity: 0.6;
 }
+
+.senkutools-price-filter {
+  position: relative;
+}
+
+.senkutools-price-filter__panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 500;
+}
+
+.senkutools-price-filter__fields {
+  display: flex;
+  gap: 8px;
+}
+
+.senkutools-price-filter__field {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.senkutools-price-filter__input {
+  width: 100%;
+  height: var(--height-md);
+  padding: 0 8px;
+  border: 1px solid var(--border-tertiary);
+  border-radius: var(--border-radius-md);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 1.6rem;
+  outline: none;
+  transition: background var(--senkuro-hover);
+}
+
+.senkutools-price-filter__input:focus {
+  background: var(--bg-secondary);
+}
+
+@media (hover: hover) {
+  .senkutools-price-filter__input:hover {
+    background: var(--bg-secondary);
+  }
+}
+
+@media (width >= 992px) {
+  .senkutools-price-filter__input {
+    font-size: 1.4rem;
+  }
+}

@@ -1,3 +1,4 @@
+import { PRICE_FILTER_NODES } from '../shared/price-filter-nodes';
 import { createRefreshButton } from '../shared/refresh-button';
 import type { RefreshOutcome } from '../shared/refresh-signal';
 import { MODAL, RESULTS_CLASS, TOOLBAR, isCatalogStep } from '../shared/trade-modal';
@@ -39,6 +40,6 @@ export function syncModalRefreshButtons(host: ModalRefreshHost, pageDocument: Do
   for (const modal of pageDocument.querySelectorAll(MODAL)) syncModal(modal, host);
 }
 
-export const isModalMutation = createMutationFilter(MODAL, `.${MODAL_REFRESH_CLASS}`);
+export const isModalMutation = createMutationFilter(MODAL, `.${MODAL_REFRESH_CLASS}, ${PRICE_FILTER_NODES}`);
 
 export const createModalRefreshWatcher = (host: ModalRefreshHost) => createFrameWatcher(isModalMutation, () => syncModalRefreshButtons(host), host.nextFrame);

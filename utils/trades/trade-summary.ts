@@ -1,5 +1,6 @@
 import type { Database } from '../shared/database';
 import { element } from '../shared/dom';
+import { PRICE_FILTER_NODES } from '../shared/price-filter-nodes';
 import { chevronIcon } from '../shared/svg';
 import {
   F_UNIT,
@@ -261,4 +262,4 @@ export function updateTradeSummaries(db: Database, settings: SummarySettings, st
   }
 }
 
-export const isTradeMutation = createMutationFilter(TRADE_PLACES, `.${SUMMARY}, .${MODAL_REFRESH_CLASS}`);
+export const isTradeMutation = createMutationFilter(TRADE_PLACES, `.${SUMMARY}, .${MODAL_REFRESH_CLASS}, ${PRICE_FILTER_NODES}`);

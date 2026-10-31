@@ -10,6 +10,7 @@ export interface SortPlace {
   results: HTMLElement | null;
   isCardList: boolean;
   canOrderLoadedCards: boolean;
+  mobileClass: string | null;
 }
 
 export interface ClickedPlace {
@@ -21,6 +22,7 @@ interface PlaceKind {
   toolbar: string;
   scope: ListScope;
   canOrderLoadedCards: boolean;
+  mobileClass: string | null;
   resultsOf: (toolbar: Element) => HTMLElement | null;
   isCardList: (toolbar: Element) => boolean;
 }
@@ -35,6 +37,7 @@ const PLACE_KINDS: readonly PlaceKind[] = [
     toolbar: USER_CARD_FILTERS,
     scope: 'grid',
     canOrderLoadedCards: true,
+    mobileClass: null,
     resultsOf: (toolbar) => toolbar.ownerDocument.querySelector<HTMLElement>(GRID),
     isCardList: () => true,
   },
@@ -42,6 +45,7 @@ const PLACE_KINDS: readonly PlaceKind[] = [
     toolbar: DECK_TOOLBAR,
     scope: 'picker',
     canOrderLoadedCards: false,
+    mobileClass: 'card-browse__form__mob',
     resultsOf: (toolbar) => toolbar.closest(DECK)?.querySelector<HTMLElement>(DECK_RESULTS) ?? null,
     isCardList: () => true,
   },
@@ -49,6 +53,7 @@ const PLACE_KINDS: readonly PlaceKind[] = [
     toolbar: WINDOW_TOOLBAR,
     scope: 'picker',
     canOrderLoadedCards: false,
+    mobileClass: 'modal-trade__header-form__mob',
     resultsOf: (toolbar) => withinWindow(toolbar)?.querySelector<HTMLElement>(`.${RESULTS_CLASS}`) ?? null,
     isCardList: (toolbar) => {
       const modal = withinWindow(toolbar);
@@ -62,8 +67,8 @@ const ANY_TOOLBAR = PLACE_KINDS.map((kind) => kind.toolbar).join(', ');
 function placeOf(toolbar: Element): SortPlace | null {
   const kind = PLACE_KINDS.find((candidate) => toolbar.matches(candidate.toolbar));
   if (!kind) return null;
-  const { scope, canOrderLoadedCards } = kind;
-  return { scope, toolbar, results: kind.resultsOf(toolbar), isCardList: kind.isCardList(toolbar), canOrderLoadedCards };
+  const { scope, canOrderLoadedCards, mobileClass } = kind;
+  return { scope, toolbar, results: kind.resultsOf(toolbar), isCardList: kind.isCardList(toolbar), canOrderLoadedCards, mobileClass };
 }
 
 export const findPlaces = (pageDocument: Document, scope: ListScope): SortPlace[] =>
