@@ -49,7 +49,7 @@ const setup = ({
   const silent = new WeakSet<object>();
   const fetcher = async (_input: RequestInfo | URL, init?: RequestInit) => {
     const { variables } = JSON.parse(typeof init?.body === 'string' ? init.body : '{}') as { variables: Variables };
-    await new Promise((resolve) => setTimeout(resolve, 2));
+    await new Promise((resolve) => setImmediate(resolve));
     if (variables.hash) return new Response(JSON.stringify({ errors: [{ message: 'PersistedQueryNotFound' }] }));
     return new Response(JSON.stringify(serve(variables)));
   };
