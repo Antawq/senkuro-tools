@@ -80,8 +80,8 @@ function createTrigger(mobileClass: string | null): { trigger: HTMLButtonElement
   return { trigger, label };
 }
 
-function setValue(input: HTMLInputElement, value: string): void {
-  if (input.value !== value) input.value = value;
+function setValue(input: HTMLInputElement, text: string): void {
+  if (input.value !== text) input.value = text;
 }
 
 function showRange({ minInput, maxInput }: RangeControl, range: PriceRange | null): void {
