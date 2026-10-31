@@ -156,7 +156,6 @@ function createPanel(): Pick<RangeControl, 'panel' | 'minInput' | 'maxInput' | '
   fields.append(min.field, max.field);
   const error = element('div', `${SITE_ERROR} ${ERROR_CLASS}`, RANGE_TEXT.reversed);
   error.setAttribute('role', 'alert');
-  error.hidden = true;
   menu.append(header, fields, error);
   const inner = element('div', 'v-popper__inner');
   inner.append(menu);
