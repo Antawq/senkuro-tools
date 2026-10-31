@@ -2,7 +2,7 @@ import { PERCENT } from '../shared/cards';
 import type { Database } from '../shared/database';
 import type { ListScope } from '../shared/list-scope';
 import { retriggerPaging } from '../shared/paging-sentinel';
-import { priceRowsSignal, priceStateSignal, type PriceOrder, type PriceRows, type ViewSort } from '../shared/price-signal';
+import { canLeaveRowsOut, priceRowsSignal, priceStateSignal, type PriceOrder, type PriceRows, type ViewSort } from '../shared/price-signal';
 import { isGuardReady } from '../shared/refresh-signal';
 import type { Settings } from '../shared/settings';
 import { createPriceLookup, listOrders } from './price-order';
@@ -228,7 +228,7 @@ function isEmptyRange(state: SortState, place: SortPlace): boolean {
 }
 
 function syncRangeControls(state: SortState, places: SortPlace[]): void {
-  const canFilter = isGuardReady(state.pageDocument);
+  const canFilter = isGuardReady(state.pageDocument) && canLeaveRowsOut(state.pageDocument);
   for (const place of places) {
     syncRangeNote(place.listArea, isEmptyRange(state, place));
     if (!canFilter || !place.isCardList) removeRangeControl(place.toolbar);

@@ -24,6 +24,8 @@ import { delegateExchange } from '../utils/shared/delegate-exchange';
 import { GUARD_ATTRIBUTE, GUARD_READY, refreshRequestSignal, refreshResultSignal, type RefreshResult } from '../utils/shared/refresh-signal';
 import type { ListScope } from '../utils/shared/list-scope';
 import {
+  PRICE_VIEW_ATTRIBUTE,
+  PRICE_VIEW_PROTOCOL,
   priceOrderSignal,
   priceRowsSignal,
   priceStateSignal,
@@ -351,8 +353,10 @@ describe('installInventoryGuard', () => {
     it('marks the document ready once the swap has handed it the clients, and not before', async () => {
       const { win, mount } = rig({ mounted: false });
       expect(win.document.documentElement.getAttribute(GUARD_ATTRIBUTE)).toBeNull();
+      expect(win.document.documentElement.getAttribute(PRICE_VIEW_ATTRIBUTE)).toBeNull();
       mount();
       expect(win.document.documentElement.getAttribute(GUARD_ATTRIBUTE)).toBe(GUARD_READY);
+      expect(win.document.documentElement.getAttribute(PRICE_VIEW_ATTRIBUTE)).toBe(String(PRICE_VIEW_PROTOCOL));
       await win.happyDOM.close();
     });
 

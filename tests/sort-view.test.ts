@@ -1048,8 +1048,28 @@ describe('the range control in the lists', () => {
   const triggerIn = (toolbar: Element | null) => toolbar?.querySelector<HTMLButtonElement>('.senkutools-price-filter__trigger') ?? null;
   const fieldsIn = (toolbar: Element | null) => [...(toolbar?.querySelectorAll<HTMLInputElement>('.senkutools-price-filter__input') ?? [])];
 
-  beforeEach(() => document.documentElement.setAttribute('data-senkutools-guard', 'ready'));
-  afterEach(() => document.documentElement.removeAttribute('data-senkutools-guard'));
+  beforeEach(() => {
+    document.documentElement.setAttribute('data-senkutools-guard', 'ready');
+    document.documentElement.setAttribute('data-senkutools-price-view', '2');
+  });
+  afterEach(() => {
+    document.documentElement.removeAttribute('data-senkutools-guard');
+    document.documentElement.removeAttribute('data-senkutools-price-view');
+  });
+
+  it('is not drawn while the page script in place is an older one that marks the guard but cannot leave rows out', () => {
+    render();
+    const grid = setup('grid');
+    for (const protocol of [null, '1', 'two']) {
+      if (protocol === null) document.documentElement.removeAttribute('data-senkutools-price-view');
+      else document.documentElement.setAttribute('data-senkutools-price-view', protocol);
+      grid.sort.sync(database, settings);
+      expect(controlIn(filters())).toBeNull();
+    }
+    document.documentElement.setAttribute('data-senkutools-price-view', '2');
+    grid.sort.sync(database, settings);
+    expect(controlIn(filters())).not.toBeNull();
+  });
 
   it('is drawn in every list of its own kind once the page script is in place, and nowhere before', () => {
     document.documentElement.removeAttribute('data-senkutools-guard');

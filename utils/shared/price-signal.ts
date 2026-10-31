@@ -1,6 +1,12 @@
 import { isListScope, type ListScope } from './list-scope';
 import { defineSignal } from './signal';
 
+export const PRICE_VIEW_ATTRIBUTE = 'data-senkutools-price-view';
+export const PRICE_VIEW_PROTOCOL = 2;
+
+export const canLeaveRowsOut = (pageDocument: Document): boolean =>
+  Number(pageDocument.documentElement.getAttribute(PRICE_VIEW_ATTRIBUTE)) >= PRICE_VIEW_PROTOCOL;
+
 export type PriceStateName = 'loading' | 'ready' | 'unavailable' | 'failed';
 
 const STATE_NAMES: readonly unknown[] = ['loading', 'ready', 'unavailable', 'failed'];

@@ -3,7 +3,7 @@ import { getOperationName, makeOperation, type Client, type Exchange, type Opera
 import { debugLogger } from '../shared/debug';
 import type { Transport } from '../shared/graphql';
 import type { PageWindow } from '../shared/page-window';
-import { priceOrderSignal, priceRowsSignal, priceStateSignal, priceViewSignal } from '../shared/price-signal';
+import { PRICE_VIEW_ATTRIBUTE, PRICE_VIEW_PROTOCOL, priceOrderSignal, priceRowsSignal, priceStateSignal, priceViewSignal } from '../shared/price-signal';
 import { GUARD_ATTRIBUTE, GUARD_READY, refreshRequestSignal, refreshResultSignal, type RefreshOutcome } from '../shared/refresh-signal';
 import type { ListScope } from '../shared/list-scope';
 import { inventoryExchange } from './inventory-exchange';
@@ -209,7 +209,9 @@ const isSilent = (guard: Guard, context: OperationContext): boolean => typeof co
 
 function attach(guard: Guard, client: Client): void {
   guard.client = client;
-  guard.pageWindow.document.documentElement.setAttribute(GUARD_ATTRIBUTE, GUARD_READY);
+  const root = guard.pageWindow.document.documentElement;
+  root.setAttribute(GUARD_ATTRIBUTE, GUARD_READY);
+  root.setAttribute(PRICE_VIEW_ATTRIBUTE, String(PRICE_VIEW_PROTOCOL));
   guard.debug('urql client', 'attached');
 }
 

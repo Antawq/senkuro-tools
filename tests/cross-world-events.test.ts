@@ -6,8 +6,8 @@ import { searchSignal } from '../utils/search/search-event';
 import { createSearchPublisher } from '../utils/search/search-exchange';
 import { APP_MOUNTED_EVENT, publishAppMounted } from '../utils/shared/app-mounted';
 import type { PageWindow } from '../utils/shared/page-window';
-import { priceOrderSignal, priceRowsSignal, priceStateSignal, priceViewSignal } from '../utils/shared/price-signal';
-import { refreshRequestSignal, refreshResultSignal } from '../utils/shared/refresh-signal';
+import { PRICE_VIEW_ATTRIBUTE, PRICE_VIEW_PROTOCOL, priceOrderSignal, priceRowsSignal, priceStateSignal, priceViewSignal } from '../utils/shared/price-signal';
+import { GUARD_ATTRIBUTE, GUARD_READY, refreshRequestSignal, refreshResultSignal } from '../utils/shared/refresh-signal';
 import { REPLAY_EVENT, TRADES_EVENT, createTradeStore, installCapture, listenForTrades } from '../utils/trades/trade-capture';
 
 const createPage = (): PageWindow => new Window({ url: 'https://senkuro.me/users/sena/cards' }) as unknown as PageWindow;
@@ -51,6 +51,15 @@ describe('cross-world events', () => {
       'senkutools:search',
       'senkutools:trades',
       'senkutools:trades-replay',
+    ]);
+  });
+
+  it('mark the page with the same attributes', () => {
+    expect([GUARD_ATTRIBUTE, GUARD_READY, PRICE_VIEW_ATTRIBUTE, PRICE_VIEW_PROTOCOL]).toEqual([
+      'data-senkutools-guard',
+      'ready',
+      'data-senkutools-price-view',
+      2,
     ]);
   });
 
