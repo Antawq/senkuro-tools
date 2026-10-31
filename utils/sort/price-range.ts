@@ -30,7 +30,9 @@ export const formatBound = (bound: number | null): string => (bound === null ? '
 export const rangeKeyOf = (range: PriceRange | null): string | null => (range ? `${formatBound(range.min)}${BOUND_SEPARATOR}${formatBound(range.max)}` : null);
 
 export function readRange(toolbar: Element): PriceRange | null {
-  const [min, max, ...rest] = (toolbar.getAttribute(RANGE_ATTRIBUTE) ?? '').split(BOUND_SEPARATOR);
+  const key = toolbar.getAttribute(RANGE_ATTRIBUTE);
+  if (key === null) return null;
+  const [min, max, ...rest] = key.split(BOUND_SEPARATOR);
   if (min === undefined || max === undefined || rest.length > 0) return null;
   const range = createRange(parseBound(min), parseBound(max));
   return range && !isReversed(range) ? range : null;
