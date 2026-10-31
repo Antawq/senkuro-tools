@@ -1,4 +1,6 @@
+import { CARD_ROW_CLASS } from '../shared/cards';
 import { element } from '../shared/dom';
+import { retriggerPaging } from '../shared/paging-sentinel';
 import { PRICE_FILTER_NODES } from '../shared/price-filter-nodes';
 import { CATALOG_STEP, HEADER, MODAL, RESULTS_CLASS } from '../shared/trade-modal';
 import { MODAL_REFRESH_CLASS } from './modal-refresh';
@@ -12,10 +14,6 @@ const SWITCH = 'senkutools-shard-switch';
 const SWITCH_BUTTON = `${SWITCH}__button`;
 const EMPTY_NOTE = `${SWITCH}__empty`;
 const OWN_NODES = `.${SWITCH}, .${EMPTY_NOTE}, .${MODAL_REFRESH_CLASS}, ${PRICE_FILTER_NODES}`;
-const ROW = 'card-collect-preview';
-const PAGING_MARGIN_PX = 250;
-const PARKED_ATTRIBUTE = 'data-senkutools-paging-parked';
-const PARKED_FRAMES = 2;
 const VIEW_ATTRIBUTE = 'data-senkutools-shard-view';
 const SITE_SEGMENT = 'tabs tabs--segment';
 const SITE_SEGMENT_INNER = 'tabs-inner';
@@ -33,8 +31,6 @@ const VIEWS = Object.keys(VIEW_LABELS) as ShardView[];
 const EMPTY_TEXTS: Partial<Record<ShardView, string>> = { cards: 'Нет карт', shards: 'Нет осколков' };
 
 const viewsByModal = new WeakMap<Element, ShardView>();
-
-const parkedStates = new WeakMap<Element, string>();
 
 interface ShardSwitchHost {
   nextFrame: (run: () => void) => void;
@@ -73,29 +69,14 @@ const createShardSwitch = (view: ShardView, select: (next: ShardView) => void): 
 
 const emptyTextOf = (results: Element, view: ShardView): string | null => {
   const wantsShards = view === 'shards';
-  const hasMorePages = [...results.children].some((child) => !child.classList.contains(ROW));
-  const rows = [...results.querySelectorAll(`.${ROW}`)];
+  const hasMorePages = [...results.children].some((child) => !child.classList.contains(CARD_ROW_CLASS));
+  const rows = [...results.querySelectorAll(`.${CARD_ROW_CLASS}`)];
   const isViewEmpty = rows.length > 0 && rows.every((row) => row.matches(SHARD_ROW) !== wantsShards);
   return isViewEmpty && !hasMorePages ? (EMPTY_TEXTS[view] ?? null) : null;
 };
 
-const findSentinel = (results: Element): HTMLElement | undefined =>
-  [...results.children].find((child): child is HTMLElement => child instanceof HTMLElement && !child.classList.contains(ROW));
-
-const waitFrames = (count: number, run: () => void) => {
-  if (count <= 0) run();
-  else requestAnimationFrame(() => waitFrames(count - 1, run));
-};
-
-const retriggerPaging = (results: Element, picker: Element, view: ShardView) => {
-  const sentinel = findSentinel(results);
-  if (view === 'all' || !sentinel) return;
-  const state = `${view}:${results.querySelectorAll(`.${ROW}`).length}`;
-  if (parkedStates.get(results) === state) return;
-  if (sentinel.getBoundingClientRect().top > picker.getBoundingClientRect().bottom + PAGING_MARGIN_PX) return;
-  parkedStates.set(results, state);
-  sentinel.setAttribute(PARKED_ATTRIBUTE, '');
-  waitFrames(PARKED_FRAMES, () => sentinel.removeAttribute(PARKED_ATTRIBUTE));
+const retriggerFilteredPaging = (results: Element, view: ShardView) => {
+  if (view !== 'all') retriggerPaging(results);
 };
 
 const canListShards = (modal: Element): boolean => {
@@ -135,7 +116,7 @@ const syncPicker = (modal: Element, picker: HTMLElement) => {
   syncEmptyNote(picker, shardSwitch, emptyTextOf(results, view));
   if (view === 'all') picker.removeAttribute(VIEW_ATTRIBUTE);
   else picker.setAttribute(VIEW_ATTRIBUTE, view);
-  retriggerPaging(results, picker, view);
+  retriggerFilteredPaging(results, view);
 };
 
 export function updateShardSwitches(pageDocument: Document = document): void {

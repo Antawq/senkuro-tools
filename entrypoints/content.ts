@@ -4,6 +4,7 @@ import '@/assets/price-badges.css';
 import '@/assets/sort.css';
 import '@/assets/profile-badge.css';
 import '@/assets/shard-switch.css';
+import '@/assets/paging-sentinel.css';
 import '@/assets/site-fixes.css';
 import '@/assets/token-bar.css';
 import '@/assets/trade-summary.css';

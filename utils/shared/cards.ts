@@ -1,4 +1,5 @@
 export const CARD_LINK = 'a.card-collect';
+export const CARD_ROW_CLASS = 'card-collect-preview';
 export const PRICE_DECIMALS = 2;
 export const COMMISSION_SHARE_KEPT = 0.8;
 export const PERCENT = 100;

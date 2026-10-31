@@ -2,9 +2,10 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { MODAL_REFRESH_CLASS } from '../utils/trades/modal-refresh';
+import { installIntersectionObservers } from './helpers/intersection-observer';
 import { createShardSwitchWatcher, isPickerMutation, updateShardSwitches } from '../utils/trades/shard-switch';
 
 const stylesheet = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../assets/shard-switch.css'), 'utf8');
@@ -181,48 +182,35 @@ describe('updateShardSwitches', () => {
   });
 
   describe('paging of the site in a view that hides rows', () => {
-    const frames: (() => void)[] = [];
-    const runFrames = (count = 2) => {
-      for (let i = 0; i < count; i++) frames.splice(0).forEach((run) => run());
-    };
+    let observers: ReturnType<typeof installIntersectionObservers>;
     const sentinel = () => document.querySelector('.sentinel') as HTMLElement;
     const isParked = () => sentinel().hasAttribute('data-senkutools-paging-parked');
-    const place = (element: Element, top: number, bottom: number) =>
-      vi
-        .spyOn(element, 'getBoundingClientRect')
-        .mockReturnValue({ top, bottom, left: 0, right: 0, width: 0, height: bottom - top, x: 0, y: top, toJSON: () => ({}) });
 
     beforeEach(() => {
-      frames.length = 0;
-      vi.stubGlobal('requestAnimationFrame', (run: () => void) => frames.push(run));
+      observers = installIntersectionObservers();
     });
 
-    it('moves the paging sentinel away for two frames and back, so the site sees it enter the view again', () => {
-      document.body.innerHTML = tradeModal(row('card') + row('shard'));
-      updateShardSwitches();
-      expect(isParked()).toBe(false);
-      press('Осколки');
-      expect(isParked()).toBe(true);
-      runFrames(1);
-      expect(isParked()).toBe(true);
-      runFrames(1);
-      expect(isParked()).toBe(false);
-    });
+    afterEach(() => vi.unstubAllGlobals());
 
-    it('parks it far outside the window with a rule of the stylesheet, not with a style set on the site element', () => {
+    it('moves the paging sentinel away once it is seen in view and back once it is seen gone, so the site sees it enter the view again', () => {
       document.body.innerHTML = tradeModal(row('card') + row('shard'));
       updateShardSwitches();
+      expect(observers.observations).toHaveLength(0);
       press('Осколки');
-      expect(sentinel().getAttribute('style')).toBeNull();
-      expect(getComputedStyle(sentinel()).transform).toContain('translateY(200000px)');
+      observers.report(true);
+      expect(isParked()).toBe(true);
+      observers.report(false);
+      expect(isParked()).toBe(false);
     });
 
     it('leaves the sentinel alone while the whole list is shown', () => {
       document.body.innerHTML = tradeModal(row('card') + row('shard'));
       updateShardSwitches();
       press('Осколки');
-      runFrames();
+      observers.report(true);
+      observers.report(false);
       press('Все');
+      expect(observers.observations).toHaveLength(1);
       expect(isParked()).toBe(false);
     });
 
@@ -230,20 +218,21 @@ describe('updateShardSwitches', () => {
       document.body.innerHTML = tradeModal(row('card') + row('shard'));
       updateShardSwitches();
       press('Осколки');
-      runFrames();
+      observers.report(true);
+      observers.report(false);
       updateShardSwitches();
-      expect(isParked()).toBe(false);
+      expect(observers.observations).toHaveLength(1);
       document.querySelector('.modal-trade__body-result')?.insertAdjacentHTML('afterbegin', row('shard'));
       updateShardSwitches();
+      observers.report(true);
       expect(isParked()).toBe(true);
     });
 
-    it('leaves a sentinel alone that is far below the visible part of the window', () => {
+    it('leaves a sentinel alone that is outside the paging margin of the site', () => {
       document.body.innerHTML = tradeModal(row('card') + row('shard'));
       updateShardSwitches();
-      place(sentinel(), 2000, 2000);
-      place(picker(), 100, 500);
       press('Осколки');
+      observers.report(false);
       expect(isParked()).toBe(false);
     });
 
@@ -251,7 +240,7 @@ describe('updateShardSwitches', () => {
       document.body.innerHTML = tradeModal(row('card') + row('shard'), false);
       updateShardSwitches();
       expect(() => press('Осколки')).not.toThrow();
-      expect(frames).toHaveLength(0);
+      expect(observers.observations).toHaveLength(0);
     });
   });
 
