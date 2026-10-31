@@ -115,7 +115,7 @@ export function findNicknameTarget(): NicknameTarget | null {
 
 const isUnknown = (item: string): boolean => item.endsWith(UNKNOWN_MARK);
 
-const isR = (item: string): boolean => (isUnknown(item) ? item.slice(0, -UNKNOWN_MARK.length) : item).endsWith(R_RANK);
+const isR = (item: string): boolean => item.endsWith(R_RANK) || item.endsWith(`${R_RANK}${UNKNOWN_MARK}`);
 
 function rankItem(item: string): HTMLElement | string {
   if (!isR(item) && !isUnknown(item)) return item;

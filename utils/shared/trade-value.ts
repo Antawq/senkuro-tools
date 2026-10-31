@@ -73,7 +73,6 @@ const rateInF = (rank: string | undefined, perRank: number): number | null => {
 };
 
 const rankPosition = (rank: string): number => {
-  if (rank === NO_RANK) return RANK_ORDER.length + 1;
   const position = RANK_ORDER.indexOf(rank);
   return position === -1 ? RANK_ORDER.length : position;
 };
@@ -101,14 +100,15 @@ const emptyTally = (hidden: number): Tally => ({
   r: { value: 0, count: 0, shards: 0 },
 });
 
-export const rankFromSlug = (slug: string | null): string =>
-  (slug ?? '')
-    .split('-')
-    .reverse()
-    .map((part) => part.toUpperCase())
-    .find((part) => RANK_ORDER.includes(part)) ?? NO_RANK;
+export function rankFromSlug(slug: string): string {
+  for (const part of slug.split('-').reverse()) {
+    const rank = part.toUpperCase();
+    if (RANK_ORDER.includes(rank)) return rank;
+  }
+  return NO_RANK;
+}
 
-const unpricedRank = (slug: string | null, db: Database): string => (slug ? db[slug]?.rank : undefined) || rankFromSlug(slug);
+const unpricedRank = (slug: string | null, db: Database): string => (slug ? db[slug]?.rank || rankFromSlug(slug) : NO_RANK);
 
 const pricedEntry = (slug: string | null, db: Database): CardEntry | null => {
   const entry = slug ? db[slug] : undefined;
@@ -173,9 +173,9 @@ interface RankMarks {
 }
 
 const formatRanks = (map: Map<string, number>, { shard = false, unpriced = false }: RankMarks): string[] =>
-  [...map.keys()]
-    .sort((a, b) => rankPosition(a) - rankPosition(b))
-    .map((rank) => `${formatAmount(map.get(rank) ?? 0)}${shard ? SHARD_MARK : ''}${rank}${unpriced ? UNKNOWN_MARK : ''}`);
+  [...map.entries()]
+    .sort(([a], [b]) => rankPosition(a) - rankPosition(b))
+    .map(([rank, amount]) => `${formatAmount(amount)}${shard ? SHARD_MARK : ''}${rank}${unpriced ? UNKNOWN_MARK : ''}`);
 
 export const formatByRank = (map: Map<string, number>): string[] => formatRanks(map, {});
 
