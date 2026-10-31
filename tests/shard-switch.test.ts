@@ -141,6 +141,16 @@ describe('updateShardSwitches', () => {
     expect(noteOf()).toBeNull();
   });
 
+  it('says nothing about either kind when the list has no row at all, which the empty note of the price range covers', () => {
+    document.body.innerHTML = tradeModal('', false, header('Твои карточки', HINTS.merge));
+    updateShardSwitches();
+    press('Карты');
+    expect(noteOf()).toBeNull();
+    press('Осколки');
+    expect(noteOf()).toBeNull();
+    expect(switchOf()).not.toBeNull();
+  });
+
   it('says nothing about an empty view while the site can still load more rows', () => {
     document.body.innerHTML = tradeModal(row('shard') + row('shard'), true);
     updateShardSwitches();

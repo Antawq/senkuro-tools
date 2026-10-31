@@ -74,8 +74,9 @@ const createShardSwitch = (view: ShardView, select: (next: ShardView) => void): 
 const emptyTextOf = (results: Element, view: ShardView): string | null => {
   const wantsShards = view === 'shards';
   const hasMorePages = [...results.children].some((child) => !child.classList.contains(ROW));
-  const shownRows = [...results.querySelectorAll(`.${ROW}`)].filter((row) => row.matches(SHARD_ROW) === wantsShards);
-  return shownRows.length === 0 && !hasMorePages ? (EMPTY_TEXTS[view] ?? null) : null;
+  const rows = [...results.querySelectorAll(`.${ROW}`)];
+  const isViewEmpty = rows.length > 0 && rows.every((row) => row.matches(SHARD_ROW) !== wantsShards);
+  return isViewEmpty && !hasMorePages ? (EMPTY_TEXTS[view] ?? null) : null;
 };
 
 const findSentinel = (results: Element): HTMLElement | undefined =>
