@@ -1,5 +1,5 @@
 import type { PageWindow } from './page-window';
-import { APP_ROOT, findVueApp, watchVueApp, type SiteHooks, type VueApp } from './vue-app';
+import { runOnAppAssigned, type SiteHooks, type VueApp } from './vue-app';
 
 export const APP_MOUNTED_EVENT = 'senkutools:app-mounted';
 export const APP_MOUNTED_ATTRIBUTE = 'data-senkutools-mounted';
@@ -24,17 +24,7 @@ function runWhenHydrated(app: VueApp, run: (app: VueApp) => void): void {
   hooks.on(HYDRATION_DONE, handleHydrationDone);
 }
 
-export function runAfterHydration(pageWindow: PageWindow, run: (app: VueApp) => void): void {
-  const app = findVueApp(pageWindow.document);
-  if (app) return runWhenHydrated(app, run);
-  let hasMounted = false;
-  watchVueApp(pageWindow, (container) => {
-    const mounted = !hasMounted && container.matches(APP_ROOT) ? findVueApp(pageWindow.document) : null;
-    if (!mounted) return;
-    hasMounted = true;
-    runWhenHydrated(mounted, run);
-  });
-}
+export const runAfterHydration = (pageWindow: PageWindow, run: (app: VueApp) => void): void => runOnAppAssigned(pageWindow, (app) => runWhenHydrated(app, run));
 
 export function publishAppMounted(pageWindow: PageWindow): void {
   runAfterHydration(pageWindow, () => {

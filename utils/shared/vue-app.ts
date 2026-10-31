@@ -29,3 +29,15 @@ export function watchVueApp(pageWindow: PageWindow, onAssigned: (container: Elem
     },
   });
 }
+
+export function runOnAppAssigned(pageWindow: PageWindow, run: (app: VueApp) => void): void {
+  const app = findVueApp(pageWindow.document);
+  if (app) return run(app);
+  let hasAssigned = false;
+  watchVueApp(pageWindow, (container) => {
+    const assigned = !hasAssigned && container.matches(APP_ROOT) ? findVueApp(pageWindow.document) : null;
+    if (!assigned) return;
+    hasAssigned = true;
+    run(assigned);
+  });
+}
