@@ -17,7 +17,7 @@ const SITE_APPLIED = 'button--chip';
 const SITE_DROPDOWN = 'v-popper--theme-dropdown';
 const OWN_PREFIX = 'senkutools-';
 const ICON_SIZE_PX = 20;
-const VIEWPORT_MARGIN_PX = 16;
+export const VIEWPORT_MARGIN_PX = 16;
 
 export const RANGE_TEXT = {
   trigger: 'Цена',
