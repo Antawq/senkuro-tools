@@ -169,7 +169,7 @@ function showPlace(state: SortState, place: SortPlace, current: PriceInputs): vo
   showLabel(state, toolbar);
 }
 
-function takePlace(state: SortState, place: SortPlace): void {
+function endPreviousPlace(state: SortState, place: SortPlace): void {
   if (state.place && state.place.toolbar !== place.toolbar) endMode(state, state.place.toolbar);
 }
 
@@ -180,7 +180,7 @@ function startOrSwitch(state: SortState, place: SortPlace): void {
 }
 
 function choosePriceMode(state: SortState, { place, trigger }: ClickedPlace): void {
-  takePlace(state, place);
+  endPreviousPlace(state, place);
   place.toolbar.setAttribute(MODE_ATTRIBUTE, PRICE_MODE);
   startOrSwitch(state, place);
   trigger.click();
@@ -197,7 +197,7 @@ function leavePriceMode(state: SortState, toolbar: Element): void {
 function applyRange(state: SortState, toolbar: Element, range: PriceRange | null): void {
   const place = findPlaces(state.pageDocument, state.scope).find((candidate) => candidate.toolbar === toolbar);
   if (!place?.isCardList || rangeKeyOf(readRange(toolbar)) === rangeKeyOf(range)) return;
-  takePlace(state, place);
+  endPreviousPlace(state, place);
   writeRange(toolbar, range);
   if (isActive(toolbar)) startOrSwitch(state, place);
   else endView(state);
