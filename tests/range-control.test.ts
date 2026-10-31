@@ -135,6 +135,23 @@ describe('the price range control', () => {
     expect(applied.at(-1)).toEqual({ min: 1.5, max: 20 });
   });
 
+  it('applies nothing for a key other than Enter in a field, and leaves the key to the browser', () => {
+    const { applied } = draw();
+    trigger()?.click();
+    if (inputs()[0]) inputs()[0]!.value = '5';
+    const key = press(inputs()[0], 'a');
+    expect(applied).toEqual([]);
+    expect(key.defaultPrevented).toBe(false);
+  });
+
+  it('applies nothing for Enter on a button of the panel, which the button takes as its own press', () => {
+    const { applied } = draw({ label: 'Цена', range: { min: 1, max: 2 } });
+    trigger()?.click();
+    const enter = press(actionButtons()[0], 'Enter');
+    expect(applied).toEqual([]);
+    expect(enter.defaultPrevented).toBe(false);
+  });
+
   it('applies nothing for bounds the wrong way round: marks the field just changed, says why, and applies once the bounds agree again', () => {
     const { applied } = draw({ label: 'Цена', range: { min: 1, max: 2 } });
     trigger()?.click();
