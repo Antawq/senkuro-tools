@@ -3,7 +3,8 @@ import type { Database } from '../shared/database';
 import type { ListScope } from '../shared/list-scope';
 import { priceRowsSignal, priceStateSignal, type PriceOrder, type PriceRows, type ViewSort } from '../shared/price-signal';
 import type { Settings } from '../shared/settings';
-import { createPriceLookup, sortedIndices } from './price-order';
+import { createPriceLookup, listOrders } from './price-order';
+import { rangeKeyOf, readRange, writeRange, type PriceRange } from './price-range';
 import { DIRECTION_ASCENDING, MENU, MENU_ITEM, MODE_ATTRIBUTE, OWN_ITEM, PRICE_MODE, WATCHED_AREAS } from './sort-dom';
 import { cardsOf, clearOrder, markState, orderCards } from './sort-grid';
 import { decorateMenu, isPriceMode, reflectLabel } from './sort-menu';
@@ -18,6 +19,11 @@ interface PriceInputs {
   commission: boolean;
 }
 
+interface SentOrder extends PriceInputs {
+  sort: ViewSort;
+  rangeKey: string | null;
+}
+
 export interface SortHost {
   setView: (isOn: boolean, sort: ViewSort) => void;
   sendOrder: (order: PriceOrder) => void;
@@ -27,6 +33,7 @@ export interface SortHost {
 
 export interface PriceSort {
   sync: (database: Database, settings: Pick<Settings, 'commission'>) => void;
+  applyRange: (toolbar: Element, range: PriceRange | null) => void;
   handleClick: (event: Event) => void;
   handleState: (event: Event) => void;
   handleRows: (event: Event) => void;
@@ -44,19 +51,26 @@ export function hasSortMutation(mutations: Iterable<MutationRecord>): boolean {
 
 const percentOf = (loaded: number, total: number | null): number | null => (total ? Math.min(PERCENT, Math.floor((loaded * PERCENT) / total)) : null);
 
+const isActive = (toolbar: Element): boolean => isPriceMode(toolbar) || readRange(toolbar) !== null;
+
+const sortOf = (toolbar: Element): ViewSort => (isPriceMode(toolbar) ? 'price' : 'site');
+
 interface SortState {
   pageDocument: Document;
   scope: ListScope;
   host: SortHost;
   phase: Phase;
   place: SortPlace | null;
+  sort: ViewSort;
   percent: number | null;
   eventCount: number;
   rows: PriceRows | null;
   revision: number;
   inputs: PriceInputs | null;
-  sentWith: PriceInputs | null;
+  sentWith: SentOrder | null;
 }
+
+const isViewRunning = (state: SortState): boolean => state.phase === 'loading' || state.phase === 'ready';
 
 function watchStall(state: SortState, seenEventCount: number): void {
   state.host.runAfter(() => {
@@ -67,23 +81,32 @@ function watchStall(state: SortState, seenEventCount: number): void {
 }
 
 function fallBack(state: SortState): void {
-  if (state.phase === 'partial' || state.phase === 'idle') return;
-  if (state.place && !state.place.canOrderLoadedCards) return endMode(state, state.place.toolbar);
+  if (!isViewRunning(state)) return;
+  const place = state.place;
+  if (place) writeRange(place.toolbar, null);
+  if (place && (!place.canOrderLoadedCards || !isPriceMode(place.toolbar))) return endMode(state, place.toolbar);
   state.phase = 'partial';
   state.rows = null;
   state.sentWith = null;
-  state.host.setView(false, 'price');
+  state.host.setView(false, state.sort);
   state.host.schedule();
 }
 
-function beginView(state: SortState, place: SortPlace): void {
+function beginView(state: SortState, place: SortPlace, sort: ViewSort): void {
   state.phase = 'loading';
   state.place = place;
+  state.sort = sort;
   state.percent = null;
   state.rows = null;
   state.sentWith = null;
-  state.host.setView(true, 'price');
+  state.host.setView(true, sort);
   watchStall(state, state.eventCount);
+}
+
+function switchSort(state: SortState, sort: ViewSort): void {
+  if (!isViewRunning(state) || state.sort === sort) return;
+  state.sort = sort;
+  state.host.setView(true, sort);
 }
 
 function endView(state: SortState): void {
@@ -92,11 +115,12 @@ function endView(state: SortState): void {
   state.place = null;
   state.rows = null;
   state.sentWith = null;
-  state.host.setView(false, 'price');
+  state.host.setView(false, state.sort);
 }
 
 function endMode(state: SortState, toolbar: Element): void {
   toolbar.removeAttribute(MODE_ATTRIBUTE);
+  writeRange(toolbar, null);
   endView(state);
   state.host.schedule();
 }
@@ -104,30 +128,30 @@ function endMode(state: SortState, toolbar: Element): void {
 function sendOrder(state: SortState, current: PriceInputs): void {
   const rows = state.rows;
   if (!rows) return;
+  const range = state.place ? readRange(state.place.toolbar) : null;
   state.revision += 1;
-  const lookup = createPriceLookup(current.database, current.commission);
-  state.host.sendOrder({
-    viewId: rows.viewId,
-    revision: state.revision,
-    descending: sortedIndices(rows.slugs, lookup, true),
-    ascending: sortedIndices(rows.slugs, lookup, false),
-  });
-  state.sentWith = current;
+  const orders = listOrders(rows.slugs, createPriceLookup(current.database, current.commission), state.sort, range);
+  state.host.sendOrder({ viewId: rows.viewId, revision: state.revision, ...orders });
+  state.sentWith = { ...current, sort: state.sort, rangeKey: rangeKeyOf(range) };
 }
 
 function releasePlace(place: SortPlace): void {
   place.toolbar.removeAttribute(MODE_ATTRIBUTE);
+  writeRange(place.toolbar, null);
   reflectLabel(place.toolbar, 'off');
   if (!place.results) return;
   markState(place.results, null);
   clearOrder(cardsOf(place.results));
 }
 
-const showLabel = (state: SortState, place: SortPlace): void => reflectLabel(place.toolbar, state.phase === 'loading' ? 'loading' : 'price', state.percent);
+function showLabel(state: SortState, toolbar: Element): void {
+  if (!isPriceMode(toolbar)) reflectLabel(toolbar, 'off');
+  else reflectLabel(toolbar, state.phase === 'loading' ? 'loading' : 'price', state.percent);
+}
 
 function showPlace(state: SortState, place: SortPlace, current: PriceInputs): void {
   const { results, toolbar } = place;
-  if (!results) return showLabel(state, place);
+  if (!results) return showLabel(state, toolbar);
   if (state.phase === 'partial') {
     markState(results, 'partial');
     reflectLabel(toolbar, 'partial');
@@ -136,21 +160,50 @@ function showPlace(state: SortState, place: SortPlace, current: PriceInputs): vo
   }
   markState(results, state.phase === 'loading' ? 'loading' : null);
   clearOrder(cardsOf(results));
-  showLabel(state, place);
+  showLabel(state, toolbar);
+}
+
+function takePlace(state: SortState, place: SortPlace): void {
+  if (state.place && state.place.toolbar !== place.toolbar) endMode(state, state.place.toolbar);
+}
+
+function startOrSwitch(state: SortState, place: SortPlace): void {
+  const sort = sortOf(place.toolbar);
+  if (state.phase === 'idle' || state.phase === 'partial') beginView(state, place, sort);
+  else switchSort(state, sort);
 }
 
 function choosePriceMode(state: SortState, { place, trigger }: ClickedPlace): void {
-  if (state.place && state.place.toolbar !== place.toolbar) endMode(state, state.place.toolbar);
+  takePlace(state, place);
   place.toolbar.setAttribute(MODE_ATTRIBUTE, PRICE_MODE);
-  if (state.phase === 'idle' || state.phase === 'partial') beginView(state, place);
+  startOrSwitch(state, place);
   trigger.click();
   state.host.schedule();
 }
 
-const needsNewOrder = (state: SortState, current: PriceInputs): boolean =>
-  state.rows !== null &&
-  (state.phase === 'loading' || state.phase === 'ready') &&
-  (state.sentWith?.database !== current.database || state.sentWith.commission !== current.commission);
+function leavePriceMode(state: SortState, toolbar: Element): void {
+  toolbar.removeAttribute(MODE_ATTRIBUTE);
+  if (readRange(toolbar)) switchSort(state, 'site');
+  else endView(state);
+  state.host.schedule();
+}
+
+function applyRange(state: SortState, toolbar: Element, range: PriceRange | null): void {
+  const place = findPlaces(state.pageDocument, state.scope).find((candidate) => candidate.toolbar === toolbar);
+  if (!place?.isCardList || rangeKeyOf(readRange(toolbar)) === rangeKeyOf(range)) return;
+  takePlace(state, place);
+  writeRange(toolbar, range);
+  if (isActive(toolbar)) startOrSwitch(state, place);
+  else endView(state);
+  state.host.schedule();
+}
+
+const needsNewOrder = (state: SortState, current: PriceInputs, place: SortPlace): boolean => {
+  const sent = state.sentWith;
+  if (state.rows === null || !isViewRunning(state)) return false;
+  if (sent?.database !== current.database || sent.commission !== current.commission) return true;
+  return sent.sort !== state.sort || sent.rangeKey !== rangeKeyOf(readRange(place.toolbar));
+};
 
 function decorateOpenMenu(state: SortState): void {
   const menuPlace = findMenuPlace(state.pageDocument);
@@ -161,11 +214,13 @@ function syncSort(state: SortState, current: PriceInputs): void {
   state.inputs = current;
   const places = findPlaces(state.pageDocument, state.scope);
   decorateOpenMenu(state);
-  const place = places.find((candidate) => candidate.isCardList && isPriceMode(candidate.toolbar));
+  const place = places.find((candidate) => candidate.isCardList && isActive(candidate.toolbar));
   for (const other of places) if (other !== place) releasePlace(other);
   if (!place) return endView(state);
-  if (state.phase === 'idle') beginView(state, place);
-  if (needsNewOrder(state, current)) sendOrder(state, current);
+  if (state.phase === 'idle') beginView(state, place, sortOf(place.toolbar));
+  else switchSort(state, sortOf(place.toolbar));
+  state.place = place;
+  if (needsNewOrder(state, current, place)) sendOrder(state, current);
   showPlace(state, place, current);
 }
 
@@ -181,10 +236,10 @@ function handleSortClick(state: SortState, event: Event): void {
   const { menuItem, clicked } = clickedItem;
   if (menuItem.matches(OWN_ITEM)) {
     if (event.target instanceof HTMLInputElement) choosePriceMode(state, clicked);
-  } else if (isPriceMode(clicked.place.toolbar)) endMode(state, clicked.place.toolbar);
+  } else if (isPriceMode(clicked.place.toolbar)) leavePriceMode(state, clicked.place.toolbar);
 }
 
-const isListening = (state: SortState, scope: ListScope): boolean => scope === state.scope && state.phase !== 'idle' && state.phase !== 'partial';
+const isListening = (state: SortState, scope: ListScope): boolean => scope === state.scope && isViewRunning(state);
 
 function handleViewState(state: SortState, event: Event): void {
   const viewState = priceStateSignal.read(event);
@@ -220,6 +275,7 @@ export function createPriceSort(pageDocument: Document, scope: ListScope, host: 
     host,
     phase: 'idle',
     place: null,
+    sort: 'price',
     percent: null,
     eventCount: 0,
     rows: null,
@@ -229,6 +285,7 @@ export function createPriceSort(pageDocument: Document, scope: ListScope, host: 
   };
   return {
     sync: (database, { commission }) => syncSort(state, { database, commission }),
+    applyRange: (toolbar, range) => applyRange(state, toolbar, range),
     handleClick: (event) => handleSortClick(state, event),
     handleState: (event) => handleViewState(state, event),
     handleRows: (event) => handleViewRows(state, event),

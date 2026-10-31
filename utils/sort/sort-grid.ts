@@ -1,7 +1,7 @@
 import { CARD_LINK, slugFromHref } from '../shared/cards';
 import type { Database } from '../shared/database';
 import { createPriceLookup, priceOrder } from './price-order';
-import { CARD, STATE_ATTRIBUTE, type GridState } from './sort-dom';
+import { CARD, STATE_ATTRIBUTE, writeAttribute, type GridState } from './sort-dom';
 
 const slugOf = (card: HTMLElement | undefined): string | null => slugFromHref(card?.querySelector(CARD_LINK)?.getAttribute('href'));
 
@@ -18,7 +18,4 @@ export function orderCards(cards: HTMLElement[], database: Database, commission:
 
 export const clearOrder = (cards: HTMLElement[]): void => cards.forEach((card) => card.style.removeProperty('order'));
 
-export function markState(grid: HTMLElement, state: GridState | null): void {
-  if (state === null) grid.removeAttribute(STATE_ATTRIBUTE);
-  else if (grid.getAttribute(STATE_ATTRIBUTE) !== state) grid.setAttribute(STATE_ATTRIBUTE, state);
-}
+export const markState = (grid: HTMLElement, state: GridState | null): void => writeAttribute(grid, STATE_ATTRIBUTE, state);

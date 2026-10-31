@@ -1,3 +1,5 @@
+import { writeAttribute } from './sort-dom';
+
 export interface PriceRange {
   min: number | null;
   max: number | null;
@@ -35,8 +37,4 @@ export function readRange(toolbar: Element): PriceRange | null {
   return createRange(parseBound(min), parseBound(max));
 }
 
-export function writeRange(toolbar: Element, range: PriceRange | null): void {
-  const key = rangeKeyOf(range);
-  if (key === null) toolbar.removeAttribute(RANGE_ATTRIBUTE);
-  else if (toolbar.getAttribute(RANGE_ATTRIBUTE) !== key) toolbar.setAttribute(RANGE_ATTRIBUTE, key);
-}
+export const writeRange = (toolbar: Element, range: PriceRange | null): void => writeAttribute(toolbar, RANGE_ATTRIBUTE, rangeKeyOf(range));

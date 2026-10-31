@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Database } from '../utils/shared/database';
 import type { ListScope } from '../utils/shared/list-scope';
 import { priceRowsSignal, priceStateSignal, type PriceOrder, type PriceStateName, type ViewSort } from '../utils/shared/price-signal';
+import type { PriceRange } from '../utils/sort/price-range';
 import { createPriceSort, hasSortMutation, type PriceSort, type SortHost } from '../utils/sort/sort-view';
 
 const database: Database = {
@@ -845,5 +846,198 @@ describe('the lists of a window and of the deck builder', () => {
     const closed = document.querySelector('.modal-content--trade')!;
     closed.remove();
     expect(hasSortMutation([record(document.body, [closed])])).toBe(true);
+  });
+});
+
+describe('a price range', () => {
+  const rangeOf = (toolbar: Element | null) => toolbar?.getAttribute('data-senkutools-price-range') ?? null;
+
+  const ranged = (range: PriceRange = { min: 15, max: 400 }, scope: ListScope = 'grid') => {
+    const harness = setup(scope);
+    harness.sort.sync(database, settings);
+    harness.sort.applyRange(scope === 'grid' ? (filters() as Element) : (windowToolbar() as Element), range);
+    harness.sort.sync(database, settings);
+    return harness;
+  };
+
+  it('starts the view in the order of the site, and sends only the rows in the range, in the order of the list, the same both ways', () => {
+    render();
+    const { views, sorts, orders, rows, state } = ranged();
+    expect(rangeOf(filters())).toBe('15:400');
+    expect(views).toEqual([true]);
+    expect(sorts).toEqual(['site']);
+    state('loading', 0, 3);
+    rows(1, ['mid', 'dear', 'cheap', null, 'twin']);
+    expect(orders).toEqual([{ viewId: 1, revision: 1, descending: [0, 1, 4], ascending: [0, 1, 4] }]);
+  });
+
+  it('leaves the label of the site sort alone and dims the list while it loads', () => {
+    render();
+    const { sort, state } = ranged();
+    state('loading', 1, 3);
+    sort.sync(database, settings);
+    expect(label()).toBe('По дате получения');
+    expect(grid()?.getAttribute('data-senkutools-sort-state')).toBe('loading');
+    state('ready', 3, 3);
+    sort.sync(database, settings);
+    expect(grid()?.hasAttribute('data-senkutools-sort-state')).toBe(false);
+  });
+
+  it('sends the rows in the range by price when the price sort is on as well', () => {
+    render();
+    enablePriceMode();
+    const { sorts, orders, rows, state } = ranged({ min: 1.5, max: 20 });
+    expect(sorts).toEqual(['price']);
+    state('loading');
+    rows(1, ['mid', 'dear', 'cheap', 'twin', 'nope']);
+    expect(orders.at(-1)).toMatchObject({ descending: [0, 3, 2], ascending: [2, 0, 3] });
+  });
+
+  it('compares the price the badge shows, so a bound on a rounded price takes the card in', () => {
+    render();
+    const { orders, rows, state } = ranged({ min: 20, max: 20 });
+    state('loading');
+    rows(1, ['mid', 'twin', 'dear']);
+    expect(orders.at(-1)).toMatchObject({ descending: [0, 1] });
+  });
+
+  it('takes the commission in, the way the badges do', () => {
+    render();
+    const { sort, orders, rows, state } = ranged({ min: 16, max: 16 });
+    state('loading');
+    rows(1, ['mid', 'dear']);
+    expect(orders.at(-1)).toMatchObject({ descending: [] });
+    sort.sync(database, { commission: true });
+    expect(orders.at(-1)).toMatchObject({ revision: 2, descending: [0] });
+  });
+
+  it('sends a newer order for another range, with the same view, and nothing for the same range again', () => {
+    render();
+    const { sort, views, orders, rows, state } = ranged();
+    state('loading');
+    rows(1, ['mid', 'dear', 'cheap']);
+    state('ready', 3, 3);
+    sort.applyRange(filters() as Element, { min: 15, max: 400 });
+    sort.sync(database, settings);
+    expect(orders).toHaveLength(1);
+    sort.applyRange(filters() as Element, { min: null, max: 2 });
+    sort.sync(database, settings);
+    expect(views).toEqual([true]);
+    expect(orders.at(-1)).toEqual({ viewId: 1, revision: 2, descending: [2], ascending: [2] });
+  });
+
+  it('ends the view and gives back the list of the site when the range is cleared under the site sort', () => {
+    render();
+    const { sort, views } = ranged();
+    sort.applyRange(filters() as Element, null);
+    expect(rangeOf(filters())).toBeNull();
+    expect(views).toEqual([true, false]);
+    sort.sync(database, settings);
+    expect(views).toEqual([true, false]);
+  });
+
+  it('keeps the price sort when the range is cleared under it, and sends every row again', () => {
+    render();
+    enablePriceMode();
+    const { sort, views, orders, rows, state } = ranged({ min: 1.5, max: 20 });
+    state('loading');
+    rows(1, ['mid', 'dear', 'cheap']);
+    sort.applyRange(filters() as Element, null);
+    sort.sync(database, settings);
+    expect(views).toEqual([true]);
+    expect(orders.at(-1)).toMatchObject({ revision: 2, descending: [1, 0, 2], ascending: [2, 0, 1] });
+  });
+
+  it('switches the view to the price order when the price is chosen with a range on, and back to the order of the site when a site item is chosen, keeping the range', () => {
+    render({ hasMenu: true });
+    const { sort, views, sorts, orders, rows, state, choose } = ranged();
+    state('loading');
+    rows(1, ['mid', 'dear', 'cheap']);
+    choose();
+    expect(filters()?.getAttribute('data-senkutools-sort')).toBe('price');
+    expect(views).toEqual([true, true]);
+    expect(sorts).toEqual(['site', 'price']);
+    sort.sync(database, settings);
+    expect(label()).toBe('По цене');
+    expect(orders.at(-1)).toMatchObject({ revision: 2, descending: [1, 0], ascending: [0, 1] });
+    press(sort, document.querySelector('#cards-browse-order label.radio--list input'));
+    expect(filters()?.hasAttribute('data-senkutools-sort')).toBe(false);
+    expect(rangeOf(filters())).toBe('15:400');
+    expect(sorts).toEqual(['site', 'price', 'site']);
+    sort.sync(database, settings);
+    expect(label()).toBe('По дате получения');
+    expect(orders.at(-1)).toMatchObject({ revision: 3, descending: [0, 1], ascending: [0, 1] });
+  });
+
+  it('waits for the rows of a list crawled again after a switch, instead of ordering the old rows', () => {
+    render({ hasMenu: true });
+    enablePriceMode();
+    const { sort, orders, rows, state } = ranged();
+    state('loading');
+    rows(1, ['mid', 'dear', 'cheap']);
+    state('ready', 3, 3);
+    press(sort, document.querySelector('#cards-browse-order label.radio--list input'));
+    state('loading', 0, null);
+    sort.sync(database, settings);
+    expect(orders).toHaveLength(1);
+    rows(2, ['dear', 'mid']);
+    expect(orders.at(-1)).toEqual({ viewId: 2, revision: 1, descending: [0, 1], ascending: [0, 1] });
+  });
+
+  it('falls open: when the page says it cannot, or says nothing for a long time, the range is taken off and the list of the site stays whole', () => {
+    for (const ending of ['unavailable', 'failed', 'stall'] as const) {
+      render();
+      const { sort, views, state, timers } = ranged();
+      if (ending === 'stall') timers.shift()?.();
+      else state(ending);
+      sort.sync(database, settings);
+      expect(views, ending).toEqual([true, false]);
+      expect(rangeOf(filters()), ending).toBeNull();
+      expect(grid()?.hasAttribute('data-senkutools-sort-state'), ending).toBe(false);
+      expect(cards().map(placeOf), ending).toEqual(['', '', '']);
+    }
+  });
+
+  it('keeps the partial price order of the profile grid when it falls open, without the range, so no card is hidden', () => {
+    render({ slugs: ['cheap', 'dear', 'mid'] });
+    enablePriceMode();
+    const { sort, state } = ranged({ min: 100, max: null });
+    state('failed');
+    sort.sync(database, settings);
+    expect(rangeOf(filters())).toBeNull();
+    expect(label()).toBe('По цене (часть)');
+    expect(slugsByPlace()).toEqual(['dear', 'mid', 'cheap']);
+  });
+
+  it('ends a range in another place of the same kind, the same rule as the price sort', () => {
+    document.body.innerHTML = deckHtml();
+    const { sort, views } = setup('picker');
+    sort.sync(database, settings);
+    sort.applyRange(deckToolbar() as Element, { min: 1, max: 2 });
+    document.body.insertAdjacentHTML('beforeend', windowHtml());
+    sort.sync(database, settings);
+    sort.applyRange(windowToolbar() as Element, { min: 5, max: null });
+    expect(rangeOf(deckToolbar())).toBeNull();
+    expect(rangeOf(windowToolbar())).toBe('5:');
+    expect(views).toEqual([true, false, true]);
+  });
+
+  it('is ended in the window when the window moves to its catalog step, and is never set there', () => {
+    document.body.innerHTML = windowHtml();
+    const { sort, views } = ranged({ min: 1, max: 2 }, 'picker');
+    setHint('Выбор карт из общего каталога');
+    sort.sync(database, settings);
+    expect(rangeOf(windowToolbar())).toBeNull();
+    expect(views).toEqual([true, false]);
+    sort.applyRange(windowToolbar() as Element, { min: 1, max: 2 });
+    expect(rangeOf(windowToolbar())).toBeNull();
+  });
+
+  it('is left alone by the sort of the other kind of list', () => {
+    render();
+    const picker = setup('picker');
+    picker.sort.applyRange(filters() as Element, { min: 1, max: 2 });
+    expect(rangeOf(filters())).toBeNull();
+    expect(picker.views).toEqual([]);
   });
 });

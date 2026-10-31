@@ -1,5 +1,7 @@
 import { PRICE_DECIMALS, effectivePrice } from '../shared/cards';
 import type { Database } from '../shared/database';
+import type { ViewSort } from '../shared/price-signal';
+import { isInRange, type PriceRange } from './price-range';
 
 interface Entry {
   index: number;
@@ -35,4 +37,24 @@ export function sortedIndices(slugs: (string | null)[], priceBySlug: (slug: stri
     indices[position] = index;
   });
   return indices;
+}
+
+export interface ListOrders {
+  descending: number[];
+  ascending: number[];
+}
+
+export function listOrders(slugs: (string | null)[], priceBySlug: (slug: string) => number | null, sort: ViewSort, range: PriceRange | null): ListOrders {
+  const isShown = (index: number): boolean => {
+    const slug = slugs[index] ?? null;
+    return range === null || isInRange(slug === null ? null : priceBySlug(slug), range);
+  };
+  if (sort === 'site') {
+    const shown = slugs.map((_slug, index) => index).filter(isShown);
+    return { descending: shown, ascending: [...shown] };
+  }
+  return {
+    descending: sortedIndices(slugs, priceBySlug, true).filter(isShown),
+    ascending: sortedIndices(slugs, priceBySlug, false).filter(isShown),
+  };
 }

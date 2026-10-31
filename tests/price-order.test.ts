@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { priceOrder } from '../utils/sort/price-order';
+import { listOrders, priceOrder } from '../utils/sort/price-order';
 
 const prices: Record<string, number> = { cheap: 1.5, mid: 20, dear: 300, twin: 20, free: 0 };
 
@@ -49,5 +49,35 @@ describe('priceOrder', () => {
     const seen: string[] = [];
     priceOrder(['mid', 'dear', 'cheap', 'mid', 'twin'], (slug) => (seen.push(slug), priceOf(slug)), true);
     expect(seen).toHaveLength(5);
+  });
+});
+
+describe('listOrders', () => {
+  const slugs = ['mid', 'nope', 'dear', 'cheap', null, 'twin', 'free'];
+  const named = (indices: number[]): (string | null)[] => indices.map((index) => slugs[index] ?? null);
+
+  it('orders every row by price in both directions when there is no range, what has no price last', () => {
+    const orders = listOrders(slugs, priceOf, 'price', null);
+    expect(named(orders.descending)).toEqual(['dear', 'mid', 'twin', 'cheap', 'free', 'nope', null]);
+    expect(named(orders.ascending)).toEqual(['free', 'cheap', 'mid', 'twin', 'dear', 'nope', null]);
+  });
+
+  it('keeps only the rows whose price is in the range, both bounds in, and leaves every row without a price out', () => {
+    const orders = listOrders(slugs, priceOf, 'price', { min: 1.5, max: 20 });
+    expect(named(orders.descending)).toEqual(['mid', 'twin', 'cheap']);
+    expect(named(orders.ascending)).toEqual(['cheap', 'mid', 'twin']);
+    expect(named(listOrders(slugs, priceOf, 'price', { min: null, max: 0 }).descending)).toEqual(['free']);
+  });
+
+  it('keeps the order of the list in the order of the site, the same for both directions, with or without a range', () => {
+    expect(named(listOrders(slugs, priceOf, 'site', null).descending)).toEqual(slugs);
+    const orders = listOrders(slugs, priceOf, 'site', { min: 20, max: null });
+    expect(named(orders.descending)).toEqual(['mid', 'dear', 'twin']);
+    expect(orders.ascending).toEqual(orders.descending);
+  });
+
+  it('leaves every row out when nothing is in the range', () => {
+    expect(listOrders(slugs, priceOf, 'price', { min: 1000, max: null })).toEqual({ descending: [], ascending: [] });
+    expect(listOrders(slugs, priceOf, 'site', { min: 2, max: 3 })).toEqual({ descending: [], ascending: [] });
   });
 });
