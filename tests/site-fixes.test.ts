@@ -37,6 +37,17 @@ describe('trade modal layout', () => {
   });
 });
 
+describe('card list toolbars with the price range control', () => {
+  it('may wrap, so the control and the refresh button never push past the edge of a narrow window', () => {
+    for (const toolbar of ['modal-trade__header-form', 'card-browse__form']) {
+      document.body.innerHTML = `<div class="${toolbar}"><button></button><div class="senkutools-price-filter"></div></div>`;
+      expect(styleOf(`.${toolbar}`).flexWrap).toBe('wrap');
+      document.body.innerHTML = `<div class="${toolbar}"><button></button></div>`;
+      expect(styleOf(`.${toolbar}`).flexWrap).not.toBe('wrap');
+    }
+  });
+});
+
 describe('avatar price coin', () => {
   it('is sized with the text it stands in, and wins over the image rules of the site', () => {
     document.head.insertAdjacentHTML('afterbegin', '<style>img{vertical-align:middle;max-width:100%}</style>');

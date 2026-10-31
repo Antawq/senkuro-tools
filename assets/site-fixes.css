@@ -27,6 +27,11 @@
   margin-left: 0;
 }
 
+.modal-trade__header-form:has(> .senkutools-price-filter),
+.card-browse__form:has(> .senkutools-price-filter) {
+  flex-wrap: wrap;
+}
+
 .senkutools-avatar-coin {
   width: auto;
   height: 1.4em;
