@@ -92,11 +92,10 @@ const variablesOf = (operation: Operation): Variables => operation.variables ?? 
 
 const withVariables = (operation: Operation, variables: Variables): Operation => makeOperation(operation.kind, { ...operation, variables }, operation.context);
 
-function isPermutation(order: number[], size: number): boolean {
-  if (order.length !== size) return false;
+function isSelection(order: number[], size: number): boolean {
   const seen = new Set<number>();
   return order.every((index) => {
-    const isNew = index < size && !seen.has(index);
+    const isNew = Number.isInteger(index) && index >= 0 && index < size && !seen.has(index);
     seen.add(index);
     return isNew;
   });
@@ -276,8 +275,8 @@ const acceptsOrder = (view: View | null, order: PriceOrder): view is View =>
   view.id === order.viewId &&
   view.phase !== 'crawling' &&
   order.revision > view.revision &&
-  isPermutation(order.descending, view.rows.length) &&
-  isPermutation(order.ascending, view.rows.length);
+  isSelection(order.descending, view.rows.length) &&
+  isSelection(order.ascending, view.rows.length);
 
 function receiveOrder(state: ViewState, order: PriceOrder): void {
   const view = state.view;

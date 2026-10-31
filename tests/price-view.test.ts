@@ -317,13 +317,13 @@ describe('a list it does not serve', () => {
 });
 
 describe('the order', () => {
-  it('is dropped when it is for another view, comes too early, is not a whole order, or is not newer', async () => {
+  it('is dropped when it is for another view, comes too early, names a row twice or a row the list does not have, or is not newer', async () => {
     const { view, rows, redrives, states } = await crawled();
     const viewId = rows[0]?.viewId ?? -1;
     const valid = { viewId, revision: 1, descending: DESCENDING, ascending: ASCENDING };
     view.receiveOrder({ ...valid, viewId: viewId + 1 });
-    view.receiveOrder({ ...valid, descending: [0, 1, 2, 3] });
     view.receiveOrder({ ...valid, descending: [0, 0, 1, 2, 3] });
+    view.receiveOrder({ ...valid, descending: [0, 1, 2, 3, -1] });
     view.receiveOrder({ ...valid, ascending: [0, 1, 2, 3, 7] });
     view.receiveOrder({ ...valid, revision: 0 });
     expect(redrives).toHaveLength(0);
@@ -332,6 +332,28 @@ describe('the order', () => {
     expect(redrives).toHaveLength(1);
     view.receiveOrder(valid);
     expect(redrives).toHaveLength(1);
+  });
+
+  it('may leave rows out, and then only the rows it names are served, in its order, with no page after the last of them', async () => {
+    const { view, rows, states } = await crawled();
+    view.receiveOrder({ viewId: rows[0]?.viewId ?? -1, revision: 1, descending: [4, 2, 0], ascending: [0, 2, 4] });
+    expect(states.at(-1)).toEqual({ name: 'ready', loaded: 5, total: 5 });
+    const first = view.answer(listOperation(gridVariables()));
+    expect(slugsOf(first)).toEqual(['e', 'c']);
+    expect(first?.userCards.pageInfo).toMatchObject({ hasNextPage: true, endCursor: createPrivateCursor(1, 2) });
+    const last = view.answer(listOperation(gridVariables({ after: createPrivateCursor(1, 2) })));
+    expect(slugsOf(last)).toEqual(['e', 'c', 'a']);
+    expect(last?.userCards.pageInfo).toMatchObject({ hasNextPage: false, endCursor: null });
+    expect(slugsOf(view.answer(listOperation(gridVariables({ orderDirection: 'ASC' }))))).toEqual(['a', 'c']);
+  });
+
+  it('may leave every row out, and then the list is served empty', async () => {
+    const { view, rows, redrives } = await crawled();
+    view.receiveOrder({ viewId: rows[0]?.viewId ?? -1, revision: 1, descending: [], ascending: [] });
+    expect(redrives).toHaveLength(1);
+    const answer = view.answer(listOperation(gridVariables()));
+    expect(answer?.userCards.edges).toEqual([]);
+    expect(answer?.userCards.pageInfo).toMatchObject({ hasNextPage: false, endCursor: null });
   });
 
   it('is dropped while the list is still being crawled', () => {
