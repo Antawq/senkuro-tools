@@ -223,4 +223,12 @@ describe('the price range control', () => {
     redraw({ label: 'Цена', range: null });
     expect(inputs().map((input) => input.value)).toEqual(['', '']);
   });
+
+  it.each([
+    [{ min: 0, max: 5 }, ['0', '5']],
+    [{ min: null, max: 0 }, ['', '0']],
+  ])('shows a bound of zero in its field as 0, not as an empty field (%j)', (range, fields) => {
+    draw({ label: 'Цена', range });
+    expect(inputs().map((input) => input.value)).toEqual(fields);
+  });
 });
