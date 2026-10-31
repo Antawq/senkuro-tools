@@ -31,7 +31,7 @@ export function priceOrder(slugs: (string | null)[], priceBySlug: (slug: string)
   return order;
 }
 
-export function sortedIndices(slugs: (string | null)[], priceBySlug: (slug: string) => number | null, isDescending: boolean): number[] {
+function sortedIndices(slugs: (string | null)[], priceBySlug: (slug: string) => number | null, isDescending: boolean): number[] {
   const indices: number[] = new Array<number>(slugs.length);
   priceOrder(slugs, priceBySlug, isDescending).forEach((position, index) => {
     indices[position] = index;

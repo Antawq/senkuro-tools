@@ -5,7 +5,7 @@ export interface PriceRange {
   max: number | null;
 }
 
-export const RANGE_ATTRIBUTE = 'data-senkutools-price-range';
+const RANGE_ATTRIBUTE = 'data-senkutools-price-range';
 
 const BOUND_SEPARATOR = ':';
 const SPACES = /\s+/g;

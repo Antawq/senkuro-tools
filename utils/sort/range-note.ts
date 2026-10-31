@@ -2,7 +2,7 @@ import { element } from '../shared/dom';
 import { PRICE_EMPTY_CLASS } from '../shared/price-filter-nodes';
 import { writeAttribute } from './sort-dom';
 
-export const EMPTY_RANGE_TEXT = 'Нет карт в этом диапазоне цен';
+const EMPTY_RANGE_TEXT = 'Нет карт в этом диапазоне цен';
 
 const EMPTY_ATTRIBUTE = 'data-senkutools-price-empty';
 
