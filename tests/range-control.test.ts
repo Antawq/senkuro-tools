@@ -87,6 +87,15 @@ describe('the price range control', () => {
     expect(panel()?.hidden).toBe(true);
   });
 
+  it('gives the focus back to the trigger when the trigger itself closes the panel', () => {
+    draw();
+    trigger()?.click();
+    expect(document.activeElement).toBe(inputs()[0]);
+    trigger()?.click();
+    expect(panel()?.hidden).toBe(true);
+    expect(document.activeElement).toBe(trigger());
+  });
+
   it('is built from the dropdown classes of the site: a caption and the reset and close buttons in its header', () => {
     draw();
     expect(panel()?.classList.contains('v-popper--theme-dropdown')).toBe(true);
