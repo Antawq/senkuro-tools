@@ -1,7 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { PriceRange } from '../utils/sort/price-range';
-import { closeRangePanels, rangeLabelOf, removeRangeControl, syncRangeControl, type RangeView } from '../utils/sort/range-control';
+import { closeRangePanels, rangeLabelOf, removeRangeControl, syncRangeControl, VIEWPORT_MARGIN_PX, type RangeView } from '../utils/sort/range-control';
 
 const toolbarHtml = (withRefresh = false) =>
   `<div class="modal-trade__header-form"><div class="v-popper"><button id="sort">По дате получения</button></div><button id="direction">Сначала</button><div class="v-popper"><button id="filter">Фильтр</button></div>${
@@ -230,5 +230,42 @@ describe('the price range control', () => {
   ])('shows a bound of zero in its field as 0, not as an empty field (%j)', (range, fields) => {
     draw({ label: 'Цена', range });
     expect(inputs().map((input) => input.value)).toEqual(fields);
+  });
+
+  describe('the position of the open panel', () => {
+    const viewportWidth = 360;
+    const rightEdge = viewportWidth - VIEWPORT_MARGIN_PX;
+
+    const openWithBox = (left: number, right: number) => {
+      vi.spyOn(panel() as HTMLElement, 'getBoundingClientRect').mockReturnValue({ left, right } as DOMRect);
+      trigger()?.click();
+      return panel()?.style.left;
+    };
+
+    beforeEach(() => {
+      vi.spyOn(document.documentElement, 'clientWidth', 'get').mockReturnValue(viewportWidth);
+      draw();
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it.each([
+      { box: 'ends inside the margin', left: 100, right: rightEdge - 10, shift: '' },
+      { box: 'ends exactly at the margin', left: 100, right: rightEdge, shift: '' },
+      { box: 'sticks out by one pixel', left: 100, right: rightEdge + 1, shift: '-1px' },
+      { box: 'sticks out by more, with room on the left', left: 200, right: rightEdge + 30, shift: '-30px' },
+      { box: 'sticks out by more than the room on the left', left: VIEWPORT_MARGIN_PX + 4, right: rightEdge + 30, shift: '-4px' },
+      { box: 'sticks out and stands at the left margin', left: VIEWPORT_MARGIN_PX, right: rightEdge + 10, shift: '0px' },
+    ])('gets left "$shift" when its box $box', ({ left, right, shift }) => {
+      expect(openWithBox(left, right)).toBe(shift);
+    });
+
+    it('drops the shift of an earlier opening when it fits the next time', () => {
+      expect(openWithBox(100, rightEdge + 20)).toBe('-20px');
+      trigger()?.click();
+      expect(openWithBox(100, rightEdge - 20)).toBe('');
+    });
   });
 });
