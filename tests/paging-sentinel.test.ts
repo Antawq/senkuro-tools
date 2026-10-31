@@ -59,12 +59,12 @@ describe('the paging sentinel of a site list', () => {
     expect(observers.connected()).toHaveLength(0);
   });
 
-  it('is parked far below with a rule of the stylesheet, not with a style set on the site element', () => {
+  it('is parked far above with a rule of the stylesheet, where a moved box adds nothing to the scroll area, not with a style set on the site element', () => {
     render(2);
     retriggerPaging(results());
     observers.report(true);
     expect(sentinel().getAttribute('style')).toBeNull();
-    expect(getComputedStyle(sentinel()).transform).toContain('translateY(200000px)');
+    expect(getComputedStyle(sentinel()).transform).toContain('translateY(-200000px)');
   });
 
   it('is left alone when it is outside the paging margin of the site, which sees no edge then either', () => {
