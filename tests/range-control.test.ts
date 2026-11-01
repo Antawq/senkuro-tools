@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { PriceRange } from '../utils/sort/price-range';
-import { closeRangePanels, rangeLabelOf, removeRangeControl, syncRangeControl, VIEWPORT_MARGIN_PX, type RangeView } from '../utils/sort/range-control';
+import { rangeLabelOf, removeRangeControl, syncRangeControl, type RangeView } from '../utils/sort/range-control';
+import { closeToolbarPanels, VIEWPORT_MARGIN_PX } from '../utils/shared/toolbar-panel';
 
 const toolbarHtml = (withRefresh = false) =>
   `<div class="modal-trade__header-form"><div class="v-popper"><button id="sort">По дате получения</button></div><button id="direction">Сначала</button><div class="v-popper"><button id="filter">Фильтр</button></div>${
@@ -125,9 +126,9 @@ describe('the price range control', () => {
   it('closes on a pointer down outside it, and stays open for one inside it', () => {
     draw();
     trigger()?.click();
-    closeRangePanels(document, inputs()[1] ?? null);
+    closeToolbarPanels(document, inputs()[1] ?? null);
     expect(panel()?.hidden).toBe(false);
-    closeRangePanels(document, document.querySelector('#sort'));
+    closeToolbarPanels(document, document.querySelector('#sort'));
     expect(panel()?.hidden).toBe(true);
     expect(document.activeElement).not.toBe(trigger());
   });

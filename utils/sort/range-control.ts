@@ -1,6 +1,7 @@
 import { element } from '../shared/dom';
 import { PRICE_FILTER_CLASS } from '../shared/price-filter-nodes';
 import { chevronIcon, closeIcon, priceTagIcon, resetIcon } from '../shared/svg';
+import { createPanelShell, setPanelOpen } from '../shared/toolbar-panel';
 import { createRange, formatBound, isReversed, parseBound, type PriceRange } from './price-range';
 
 const TRIGGER_CLASS = `${PRICE_FILTER_CLASS}__trigger`;
@@ -14,10 +15,8 @@ const SITE_ERROR = 'dropdown-filter__info dropdown-filter__info--error';
 const SITE_TRIGGER = 'button button--secondary button--auto button-size--md';
 const SITE_ICON_BUTTON = 'button button--secondary button--icon button-size--md';
 const SITE_APPLIED = 'button--chip';
-const SITE_DROPDOWN = 'v-popper--theme-dropdown';
 const OWN_PREFIX = 'senkutools-';
 const ICON_SIZE_PX = 20;
-export const VIEWPORT_MARGIN_PX = 16;
 
 export const RANGE_TEXT = {
   trigger: 'Цена',
@@ -89,25 +88,14 @@ function showRange({ minInput, maxInput }: RangeControl, range: PriceRange | nul
   setValue(maxInput, formatBound(range?.max ?? null));
 }
 
-function placePanel({ panel }: RangeControl): void {
-  panel.style.removeProperty('left');
-  const viewportWidth = panel.ownerDocument.documentElement.clientWidth;
-  const box = panel.getBoundingClientRect();
-  const overflow = box.right - (viewportWidth - VIEWPORT_MARGIN_PX);
-  if (overflow > 0) panel.style.left = `${-Math.min(overflow, Math.max(0, box.left - VIEWPORT_MARGIN_PX))}px`;
-}
-
 function openPanel(control: RangeControl): void {
-  control.panel.hidden = false;
-  control.trigger.setAttribute('aria-expanded', 'true');
-  placePanel(control);
+  setPanelOpen(control.panel, control.trigger, true);
   control.minInput.focus();
 }
 
 function closePanel(control: RangeControl, shouldFocusTrigger: boolean): void {
   if (control.panel.hidden) return;
-  control.panel.hidden = true;
-  control.trigger.setAttribute('aria-expanded', 'false');
+  setPanelOpen(control.panel, control.trigger, false);
   if (shouldFocusTrigger) control.trigger.focus();
 }
 
@@ -144,8 +132,6 @@ function handlePanelKeydown(control: RangeControl, toolbar: Element, apply: Appl
 }
 
 function createPanel(): Pick<RangeControl, 'panel' | 'minInput' | 'maxInput' | 'error'> & { actions: HTMLElement } {
-  const panel = element('div', `${PANEL_CLASS} ${SITE_DROPDOWN}`);
-  panel.hidden = true;
   const menu = element('div', 'dropdown-menu dropdown-menu--lg');
   const header = element('div', 'dropdown-filter__header');
   const actions = element('div', 'dropdown-filter__actions');
@@ -157,11 +143,7 @@ function createPanel(): Pick<RangeControl, 'panel' | 'minInput' | 'maxInput' | '
   const error = element('div', `${SITE_ERROR} ${ERROR_CLASS}`, RANGE_TEXT.reversed);
   error.setAttribute('role', 'alert');
   menu.append(header, fields, error);
-  const inner = element('div', 'v-popper__inner');
-  inner.append(menu);
-  const wrapper = element('div', 'v-popper__wrapper');
-  wrapper.append(inner);
-  panel.append(wrapper);
+  const panel = createPanelShell(PANEL_CLASS, menu);
   return { panel, minInput: min.input, maxInput: max.input, error, actions };
 }
 
@@ -215,12 +197,4 @@ export function syncRangeControl(toolbar: Element, mobileClass: string | null, v
 export function removeRangeControl(toolbar: Element): void {
   controls.get(toolbar)?.wrapper.remove();
   controls.delete(toolbar);
-}
-
-export function closeRangePanels(pageDocument: Document, target: EventTarget | null): void {
-  for (const wrapper of pageDocument.querySelectorAll(`.${PRICE_FILTER_CLASS}`)) {
-    const toolbar = wrapper.parentElement;
-    const control = toolbar ? controls.get(toolbar) : undefined;
-    if (control && !(target instanceof Node && wrapper.contains(target))) closePanel(control, false);
-  }
 }
