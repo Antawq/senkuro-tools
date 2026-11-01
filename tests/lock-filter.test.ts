@@ -33,6 +33,12 @@ const toolbar = () => document.querySelector('.modal-trade__header-form') as HTM
 const wrapper = () => document.querySelector<HTMLElement>('.senkutools-lock-filter');
 const trigger = () => document.querySelector<HTMLButtonElement>('.senkutools-lock-filter__trigger');
 const panel = () => document.querySelector<HTMLElement>('.senkutools-lock-filter__panel');
+const optionLabels = () => [...document.querySelectorAll<HTMLElement>('.senkutools-lock-filter__panel label.radio')];
+const keydown = (target: Element | undefined, key: string) => {
+  const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+  target?.dispatchEvent(event);
+  return event;
+};
 const radios = () => [...document.querySelectorAll<HTMLInputElement>('.senkutools-lock-filter__panel input[type="radio"]')];
 
 const draw = (view: LockView = 'all') => {
@@ -147,7 +153,7 @@ describe('the lock control', () => {
     trigger()?.click();
     expect(panel()?.hidden).toBe(false);
     expect(trigger()?.getAttribute('aria-expanded')).toBe('true');
-    expect(document.activeElement).toBe(radios()[1]);
+    expect(document.activeElement).toBe(optionLabels()[1]);
     trigger()?.click();
     expect(panel()?.hidden).toBe(true);
     expect(trigger()?.getAttribute('aria-expanded')).toBe('false');
@@ -175,14 +181,71 @@ describe('the lock control', () => {
     expect(document.activeElement).toBe(trigger());
   });
 
+  it('closes the panel on Escape pressed on the trigger while it is open, and lets Escape through while it is closed', () => {
+    draw();
+    const reached = vi.fn();
+    document.body.addEventListener('keydown', reached);
+    trigger()?.click();
+    const opened = keydown(trigger() ?? undefined, 'Escape');
+    expect(panel()?.hidden).toBe(true);
+    expect(opened.defaultPrevented).toBe(true);
+    expect(reached).not.toHaveBeenCalled();
+    const closed = keydown(trigger() ?? undefined, 'Escape');
+    expect(closed.defaultPrevented).toBe(false);
+    expect(reached).toHaveBeenCalledOnce();
+  });
+
   it('lets another key reach the window of the site', () => {
     draw();
     const reached = vi.fn();
     document.body.addEventListener('keydown', reached);
     trigger()?.click();
-    radios()[0]?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    const event = keydown(optionLabels()[0], 'a');
+    expect(event.defaultPrevented).toBe(false);
     expect(panel()?.hidden).toBe(false);
     expect(reached).toHaveBeenCalledOnce();
+  });
+
+  it('makes each option reachable by keyboard, though the site hides the radio itself, and says which one is checked', () => {
+    draw('locked');
+    expect(panel()?.querySelector('[role="radiogroup"]')?.getAttribute('aria-label')).toBe('Замок');
+    expect(optionLabels().map((label) => [label.getAttribute('role'), label.tabIndex, label.getAttribute('aria-checked')])).toEqual([
+      ['radio', 0, 'false'],
+      ['radio', 0, 'false'],
+      ['radio', 0, 'true'],
+    ]);
+  });
+
+  it.each(['Enter', ' '])('chooses the focused option on %j and keeps that key from the window of the site', (key) => {
+    const { picked } = draw();
+    const reached = vi.fn();
+    document.body.addEventListener('keydown', reached);
+    trigger()?.click();
+    const event = keydown(optionLabels()[2], key);
+    expect(picked).toEqual(['locked']);
+    expect(event.defaultPrevented).toBe(true);
+    expect(reached).not.toHaveBeenCalled();
+    expect(panel()?.hidden).toBe(true);
+  });
+
+  it('moves the focus to the next or previous option on the arrows, round the ends', () => {
+    draw();
+    trigger()?.click();
+    keydown(optionLabels()[0], 'ArrowDown');
+    expect(document.activeElement).toBe(optionLabels()[1]);
+    keydown(optionLabels()[1], 'ArrowUp');
+    expect(document.activeElement).toBe(optionLabels()[0]);
+    keydown(optionLabels()[0], 'ArrowUp');
+    expect(document.activeElement).toBe(optionLabels()[2]);
+    keydown(optionLabels()[2], 'ArrowDown');
+    expect(document.activeElement).toBe(optionLabels()[0]);
+  });
+
+  it('ignores keys on the options while the panel is closed', () => {
+    const { picked } = draw();
+    const event = keydown(optionLabels()[2], 'Enter');
+    expect(picked).toEqual([]);
+    expect(event.defaultPrevented).toBe(false);
   });
 
   it('gives each control its own radio group, so two windows never share a choice', () => {

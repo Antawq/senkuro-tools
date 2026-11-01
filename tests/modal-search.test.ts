@@ -261,6 +261,22 @@ describe('the search control', () => {
     expect(reached).not.toHaveBeenCalled();
   });
 
+  it('treats Escape on the buttons of the open field like Escape in the field, and lets Escape through while the field is closed', () => {
+    const { queries, toggles } = draw({ query: 'ведьм', isOpen: true });
+    const reached = vi.fn();
+    document.body.addEventListener('keydown', reached);
+    const onButton = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    closeButton()?.dispatchEvent(onButton);
+    expect(queries).toEqual(['']);
+    expect(onButton.defaultPrevented).toBe(true);
+    closeButton()?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(toggles).toEqual([false]);
+    const closed = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    trigger()?.dispatchEvent(closed);
+    expect(closed.defaultPrevented).toBe(false);
+    expect(reached).toHaveBeenCalledOnce();
+  });
+
   it('lets every other key reach the window of the site untouched', () => {
     draw({ query: '', isOpen: true });
     const reached = vi.fn();

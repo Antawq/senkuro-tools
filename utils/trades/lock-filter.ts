@@ -14,6 +14,7 @@ const LOCK_PATHS = ':scope > .card-collect-preview__status path';
 const SITE_ICON_BUTTON = 'button button--secondary button--icon button-size--md';
 const SITE_APPLIED = 'button--chip';
 const ICON_SIZE_PX = 20;
+const ARROW_STEPS: Record<string, number> = { ArrowDown: 1, ArrowUp: -1 };
 const LATER_CONTROLS = [`.${SEARCH_CLASS}`, `.${MODAL_REFRESH_CLASS}`];
 
 export type LockView = 'all' | 'unlocked' | 'locked';
@@ -35,11 +36,16 @@ export const EMPTY_LOCK_TEXTS: Record<Exclude<LockView, 'all'>, string> = {
 
 const VIEWS = Object.keys(LOCK_LABELS) as LockView[];
 
+interface LockOption {
+  label: HTMLElement;
+  radio: HTMLInputElement;
+}
+
 interface LockControl {
   wrapper: HTMLElement;
   trigger: HTMLButtonElement;
   panel: HTMLElement;
-  radios: Map<LockView, HTMLInputElement>;
+  options: Map<LockView, LockOption>;
 }
 
 const controls = createToolbarControls<LockControl>();
@@ -49,8 +55,10 @@ export const isRowLocked = (row: Element): boolean => [...row.querySelectorAll(L
 
 export const isHiddenByLock = (view: LockView, row: Element): boolean => view !== 'all' && isRowLocked(row) === (view === 'unlocked');
 
-function createOption(view: LockView, group: string): { label: HTMLElement; radio: HTMLInputElement } {
+function createOption(view: LockView, group: string): LockOption {
   const label = element('label', 'radio radio-size--md radio--list');
+  label.tabIndex = 0;
+  label.setAttribute('role', 'radio');
   const radio = element('input');
   radio.type = 'radio';
   radio.name = group;
@@ -61,16 +69,18 @@ function createOption(view: LockView, group: string): { label: HTMLElement; radi
   return { label, radio };
 }
 
-function createMenu(group: string): { menu: HTMLElement; radios: Map<LockView, HTMLInputElement> } {
+function createMenu(group: string): { menu: HTMLElement; options: Map<LockView, LockOption> } {
   const menu = element('div', 'dropdown-menu dropdown-menu--sm');
+  menu.setAttribute('role', 'radiogroup');
+  menu.setAttribute('aria-label', LOCK_CAPTION);
   menu.append(element('div', 'dropdown-menu__caption', LOCK_CAPTION));
-  const radios = new Map<LockView, HTMLInputElement>();
+  const options = new Map<LockView, LockOption>();
   for (const view of VIEWS) {
     const option = createOption(view, group);
-    radios.set(view, option.radio);
+    options.set(view, option);
     menu.append(option.label);
   }
-  return { menu, radios };
+  return { menu, options };
 }
 
 function createTrigger(): HTMLButtonElement {
@@ -83,9 +93,9 @@ function createTrigger(): HTMLButtonElement {
   return trigger;
 }
 
-function openPanel({ panel, trigger, radios }: LockControl): void {
+function openPanel({ panel, trigger, options }: LockControl): void {
   setPanelOpen(panel, trigger, true);
-  [...radios.values()].find((radio) => radio.checked)?.focus();
+  [...options.values()].find((option) => option.radio.checked)?.label.focus();
 }
 
 function closePanel({ panel, trigger }: LockControl): void {
@@ -93,22 +103,37 @@ function closePanel({ panel, trigger }: LockControl): void {
   trigger.focus();
 }
 
+function consume(event: KeyboardEvent, act: () => void): void {
+  event.preventDefault();
+  event.stopPropagation();
+  act();
+}
+
+function neighbourOf(view: LockView, step: number): LockView {
+  return VIEWS[(VIEWS.indexOf(view) + step + VIEWS.length) % VIEWS.length] as LockView;
+}
+
+function handleKeydown(control: LockControl, event: KeyboardEvent): void {
+  if (control.panel.hidden) return;
+  if (event.key === 'Escape') return consume(event, () => closePanel(control));
+  const view = VIEWS.find((candidate) => control.options.get(candidate)?.label === event.target);
+  const step = ARROW_STEPS[event.key];
+  if (view === undefined) return;
+  if (event.key === 'Enter' || event.key === ' ') consume(event, () => control.options.get(view)?.radio.click());
+  else if (step !== undefined) consume(event, () => control.options.get(neighbourOf(view, step))?.label.focus());
+}
+
 function createControl(select: (view: LockView) => void): LockControl {
   groupCount += 1;
-  const { menu, radios } = createMenu(`${LOCK_FILTER_CLASS}-${groupCount}`);
+  const { menu, options } = createMenu(`${LOCK_FILTER_CLASS}-${groupCount}`);
   const wrapper = element('div', LOCK_FILTER_CLASS);
   const trigger = createTrigger();
   const panel = createPanelShell(PANEL_CLASS, menu);
-  const control: LockControl = { wrapper, trigger, panel, radios };
+  const control: LockControl = { wrapper, trigger, panel, options };
   trigger.addEventListener('click', () => (panel.hidden ? openPanel(control) : closePanel(control)));
-  panel.addEventListener('keydown', (event) => {
-    if (event.key !== 'Escape') return;
-    event.preventDefault();
-    event.stopPropagation();
-    closePanel(control);
-  });
-  for (const [view, radio] of radios) {
-    radio.addEventListener('change', () => {
+  wrapper.addEventListener('keydown', (event) => handleKeydown(control, event));
+  for (const [view, option] of options) {
+    option.radio.addEventListener('change', () => {
       select(view);
       closePanel(control);
     });
@@ -117,11 +142,14 @@ function createControl(select: (view: LockView) => void): LockControl {
   return control;
 }
 
-function showView({ trigger, radios }: LockControl, view: LockView): void {
+function showView({ trigger, options }: LockControl, view: LockView): void {
   trigger.classList.toggle(SITE_APPLIED, view !== 'all');
   writeAttribute(trigger, 'title', LOCK_TITLES[view]);
   writeAttribute(trigger, 'aria-label', LOCK_TITLES[view]);
-  for (const [radioView, radio] of radios) radio.checked = radioView === view;
+  for (const [optionView, option] of options) {
+    option.radio.checked = optionView === view;
+    writeAttribute(option.label, 'aria-checked', String(optionView === view));
+  }
 }
 
 export function syncLockControl(toolbar: Element, view: LockView, select: (view: LockView) => void): void {

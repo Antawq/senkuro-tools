@@ -93,8 +93,8 @@ function showView({ wrapper, trigger, box, input, clear }: SearchControl, view: 
   if (input.value !== view.query) input.value = view.query;
 }
 
-function handleInputKeydown(control: SearchControl, host: SearchHost, event: KeyboardEvent): void {
-  if (event.key !== 'Escape') return;
+function handleKeydown(control: SearchControl, host: SearchHost, event: KeyboardEvent): void {
+  if (event.key !== 'Escape' || control.box.hidden) return;
   event.preventDefault();
   event.stopPropagation();
   if (control.input.value !== '') return host.change('');
@@ -124,7 +124,7 @@ function createControl(host: SearchHost): SearchControl {
     input.focus();
   });
   input.addEventListener('input', () => host.change(input.value));
-  input.addEventListener('keydown', (event) => handleInputKeydown(control, host, event));
+  wrapper.addEventListener('keydown', (event) => handleKeydown(control, host, event));
   box.append(close, input, clear);
   wrapper.append(trigger, box);
   return control;
