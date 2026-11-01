@@ -55,7 +55,8 @@ export const R_RANK = 'R';
 export const X_RANK = 'X';
 export const SHARD_MARK = 'o';
 export const UNKNOWN_MARK = '?';
-export const UNKNOWN_LEGEND = `${UNKNOWN_MARK} - нет цены в базе`;
+export const UNPRICED_PRICE = 1.25;
+export const UNKNOWN_LEGEND = `${UNKNOWN_MARK} - нет цены в базе (посчитаны по ${UNPRICED_PRICE})`;
 export const F_UNIT = 'F';
 
 const FORGE_LADDER = [F_UNIT, 'D', 'C', 'B', 'A', 'S'];
@@ -143,6 +144,23 @@ function addShards(tally: Tally, { rank, price }: CardEntry, quantity: number, {
   else tally.r.shards += quantity;
 }
 
+function addUnpriced(tally: Tally, rank: string, quantity: number, shard: boolean, { commission, perRank, basis, excludeShards }: Pricing): void {
+  const value = effectivePrice(UNPRICED_PRICE, commission) * quantity;
+  const weight = basis === 'cards' ? quantity : value;
+  if (rank === R_RANK) {
+    if (!shard) tally.r.value += weight;
+    return;
+  }
+  if (rateInF(rank, perRank) === null) return;
+  if (shard) {
+    if (excludeShards) return;
+    const perCard = SHARDS_REQUIRED[rank] || 1;
+    addToF(tally, rank, weight / perCard, perRank);
+  } else {
+    addToF(tally, rank, weight, perRank);
+  }
+}
+
 function settle(tally: Tally, excludeShards: boolean): SideValue {
   const settled = tally.unknown.size === 0 && (excludeShards || tally.shardUnknown.size === 0);
   return {
@@ -158,12 +176,16 @@ export function valueSide({ cards, hidden }: Side, db: Database, { commission, v
   for (const { slug, quantity, shard } of cards) {
     const entry = pricedEntry(slug, db);
     if (entry) (shard ? addShards : addCards)(tally, entry, quantity, pricing);
-    else addTo(shard ? tally.shardUnknown : tally.unknown, unpricedRank(slug, db), quantity);
+    else {
+      const rank = unpricedRank(slug, db);
+      addTo(shard ? tally.shardUnknown : tally.unknown, rank, quantity);
+      addUnpriced(tally, rank, quantity, shard, pricing);
+    }
   }
   return settle(tally, excludeShards);
 }
 
-export const hasR = ({ r }: Pick<SideValue, 'r'>): boolean => r.count > 0 || r.shards > 0;
+export const hasR = ({ r }: Pick<SideValue, 'r'>): boolean => r.count > 0 || r.shards > 0 || r.value > 0;
 
 export const formatAmount = (amount: number): string => String(+amount.toFixed(PRICE_DECIMALS));
 

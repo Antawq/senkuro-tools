@@ -215,7 +215,9 @@ describe('updateTradeSummaries', () => {
     });
     expect((el.querySelector('.senkuro-trade-summary__cell strong.senkuro-trade-summary__unknown') as HTMLElement).textContent).toBe('487F');
     expect((el.querySelector('.senkuro-trade-summary__verdict') as HTMLElement).classList.contains('senkuro-trade-summary__verdict--gain')).toBe(true);
-    expect((el.querySelector('.senkuro-trade-summary__panel > .senkuro-trade-summary__unknown') as HTMLElement).textContent).toBe('? - нет цены в базе');
+    expect((el.querySelector('.senkuro-trade-summary__panel > .senkuro-trade-summary__unknown') as HTMLElement).textContent).toBe(
+      '? - нет цены в базе (посчитаны по 1.25)'
+    );
   });
 
   it('colours a loss red when cards without a price sit next to priced ones', () => {

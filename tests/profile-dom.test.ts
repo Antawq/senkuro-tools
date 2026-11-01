@@ -263,7 +263,7 @@ describe('profile-dom', () => {
       expect(cards).toBe('1R? 1S');
       const highlighted = popover?.querySelector('.senkuro-rank-r');
       expect(highlighted?.textContent).toBe('1R?');
-      expect(highlighted?.getAttribute('title')).toBe('? - нет цены в базе');
+      expect(highlighted?.getAttribute('title')).toBe('? - нет цены в базе (посчитаны по 1.25)');
     });
 
     it('lists cards and shards the database does not know under ?, so the cards row adds up to the totals', async () => {
@@ -279,8 +279,8 @@ describe('profile-dom', () => {
       const [, cards] = [...(popover?.querySelectorAll('.senkuro-row-val') ?? [])].map((cell) => cell.textContent);
       expect(cards).toBe('1S 2S? 2oS?');
       expect([...(popover?.querySelectorAll('span[title]') ?? [])].map((item) => [item.textContent, item.getAttribute('title')])).toEqual([
-        ['2S?', '? - нет цены в базе'],
-        ['2oS?', '? - нет цены в базе'],
+        ['2S?', '? - нет цены в базе (посчитаны по 1.25)'],
+        ['2oS?', '? - нет цены в базе (посчитаны по 1.25)'],
       ]);
       expect(popover?.querySelector('.senkuro-popover-meta')?.textContent).toBe('Всего: 3 карт · 2 осколков');
     });
