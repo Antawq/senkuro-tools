@@ -237,6 +237,61 @@ describe('valueSide', () => {
     expect(side.complete).toBe(false);
   });
 
+  describe('unpriced cards valuation', () => {
+    it('values unpriced cards of ranks F through S at the median price of 1.25 in F', () => {
+      const side = valueSide({ cards: [card('brand-new-s', 2), card('brand-new-d')], hidden: 0 }, db, plain);
+      expect(side.f).toBeCloseTo(2 * 1 * 243 + 1 * 3);
+      expect(formatUnpriced(side.unknown)).toEqual(['2S?', '1D?']);
+      expect(side.complete).toBe(false);
+    });
+
+    it('values unpriced R cards at 1.25 in the R branch', () => {
+      const side = valueSide({ cards: [card('hero-r', 2)], hidden: 0 }, db, plain);
+      expect(side.f).toBe(0);
+      expect(side.r.value).toBeCloseTo(2 * 1);
+      expect(formatUnpriced(side.unknown)).toEqual(['2R?']);
+      expect(side.r.complete).toBe(false);
+      expect(side.complete).toBe(false);
+      expect(hasR(side)).toBe(true);
+    });
+
+    it('does not evaluate unpriced X cards', () => {
+      const side = valueSide({ cards: [card('boss-x')], hidden: 0 }, db, plain);
+      expect(side.f).toBe(0);
+      expect(side.r.value).toBe(0);
+      expect(formatUnpriced(side.unknown)).toEqual(['1X?']);
+      expect(side.complete).toBe(false);
+    });
+
+    it('values unpriced shards proportionally by rank requirement', () => {
+      const side = valueSide({ cards: [card('brand-new-s', 5, true), card('brand-new-c', 2, true)], hidden: 0 }, db, plain);
+      expect(side.f).toBeCloseTo((5 / 10) * 1 * 243 + (2 / 4) * 1 * 9);
+      expect(formatUnpriced(side.shardUnknown, { shard: true })).toEqual(['5oS?', '2oC?']);
+      expect(side.complete).toBe(false);
+    });
+
+    it('excludes unpriced shards when excludeShards is true', () => {
+      const side = valueSide({ cards: [card('brand-new-s', 5, true)], hidden: 0 }, db, { ...plain, excludeShards: true });
+      expect(side.f).toBe(0);
+      expect(formatUnpriced(side.shardUnknown, { shard: true })).toEqual(['5oS?']);
+      expect(side.complete).toBe(true);
+    });
+
+    it('uses raw median price 1.25 when commission is disabled', () => {
+      const side = valueSide({ cards: [card('brand-new-s')], hidden: 0 }, db, { ...plain, commission: false });
+      expect(side.f).toBeCloseTo(1.25 * 243);
+      const rSide = valueSide({ cards: [card('hero-r')], hidden: 0 }, db, { ...plain, commission: false });
+      expect(rSide.r.value).toBeCloseTo(1.25);
+    });
+
+    it('counts unpriced cards by rank ratio when basis is cards', () => {
+      const side = valueSide({ cards: [card('brand-new-s')], hidden: 0 }, db, { ...plain, valueBasis: 'cards' });
+      expect(side.f).toBeCloseTo(243);
+      const rSide = valueSide({ cards: [card('hero-r')], hidden: 0 }, db, { ...plain, valueBasis: 'cards' });
+      expect(rSide.r.value).toBe(1);
+    });
+  });
+
   it('still flags a rank the forge and R both do not know', () => {
     const side = valueSide({ cards: [card('x-card')], hidden: 0 }, { 'x-card': { price: 1.25, name: 'X', rank: 'X' } }, plain);
     expect(side.beyondF).toBe(true);

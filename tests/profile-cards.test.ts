@@ -149,6 +149,16 @@ describe('profile-cards', () => {
       expect(summary.cards).toEqual(['3R?']);
     });
 
+    it('evaluates unpriced cards into F value using the 1.25 median price', () => {
+      const cards: UserCard[] = [
+        { slug: 'brand-new-s', quantity: 2, shard: false },
+        { slug: 'brand-new-d', quantity: 1, shard: false },
+      ];
+      const summary = calculateProfileValue(cards, mockDb, plain);
+      expect(summary.formattedF).toBe(`${2 * 1.25 * 243 + 1 * 1.25 * 3}F`);
+      expect(summary.cards).toEqual(['2S?', '1D?']);
+    });
+
     it('lists cards the database does not know by the rank in their slug with ?, so the rows add up to the totals', () => {
       const cards: UserCard[] = [
         { slug: 'luffy-s', quantity: 1, shard: false },
