@@ -31,6 +31,12 @@ describe('placeBeforeAny', () => {
     expect(order()).toEqual(['site', 'node', 'b', 'a']);
   });
 
+  it('appends the node when there are no later controls to name', () => {
+    document.body.innerHTML = '<div id="parent"><b id="node"></b><i id="site"></i></div>';
+    placeBeforeAny(parent(), node(), []);
+    expect(order()).toEqual(['site', 'node']);
+  });
+
   it('ignores a later control that is not a direct child', () => {
     document.body.innerHTML = '<div id="parent"><div><s class="later"></s></div><b id="node"></b></div>';
     placeBeforeAny(parent(), node(), ['.later']);

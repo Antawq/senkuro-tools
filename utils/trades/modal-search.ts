@@ -1,10 +1,11 @@
 import { CARD_LINK, findShownName, slugFromHref } from '../shared/cards';
 import type { Database } from '../shared/database';
-import { element, placeBeforeAny } from '../shared/dom';
+import { element } from '../shared/dom';
+import { SEARCH_CLASS } from '../shared/modal-filter-nodes';
 import { closeIcon, searchIcon } from '../shared/svg';
+import { createToolbarControls } from '../shared/toolbar-controls';
 import { MODAL_REFRESH_CLASS } from './modal-refresh';
 
-export const SEARCH_CLASS = 'senkutools-modal-search';
 export const EMPTY_SEARCH_TEXT = 'Персонаж не найден';
 
 const TRIGGER_CLASS = `${SEARCH_CLASS}__trigger`;
@@ -44,7 +45,7 @@ interface SearchControl {
   clear: HTMLButtonElement;
 }
 
-const controls = new WeakMap<Element, SearchControl>();
+const controls = createToolbarControls<SearchControl>();
 
 export const normalizeText = (text: string): string => text.toLowerCase().replaceAll('ё', 'е');
 
@@ -130,16 +131,10 @@ function createControl(host: SearchHost): SearchControl {
 }
 
 export function syncSearchControl(toolbar: Element, view: SearchView, host: SearchHost): void {
-  let control = controls.get(toolbar);
-  if (!control) {
-    control = createControl(host);
-    controls.set(toolbar, control);
-  }
-  placeBeforeAny(toolbar, control.wrapper, LATER_CONTROLS);
-  showView(control, view);
+  showView(
+    controls.place(toolbar, () => createControl(host), LATER_CONTROLS),
+    view
+  );
 }
 
-export function removeSearchControl(toolbar: Element): void {
-  controls.get(toolbar)?.wrapper.remove();
-  controls.delete(toolbar);
-}
+export const removeSearchControl = (toolbar: Element): void => controls.remove(toolbar);

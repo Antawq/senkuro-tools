@@ -7,7 +7,7 @@ export const childWithClass = (parent: Element, className: string): HTMLElement 
   [...parent.children].find((child): child is HTMLElement => child instanceof HTMLElement && child.classList.contains(className));
 
 export function placeBeforeAny(parent: Element, node: Element, laterSelectors: readonly string[]): void {
-  const later = parent.querySelector(laterSelectors.map((selector) => `:scope > ${selector}`).join(', '));
+  const later = laterSelectors.length === 0 ? null : parent.querySelector(laterSelectors.map((selector) => `:scope > ${selector}`).join(', '));
   if (later ? node.nextElementSibling === later : parent.lastElementChild === node) return;
   parent.insertBefore(node, later);
 }

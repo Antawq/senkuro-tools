@@ -1,6 +1,7 @@
 import { CARD_ROW_CLASS } from '../shared/cards';
 import { childWithClass, element } from '../shared/dom';
 import { isListComplete, retriggerPaging } from '../shared/paging-sentinel';
+import { MODAL_FILTER_NODES } from '../shared/modal-filter-nodes';
 import { PRICE_FILTER_NODES } from '../shared/price-filter-nodes';
 import { CATALOG_STEP, HEADER, MODAL, PICKER, RESULTS_CLASS } from '../shared/trade-modal';
 import { MODAL_REFRESH_CLASS } from './modal-refresh';
@@ -11,8 +12,8 @@ const WINDOWS_WITHOUT_SHARDS = ['для переплавки', 'для раск�
 
 const SWITCH = 'senkutools-shard-switch';
 const SWITCH_BUTTON = `${SWITCH}__button`;
-const EMPTY_NOTE = `${SWITCH}__empty`;
-const OWN_NODES = `.${SWITCH}, .${EMPTY_NOTE}, .${MODAL_REFRESH_CLASS}, ${PRICE_FILTER_NODES}`;
+export const SHARD_NOTE_CLASS = `${SWITCH}__empty`;
+const OWN_NODES = `.${SWITCH}, .${SHARD_NOTE_CLASS}, .${MODAL_REFRESH_CLASS}, ${PRICE_FILTER_NODES}, ${MODAL_FILTER_NODES}`;
 const VIEW_ATTRIBUTE = 'data-senkutools-shard-view';
 const SITE_SEGMENT = 'tabs tabs--segment';
 const SITE_SEGMENT_INNER = 'tabs-inner';
@@ -70,26 +71,32 @@ const emptyTextOf = (results: Element, view: ShardView): string | null => {
   return isViewEmpty && isListComplete(results) ? (EMPTY_TEXTS[view] ?? null) : null;
 };
 
+export const isShardHidden = (picker: Element, row: Element): boolean => {
+  const view = picker.getAttribute(VIEW_ATTRIBUTE);
+  if (view === 'cards') return row.matches(SHARD_ROW);
+  return view === 'shards' && !row.matches(SHARD_ROW);
+};
+
 const canListShards = (modal: Element): boolean => {
   const header = modal.querySelector(HEADER)?.textContent ?? '';
   return header.trim() !== '' && !WINDOWS_WITHOUT_SHARDS.some((phrase) => header.includes(phrase));
 };
 
 const syncEmptyNote = (picker: HTMLElement, shardSwitch: Element, text: string | null) => {
-  const note = childWithClass(picker, EMPTY_NOTE);
+  const note = childWithClass(picker, SHARD_NOTE_CLASS);
   if (text === null) note?.remove();
   else if (note) note.textContent = text;
-  else shardSwitch.after(element('div', EMPTY_NOTE, text));
+  else shardSwitch.after(element('div', SHARD_NOTE_CLASS, text));
 };
 
 const clearShardSwitch = (picker: HTMLElement) => {
   childWithClass(picker, SWITCH)?.remove();
-  childWithClass(picker, EMPTY_NOTE)?.remove();
+  childWithClass(picker, SHARD_NOTE_CLASS)?.remove();
   picker.removeAttribute(VIEW_ATTRIBUTE);
 };
 
 const placeShardSwitch = (picker: HTMLElement, results: Element, shardSwitch: Element) => {
-  const note = childWithClass(picker, EMPTY_NOTE);
+  const note = childWithClass(picker, SHARD_NOTE_CLASS);
   if (results.previousElementSibling === (note ?? shardSwitch)) return;
   results.before(shardSwitch);
   if (note) shardSwitch.after(note);

@@ -1,9 +1,10 @@
-import { element, placeBeforeAny } from '../shared/dom';
+import { element, writeAttribute } from '../shared/dom';
+import { LOCK_FILTER_CLASS, SEARCH_CLASS } from '../shared/modal-filter-nodes';
 import { lockIcon } from '../shared/svg';
+import { createToolbarControls } from '../shared/toolbar-controls';
 import { createPanelShell, setPanelOpen } from '../shared/toolbar-panel';
 import { MODAL_REFRESH_CLASS } from './modal-refresh';
 
-export const LOCK_FILTER_CLASS = 'senkutools-lock-filter';
 export const SITE_LOCK_PATH =
   'M240-80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h40v-80q0-83 58.5-141.5T480-920t141.5 58.5T680-720v80h40q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80zm240-200q33 0 56.5-23.5T560-360t-23.5-56.5T480-440t-56.5 23.5T400-360t23.5 56.5T480-280M360-640h240v-80q0-50-35-85t-85-35-85 35-35 85z';
 
@@ -13,7 +14,6 @@ const LOCK_PATHS = ':scope > .card-collect-preview__status path';
 const SITE_ICON_BUTTON = 'button button--secondary button--icon button-size--md';
 const SITE_APPLIED = 'button--chip';
 const ICON_SIZE_PX = 20;
-const SEARCH_CLASS = 'senkutools-modal-search';
 const LATER_CONTROLS = [`.${SEARCH_CLASS}`, `.${MODAL_REFRESH_CLASS}`];
 
 export type LockView = 'all' | 'unlocked' | 'locked';
@@ -42,7 +42,7 @@ interface LockControl {
   radios: Map<LockView, HTMLInputElement>;
 }
 
-const controls = new WeakMap<Element, LockControl>();
+const controls = createToolbarControls<LockControl>();
 let groupCount = 0;
 
 export const isRowLocked = (row: Element): boolean => [...row.querySelectorAll(LOCK_PATHS)].some((path) => path.getAttribute('d') === SITE_LOCK_PATH);
@@ -119,22 +119,16 @@ function createControl(select: (view: LockView) => void): LockControl {
 
 function showView({ trigger, radios }: LockControl, view: LockView): void {
   trigger.classList.toggle(SITE_APPLIED, view !== 'all');
-  trigger.title = LOCK_TITLES[view];
-  trigger.setAttribute('aria-label', LOCK_TITLES[view]);
+  writeAttribute(trigger, 'title', LOCK_TITLES[view]);
+  writeAttribute(trigger, 'aria-label', LOCK_TITLES[view]);
   for (const [radioView, radio] of radios) radio.checked = radioView === view;
 }
 
 export function syncLockControl(toolbar: Element, view: LockView, select: (view: LockView) => void): void {
-  let control = controls.get(toolbar);
-  if (!control) {
-    control = createControl(select);
-    controls.set(toolbar, control);
-  }
-  placeBeforeAny(toolbar, control.wrapper, LATER_CONTROLS);
-  showView(control, view);
+  showView(
+    controls.place(toolbar, () => createControl(select), LATER_CONTROLS),
+    view
+  );
 }
 
-export function removeLockControl(toolbar: Element): void {
-  controls.get(toolbar)?.wrapper.remove();
-  controls.delete(toolbar);
-}
+export const removeLockControl = (toolbar: Element): void => controls.remove(toolbar);
