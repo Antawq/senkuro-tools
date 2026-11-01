@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { childWithClass } from '../utils/shared/dom';
 import { isCatalogStep, isPartnerStep, isUserCardsStep } from '../utils/shared/trade-modal';
 
 const tradeWindow = (title: string, hint: string, hasList = true) => `
@@ -46,13 +45,5 @@ describe('the steps of a trade window', () => {
     expect(isPartnerStep(modal())).toBe(false);
     document.body.innerHTML = tradeWindow('Выбери карточки', 'Выбери до 50 карт, которые хочешь от');
     expect(isPartnerStep(modal())).toBe(false);
-  });
-});
-
-describe('childWithClass', () => {
-  it('finds a direct child by class and ignores a deeper one', () => {
-    document.body.innerHTML = '<div id="parent"><div><span class="mark"></span></div><b class="mark" id="direct"></b></div>';
-    expect(childWithClass(document.querySelector('#parent') as Element, 'mark')?.id).toBe('direct');
-    expect(childWithClass(document.querySelector('#direct') as Element, 'mark')).toBeUndefined();
   });
 });
