@@ -6,13 +6,16 @@ import '@/assets/profile-badge.css';
 import '@/assets/shard-switch.css';
 import '@/assets/paging-sentinel.css';
 import '@/assets/toolbar-panel.css';
+import '@/assets/lock-filter.css';
+import '@/assets/modal-search.css';
+import '@/assets/modal-filters.css';
 import '@/assets/site-fixes.css';
 import '@/assets/token-bar.css';
 import '@/assets/trade-summary.css';
 import { defineContentScript } from '#imports';
 
 import { APP_MOUNTED_EVENT } from '@/utils/shared/app-mounted';
-import { loadDatabase } from '@/utils/shared/database';
+import { loadDatabase, type Database } from '@/utils/shared/database';
 import { SENKURO_MATCHES } from '@/utils/shared/hosts';
 import { createPriceBadges } from '@/utils/badges/price-badges';
 import { isRefreshButtonMissing, syncRefreshButton, type RefreshHost } from '@/utils/profile/inventory-refresh';
@@ -36,6 +39,7 @@ import { loadSettings, watchSettings } from '@/utils/shared/settings';
 import { closeToolbarPanels } from '@/utils/shared/toolbar-panel';
 import { createPriceSort, hasSortMutation } from '@/utils/sort/sort-view';
 import { createTokenBar } from '@/utils/token/token-bar';
+import { createModalFiltersWatcher } from '@/utils/trades/modal-filters';
 import { createModalRefreshWatcher } from '@/utils/trades/modal-refresh';
 import { createShardSwitchWatcher } from '@/utils/trades/shard-switch';
 import { createTradeStore, listenForTrades } from '@/utils/trades/trade-capture';
@@ -89,7 +93,9 @@ export default defineContentScript({
         schedule: loop.schedule,
       })
     );
+    let database: Database = {};
     const shardSwitches = createShardSwitchWatcher({ nextFrame });
+    const modalFilters = createModalFiltersWatcher({ nextFrame, getDatabase: () => database });
     const modalRefresh = createModalRefreshWatcher({
       isReady: () => isGuardReady(document),
       refresh: () => requestInventoryRefresh(document, 'picker'),
@@ -100,6 +106,7 @@ export default defineContentScript({
       const cards = addedCards(mutations);
       const tradesChanged = mutations.some(isTradeMutation);
       shardSwitches.watch(mutations);
+      modalFilters.watch(mutations);
       modalRefresh.watch(mutations);
       loop.addCards(cards);
       if (tradesChanged) loop.markTrades();
@@ -139,6 +146,7 @@ export default defineContentScript({
     ctx.addEventListener(document, 'input', searchView.syncView, { capture: true });
     ctx.addEventListener(document, 'click', searchView.handleClick, { capture: true });
     ctx.addEventListener(document, 'pointerdown', (event) => closeToolbarPanels(document, event.target), { capture: true });
+    ctx.addEventListener(document, 'click', modalFilters.handleClick);
     for (const priceSort of priceSorts) {
       ctx.addEventListener(document, 'click', priceSort.handleClick, { capture: true });
       ctx.addEventListener(document, priceStateSignal.name, priceSort.handleState);
@@ -168,5 +176,9 @@ export default defineContentScript({
     );
     void tokenBar.sync(settings.showToken);
     void loop.renderAll();
+    void loadDatabase().then((loaded) => {
+      database = loaded;
+      if (!ctx.isInvalid) modalFilters.sync();
+    });
   },
 });

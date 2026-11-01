@@ -28,6 +28,8 @@
 }
 
 .modal-trade__header-form:has(> .senkutools-price-filter),
+.modal-trade__header-form:has(> .senkutools-lock-filter),
+.modal-trade__header-form:has(> .senkutools-modal-search),
 .card-browse__form:has(> .senkutools-price-filter) {
   flex-wrap: wrap;
 }

@@ -37,6 +37,13 @@ describe('trade modal layout', () => {
   });
 });
 
+describe('window toolbars with the lock filter or the search', () => {
+  it.each(['senkutools-lock-filter', 'senkutools-modal-search'])('may wrap with the %s, so a narrow window gets a second row instead of an overflow', (own) => {
+    document.body.innerHTML = `<div class="modal-trade__header-form"><button></button><div class="${own}"></div></div>`;
+    expect(styleOf('.modal-trade__header-form').flexWrap).toBe('wrap');
+  });
+});
+
 describe('card list toolbars with the price range control', () => {
   it('may wrap, so the control and the refresh button never push past the edge of a narrow window', () => {
     for (const toolbar of ['modal-trade__header-form', 'card-browse__form']) {
