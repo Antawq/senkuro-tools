@@ -1,12 +1,11 @@
 import { CARD_ROW_CLASS } from '../shared/cards';
-import { element } from '../shared/dom';
-import { retriggerPaging } from '../shared/paging-sentinel';
+import { childWithClass, element } from '../shared/dom';
+import { isListComplete, retriggerPaging } from '../shared/paging-sentinel';
 import { PRICE_FILTER_NODES } from '../shared/price-filter-nodes';
-import { CATALOG_STEP, HEADER, MODAL, RESULTS_CLASS } from '../shared/trade-modal';
+import { CATALOG_STEP, HEADER, MODAL, PICKER, RESULTS_CLASS } from '../shared/trade-modal';
 import { MODAL_REFRESH_CLASS } from './modal-refresh';
 import { createFrameWatcher, createMutationFilter } from './mutation-watcher';
 
-const PICKER = '.modal-trade__body';
 const SHARD_ROW = '.card-collect-preview--shard';
 const WINDOWS_WITHOUT_SHARDS = ['для переплавки', 'для раскола', CATALOG_STEP];
 
@@ -35,9 +34,6 @@ const viewsByModal = new WeakMap<Element, ShardView>();
 interface ShardSwitchHost {
   nextFrame: (run: () => void) => void;
 }
-
-const childWithClass = (parent: Element, className: string): HTMLElement | undefined =>
-  [...parent.children].find((child): child is HTMLElement => child instanceof HTMLElement && child.classList.contains(className));
 
 const markActive = (shardSwitch: Element, view: ShardView) => {
   for (const button of shardSwitch.querySelectorAll<HTMLButtonElement>(`.${SWITCH_BUTTON}`)) {
@@ -69,10 +65,9 @@ const createShardSwitch = (view: ShardView, select: (next: ShardView) => void): 
 
 const emptyTextOf = (results: Element, view: ShardView): string | null => {
   const wantsShards = view === 'shards';
-  const hasMorePages = [...results.children].some((child) => !child.classList.contains(CARD_ROW_CLASS));
   const rows = [...results.querySelectorAll(`.${CARD_ROW_CLASS}`)];
   const isViewEmpty = rows.length > 0 && rows.every((row) => row.matches(SHARD_ROW) !== wantsShards);
-  return isViewEmpty && !hasMorePages ? (EMPTY_TEXTS[view] ?? null) : null;
+  return isViewEmpty && isListComplete(results) ? (EMPTY_TEXTS[view] ?? null) : null;
 };
 
 const canListShards = (modal: Element): boolean => {

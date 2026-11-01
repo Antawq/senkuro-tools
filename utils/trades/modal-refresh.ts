@@ -1,12 +1,10 @@
 import { PRICE_FILTER_NODES } from '../shared/price-filter-nodes';
 import { createRefreshButton } from '../shared/refresh-button';
 import type { RefreshOutcome } from '../shared/refresh-signal';
-import { MODAL, RESULTS_CLASS, TOOLBAR, isCatalogStep } from '../shared/trade-modal';
+import { MODAL, TOOLBAR, isUserCardsStep } from '../shared/trade-modal';
 import { createFrameWatcher, createMutationFilter } from './mutation-watcher';
 
 export const MODAL_REFRESH_CLASS = 'senkutools-modal-refresh';
-
-const RESULTS = `.${RESULTS_CLASS}`;
 
 export interface ModalRefreshHost {
   isReady: () => boolean;
@@ -15,8 +13,6 @@ export interface ModalRefreshHost {
 }
 
 const findOwnButton = (toolbar: Element): HTMLButtonElement | null => toolbar.querySelector<HTMLButtonElement>(`:scope > .${MODAL_REFRESH_CLASS}`);
-
-const isUserCardsStep = (modal: Element): boolean => modal.querySelector(RESULTS) !== null && !isCatalogStep(modal);
 
 const createModalRefreshButton = (host: ModalRefreshHost): HTMLButtonElement =>
   createRefreshButton(async () => {

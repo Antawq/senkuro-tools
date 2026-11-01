@@ -13,8 +13,10 @@ interface PagingState {
 const parkedStates = new WeakMap<Element, PagingState>();
 const watchedSentinels = new WeakSet<Element>();
 
-const findSentinel = (results: Element): HTMLElement | undefined =>
+export const findSentinel = (results: Element): HTMLElement | undefined =>
   [...results.children].find((child): child is HTMLElement => child instanceof HTMLElement && !child.classList.contains(CARD_ROW_CLASS));
+
+export const isListComplete = (results: Element): boolean => findSentinel(results) === undefined;
 
 function pagingStateOf(results: Element, sentinel: Element): PagingState {
   const rows = results.querySelectorAll(`:scope > .${CARD_ROW_CLASS}`);

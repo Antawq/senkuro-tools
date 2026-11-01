@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { retriggerPaging } from '../utils/shared/paging-sentinel';
+import { isListComplete, retriggerPaging } from '../utils/shared/paging-sentinel';
 import { installIntersectionObservers } from './helpers/intersection-observer';
 
 const stylesheet = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../assets/paging-sentinel.css'), 'utf8');
@@ -32,6 +32,15 @@ beforeEach(() => {
 });
 
 afterEach(() => vi.unstubAllGlobals());
+
+describe('the end of a site list', () => {
+  it('is reached when no child but the card rows is left', () => {
+    render(3, false);
+    expect(isListComplete(results())).toBe(true);
+    render(3);
+    expect(isListComplete(results())).toBe(false);
+  });
+});
 
 describe('the paging sentinel of a site list', () => {
   it('is the child of the list that is not a card row', () => {
