@@ -113,14 +113,17 @@ function neighbourOf(view: LockView, step: number): LockView {
   return VIEWS[(VIEWS.indexOf(view) + step + VIEWS.length) % VIEWS.length] as LockView;
 }
 
+function handleOptionKey(control: LockControl, view: LockView, event: KeyboardEvent): void {
+  const step = ARROW_STEPS[event.key];
+  if (event.key === 'Enter' || event.key === ' ') consume(event, () => control.options.get(view)?.radio.click());
+  else if (step !== undefined) consume(event, () => control.options.get(neighbourOf(view, step))?.label.focus());
+}
+
 function handleKeydown(control: LockControl, event: KeyboardEvent): void {
   if (control.panel.hidden) return;
   if (event.key === 'Escape') return consume(event, () => closePanel(control));
   const view = VIEWS.find((candidate) => control.options.get(candidate)?.label === event.target);
-  const step = ARROW_STEPS[event.key];
-  if (view === undefined) return;
-  if (event.key === 'Enter' || event.key === ' ') consume(event, () => control.options.get(view)?.radio.click());
-  else if (step !== undefined) consume(event, () => control.options.get(neighbourOf(view, step))?.label.focus());
+  if (view !== undefined) handleOptionKey(control, view, event);
 }
 
 function createControl(select: (view: LockView) => void): LockControl {
