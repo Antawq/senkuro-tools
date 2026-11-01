@@ -40,6 +40,13 @@ describe('the steps of a trade window', () => {
     expect(isPartnerStep(modal())).toBe(false);
   });
 
+  it('is no step of any kind in a window that has no header', () => {
+    document.body.innerHTML = '<div class="modal-content modal-content--trade"><div class="modal-trade__body-result"></div></div>';
+    expect(isCatalogStep(modal())).toBe(false);
+    expect(isPartnerStep(modal())).toBe(false);
+    expect(isUserCardsStep(modal())).toBe(true);
+  });
+
   it('is no partner step when the header is empty or reworded', () => {
     document.body.innerHTML = tradeWindow('', '');
     expect(isPartnerStep(modal())).toBe(false);

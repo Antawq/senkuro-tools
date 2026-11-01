@@ -1,0 +1,8 @@
+.modal-trade__body-result > [data-senkutools-filtered] {
+  display: none;
+}
+
+.senkutools-modal-filters__empty {
+  margin-top: 20px;
+  color: var(--text-tertiary);
+}
