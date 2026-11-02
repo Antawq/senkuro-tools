@@ -446,13 +446,11 @@ describe('the watcher', () => {
     expect(shownIds()).toEqual(['wh-felicity-f']);
   });
 
-  it('syncs one frame after a click inside a window and ignores a click outside', () => {
-    document.body.innerHTML = `${windowHtml('own')}<button id="outside"></button>`;
-    const watcher = createModalFiltersWatcher({ nextFrame, getDatabase: () => currentDatabase });
-    watcher.handleClick({ target: document.querySelector('#outside') } as unknown as Event);
-    expect(frames).toHaveLength(0);
-    watcher.handleClick({ target: document.querySelector('#sort') } as unknown as Event);
-    expect(frames).toHaveLength(1);
+  it('resyncs on the attribute record of a shard view change, so the note follows the view with no other mutation', () => {
+    show('own');
+    type('такого нет');
+    picker().setAttribute('data-senkutools-shard-view', 'cards');
+    expect(isFilterMutation(record(picker(), []))).toBe(true);
   });
 
   it('ignores the controls and the note it draws itself, and the controls of the other features', () => {
@@ -521,6 +519,18 @@ describe('every toolbar sync together', () => {
     syncEverything();
     syncEverything();
     expect(observer.takeRecords().map((entry) => [entry.type, (entry.target as Element).className])).toEqual([]);
+    observer.disconnect();
+  });
+
+  it('leave the observed shard view attribute unwritten on a pass that does not change it', () => {
+    document.body.innerHTML = windowHtml('partner');
+    updateShardSwitches();
+    [...document.querySelectorAll<HTMLButtonElement>('.senkutools-shard-switch__button')].find((button) => button.textContent === 'Карты')?.click();
+    const observer = new MutationObserver(() => undefined);
+    observer.observe(picker(), { attributeFilter: ['data-senkutools-shard-view'] });
+    syncEverything();
+    expect(picker().getAttribute('data-senkutools-shard-view')).toBe('cards');
+    expect(observer.takeRecords()).toEqual([]);
     observer.disconnect();
   });
 

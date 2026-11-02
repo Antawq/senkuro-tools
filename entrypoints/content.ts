@@ -41,7 +41,7 @@ import { createPriceSort, hasSortMutation } from '@/utils/sort/sort-view';
 import { createTokenBar } from '@/utils/token/token-bar';
 import { createModalFiltersWatcher } from '@/utils/trades/modal-filters';
 import { createModalRefreshWatcher } from '@/utils/trades/modal-refresh';
-import { createShardSwitchWatcher } from '@/utils/trades/shard-switch';
+import { createShardSwitchWatcher, SHARD_VIEW_ATTRIBUTE } from '@/utils/trades/shard-switch';
 import { createTradeStore, listenForTrades } from '@/utils/trades/trade-capture';
 import { isTradeMutation, updateTradeSummaries } from '@/utils/trades/trade-summary';
 
@@ -112,7 +112,7 @@ export default defineContentScript({
       if (tradesChanged) loop.markTrades();
       if (cards.length > 0 || tradesChanged || profileBadgeMissing() || isRefreshButtonMissing() || hasSortMutation(mutations)) loop.schedule();
     });
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributeFilter: [SHARD_VIEW_ATTRIBUTE] });
     ctx.onInvalidated(() => observer.disconnect());
 
     ctx.onInvalidated(
@@ -146,7 +146,6 @@ export default defineContentScript({
     ctx.addEventListener(document, 'input', searchView.syncView, { capture: true });
     ctx.addEventListener(document, 'click', searchView.handleClick, { capture: true });
     ctx.addEventListener(document, 'pointerdown', (event) => closeToolbarPanels(document, event.target), { capture: true });
-    ctx.addEventListener(document, 'click', modalFilters.handleClick);
     for (const priceSort of priceSorts) {
       ctx.addEventListener(document, 'click', priceSort.handleClick, { capture: true });
       ctx.addEventListener(document, priceStateSignal.name, priceSort.handleState);

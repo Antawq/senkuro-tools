@@ -105,9 +105,5 @@ export const isFilterMutation = createMutationFilter(MODAL, OWN_NODES);
 
 export function createModalFiltersWatcher({ nextFrame, getDatabase }: ModalFiltersHost) {
   const sync = () => syncModalFilters(document, getDatabase);
-  const watcher = createFrameWatcher(isFilterMutation, sync, nextFrame);
-  const handleClick = (event: Event) => {
-    if (event.target instanceof Element && event.target.closest(MODAL)) nextFrame(sync);
-  };
-  return { ...watcher, sync, handleClick };
+  return { ...createFrameWatcher(isFilterMutation, sync, nextFrame), sync };
 }

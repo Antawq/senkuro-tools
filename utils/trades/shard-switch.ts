@@ -1,5 +1,5 @@
 import { CARD_ROW_CLASS } from '../shared/cards';
-import { childWithClass, element } from '../shared/dom';
+import { childWithClass, element, writeAttribute } from '../shared/dom';
 import { isListComplete, retriggerPaging } from '../shared/paging-sentinel';
 import { MODAL_FILTER_NODES } from '../shared/modal-filter-nodes';
 import { PRICE_FILTER_NODES } from '../shared/price-filter-nodes';
@@ -14,7 +14,7 @@ const SWITCH = 'senkutools-shard-switch';
 const SWITCH_BUTTON = `${SWITCH}__button`;
 export const SHARD_NOTE_CLASS = `${SWITCH}__empty`;
 const OWN_NODES = `.${SWITCH}, .${SHARD_NOTE_CLASS}, .${MODAL_REFRESH_CLASS}, ${PRICE_FILTER_NODES}, ${MODAL_FILTER_NODES}`;
-const VIEW_ATTRIBUTE = 'data-senkutools-shard-view';
+export const SHARD_VIEW_ATTRIBUTE = 'data-senkutools-shard-view';
 const SITE_SEGMENT = 'tabs tabs--segment';
 const SITE_SEGMENT_INNER = 'tabs-inner';
 const SITE_SEGMENT_CONTENT = 'tabs-cnt';
@@ -72,7 +72,7 @@ const emptyTextOf = (results: Element, view: ShardView): string | null => {
 };
 
 export const isShardHidden = (picker: Element, row: Element): boolean => {
-  const view = picker.getAttribute(VIEW_ATTRIBUTE);
+  const view = picker.getAttribute(SHARD_VIEW_ATTRIBUTE);
   if (view === 'cards') return row.matches(SHARD_ROW);
   return view === 'shards' && !row.matches(SHARD_ROW);
 };
@@ -92,7 +92,7 @@ const syncEmptyNote = (picker: HTMLElement, shardSwitch: Element, text: string |
 const clearShardSwitch = (picker: HTMLElement) => {
   childWithClass(picker, SWITCH)?.remove();
   childWithClass(picker, SHARD_NOTE_CLASS)?.remove();
-  picker.removeAttribute(VIEW_ATTRIBUTE);
+  picker.removeAttribute(SHARD_VIEW_ATTRIBUTE);
 };
 
 const placeShardSwitch = (picker: HTMLElement, results: Element, shardSwitch: Element) => {
@@ -103,8 +103,8 @@ const placeShardSwitch = (picker: HTMLElement, results: Element, shardSwitch: El
 };
 
 const showView = (picker: HTMLElement, results: Element, view: ShardView) => {
-  if (view === 'all') return picker.removeAttribute(VIEW_ATTRIBUTE);
-  picker.setAttribute(VIEW_ATTRIBUTE, view);
+  writeAttribute(picker, SHARD_VIEW_ATTRIBUTE, view === 'all' ? null : view);
+  if (view === 'all') return;
   retriggerPaging(results);
 };
 
