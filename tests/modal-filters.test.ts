@@ -446,6 +446,13 @@ describe('the watcher', () => {
     expect(shownIds()).toEqual(['wh-felicity-f']);
   });
 
+  it('keeps the note away while a card passes the search and no shard view hides it', () => {
+    show('own');
+    type('ведьм');
+    expect(shownIds()).toEqual(['wh-felicity-f']);
+    expect(note()).toBeNull();
+  });
+
   it('resyncs on the attribute record of a shard view change, so the note follows the view with no other mutation', () => {
     show('own');
     type('такого нет');

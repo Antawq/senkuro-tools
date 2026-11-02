@@ -197,6 +197,7 @@ describe('the search control', () => {
   it('names its field, its placeholder and its two buttons', () => {
     draw({ query: '', isOpen: true });
     expect(input()?.placeholder).toBe('Имя персонажа...');
+    expect(input()?.spellcheck).toBe(false);
     expect(input()?.getAttribute('aria-label')).toBe('Имя персонажа');
     expect(input()?.type).toBe('text');
     expect(clearButton()?.title).toBe('Очистить');
