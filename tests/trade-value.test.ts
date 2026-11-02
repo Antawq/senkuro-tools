@@ -270,6 +270,22 @@ describe('valueSide', () => {
       expect(side.complete).toBe(false);
     });
 
+    it('values an unpriced F shard whole, since F has no shard requirement', () => {
+      const side = valueSide({ cards: [card('brand-new-f', 2, true)], hidden: 0 }, db, plain);
+      expect(side.f).toBeCloseTo(2);
+    });
+
+    it.each([[{ value: 0, count: 1, shards: 0 }], [{ value: 0, count: 0, shards: 1 }], [{ value: 1, count: 0, shards: 0 }]])(
+      'hasR is true for one R card, one R shard or an estimated value: %o',
+      (r) => {
+        expect(hasR({ r: { ...r, complete: false } })).toBe(true);
+      }
+    );
+
+    it('hasR is false with nothing of rank R', () => {
+      expect(hasR({ r: { value: 0, count: 0, shards: 0, complete: true } })).toBe(false);
+    });
+
     it('excludes unpriced shards when excludeShards is true', () => {
       const side = valueSide({ cards: [card('brand-new-s', 5, true)], hidden: 0 }, db, { ...plain, excludeShards: true });
       expect(side.f).toBe(0);
