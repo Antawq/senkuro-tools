@@ -13,8 +13,11 @@ export function createToolbarControls<Control extends ToolbarControl>(): Toolbar
   const controls = new WeakMap<Element, Control>();
   return {
     place(toolbar, create, laterSelectors) {
-      const control = controls.get(toolbar) ?? create();
-      controls.set(toolbar, control);
+      let control = controls.get(toolbar);
+      if (!control) {
+        control = create();
+        controls.set(toolbar, control);
+      }
       placeBeforeAny(toolbar, control.wrapper, laterSelectors);
       return control;
     },

@@ -6,7 +6,7 @@ export const RESULTS_CLASS = 'modal-trade__body-result';
 export const CATALOG_STEP = 'из общего каталога';
 export const PARTNER_STEP = 'Выбор карточек';
 
-const headerTextOf = (modal: Element): string => modal.querySelector(HEADER)?.textContent ?? '';
+const headerTextOf = (modal: Element): string => String(modal.querySelector(HEADER)?.textContent);
 
 export const isCatalogStep = (modal: Element): boolean => headerTextOf(modal).includes(CATALOG_STEP);
 

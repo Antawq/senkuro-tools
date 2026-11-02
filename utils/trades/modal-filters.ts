@@ -25,9 +25,11 @@ export interface ModalFiltersHost {
   getDatabase: () => Database;
 }
 
+const NO_FILTERS: ModalFilters = { lock: 'all', query: '', isSearchOpen: false };
+
 const filtersByModal = new WeakMap<Element, ModalFilters>();
 
-const filtersOf = (modal: Element): ModalFilters => filtersByModal.get(modal) ?? { lock: 'all', query: '', isSearchOpen: false };
+const filtersOf = (modal: Element): ModalFilters => ({ ...NO_FILTERS, ...filtersByModal.get(modal) });
 
 interface RowFilter {
   lock: LockView;

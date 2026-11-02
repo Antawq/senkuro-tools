@@ -28,7 +28,7 @@ const VIEW_LABELS: Record<ShardView, string> = { all: 'Все', cards: 'Карт
 
 const VIEWS = Object.keys(VIEW_LABELS) as ShardView[];
 
-const EMPTY_TEXTS: Partial<Record<ShardView, string>> = { cards: 'Нет карт', shards: 'Нет осколков' };
+const EMPTY_TEXTS: Record<ShardView, string | null> = { all: null, cards: 'Нет карт', shards: 'Нет осколков' };
 
 const viewsByModal = new WeakMap<Element, ShardView>();
 
@@ -68,7 +68,7 @@ const emptyTextOf = (results: Element, view: ShardView): string | null => {
   const wantsShards = view === 'shards';
   const rows = [...results.querySelectorAll(`.${CARD_ROW_CLASS}`)];
   const isViewEmpty = rows.length > 0 && rows.every((row) => row.matches(SHARD_ROW) !== wantsShards);
-  return isViewEmpty && isListComplete(results) ? (EMPTY_TEXTS[view] ?? null) : null;
+  return isViewEmpty && isListComplete(results) ? EMPTY_TEXTS[view] : null;
 };
 
 export const isShardHidden = (picker: Element, row: Element): boolean => {

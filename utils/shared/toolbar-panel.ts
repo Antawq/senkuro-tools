@@ -32,8 +32,8 @@ export function setPanelOpen(panel: HTMLElement, trigger: Element, isOpen: boole
 
 export function closeToolbarPanels(pageDocument: Document, target: EventTarget | null): void {
   for (const panel of pageDocument.querySelectorAll<HTMLElement>(`.${TOOLBAR_PANEL_CLASS}:not([hidden])`)) {
-    const host = panel.parentElement;
-    const trigger = host?.querySelector(':scope > [aria-expanded]');
-    if (host && trigger && !(target instanceof Node && host.contains(target))) setPanelOpen(panel, trigger, false);
+    const host = panel.parentElement as HTMLElement;
+    const trigger = host.querySelector(':scope > [aria-expanded]');
+    if (trigger && !(target instanceof Node && host.contains(target))) setPanelOpen(panel, trigger, false);
   }
 }
