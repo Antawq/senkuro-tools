@@ -45,7 +45,7 @@ interface LockControl {
   wrapper: HTMLElement;
   trigger: HTMLButtonElement;
   panel: HTMLElement;
-  options: Map<LockView, LockOption>;
+  options: Record<LockView, LockOption>;
 }
 
 const controls = createToolbarControls<LockControl>();
@@ -69,17 +69,13 @@ function createOption(view: LockView, group: string): LockOption {
   return { label, radio };
 }
 
-function createMenu(group: string): { menu: HTMLElement; options: Map<LockView, LockOption> } {
+function createMenu(group: string): { menu: HTMLElement; options: Record<LockView, LockOption> } {
   const menu = element('div', 'dropdown-menu dropdown-menu--sm');
   menu.setAttribute('role', 'radiogroup');
   menu.setAttribute('aria-label', LOCK_CAPTION);
   menu.append(element('div', 'dropdown-menu__caption', LOCK_CAPTION));
-  const options = new Map<LockView, LockOption>();
-  for (const view of VIEWS) {
-    const option = createOption(view, group);
-    options.set(view, option);
-    menu.append(option.label);
-  }
+  const options = Object.fromEntries(VIEWS.map((view) => [view, createOption(view, group)])) as Record<LockView, LockOption>;
+  menu.append(...VIEWS.map((view) => options[view].label));
   return { menu, options };
 }
 
@@ -95,7 +91,7 @@ function createTrigger(): HTMLButtonElement {
 
 function openPanel({ panel, trigger, options }: LockControl): void {
   setPanelOpen(panel, trigger, true);
-  [...options.values()].find((option) => option.radio.checked)?.label.focus();
+  for (const view of VIEWS) if (options[view].radio.checked) options[view].label.focus();
 }
 
 function closePanel({ panel, trigger }: LockControl): void {
@@ -115,14 +111,14 @@ function neighbourOf(view: LockView, step: number): LockView {
 
 function handleOptionKey(control: LockControl, view: LockView, event: KeyboardEvent): void {
   const step = ARROW_STEPS[event.key];
-  if (event.key === 'Enter' || event.key === ' ') consume(event, () => control.options.get(view)?.radio.click());
-  else if (step !== undefined) consume(event, () => control.options.get(neighbourOf(view, step))?.label.focus());
+  if (event.key === 'Enter' || event.key === ' ') consume(event, () => control.options[view].radio.click());
+  else if (step !== undefined) consume(event, () => control.options[neighbourOf(view, step)].label.focus());
 }
 
 function handleKeydown(control: LockControl, event: KeyboardEvent): void {
   if (control.panel.hidden) return;
   if (event.key === 'Escape') return consume(event, () => closePanel(control));
-  const view = VIEWS.find((candidate) => control.options.get(candidate)?.label === event.target);
+  const view = VIEWS.find((candidate) => control.options[candidate].label === event.target);
   if (view !== undefined) handleOptionKey(control, view, event);
 }
 
@@ -135,8 +131,8 @@ function createControl(select: (view: LockView) => void): LockControl {
   const control: LockControl = { wrapper, trigger, panel, options };
   trigger.addEventListener('click', () => (panel.hidden ? openPanel(control) : closePanel(control)));
   wrapper.addEventListener('keydown', (event) => handleKeydown(control, event));
-  for (const [view, option] of options) {
-    option.radio.addEventListener('change', () => {
+  for (const view of VIEWS) {
+    options[view].radio.addEventListener('change', () => {
       select(view);
       closePanel(control);
     });
@@ -149,9 +145,9 @@ function showView({ trigger, options }: LockControl, view: LockView): void {
   trigger.classList.toggle(SITE_APPLIED, view !== 'all');
   writeAttribute(trigger, 'title', LOCK_TITLES[view]);
   writeAttribute(trigger, 'aria-label', LOCK_TITLES[view]);
-  for (const [optionView, option] of options) {
-    option.radio.checked = optionView === view;
-    writeAttribute(option.label, 'aria-checked', String(optionView === view));
+  for (const optionView of VIEWS) {
+    options[optionView].radio.checked = optionView === view;
+    writeAttribute(options[optionView].label, 'aria-checked', String(optionView === view));
   }
 }
 
