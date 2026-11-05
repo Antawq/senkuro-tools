@@ -1,21 +1,15 @@
 import { element } from '../shared/dom';
-import { closeIcon, doneIcon, scheduleIcon, swapHorizontalIcon } from '../shared/svg';
+import { scheduleIcon } from '../shared/svg';
 import type { Trade } from './trade-capture';
 
 const TIME_CLASS = 'senkutools-trade-time';
 const TIME_LABEL_CLASS = 'senkutools-trade-time__label';
-const REASON_CLASS = 'senkutools-trade-reason';
-const REASON_TEXT_CLASS = 'senkutools-trade-reason__text';
+const STATUS_EXTRA_CLASS = 'senkutools-trade-status-extra';
 const STATUS_SELECTOR = ':scope > .card-trade__status';
+const FIRST_LIST_SELECTOR = ':scope > .card-preview-list:first-child .card-list';
 
-const MS_SECOND = 1000;
-const MS_MINUTE = 60 * MS_SECOND;
-const MS_HOUR = 60 * MS_MINUTE;
-const MS_DAY = 24 * MS_HOUR;
-
-export interface TradeReason {
-  kind: 'auto' | 'manual' | 'accepted' | 'pending';
-  text: string;
+export interface TradeConflict {
+  targetName: string;
 }
 
 export function parseIso(iso: string): Date {
@@ -59,69 +53,54 @@ export function formatFullTradeDate(iso: string): string {
   });
 }
 
-export function formatDuration(startIso: string, endIso: string): string {
-  const start = parseIso(startIso).getTime();
-  const end = parseIso(endIso).getTime();
-  const diff = Math.max(0, end - start);
-  if (diff < MS_MINUTE) return '< 1 мин';
-  if (diff < MS_HOUR) return `${Math.round(diff / MS_MINUTE)} мин`;
-  if (diff < MS_DAY) return `${Math.round(diff / MS_HOUR)} ч`;
-  return `${Math.round(diff / MS_DAY)} дн`;
-}
+export function findTradeConflict(trade: Trade, allTrades: Trade[]): TradeConflict | null {
+  const offerSlugs = new Set(trade.offer.map((c) => c.slug).filter((slug): slug is string => Boolean(slug)));
+  const requestSlugs = new Set(trade.request.map((c) => c.slug).filter((slug): slug is string => Boolean(slug)));
 
-export function detectTradeReason(trade: Trade, allTrades: Trade[], domStatus?: string): TradeReason {
-  const status = (trade.status || domStatus || '').toUpperCase();
-  if (status === 'ACCEPTED') {
-    const duration = trade.createdAt && trade.updatedAt ? formatDuration(trade.createdAt, trade.updatedAt) : '';
-    return {
-      kind: 'accepted',
-      text: duration ? `Принят через ${duration}` : 'Принят',
-    };
-  }
-  if (status === 'PENDING') {
-    return { kind: 'pending', text: '' };
-  }
-  if (status === 'REJECTED') {
-    const offerSlugs = new Set(trade.offer.map((c) => c.slug).filter((slug): slug is string => Boolean(slug)));
-    const conflicting = allTrades.find(
-      (other) =>
-        other.id !== trade.id &&
-        other.status?.toUpperCase() === 'ACCEPTED' &&
-        other.source.id === trade.source.id &&
-        other.offer.some((c) => c.slug && offerSlugs.has(c.slug))
-    );
-    if (conflicting) {
-      const targetName = conflicting.destination.name;
-      return {
-        kind: 'auto',
-        text: targetName ? `Авто-отмена: карта отдана ${targetName}` : 'Авто-отмена: карта ушла в другой обмен',
-      };
+  for (const other of allTrades) {
+    if (other.id === trade.id) continue;
+    if (other.status?.toUpperCase() !== 'ACCEPTED') continue;
+
+    if (trade.source.id && other.source.id === trade.source.id) {
+      if (other.offer.some((c) => c.slug && offerSlugs.has(c.slug))) {
+        return { targetName: other.destination.name };
+      }
     }
-    const duration = trade.createdAt && trade.updatedAt ? formatDuration(trade.createdAt, trade.updatedAt) : '';
-    return {
-      kind: 'manual',
-      text: duration ? `Отклонён пользователем (${duration})` : 'Отклонён пользователем',
-    };
+    if (trade.source.id && other.destination.id === trade.source.id) {
+      if (other.request.some((c) => c.slug && offerSlugs.has(c.slug))) {
+        return { targetName: other.source.name };
+      }
+    }
+    if (trade.destination.id && other.source.id === trade.destination.id) {
+      if (other.offer.some((c) => c.slug && requestSlugs.has(c.slug))) {
+        return { targetName: other.destination.name };
+      }
+    }
+    if (trade.destination.id && other.destination.id === trade.destination.id) {
+      if (other.request.some((c) => c.slug && requestSlugs.has(c.slug))) {
+        return { targetName: other.source.name };
+      }
+    }
   }
-  return { kind: 'pending', text: '' };
-}
-
-function iconForReason(kind: TradeReason['kind']): SVGSVGElement {
-  if (kind === 'auto') return swapHorizontalIcon(14);
-  if (kind === 'accepted') return doneIcon(14);
-  return closeIcon(14);
+  return null;
 }
 
 export function mountTradeMeta(host: HTMLElement, trade: Trade, allTrades: Trade[]): void {
+  host.querySelector('.senkutools-trade-reason')?.remove();
+
   if (trade.createdAt) {
-    let timeEl = host.querySelector<HTMLElement>(`:scope > .${TIME_CLASS}`);
+    const firstList = host.querySelector<HTMLElement>(FIRST_LIST_SELECTOR);
+    const targetParent = firstList ?? host;
+    let timeEl = host.querySelector<HTMLElement>(`.${TIME_CLASS}`);
     if (!timeEl) {
       timeEl = element('div', TIME_CLASS);
       const icon = scheduleIcon(12);
       icon.setAttribute('class', `${TIME_CLASS}__icon`);
       timeEl.append(icon);
       timeEl.append(element('span', TIME_LABEL_CLASS));
-      host.append(timeEl);
+      targetParent.append(timeEl);
+    } else if (timeEl.parentElement !== targetParent) {
+      targetParent.append(timeEl);
     }
     const label = timeEl.querySelector(`.${TIME_LABEL_CLASS}`);
     const timeText = formatTradeDate(trade.createdAt);
@@ -131,34 +110,28 @@ export function mountTradeMeta(host: HTMLElement, trade: Trade, allTrades: Trade
 
   const statusEl = host.querySelector<HTMLElement>(STATUS_SELECTOR);
   if (statusEl) {
-    const domStatus = statusEl.classList.contains('card-trade__status--rejected')
-      ? 'REJECTED'
-      : statusEl.classList.contains('card-trade__status--accepted')
-        ? 'ACCEPTED'
-        : 'PENDING';
-    const reason = detectTradeReason(trade, allTrades, domStatus);
-    let reasonEl = host.querySelector<HTMLElement>(`:scope > .${REASON_CLASS}`);
-    if (!reason.text) {
-      reasonEl?.remove();
+    const isRejected = trade.status?.toUpperCase() === 'REJECTED' || statusEl.classList.contains('card-trade__status--rejected');
+    let extraEl = statusEl.querySelector<HTMLElement>(`.${STATUS_EXTRA_CLASS}`);
+
+    if (!isRejected) {
+      extraEl?.remove();
       return;
     }
-    if (!reasonEl) {
-      reasonEl = element('div', `${REASON_CLASS} ${REASON_CLASS}--${reason.kind}`);
-      const icon = iconForReason(reason.kind);
-      icon.setAttribute('class', `${REASON_CLASS}__icon`);
-      reasonEl.append(icon);
-      reasonEl.append(element('span', REASON_TEXT_CLASS));
-      statusEl.after(reasonEl);
+
+    const conflict = findTradeConflict(trade, allTrades);
+    if (!conflict) {
+      extraEl?.remove();
+      return;
     }
-    const expectedClass = `${REASON_CLASS} ${REASON_CLASS}--${reason.kind}`;
-    if (reasonEl.className !== expectedClass) {
-      reasonEl.className = expectedClass;
-      const oldIcon = reasonEl.querySelector(`.${REASON_CLASS}__icon`);
-      const newIcon = iconForReason(reason.kind);
-      newIcon.setAttribute('class', `${REASON_CLASS}__icon`);
-      if (oldIcon) oldIcon.replaceWith(newIcon);
+
+    const text = conflict.targetName ? ` | карта ушла ${conflict.targetName}` : ' | карта ушла в другой обмен';
+
+    if (!extraEl) {
+      extraEl = element('span', STATUS_EXTRA_CLASS);
+      statusEl.append(extraEl);
     }
-    const textEl = reasonEl.querySelector(`.${REASON_TEXT_CLASS}`);
-    if (textEl && textEl.textContent !== reason.text) textEl.textContent = reason.text;
+    if (extraEl.textContent !== text) {
+      extraEl.textContent = text;
+    }
   }
 }

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { Window } from 'happy-dom';
 
 import type { Trade } from '../utils/trades/trade-capture';
-import { detectTradeReason, formatDuration, formatFullTradeDate, formatTradeDate, mountTradeMeta, parseIso } from '../utils/trades/trade-meta';
+import { findTradeConflict, formatFullTradeDate, formatTradeDate, mountTradeMeta, parseIso } from '../utils/trades/trade-meta';
 
 describe('trade-meta', () => {
   beforeEach(() => {
@@ -43,21 +43,15 @@ describe('trade-meta', () => {
     });
   });
 
-  describe('formatDuration', () => {
-    it('formats seconds as less than minute', () => {
-      expect(formatDuration('2026-11-05T17:11:00.000Z', '2026-11-05T17:11:20.000Z')).toBe('< 1 мин');
-    });
-
-    it('formats minutes', () => {
-      expect(formatDuration('2026-11-05T17:11:00.000Z', '2026-11-05T17:38:00.000Z')).toBe('27 мин');
-    });
-
-    it('formats hours', () => {
-      expect(formatDuration('2026-11-05T12:00:00.000Z', '2026-11-05T15:00:00.000Z')).toBe('3 ч');
+  describe('formatFullTradeDate', () => {
+    it('formats full localized date', () => {
+      const formatted = formatFullTradeDate('2026-11-05T17:11:00.000Z');
+      expect(formatted).toContain('2026');
+      expect(formatted).toContain('ноябр');
     });
   });
 
-  describe('detectTradeReason', () => {
+  describe('findTradeConflict', () => {
     const makeTrade = (overrides: Partial<Trade>): Trade => ({
       kind: 'trade',
       id: 't1',
@@ -68,58 +62,133 @@ describe('trade-meta', () => {
       ...overrides,
     });
 
-    it('detects auto-cancellation when conflicting trade is accepted', () => {
+    it('detects conflict when source gave card in another accepted trade', () => {
       const rejected = makeTrade({ id: 't1', status: 'REJECTED' });
       const accepted = makeTrade({
         id: 't2',
         status: 'ACCEPTED',
         destination: { id: 'u3', name: 'Winner' },
       });
-      const reason = detectTradeReason(rejected, [rejected, accepted]);
-      expect(reason.kind).toBe('auto');
-      expect(reason.text).toBe('Авто-отмена: карта отдана Winner');
+      const conflict = findTradeConflict(rejected, [rejected, accepted]);
+      expect(conflict).toEqual({ targetName: 'Winner' });
     });
 
-    it('detects manual rejection when no conflict', () => {
+    it('detects conflict when destination gave card in another accepted trade', () => {
       const rejected = makeTrade({
         id: 't1',
         status: 'REJECTED',
-        createdAt: '2026-11-05T17:11:00.000Z',
-        updatedAt: '2026-11-05T17:38:00.000Z',
+        offer: [{ slug: 'card-x', quantity: 1, shard: false }],
+        request: [{ slug: 'card-wanted', quantity: 1, shard: false }],
       });
-      const reason = detectTradeReason(rejected, [rejected]);
-      expect(reason.kind).toBe('manual');
-      expect(reason.text).toBe('Отклонён пользователем (27 мин)');
-    });
-
-    it('detects accepted status', () => {
       const accepted = makeTrade({
-        id: 't1',
+        id: 't2',
         status: 'ACCEPTED',
-        createdAt: '2026-11-05T17:11:00.000Z',
-        updatedAt: '2026-11-05T17:30:00.000Z',
+        source: { id: 'u2', name: 'Recipient' },
+        destination: { id: 'u4', name: 'LuckyBuyer' },
+        offer: [{ slug: 'card-wanted', quantity: 1, shard: false }],
+        request: [{ slug: 'card-z', quantity: 1, shard: false }],
       });
-      const reason = detectTradeReason(accepted, [accepted]);
-      expect(reason.kind).toBe('accepted');
-      expect(reason.text).toBe('Принят через 19 мин');
+      const conflict = findTradeConflict(rejected, [rejected, accepted]);
+      expect(conflict).toEqual({ targetName: 'LuckyBuyer' });
     });
 
-    it('returns empty text for pending trades', () => {
-      const pending = makeTrade({ id: 't1', status: 'PENDING' });
-      const reason = detectTradeReason(pending, [pending]);
-      expect(reason.kind).toBe('pending');
-      expect(reason.text).toBe('');
+    it('returns null when no cards overlap', () => {
+      const rejected = makeTrade({ id: 't1', status: 'REJECTED' });
+      const accepted = makeTrade({
+        id: 't2',
+        status: 'ACCEPTED',
+        offer: [{ slug: 'card-other', quantity: 1, shard: false }],
+        request: [{ slug: 'card-different', quantity: 1, shard: false }],
+      });
+      expect(findTradeConflict(rejected, [rejected, accepted])).toBeNull();
+    });
+
+    it('returns null when other trade is not accepted', () => {
+      const rejected = makeTrade({ id: 't1', status: 'REJECTED' });
+      const pending = makeTrade({
+        id: 't2',
+        status: 'PENDING',
+        destination: { id: 'u3', name: 'Winner' },
+      });
+      expect(findTradeConflict(rejected, [rejected, pending])).toBeNull();
     });
   });
 
   describe('mountTradeMeta', () => {
-    it('mounts time badge and reason element into card trade', () => {
+    const createTradeElement = () => {
       const host = document.createElement('div');
       host.className = 'card-trade';
+
+      const previewList = document.createElement('div');
+      previewList.className = 'card-preview-list';
+
+      const cardList = document.createElement('div');
+      cardList.className = 'card-list';
+
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar';
+
+      const cardBody = document.createElement('div');
+      cardBody.className = 'card-body';
+      cardBody.innerHTML = '<div class="card-name"><span>User</span></div>';
+
+      cardList.append(avatar, cardBody);
+      previewList.append(cardList);
+
       const statusEl = document.createElement('div');
+      statusEl.className = 'card-trade__status';
+      statusEl.textContent = 'Отклонён';
+
+      host.append(previewList, statusEl);
+      return { host, cardList, statusEl };
+    };
+
+    it('mounts time badge into card-list when present', () => {
+      const { host, cardList } = createTradeElement();
+      const trade: Trade = {
+        kind: 'trade',
+        id: 't1',
+        source: { id: 'u1', name: 'Author' },
+        destination: { id: 'u2', name: 'Recipient' },
+        offer: [{ slug: 'card-a', quantity: 1, shard: false }],
+        request: [{ slug: 'card-b', quantity: 1, shard: false }],
+        status: 'ACCEPTED',
+        createdAt: '2026-11-05T17:11:00.000Z',
+      };
+
+      mountTradeMeta(host, trade, [trade]);
+
+      const timeEl = cardList.querySelector('.senkutools-trade-time');
+      expect(timeEl).not.toBeNull();
+      expect(timeEl?.parentElement).toBe(cardList);
+    });
+
+    it('does not add reason text to accepted trades', () => {
+      const { host, statusEl } = createTradeElement();
+      statusEl.className = 'card-trade__status card-trade__status--accepted';
+      statusEl.textContent = 'Принят';
+
+      const trade: Trade = {
+        kind: 'trade',
+        id: 't1',
+        source: { id: 'u1', name: 'Author' },
+        destination: { id: 'u2', name: 'Recipient' },
+        offer: [{ slug: 'card-a', quantity: 1, shard: false }],
+        request: [{ slug: 'card-b', quantity: 1, shard: false }],
+        status: 'ACCEPTED',
+      };
+
+      mountTradeMeta(host, trade, [trade]);
+
+      expect(statusEl.textContent).toBe('Принят');
+      expect(statusEl.querySelector('.senkutools-trade-status-extra')).toBeNull();
+      expect(host.querySelector('.senkutools-trade-reason')).toBeNull();
+    });
+
+    it('does not add reason text to rejected trade without conflicts', () => {
+      const { host, statusEl } = createTradeElement();
       statusEl.className = 'card-trade__status card-trade__status--rejected';
       statusEl.textContent = 'Отклонён';
-      host.append(statusEl);
 
       const trade: Trade = {
         kind: 'trade',
@@ -129,7 +198,27 @@ describe('trade-meta', () => {
         offer: [{ slug: 'card-a', quantity: 1, shard: false }],
         request: [{ slug: 'card-b', quantity: 1, shard: false }],
         status: 'REJECTED',
-        createdAt: '2026-11-05T17:11:00.000Z',
+      };
+
+      mountTradeMeta(host, trade, [trade]);
+
+      expect(statusEl.textContent).toBe('Отклонён');
+      expect(statusEl.querySelector('.senkutools-trade-status-extra')).toBeNull();
+    });
+
+    it('appends auto-cancellation conflict text to rejected status bar', () => {
+      const { host, statusEl } = createTradeElement();
+      statusEl.className = 'card-trade__status card-trade__status--rejected';
+      statusEl.textContent = 'Отклонён';
+
+      const trade: Trade = {
+        kind: 'trade',
+        id: 't1',
+        source: { id: 'u1', name: 'Author' },
+        destination: { id: 'u2', name: 'Recipient' },
+        offer: [{ slug: 'card-a', quantity: 1, shard: false }],
+        request: [{ slug: 'card-b', quantity: 1, shard: false }],
+        status: 'REJECTED',
       };
 
       const accepted: Trade = {
@@ -144,14 +233,10 @@ describe('trade-meta', () => {
 
       mountTradeMeta(host, trade, [trade, accepted]);
 
-      const timeEl = host.querySelector('.senkutools-trade-time');
-      expect(timeEl).not.toBeNull();
-      expect(timeEl?.textContent).toBeTruthy();
-
-      const reasonEl = host.querySelector('.senkutools-trade-reason');
-      expect(reasonEl).not.toBeNull();
-      expect(reasonEl?.classList.contains('senkutools-trade-reason--auto')).toBe(true);
-      expect(reasonEl?.textContent).toBe('Авто-отмена: карта отдана LuckyGuy');
+      const extraEl = statusEl.querySelector('.senkutools-trade-status-extra');
+      expect(extraEl).not.toBeNull();
+      expect(extraEl?.textContent).toBe(' | карта ушла LuckyGuy');
+      expect(statusEl.textContent).toBe('Отклонён | карта ушла LuckyGuy');
     });
   });
 });
