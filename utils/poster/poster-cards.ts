@@ -6,10 +6,16 @@ export interface SelectedCard {
   quantity: number;
 }
 
+export interface GridCard extends SelectedCard {
+  isArtHidden: boolean;
+}
+
 export const SELECTED_ROW_SELECTOR = `.user-cards-grid > .${CARD_ROW_CLASS}.user-card--selected`;
 
 const SHARD_ROW_CLASS = `${CARD_ROW_CLASS}--shard`;
 const QUANTITY_TAG = `.${CARD_ROW_CLASS}__status .tag`;
+const CARD_FRONT = ':scope > .card-collect__front';
+const SHOWN_ART = 'img.card-collect__img, video';
 const LEADING_COUNT = /^\d+/;
 const MORE_OPTIONS_BUTTON = 'button[aria-label="more options"]';
 const PROFILE_PATH = /^\/users\/([^/?#]+)/;
@@ -20,11 +26,14 @@ const quantityOf = (row: Element): number => {
   return match ? Number(match[0]) : 1;
 };
 
-export function readSelectedCards(pageDocument: Document): SelectedCard[] {
+const isArtHiddenIn = (link: Element | null): boolean => !link?.querySelector(CARD_FRONT)?.querySelector(SHOWN_ART);
+
+export function readSelectedCards(pageDocument: Document): GridCard[] {
   return [...pageDocument.querySelectorAll(SELECTED_ROW_SELECTOR)].flatMap((row) => {
     if (row.classList.contains(SHARD_ROW_CLASS)) return [];
-    const slug = slugFromHref(row.querySelector(CARD_LINK)?.getAttribute('href'));
-    return slug ? [{ slug, quantity: quantityOf(row) }] : [];
+    const link = row.querySelector(CARD_LINK);
+    const slug = slugFromHref(link?.getAttribute('href'));
+    return slug ? [{ slug, quantity: quantityOf(row), isArtHidden: isArtHiddenIn(link) }] : [];
   });
 }
 
