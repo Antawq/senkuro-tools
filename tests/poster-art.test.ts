@@ -54,34 +54,13 @@ const operationOf = (query: string): OperationDefinitionNode => {
 
 const ART: PosterArt = { slug: 'alpha-s', rank: 'S', url: urlOf('alpha-s'), width: ART_WIDTH_PX, height: ART_HEIGHT_PX, isExplicit: false };
 
-class RecordingImage extends EventTarget {
-  readonly assignments: string[] = [];
-  #crossOrigin: string | null = null;
-  #src = '';
+const bitmapOf = (): ImageBitmap => ({ width: ART_WIDTH_PX, height: ART_HEIGHT_PX, close: () => undefined });
 
-  get crossOrigin(): string | null {
-    return this.#crossOrigin;
-  }
-
-  set crossOrigin(origin: string | null) {
-    this.assignments.push(`crossOrigin=${origin}`);
-    this.#crossOrigin = origin;
-  }
-
-  get src(): string {
-    return this.#src;
-  }
-
-  set src(url: string) {
-    this.assignments.push(`src=${url}`);
-    this.#src = url;
-  }
-}
-
-const imageHost = () => {
-  const image = new RecordingImage();
-  const createImage = vi.fn(() => image as unknown as HTMLImageElement);
-  return { image, createImage, host: { createImage } };
+const imageHost = (answer: () => Promise<Response> = () => Promise.resolve(new Response(new Blob(['art']), { status: 200 }))) => {
+  const bitmap = bitmapOf();
+  const fetchImage = vi.fn<(url: string) => Promise<Response>>(() => answer());
+  const createBitmap = vi.fn<(blob: Blob) => Promise<ImageBitmap>>(() => Promise.resolve(bitmap));
+  return { bitmap, fetchImage, createBitmap, host: { fetchImage, createBitmap } };
 };
 
 describe('fetchPosterArt', () => {
@@ -166,29 +145,34 @@ describe('fetchPosterArt', () => {
 });
 
 describe('loadArtImage', () => {
-  it('asks for an anonymous cross origin load before it sets the source', () => {
-    const { image, host } = imageHost();
-    void loadArtImage(ART, host);
-    expect(image.assignments).toEqual(['crossOrigin=anonymous', `src=${ART.url}`]);
+  it('fetches the art url and turns the body into a bitmap', async () => {
+    const { bitmap, fetchImage, createBitmap, host } = imageHost();
+    expect(await loadArtImage(ART, host)).toBe(bitmap);
+    expect(fetchImage).toHaveBeenCalledWith(ART.url);
+    const blob = createBitmap.mock.calls[0]?.[0];
+    expect(await blob?.text()).toBe('art');
   });
 
-  it('resolves with the image once it loads', async () => {
-    const { image, host } = imageHost();
-    const loading = loadArtImage(ART, host);
-    image.dispatchEvent(new Event('load'));
-    expect(await loading).toBe(image);
+  it('rejects when the server answers with an error status and decodes nothing', async () => {
+    const { createBitmap, host } = imageHost(() => Promise.resolve(new Response('no', { status: 403 })));
+    await expect(loadArtImage(ART, host)).rejects.toThrow('answered 403');
+    expect(createBitmap).not.toHaveBeenCalled();
   });
 
-  it('rejects when the image fails to load', async () => {
-    const { image, host } = imageHost();
-    const loading = loadArtImage(ART, host);
-    image.dispatchEvent(new Event('error'));
-    await expect(loading).rejects.toThrow(Error);
+  it('rejects when the request fails', async () => {
+    const { host } = imageHost(() => Promise.reject(new TypeError('Failed to fetch')));
+    await expect(loadArtImage(ART, host)).rejects.toThrow('Failed to fetch');
   });
 
-  it('rejects a url that is not https without creating an image', async () => {
-    const { createImage, host } = imageHost();
-    await expect(loadArtImage({ ...ART, url: 'http://cdn.senkuro.com/cards/alpha-s.webp' }, host)).rejects.toThrow(Error);
-    expect(createImage).not.toHaveBeenCalled();
+  it('rejects when the body cannot be decoded', async () => {
+    const { createBitmap, host } = imageHost();
+    createBitmap.mockRejectedValueOnce(new Error('bad image'));
+    await expect(loadArtImage(ART, host)).rejects.toThrow('bad image');
+  });
+
+  it('rejects a url that is not https without requesting it', async () => {
+    const { fetchImage, host } = imageHost();
+    await expect(loadArtImage({ ...ART, url: 'http://cdn.senkuro.com/cards/alpha-s.webp' }, host)).rejects.toThrow('https');
+    expect(fetchImage).not.toHaveBeenCalled();
   });
 });

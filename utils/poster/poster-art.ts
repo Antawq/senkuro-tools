@@ -10,7 +10,8 @@ export interface PosterArt {
 }
 
 export interface ArtHost {
-  createImage: () => HTMLImageElement;
+  fetchImage: (url: string) => Promise<Response>;
+  createBitmap: (blob: Blob) => Promise<ImageBitmap>;
 }
 
 export const ART_BATCH_SIZE = 30;
@@ -65,13 +66,9 @@ export async function fetchPosterArt(slugs: readonly string[], transport?: Trans
   return arts;
 }
 
-export function loadArtImage(art: PosterArt, host: ArtHost): Promise<HTMLImageElement> {
-  if (!isSecureUrl(art.url)) return Promise.reject(new Error(`poster art of ${art.slug} is not served over https`));
-  return new Promise((resolve, reject) => {
-    const image = host.createImage();
-    image.crossOrigin = 'anonymous';
-    image.addEventListener('load', () => resolve(image), { once: true });
-    image.addEventListener('error', () => reject(new Error(`poster art of ${art.slug} failed to load`)), { once: true });
-    image.src = art.url;
-  });
+export async function loadArtImage(art: PosterArt, host: ArtHost): Promise<ImageBitmap> {
+  if (!isSecureUrl(art.url)) throw new Error(`poster art of ${art.slug} is not served over https`);
+  const response = await host.fetchImage(art.url);
+  if (!response.ok) throw new Error(`poster art of ${art.slug} answered ${response.status}`);
+  return host.createBitmap(await response.blob());
 }
