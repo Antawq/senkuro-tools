@@ -5,11 +5,13 @@ import type { Trade } from './trade-capture';
 const TIME_CLASS = 'senkutools-trade-time';
 const TIME_LABEL_CLASS = 'senkutools-trade-time__label';
 const STATUS_EXTRA_CLASS = 'senkutools-trade-status-extra';
+const STATUS_LINK_CLASS = 'senkutools-trade-status-link';
 const STATUS_SELECTOR = ':scope > .card-trade__status';
 const FIRST_LIST_SELECTOR = ':scope > .card-preview-list:first-child .card-list';
 
 export interface TradeConflict {
   targetName: string;
+  targetId: string | null;
 }
 
 export function parseIso(iso: string): Date {
@@ -63,22 +65,22 @@ export function findTradeConflict(trade: Trade, allTrades: Trade[]): TradeConfli
 
     if (trade.source.id && other.source.id === trade.source.id) {
       if (other.offer.some((c) => c.slug && offerSlugs.has(c.slug))) {
-        return { targetName: other.destination.name };
+        return { targetName: other.destination.name, targetId: other.destination.id };
       }
     }
     if (trade.source.id && other.destination.id === trade.source.id) {
       if (other.request.some((c) => c.slug && offerSlugs.has(c.slug))) {
-        return { targetName: other.source.name };
+        return { targetName: other.source.name, targetId: other.source.id };
       }
     }
     if (trade.destination.id && other.source.id === trade.destination.id) {
       if (other.offer.some((c) => c.slug && requestSlugs.has(c.slug))) {
-        return { targetName: other.destination.name };
+        return { targetName: other.destination.name, targetId: other.destination.id };
       }
     }
     if (trade.destination.id && other.destination.id === trade.destination.id) {
       if (other.request.some((c) => c.slug && requestSlugs.has(c.slug))) {
-        return { targetName: other.source.name };
+        return { targetName: other.source.name, targetId: other.source.id };
       }
     }
   }
@@ -124,14 +126,30 @@ export function mountTradeMeta(host: HTMLElement, trade: Trade, allTrades: Trade
       return;
     }
 
-    const text = conflict.targetName ? ` | карта ушла ${conflict.targetName}` : ' | карта ушла в другой обмен';
-
     if (!extraEl) {
       extraEl = element('span', STATUS_EXTRA_CLASS);
       statusEl.append(extraEl);
     }
-    if (extraEl.textContent !== text) {
-      extraEl.textContent = text;
+
+    const targetHandle = conflict.targetId || conflict.targetName;
+    const currentLink = extraEl.querySelector<HTMLAnchorElement>(`.${STATUS_LINK_CLASS}`);
+    const expectedHref = targetHandle ? `/users/@${targetHandle}` : '';
+    const currentHref = currentLink?.getAttribute('href') ?? '';
+    const currentName = currentLink?.textContent ?? '';
+
+    if (!conflict.targetName) {
+      if (extraEl.textContent !== ' (ушла в другой обмен)') {
+        extraEl.replaceChildren(document.createTextNode(' (ушла в другой обмен)'));
+      }
+    } else if (currentHref !== expectedHref || currentName !== conflict.targetName) {
+      extraEl.replaceChildren();
+      extraEl.append(document.createTextNode(' (ушла к '));
+      const link = element('a', STATUS_LINK_CLASS);
+      link.setAttribute('href', expectedHref);
+      link.textContent = conflict.targetName;
+      link.addEventListener('click', (event) => event.stopPropagation());
+      extraEl.append(link);
+      extraEl.append(document.createTextNode(')'));
     }
   }
 }

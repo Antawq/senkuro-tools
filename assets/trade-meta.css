@@ -54,3 +54,15 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.senkutools-trade-status-link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+  pointer-events: auto;
+  transition: text-decoration-color var(--transition, 0.2s ease);
+}
+
+.senkutools-trade-status-link:hover {
+  text-decoration-color: currentColor;
+}

@@ -70,7 +70,7 @@ describe('trade-meta', () => {
         destination: { id: 'u3', name: 'Winner' },
       });
       const conflict = findTradeConflict(rejected, [rejected, accepted]);
-      expect(conflict).toEqual({ targetName: 'Winner' });
+      expect(conflict).toEqual({ targetName: 'Winner', targetId: 'u3' });
     });
 
     it('detects conflict when destination gave card in another accepted trade', () => {
@@ -89,7 +89,7 @@ describe('trade-meta', () => {
         request: [{ slug: 'card-z', quantity: 1, shard: false }],
       });
       const conflict = findTradeConflict(rejected, [rejected, accepted]);
-      expect(conflict).toEqual({ targetName: 'LuckyBuyer' });
+      expect(conflict).toEqual({ targetName: 'LuckyBuyer', targetId: 'u4' });
     });
 
     it('returns null when no cards overlap', () => {
@@ -235,8 +235,44 @@ describe('trade-meta', () => {
 
       const extraEl = statusEl.querySelector('.senkutools-trade-status-extra');
       expect(extraEl).not.toBeNull();
-      expect(extraEl?.textContent).toBe(' | карта ушла LuckyGuy');
-      expect(statusEl.textContent).toBe('Отклонён | карта ушла LuckyGuy');
+      expect(extraEl?.textContent).toBe(' (ушла к LuckyGuy)');
+      expect(statusEl.textContent).toBe('Отклонён (ушла к LuckyGuy)');
+      const link = extraEl?.querySelector('a.senkutools-trade-status-link');
+      expect(link).not.toBeNull();
+      expect(link?.getAttribute('href')).toBe('/users/@u3');
+      expect(link?.textContent).toBe('LuckyGuy');
+    });
+
+    it('renders fallback text when target has no name', () => {
+      const { host, statusEl } = createTradeElement();
+      statusEl.className = 'card-trade__status card-trade__status--rejected';
+      statusEl.textContent = 'Отклонён';
+
+      const trade: Trade = {
+        kind: 'trade',
+        id: 't1',
+        source: { id: 'u1', name: 'Author' },
+        destination: { id: 'u2', name: 'Recipient' },
+        offer: [{ slug: 'card-a', quantity: 1, shard: false }],
+        request: [{ slug: 'card-b', quantity: 1, shard: false }],
+        status: 'REJECTED',
+      };
+
+      const accepted: Trade = {
+        kind: 'trade',
+        id: 't2',
+        source: { id: 'u1', name: 'Author' },
+        destination: { id: null, name: '' },
+        offer: [{ slug: 'card-a', quantity: 1, shard: false }],
+        request: [{ slug: 'card-c', quantity: 1, shard: false }],
+        status: 'ACCEPTED',
+      };
+
+      mountTradeMeta(host, trade, [trade, accepted]);
+
+      const extraEl = statusEl.querySelector('.senkutools-trade-status-extra');
+      expect(extraEl?.textContent).toBe(' (ушла в другой обмен)');
+      expect(statusEl.textContent).toBe('Отклонён (ушла в другой обмен)');
     });
   });
 });
