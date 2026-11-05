@@ -12,6 +12,11 @@
   --senkuro-fallback-surface: #202023;
   --senkuro-fallback-error: #ff7f71;
   --senkuro-gutter: 12px;
+  --senkutools-poster-background: #111113;
+  --senkutools-poster-surface: #1c1c21;
+  --senkutools-poster-text: var(--senkuro-white);
+  --senkutools-poster-muted-text: #a1a1aa;
+  --senkutools-poster-shadow: rgb(0 0 0 / 0.5);
 
   --senkuro-hover: 0.2s;
   --senkuro-effect-delay: 0.15s;
