@@ -11,7 +11,21 @@ const FIRST_LIST_SELECTOR = ':scope > .card-preview-list:first-child .card-list'
 
 export interface TradeConflict {
   targetName: string;
+  targetSlug?: string | null;
   targetId: string | null;
+}
+
+export function userProfilePath(person?: { slug?: string | null; id?: string | null }): string {
+  if (person?.slug) return `/users/${person.slug}`;
+  const id = person?.id;
+  if (!id) return '';
+  if (/^\d+$/.test(id)) return `/users/@${id}`;
+  try {
+    const decoded = atob(id);
+    const match = decoded.match(/^(?:USER:)?(\d+)$/);
+    if (match?.[1]) return `/users/@${match[1]}`;
+  } catch {}
+  return `/users/${id}`;
 }
 
 export function parseIso(iso: string): Date {
@@ -65,22 +79,22 @@ export function findTradeConflict(trade: Trade, allTrades: Trade[]): TradeConfli
 
     if (trade.source.id && other.source.id === trade.source.id) {
       if (other.offer.some((c) => c.slug && offerSlugs.has(c.slug))) {
-        return { targetName: other.destination.name, targetId: other.destination.id };
+        return { targetName: other.destination.name, targetSlug: other.destination.slug ?? null, targetId: other.destination.id };
       }
     }
     if (trade.source.id && other.destination.id === trade.source.id) {
       if (other.request.some((c) => c.slug && offerSlugs.has(c.slug))) {
-        return { targetName: other.source.name, targetId: other.source.id };
+        return { targetName: other.source.name, targetSlug: other.source.slug ?? null, targetId: other.source.id };
       }
     }
     if (trade.destination.id && other.source.id === trade.destination.id) {
       if (other.offer.some((c) => c.slug && requestSlugs.has(c.slug))) {
-        return { targetName: other.destination.name, targetId: other.destination.id };
+        return { targetName: other.destination.name, targetSlug: other.destination.slug ?? null, targetId: other.destination.id };
       }
     }
     if (trade.destination.id && other.destination.id === trade.destination.id) {
       if (other.request.some((c) => c.slug && requestSlugs.has(c.slug))) {
-        return { targetName: other.source.name, targetId: other.source.id };
+        return { targetName: other.source.name, targetSlug: other.source.slug ?? null, targetId: other.source.id };
       }
     }
   }
@@ -131,9 +145,8 @@ export function mountTradeMeta(host: HTMLElement, trade: Trade, allTrades: Trade
       statusEl.append(extraEl);
     }
 
-    const targetHandle = conflict.targetId || conflict.targetName;
+    const expectedHref = userProfilePath({ slug: conflict.targetSlug, id: conflict.targetId });
     const currentLink = extraEl.querySelector<HTMLAnchorElement>(`.${STATUS_LINK_CLASS}`);
-    const expectedHref = targetHandle ? `/users/@${targetHandle}` : '';
     const currentHref = currentLink?.getAttribute('href') ?? '';
     const currentName = currentLink?.textContent ?? '';
 
@@ -145,7 +158,7 @@ export function mountTradeMeta(host: HTMLElement, trade: Trade, allTrades: Trade
       extraEl.replaceChildren();
       extraEl.append(document.createTextNode(' (ушла к '));
       const link = element('a', STATUS_LINK_CLASS);
-      link.setAttribute('href', expectedHref);
+      if (expectedHref) link.setAttribute('href', expectedHref);
       link.textContent = conflict.targetName;
       link.addEventListener('click', (event) => event.stopPropagation());
       extraEl.append(link);

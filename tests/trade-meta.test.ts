@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { Window } from 'happy-dom';
 
 import type { Trade } from '../utils/trades/trade-capture';
-import { findTradeConflict, formatFullTradeDate, formatTradeDate, mountTradeMeta, parseIso } from '../utils/trades/trade-meta';
+import { findTradeConflict, formatFullTradeDate, formatTradeDate, mountTradeMeta, parseIso, userProfilePath } from '../utils/trades/trade-meta';
 
 describe('trade-meta', () => {
   beforeEach(() => {
@@ -51,6 +51,24 @@ describe('trade-meta', () => {
     });
   });
 
+  describe('userProfilePath', () => {
+    it('uses slug when available', () => {
+      expect(userProfilePath({ slug: 'siberianqqq', id: 'VVNFUjoxNzY4MjE2MzU5OTM1ODUxODA' })).toBe('/users/siberianqqq');
+    });
+
+    it('decodes Relay global ID to numeric user id', () => {
+      expect(userProfilePath({ id: 'VVNFUjoxNzY4MjE2MzU5OTM1ODUxODA' })).toBe('/users/@176821635993585180');
+    });
+
+    it('uses numeric id directly when already numeric', () => {
+      expect(userProfilePath({ id: '176821635993585180' })).toBe('/users/@176821635993585180');
+    });
+
+    it('returns empty string when no person is given', () => {
+      expect(userProfilePath(undefined)).toBe('');
+    });
+  });
+
   describe('findTradeConflict', () => {
     const makeTrade = (overrides: Partial<Trade>): Trade => ({
       kind: 'trade',
@@ -70,7 +88,7 @@ describe('trade-meta', () => {
         destination: { id: 'u3', name: 'Winner' },
       });
       const conflict = findTradeConflict(rejected, [rejected, accepted]);
-      expect(conflict).toEqual({ targetName: 'Winner', targetId: 'u3' });
+      expect(conflict).toEqual({ targetName: 'Winner', targetSlug: null, targetId: 'u3' });
     });
 
     it('detects conflict when destination gave card in another accepted trade', () => {
@@ -89,7 +107,18 @@ describe('trade-meta', () => {
         request: [{ slug: 'card-z', quantity: 1, shard: false }],
       });
       const conflict = findTradeConflict(rejected, [rejected, accepted]);
-      expect(conflict).toEqual({ targetName: 'LuckyBuyer', targetId: 'u4' });
+      expect(conflict).toEqual({ targetName: 'LuckyBuyer', targetSlug: null, targetId: 'u4' });
+    });
+
+    it('detects conflict with targetSlug when present', () => {
+      const rejected = makeTrade({ id: 't1', status: 'REJECTED' });
+      const accepted = makeTrade({
+        id: 't2',
+        status: 'ACCEPTED',
+        destination: { id: 'u3', slug: 'siberianqqq', name: 'Winner' },
+      });
+      const conflict = findTradeConflict(rejected, [rejected, accepted]);
+      expect(conflict).toEqual({ targetName: 'Winner', targetSlug: 'siberianqqq', targetId: 'u3' });
     });
 
     it('returns null when no cards overlap', () => {
@@ -225,7 +254,7 @@ describe('trade-meta', () => {
         kind: 'trade',
         id: 't2',
         source: { id: 'u1', name: 'Author' },
-        destination: { id: 'u3', name: 'LuckyGuy' },
+        destination: { id: 'VVNFUjoxNzY4MjE2MzU5OTM1ODUxODA', slug: 'siberianqqq', name: 'LuckyGuy' },
         offer: [{ slug: 'card-a', quantity: 1, shard: false }],
         request: [{ slug: 'card-c', quantity: 1, shard: false }],
         status: 'ACCEPTED',
@@ -239,8 +268,39 @@ describe('trade-meta', () => {
       expect(statusEl.textContent).toBe('Отклонён (ушла к LuckyGuy)');
       const link = extraEl?.querySelector('a.senkutools-trade-status-link');
       expect(link).not.toBeNull();
-      expect(link?.getAttribute('href')).toBe('/users/@u3');
+      expect(link?.getAttribute('href')).toBe('/users/siberianqqq');
       expect(link?.textContent).toBe('LuckyGuy');
+    });
+
+    it('decodes Relay ID in link when slug is absent', () => {
+      const { host, statusEl } = createTradeElement();
+      statusEl.className = 'card-trade__status card-trade__status--rejected';
+      statusEl.textContent = 'Отклонён';
+
+      const trade: Trade = {
+        kind: 'trade',
+        id: 't1',
+        source: { id: 'u1', name: 'Author' },
+        destination: { id: 'u2', name: 'Recipient' },
+        offer: [{ slug: 'card-a', quantity: 1, shard: false }],
+        request: [{ slug: 'card-b', quantity: 1, shard: false }],
+        status: 'REJECTED',
+      };
+
+      const accepted: Trade = {
+        kind: 'trade',
+        id: 't2',
+        source: { id: 'u1', name: 'Author' },
+        destination: { id: 'VVNFUjoxNzY4MjE2MzU5OTM1ODUxODA', name: 'LuckyGuy' },
+        offer: [{ slug: 'card-a', quantity: 1, shard: false }],
+        request: [{ slug: 'card-c', quantity: 1, shard: false }],
+        status: 'ACCEPTED',
+      };
+
+      mountTradeMeta(host, trade, [trade, accepted]);
+
+      const link = statusEl.querySelector('a.senkutools-trade-status-link');
+      expect(link?.getAttribute('href')).toBe('/users/@176821635993585180');
     });
 
     it('renders fallback text when target has no name', () => {

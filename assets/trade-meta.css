@@ -46,6 +46,8 @@
 }
 
 .senkutools-trade-status-extra {
+  margin-left: 0.35em;
+  font-style: italic;
   font-size: 1.3rem;
   font-weight: 400;
   color: inherit;
@@ -57,6 +59,7 @@
 
 .senkutools-trade-status-link {
   color: inherit;
+  font-style: inherit;
   text-decoration: underline;
   text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
   pointer-events: auto;

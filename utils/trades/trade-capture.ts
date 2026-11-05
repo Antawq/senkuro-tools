@@ -9,6 +9,7 @@ export const REPLAY_EVENT = 'senkutools:trades-replay';
 
 export interface Person {
   id: string | null;
+  slug?: string | null;
   name: string;
 }
 
@@ -50,6 +51,7 @@ export interface TradeStore {
 
 interface GraphUser {
   id?: string;
+  slug?: string | null;
   name?: string | null;
 }
 
@@ -92,6 +94,7 @@ const previews = (list: unknown): CardRef[] | null => (Array.isArray(list) ? (li
 
 const person = (user: GraphUser | undefined): Person => ({
   id: user?.id ?? null,
+  ...(user?.slug ? { slug: user.slug } : {}),
   name: user?.name ?? '',
 });
 
