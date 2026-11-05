@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { canSelectCards, profileSlugOf, readSelectedCards } from '../utils/poster/poster-cards';
+import { canSelectCards, countSelectedRows, profileSlugOf, readSelectedCards } from '../utils/poster/poster-cards';
 
 type FrontArt = 'image' | 'video' | 'frame' | 'missing';
 
@@ -34,6 +34,21 @@ const grid = (...rows: string[]): string => `<div class="user-cards-grid">${rows
 
 beforeEach(() => {
   document.body.innerHTML = '';
+});
+
+describe('countSelectedRows', () => {
+  it('counts selected shard rows too, so a shards-only selection is not empty', () => {
+    document.body.innerHTML = grid(row({ slug: 'a-a' }), row({ slug: 'b-a', isSelected: false }), row({ slug: 'shard-a', isShard: true }));
+    expect(countSelectedRows(document)).toBe(2);
+    expect(readSelectedCards(document)).toHaveLength(1);
+  });
+
+  it('is zero when nothing is selected or the page has no grid', () => {
+    document.body.innerHTML = grid(row({ isSelected: false }));
+    expect(countSelectedRows(document)).toBe(0);
+    document.body.innerHTML = '';
+    expect(countSelectedRows(document)).toBe(0);
+  });
 });
 
 describe('readSelectedCards', () => {

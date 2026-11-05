@@ -37,6 +37,8 @@ export function readSelectedCards(pageDocument: Document): GridCard[] {
   });
 }
 
+export const countSelectedRows = (pageDocument: Document): number => pageDocument.querySelectorAll(SELECTED_ROW_SELECTOR).length;
+
 export const canSelectCards = (toolbar: Element): boolean => toolbar.querySelector(MORE_OPTIONS_BUTTON) !== null;
 
 export function profileSlugOf(pathname: string): string | null {
