@@ -129,6 +129,12 @@
   }
 }
 
+@media (max-width: 576px) {
+  .senkutools-poster__control {
+    order: -1;
+  }
+}
+
 @media (min-width: 992px) {
   .senkutools-poster__heading {
     font-size: 1.4rem;
