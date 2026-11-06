@@ -4,6 +4,7 @@ import { MODAL } from '../shared/trade-modal';
 import type { CardRef, Side } from '../shared/trade-value';
 import { REPLAY_EVENT, type Trade, type TradeStore } from './trade-capture';
 import { matchOffer, matchTrade, matchTradeByCounts, shows } from './trade-match';
+import { mountTradeMeta } from './trade-meta';
 
 const CARD_LIST = '.modal-content--review';
 const HISTORY = '.card-trade';
@@ -170,6 +171,7 @@ const readHistory = (store: TradeStore): Place[] =>
       lists.length === TRADE_SIDES && offerList && requestList
         ? matchTrade(store.trades(), [names[0] ?? '', names[1] ?? ''], [readPreviewList(offerList), readPreviewList(requestList)])
         : null;
+    if (trade && host instanceof HTMLElement) mountTradeMeta(host, trade, store.trades());
     return { host, placement: 'end', columns: trade ? viewerColumns(trade, store.viewerId(), names) : null };
   });
 

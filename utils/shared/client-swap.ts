@@ -1,10 +1,11 @@
 import { Client, getOperationName, type Exchange } from '@urql/core';
 
+import { runAfterHydration } from './app-mounted';
 import { debugLogger } from './debug';
 import { defaultContextOf, delegateExchange } from './delegate-exchange';
 import { claimPage, isPageClaimed } from './page-claim';
 import type { PageWindow } from './page-window';
-import { runOnAppAssigned, type VueApp } from './vue-app';
+import type { VueApp } from './vue-app';
 
 const CLIENT_KEY = '$urql';
 const CLIENT_METHODS = ['executeQuery', 'executeMutation', 'executeSubscription', 'createRequestOperation'];
@@ -40,14 +41,23 @@ export function swapClient(app: VueApp, host: SwapHost, debug: Debug = () => und
   const siteClient = clientRef?.value as Client | undefined;
   const url = siteClient ? siteUrlOf(siteClient) : null;
   if (!clientRef || !siteClient || !url) {
-    debug('client not swapped', { hasClient: siteClient !== undefined, hasUrl: url !== null });
+    debug('client not swapped', {
+      hasClient: siteClient !== undefined,
+      hasUrl: url !== null,
+    });
     return null;
   }
   const exchanges = [
     ...host.exchangesFor(siteClient),
     delegateExchange(siteClient, (operation) => debug('site request re-keyed', getOperationName(operation.query))),
   ];
-  const client = new Client({ url, requestPolicy: defaultContextOf(siteClient).requestPolicy, suspense: true, exchanges });
+  const client = new Client({
+    url,
+    requestPolicy: defaultContextOf(siteClient).requestPolicy,
+    fetchOptions: defaultContextOf(siteClient).fetchOptions,
+    suspense: true,
+    exchanges,
+  });
   clientRef.value = client;
   if (clientRef.value !== client) {
     debug('client not swapped', { isReadonly: true });
@@ -66,7 +76,7 @@ export function installClientSwap(pageWindow: PageWindow, createHost: () => Swap
   }
   if (!claimPage(pageWindow, 'client-swap')) return;
   const host = createHost();
-  runOnAppAssigned(pageWindow, (app) => {
+  runAfterHydration(pageWindow, (app) => {
     try {
       swapClient(app, host, debug);
     } catch (error) {

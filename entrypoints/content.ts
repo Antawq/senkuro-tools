@@ -12,6 +12,7 @@ import '@/assets/modal-filters.css';
 import '@/assets/site-fixes.css';
 import '@/assets/token-bar.css';
 import '@/assets/trade-summary.css';
+import '@/assets/trade-meta.css';
 import { defineContentScript } from '#imports';
 
 import { APP_MOUNTED_EVENT } from '@/utils/shared/app-mounted';

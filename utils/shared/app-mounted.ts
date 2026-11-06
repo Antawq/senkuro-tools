@@ -24,7 +24,7 @@ function runWhenHydrated(app: VueApp, run: (app: VueApp) => void): void {
   hooks.on(HYDRATION_DONE, handleHydrationDone);
 }
 
-const runAfterHydration = (pageWindow: PageWindow, run: (app: VueApp) => void): void => runOnAppAssigned(pageWindow, (app) => runWhenHydrated(app, run));
+export const runAfterHydration = (pageWindow: PageWindow, run: (app: VueApp) => void): void => runOnAppAssigned(pageWindow, (app) => runWhenHydrated(app, run));
 
 export function publishAppMounted(pageWindow: PageWindow): void {
   runAfterHydration(pageWindow, () => {

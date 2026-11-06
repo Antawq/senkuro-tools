@@ -39,8 +39,8 @@ describe('captureTrades', () => {
       {
         kind: 'trade',
         id: 't1',
-        source: { id: 'u1', name: 'Phaivroh | WL' },
-        destination: { id: 'u2', name: 'Молюсь на Sky | WS' },
+        source: { id: 'u1', slug: 'u1', name: 'Phaivroh | WL' },
+        destination: { id: 'u2', slug: 'u2', name: 'Молюсь на Sky | WS' },
         offer: [
           { slug: 'a', quantity: 2, shard: false },
           { slug: 'b', quantity: 1, shard: false },
@@ -88,7 +88,7 @@ describe('captureTrades', () => {
         {
           kind: 'offer',
           id: 'o1',
-          author: { id: 'u3', name: 'Smile' },
+          author: { id: 'u3', slug: 'u3', name: 'Smile' },
           viewerDidAuthor: true,
           offer: [{ slug: 'a', quantity: 1, shard: false }],
           request: [{ slug: 'b', quantity: 2, shard: false }],
