@@ -14,6 +14,7 @@
   --senkuro-gutter: 12px;
   --senkuro-badge-pad: 0.15em 0.4em;
   --senkuro-badge-radius: 0.25em;
+  --senkuro-badge-shade: color-mix(in srgb, var(--senkuro-shade) 85%, transparent);
 
   --senkuro-hover: 0.2s;
   --senkuro-effect-delay: 0.15s;

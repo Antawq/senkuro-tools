@@ -41,7 +41,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = {
   copyBtnSize: 18,
   positionX: 'right',
   positionY: 'bottom',
-  opacity: 75,
+  opacity: 85,
   badgeStyle: 'background',
   fontSize: 16,
   summaryFontSize: 12,

@@ -37,7 +37,7 @@ a.card-collect[data-senkuro-price]::after {
 .card-collect-preview__front[data-senkuro-style='background']::after,
 .card-collect-preview[data-senkuro-style='background']::after,
 a.card-collect[data-senkuro-style='background']::after {
-  background-color: var(--s-bg-color, color-mix(in srgb, var(--senkuro-shade) 75%, transparent));
+  background-color: var(--s-bg-color, var(--senkuro-badge-shade));
   padding: var(--senkuro-badge-pad);
   border-radius: var(--senkuro-badge-radius);
 }
@@ -135,7 +135,7 @@ a.card-collect[data-senkuro-style='outline']::after {
 
 @keyframes senkuro-bg-pulse {
   0% {
-    background-color: color-mix(in srgb, var(--senkuro-shade) 75%, transparent);
+    background-color: var(--senkuro-badge-shade);
   }
   100% {
     background-color: color-mix(in srgb, var(--senkuro-amber-shade) 90%, transparent);
@@ -165,7 +165,7 @@ a.card-collect:has(> .senkutools-unpriced-badge) {
   right: var(--s-right, auto);
   margin-top: var(--s-mt, 0);
   translate: var(--s-tx, 0) var(--s-ty, 0);
-  background-color: var(--s-bg-color, color-mix(in srgb, var(--senkuro-shade) 75%, transparent));
+  background-color: var(--s-bg-color, var(--senkuro-badge-shade));
   padding: var(--senkuro-badge-pad);
   border-radius: var(--senkuro-badge-radius);
   backface-visibility: hidden;
