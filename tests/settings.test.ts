@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 
@@ -10,6 +14,21 @@ beforeEach(() => {
 describe('settings', () => {
   it('falls back to the defaults the popup shows', async () => {
     expect(await loadSettings()).toEqual(DEFAULT_SETTINGS);
+  });
+
+  it('shows no price effect for everyone who never chose one, and keeps the choice of whoever did', async () => {
+    const effects = ['effectRed', 'effectYellow', 'effectPurple', 'effectGreen', 'effectWhite'] as const;
+    const loaded = await loadSettings();
+    expect(effects.map((key) => loaded[key])).toEqual(['', '', '', '', '']);
+    await saveSetting('effectGreen', 'price-effect-pulse');
+    const chosen = await loadSettings();
+    expect(effects.map((key) => chosen[key])).toEqual(['', '', '', 'price-effect-pulse', '']);
+  });
+
+  it('darkens the price badge for everyone who never chose a shade, in step with the stylesheet token', async () => {
+    expect((await loadSettings()).opacity).toBe(85);
+    const tokens = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../assets/tokens.css'), 'utf8');
+    expect(tokens).toContain(`--senkuro-badge-shade: color-mix(in srgb, var(--senkuro-shade) ${DEFAULT_SETTINGS.opacity}%, transparent);`);
   });
 
   it('keeps values saved by earlier versions under the same keys', async () => {

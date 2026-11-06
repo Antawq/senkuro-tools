@@ -10,11 +10,14 @@ import { tierOf } from './tiers';
 const BADGE_ATTRIBUTES = ['data-senkuro-price', 'data-senkuro-style', 'data-senkuro-eff', 'data-senkuro-tier'];
 const SMALL_CARD_WIDTH = 60;
 const MIN_PRICED_CARD_WIDTH = 30;
-const SMALL_CARD_SCALE_BASE = 70;
-const SMALL_CARD_MIN_SCALE = 0.6;
-const SMALL_CARD_MIN_FONT = 9;
-const PADDING = '2px 6px';
-const SMALL_PADDING = '1px 3px';
+const MIN_FONT = 9;
+const SIZE_STEPS = [
+  { minWidth: 150, scale: 1 },
+  { minWidth: 120, scale: 0.8 },
+  { minWidth: 95, scale: 0.65 },
+  { minWidth: 0, scale: 0.55 },
+] as const;
+const BAND_EDGES = [...SIZE_STEPS.flatMap(({ minWidth }) => (minWidth > 0 ? [minWidth] : [])), SMALL_CARD_WIDTH, MIN_PRICED_CARD_WIDTH];
 const OUTLINE_OFFSETS = ['1px 1px 0', '-1px -1px 0', '1px -1px 0', '-1px 1px 0', '0px 2px 4px'];
 const UNKNOWN_NAME = 'Неизвестно';
 const NO_EFFECT = 'none';
@@ -125,8 +128,11 @@ function clearHolders({ card, front, preview }: Holders, keep?: HTMLElement): vo
   }
 }
 
-const fontSizeOf = (holders: Holders, base: number): number =>
-  isSmall(holders) ? Math.max(SMALL_CARD_MIN_FONT, Math.round(base * Math.max(SMALL_CARD_MIN_SCALE, holders.width / SMALL_CARD_SCALE_BASE))) : base;
+const stepOf = (width: number): (typeof SIZE_STEPS)[number] => SIZE_STEPS.reduceRight((chosen, step) => (width >= step.minWidth ? step : chosen));
+
+const bandOf = (width: number): string => String(BAND_EDGES.filter((edge) => width >= edge).length);
+
+const fontSizeOf = ({ width }: Holders, base: number): number => Math.min(base, Math.max(MIN_FONT, Math.round(base * stepOf(width || Infinity).scale)));
 
 function paint(holders: Holders, price: number, settings: Settings, shades: Shades): void {
   const { target } = holders;
@@ -137,7 +143,6 @@ function paint(holders: Holders, price: number, settings: Settings, shades: Shad
   target.setAttribute('data-senkuro-eff', settings[tier.effect] || NO_EFFECT);
   target.setAttribute('data-senkuro-tier', tier.name);
   target.style.setProperty('--s-size', `${fontSizeOf(holders, settings.fontSize)}px`);
-  target.style.setProperty('--s-pad', isSmall(holders) ? SMALL_PADDING : PADDING);
   if (settings.badgeStyle === 'background') {
     target.style.setProperty('--s-bg-color', shades.background);
     target.style.removeProperty('--s-outline');
@@ -165,6 +170,8 @@ interface BadgeState {
   touch: boolean;
   positioned: WeakSet<HTMLElement>;
   isFilledByDatabase: WeakMap<Database, boolean>;
+  last: { db: Database; settings: Settings } | null;
+  resizeWatch: ResizeObserver | null;
 }
 
 function isFilled(state: BadgeState, db: Database): boolean {
@@ -221,7 +228,6 @@ function syncUnpricedBadge(holders: Holders, settings: Settings, shades: Shades)
   clearBadge(target);
   if (!isAppMounted(document)) return false;
   target.style.setProperty('--s-size', `${fontSizeOf(holders, settings.fontSize)}px`);
-  target.style.setProperty('--s-pad', isSmall(holders) ? SMALL_PADDING : PADDING);
   target.style.setProperty('--s-bg-color', shades.background);
   let badge = target.querySelector<HTMLElement>(`:scope > .${UNPRICED_BADGE}`);
   if (!badge) {
@@ -242,9 +248,20 @@ function markCard({ holders, entry }: Measured, settings: Settings, shades: Shad
   return true;
 }
 
+function watchSize(state: BadgeState, { card, width }: Holders): void {
+  if (width > 0) {
+    card.dataset.badgeBand = bandOf(width);
+    state.resizeWatch?.observe(card);
+  } else {
+    delete card.dataset.badgeBand;
+    state.resizeWatch?.unobserve(card);
+  }
+}
+
 function show(state: BadgeState, measured: Measured, settings: Settings, shades: Shades): void {
   const { holders, slug, isUndrawn } = measured;
   let isDone = true;
+  watchSize(state, holders);
   if (isUndrawn) clearHolders(holders);
   else {
     clearHolders(holders, holders.target);
@@ -254,18 +271,23 @@ function show(state: BadgeState, measured: Measured, settings: Settings, shades:
   if (isDone) holders.card.dataset.priceBadgeAdded = slug;
 }
 
-function resetBadges(): void {
+function resetBadges(state: BadgeState): void {
+  state.resizeWatch?.disconnect();
   document.querySelectorAll('[data-senkuro-price]').forEach(clearBadge);
-  document.querySelectorAll<HTMLElement>(CARD_LINK).forEach((card) => delete card.dataset.priceBadgeAdded);
+  document.querySelectorAll<HTMLElement>(CARD_LINK).forEach((card) => {
+    delete card.dataset.priceBadgeAdded;
+    delete card.dataset.badgeBand;
+  });
 }
 
-function resetPageBadges(): void {
-  resetBadges();
+function resetPageBadges(state: BadgeState): void {
+  resetBadges(state);
   document.querySelectorAll<HTMLElement>('[data-badge-pos]').forEach((el) => delete el.dataset.badgePos);
   document.querySelectorAll(`.senkuro-copy-btn, .${UNPRICED_BADGE}`).forEach((el) => el.remove());
 }
 
 function updateBadges(state: BadgeState, db: Database, settings: Settings, cards?: Iterable<HTMLAnchorElement>): void {
+  state.last = { db, settings };
   const shades = shadesOf(settings.opacity);
   const list = cards ?? document.querySelectorAll<HTMLAnchorElement>(CARD_LINK);
   const hasDatabase = isFilled(state, db);
@@ -276,11 +298,32 @@ function updateBadges(state: BadgeState, db: Database, settings: Settings, cards
   for (const item of batch) show(state, item, settings, shades);
 }
 
+function refitCards(state: BadgeState, entries: ResizeObserverEntry[], watch: ResizeObserver): void {
+  const stale = entries.flatMap(({ target }) => {
+    if (!(target instanceof HTMLAnchorElement)) return [];
+    if (!target.isConnected) {
+      watch.unobserve(target);
+      return [];
+    }
+    return bandOf(target.offsetWidth) === target.dataset.badgeBand ? [] : [target];
+  });
+  if (!state.last || stale.length === 0) return;
+  stale.forEach((card) => delete card.dataset.priceBadgeAdded);
+  updateBadges(state, state.last.db, state.last.settings, stale);
+}
+
 export function createPriceBadges({ touch }: { touch: boolean }): PriceBadges {
-  const state: BadgeState = { touch, positioned: new WeakSet<HTMLElement>(), isFilledByDatabase: new WeakMap<Database, boolean>() };
+  const state: BadgeState = {
+    touch,
+    positioned: new WeakSet<HTMLElement>(),
+    isFilledByDatabase: new WeakMap<Database, boolean>(),
+    last: null,
+    resizeWatch: null,
+  };
+  if (typeof ResizeObserver !== 'undefined') state.resizeWatch = new ResizeObserver((entries, watch) => refitCards(state, entries, watch));
   return {
     update: (db, settings, cards) => updateBadges(state, db, settings, cards),
-    reset: resetBadges,
-    resetPage: resetPageBadges,
+    reset: () => resetBadges(state),
+    resetPage: () => resetPageBadges(state),
   };
 }

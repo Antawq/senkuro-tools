@@ -301,6 +301,186 @@ describe('createPriceBadges', () => {
     expect(Number.parseFloat(holder?.style.getPropertyValue('--s-size') ?? '')).toBeLessThan(DEFAULT_SETTINGS.fontSize);
   });
 
+  it.each([
+    [168, '16px'],
+    [150, '16px'],
+    [144, '13px'],
+    [120, '13px'],
+    [117, '10px'],
+    [95, '10px'],
+    [93, '9px'],
+    [50, '9px'],
+  ])('sizes the price of a %ipx card at %s', (width, expected) => {
+    renderAtWidth(width);
+    expect(document.querySelector<HTMLElement>('[data-senkuro-price]')?.style.getPropertyValue('--s-size')).toBe(expected);
+  });
+
+  it('keeps the chosen size on a card whose width is not known', () => {
+    renderAtWidth(0);
+    expect(document.querySelector<HTMLElement>('[data-senkuro-price]')?.style.getPropertyValue('--s-size')).toBe('16px');
+  });
+
+  it('never grows the chosen size and never goes under the smallest readable one', () => {
+    for (const [width, base, expected] of [
+      [103, 24, '16px'],
+      [168, 9, '9px'],
+      [50, 12, '9px'],
+    ] as const) {
+      document.body.innerHTML = preview();
+      for (const link of document.querySelectorAll('a.card-collect')) Object.defineProperty(link, 'offsetWidth', { value: width });
+      createPriceBadges({ touch: false }).update(db, { ...DEFAULT_SETTINGS, fontSize: base });
+      expect(document.querySelector<HTMLElement>('[data-senkuro-price]')?.style.getPropertyValue('--s-size')).toBe(expected);
+    }
+  });
+
+  describe('when the card is resized', () => {
+    interface FakeWatch {
+      observe: ReturnType<typeof vi.fn>;
+      unobserve: ReturnType<typeof vi.fn>;
+      disconnect: ReturnType<typeof vi.fn>;
+      fire: (...targets: Element[]) => void;
+    }
+    let watch: FakeWatch;
+
+    beforeEach(() => {
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          observe = vi.fn();
+          unobserve = vi.fn();
+          disconnect = vi.fn();
+          constructor(callback: ResizeObserverCallback) {
+            watch = {
+              observe: this.observe,
+              unobserve: this.unobserve,
+              disconnect: this.disconnect,
+              fire: (...targets) =>
+                callback(
+                  targets.map((target) => ({ target }) as ResizeObserverEntry),
+                  this
+                ),
+            };
+          }
+        }
+      );
+    });
+
+    afterEach(() => vi.unstubAllGlobals());
+
+    const widthOf = (link: Element, width: number) => Object.defineProperty(link, 'offsetWidth', { value: width, configurable: true });
+    const linkOf = () => document.querySelector('.card-collect-preview__front a.card-collect') as HTMLAnchorElement;
+    const sizeOf = () => document.querySelector<HTMLElement>('[data-senkuro-price]')?.style.getPropertyValue('--s-size');
+
+    const renderWatched = (width: number, settings = DEFAULT_SETTINGS) => {
+      document.body.innerHTML = preview();
+      widthOf(linkOf(), width);
+      const badges = createPriceBadges({ touch: false });
+      badges.update(db, settings);
+      return badges;
+    };
+
+    it.each([100, 24, 1])('watches a %ipx card, a card too narrow for a price included', (width) => {
+      renderWatched(width);
+      expect(watch.observe).toHaveBeenCalledWith(linkOf());
+    });
+
+    it('watches no card it never measured', () => {
+      renderWatched(100, { ...DEFAULT_SETTINGS, showBadges: false });
+      expect(watch.observe).not.toHaveBeenCalled();
+      expect(watch.unobserve).toHaveBeenCalledWith(linkOf());
+    });
+
+    it('takes the price off a card that shrinks under 30px and puts it back when it grows', () => {
+      renderWatched(40);
+      expect(document.querySelector('[data-senkuro-price]')).not.toBeNull();
+      widthOf(linkOf(), 24);
+      watch.fire(linkOf());
+      expect(document.querySelector('[data-senkuro-price]')).toBeNull();
+      widthOf(linkOf(), 40);
+      watch.fire(linkOf());
+      expect(document.querySelector('[data-senkuro-price]')?.getAttribute('data-senkuro-price')).toBe('1.00');
+    });
+
+    it('takes the copy button off a card that shrinks under 60px and puts it back when it grows', () => {
+      renderWatched(80, { ...DEFAULT_SETTINGS, copyBtn: true });
+      expect(document.querySelector('.senkuro-copy-btn')).not.toBeNull();
+      widthOf(linkOf(), 50);
+      watch.fire(linkOf());
+      expect(document.querySelector('.senkuro-copy-btn')).toBeNull();
+      expect(document.querySelector('[data-senkuro-price]')).not.toBeNull();
+      widthOf(linkOf(), 80);
+      watch.fire(linkOf());
+      expect(document.querySelector('.senkuro-copy-btn')).not.toBeNull();
+    });
+
+    it('refits the size when the card crosses into another band, with the price kept', () => {
+      renderWatched(168);
+      expect(sizeOf()).toBe('16px');
+      widthOf(linkOf(), 103);
+      watch.fire(linkOf());
+      expect(sizeOf()).toBe('10px');
+      expect(document.querySelector('[data-senkuro-price]')?.getAttribute('data-senkuro-price')).toBe('1.00');
+    });
+
+    it('leaves the badge alone while the width stays in the same band', () => {
+      renderWatched(168);
+      widthOf(linkOf(), 150);
+      const setAttribute = vi.spyOn(Element.prototype, 'setAttribute');
+      watch.fire(linkOf());
+      expect(setAttribute).not.toHaveBeenCalled();
+      expect(sizeOf()).toBe('16px');
+    });
+
+    it('refits the question mark of a card the database does not know', () => {
+      document.body.innerHTML =
+        '<a class="card-collect" href="/cards/hsr-kafka-c"><div class="card-collect__front"><img class="card-collect__img" alt="Кафка"></div></a>';
+      const link = document.querySelector('a.card-collect') as HTMLAnchorElement;
+      widthOf(link, 168);
+      createPriceBadges({ touch: false }).update(db, DEFAULT_SETTINGS);
+      expect(link.style.getPropertyValue('--s-size')).toBe('16px');
+      widthOf(link, 103);
+      watch.fire(link);
+      expect(link.style.getPropertyValue('--s-size')).toBe('10px');
+    });
+
+    it('stops watching a card that left the page and every card after a reset', () => {
+      const badges = renderWatched(168);
+      const link = linkOf();
+      link.remove();
+      watch.fire(link);
+      expect(watch.unobserve).toHaveBeenCalledWith(link);
+      badges.reset();
+      expect(watch.disconnect).toHaveBeenCalled();
+    });
+
+    it('ignores a resize before any update and a node that is not a card link', () => {
+      createPriceBadges({ touch: false });
+      expect(() => watch.fire(document.body)).not.toThrow();
+      renderWatched(168);
+      expect(() => watch.fire(document.body)).not.toThrow();
+      expect(sizeOf()).toBe('16px');
+    });
+
+    it('paints, drops an undrawn card and resets without a resize observer too', () => {
+      vi.stubGlobal('ResizeObserver', undefined);
+      const badges = renderWatched(103);
+      expect(sizeOf()).toBe('10px');
+      document.body.innerHTML = preview();
+      widthOf(linkOf(), 24);
+      expect(() => badges.update(db, DEFAULT_SETTINGS)).not.toThrow();
+      document.body.innerHTML = preview();
+      expect(() => badges.update(db, { ...DEFAULT_SETTINGS, showBadges: false })).not.toThrow();
+      expect(() => badges.reset()).not.toThrow();
+    });
+
+    it('ignores a card resize that arrives before the first update', () => {
+      createPriceBadges({ touch: false });
+      document.body.innerHTML = preview();
+      watch.fire(linkOf());
+      expect(document.querySelector('[data-senkuro-price]')).toBeNull();
+    });
+  });
+
   it('measures every card of a batch before it paints any of them, so a batch costs one layout and not one per card', () => {
     document.body.innerHTML = preview().repeat(3);
     const read = vi.fn();

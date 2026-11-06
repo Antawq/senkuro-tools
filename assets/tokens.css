@@ -17,6 +17,9 @@
   --senkutools-poster-text: var(--senkuro-white);
   --senkutools-poster-muted-text: #a1a1aa;
   --senkutools-poster-shadow: rgb(0 0 0 / 0.5);
+  --senkuro-badge-pad: 0.15em 0.4em;
+  --senkuro-badge-radius: 0.25em;
+  --senkuro-badge-shade: color-mix(in srgb, var(--senkuro-shade) 85%, transparent);
 
   --senkuro-hover: 0.2s;
   --senkuro-effect-delay: 0.15s;
