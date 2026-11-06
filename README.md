@@ -12,6 +12,7 @@ Click the extension icon to open the settings.
 
 - Prices on cards
 - Trade totals
+- Trade date
 - Profile value
 - Sort by price
 - Fresh card lists
