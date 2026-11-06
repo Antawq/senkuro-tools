@@ -9,7 +9,6 @@ export const REPLAY_EVENT = 'senkutools:trades-replay';
 
 export interface Person {
   id: string | null;
-  slug?: string | null;
   name: string;
 }
 
@@ -20,9 +19,7 @@ export interface Trade {
   destination: Person;
   offer: CardRef[];
   request: CardRef[];
-  status?: string;
   createdAt?: string;
-  updatedAt?: string;
 }
 
 export interface Offer {
@@ -51,7 +48,6 @@ export interface TradeStore {
 
 interface GraphUser {
   id?: string;
-  slug?: string | null;
   name?: string | null;
 }
 
@@ -72,10 +68,7 @@ interface GraphNode {
   user?: GraphUser;
   viewerDidAuthor?: boolean;
   viewer?: { user?: { id?: unknown } };
-  status?: string;
-  tradeStatus?: string;
   createdAt?: string;
-  updatedAt?: string;
 }
 
 interface ServerPayload {
@@ -92,11 +85,7 @@ const preview = (item: GraphPreview | undefined): CardRef => ({
 
 const previews = (list: unknown): CardRef[] | null => (Array.isArray(list) ? (list as (GraphPreview | undefined)[]).map(preview) : null);
 
-const person = (user: GraphUser | undefined): Person => ({
-  id: user?.id ?? null,
-  ...(user?.slug ? { slug: user.slug } : {}),
-  name: user?.name ?? '',
-});
+const person = (user: GraphUser | undefined): Person => ({ id: user?.id ?? null, name: user?.name ?? '' });
 
 function kindOf(node: GraphNode): CapturedItem['kind'] | null {
   if (node.__typename === 'CardTrade') return 'trade';
@@ -112,30 +101,10 @@ function describe(node: GraphNode): CapturedItem | null {
   if (!node.id || !offer || !request) return null;
   const kind = kindOf(node);
   if (kind === 'trade') {
-    const status = typeof node.status === 'string' ? node.status : typeof node.tradeStatus === 'string' ? node.tradeStatus : undefined;
     const createdAt = typeof node.createdAt === 'string' ? node.createdAt : undefined;
-    const updatedAt = typeof node.updatedAt === 'string' ? node.updatedAt : undefined;
-    return {
-      kind,
-      id: node.id,
-      source: person(node.source),
-      destination: person(node.destination),
-      offer,
-      request,
-      ...(status ? { status } : {}),
-      ...(createdAt ? { createdAt } : {}),
-      ...(updatedAt ? { updatedAt } : {}),
-    };
+    return { kind, id: node.id, source: person(node.source), destination: person(node.destination), offer, request, ...(createdAt ? { createdAt } : {}) };
   }
-  if (kind === 'offer')
-    return {
-      kind,
-      id: node.id,
-      author: person(node.user),
-      viewerDidAuthor: Boolean(node.viewerDidAuthor),
-      offer,
-      request,
-    };
+  if (kind === 'offer') return { kind, id: node.id, author: person(node.user), viewerDidAuthor: Boolean(node.viewerDidAuthor), offer, request };
   return null;
 }
 
@@ -193,11 +162,7 @@ export function installCapture(win: CapturingWindow): void {
   const handle = (json: unknown) => {
     if (!json) return;
     const found = captureTrades(json);
-    debug('answer read', {
-      top: Object.keys((json as { data?: object }).data ?? json),
-      items: found.items.length,
-      viewer: Boolean(found.viewerId),
-    });
+    debug('answer read', { top: Object.keys((json as { data?: object }).data ?? json), items: found.items.length, viewer: Boolean(found.viewerId) });
     take(found);
   };
 
@@ -216,11 +181,7 @@ export function installCapture(win: CapturingWindow): void {
     if (!isGraphqlRequest(args[0], win.location.href)) return pending;
     return pending.then(async (response) => {
       const type = response.headers.get('content-type') ?? '';
-      debug('graphql answer', {
-        status: response.status,
-        type,
-        streamed: isStreamed(response),
-      });
+      debug('graphql answer', { status: response.status, type, streamed: isStreamed(response) });
       if (!isStreamed(response)) await readCopy(response);
       return response;
     });

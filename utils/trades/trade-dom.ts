@@ -171,7 +171,7 @@ const readHistory = (store: TradeStore): Place[] =>
       lists.length === TRADE_SIDES && offerList && requestList
         ? matchTrade(store.trades(), [names[0] ?? '', names[1] ?? ''], [readPreviewList(offerList), readPreviewList(requestList)])
         : null;
-    if (trade && host instanceof HTMLElement) mountTradeMeta(host, trade, store.trades());
+    if (trade && host instanceof HTMLElement) mountTradeMeta(host, trade);
     return { host, placement: 'end', columns: trade ? viewerColumns(trade, store.viewerId(), names) : null };
   });
 

@@ -39,8 +39,8 @@ describe('captureTrades', () => {
       {
         kind: 'trade',
         id: 't1',
-        source: { id: 'u1', slug: 'u1', name: 'Phaivroh | WL' },
-        destination: { id: 'u2', slug: 'u2', name: 'Молюсь на Sky | WS' },
+        source: { id: 'u1', name: 'Phaivroh | WL' },
+        destination: { id: 'u2', name: 'Молюсь на Sky | WS' },
         offer: [
           { slug: 'a', quantity: 2, shard: false },
           { slug: 'b', quantity: 1, shard: false },
@@ -48,6 +48,13 @@ describe('captureTrades', () => {
         request: [{ slug: 'c', quantity: 1, shard: true }],
       },
     ]);
+  });
+
+  it('keeps the creation time of a trade and leaves it out when the answer has none', () => {
+    const created = captureTrades({ data: { cardTrades: { edges: [{ node: { ...trade, createdAt: '2026-11-05T17:11:58.168480' } }] } } });
+    expect(created.items[0]).toMatchObject({ createdAt: '2026-11-05T17:11:58.168480' });
+    const plain = captureTrades({ data: { cardTrades: { edges: [{ node: trade }] } } });
+    expect(plain.items[0]).not.toHaveProperty('createdAt');
   });
 
   it('finds a trade nested in a notification and the viewer', () => {
@@ -88,7 +95,7 @@ describe('captureTrades', () => {
         {
           kind: 'offer',
           id: 'o1',
-          author: { id: 'u3', slug: 'u3', name: 'Smile' },
+          author: { id: 'u3', name: 'Smile' },
           viewerDidAuthor: true,
           offer: [{ slug: 'a', quantity: 1, shard: false }],
           request: [{ slug: 'b', quantity: 2, shard: false }],
