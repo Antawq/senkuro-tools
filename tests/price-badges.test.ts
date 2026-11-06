@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createPriceBadges } from '../utils/badges/price-badges';
@@ -48,6 +52,17 @@ const positionVars = (el: HTMLElement): Record<string, string> =>
   Object.fromEntries(POSITION_PROPS.map((prop): [string, string] => [prop, el.style.getPropertyValue(prop)]).filter(([, value]) => value));
 
 const holderOf = () => document.querySelector('.card-collect-preview') as HTMLElement;
+
+describe('the price badge stylesheet', () => {
+  const stylesheet = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../assets/price-badges.css'), 'utf8');
+
+  it('switches the effects off for reduced motion after every rule that starts one, so it is the rule that wins', () => {
+    const reduced = stylesheet.indexOf('@media (prefers-reduced-motion: reduce)');
+    expect(reduced).toBeGreaterThan(-1);
+    expect(stylesheet.lastIndexOf("[data-senkuro-eff='price-effect-")).toBeLessThan(reduced);
+    expect(stylesheet.indexOf('[data-senkuro-eff]::after', reduced)).toBeGreaterThan(reduced);
+  });
+});
 
 describe('createPriceBadges', () => {
   it('prices a card once and leaves its flip side alone', () => {

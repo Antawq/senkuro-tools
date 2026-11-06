@@ -70,12 +70,6 @@ a.card-collect[data-senkuro-style='outline']::after {
   --s-color: var(--senkuro-tier-white);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  [data-senkuro-eff]::after {
-    animation: none;
-  }
-}
-
 @keyframes senkuro-pulse-text {
   0% {
     transform: translateZ(0) scale(1);
@@ -144,6 +138,12 @@ a.card-collect[data-senkuro-style='outline']::after {
 
 [data-senkuro-eff='price-effect-bg']::after {
   animation: senkuro-bg-pulse var(--senkuro-swing-period) infinite alternate ease-in-out var(--senkuro-effect-delay);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-senkuro-eff]::after {
+    animation: none;
+  }
 }
 
 .card-collect-preview:has(> .senkutools-unpriced-badge),
