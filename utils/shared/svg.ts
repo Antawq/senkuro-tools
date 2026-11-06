@@ -69,3 +69,7 @@ export const chevronIcon = (className?: string): SVGSVGElement =>
     CHEVRON_SIZE_PX,
     className
   );
+
+export const posterIcon = sizedIcon(
+  'M180-120q-24 0-42-18t-18-42v-600q0-24 18-42t42-18h600q24 0 42 18t18 42v600q0 24-18 42t-42 18H180Zm86-157h429q9 0 13-8t-1-16L590-457q-5-6-12-6t-12 6L446-302l-81-111q-5-6-12-6t-12 6l-86 112q-6 8-2 16t13 8Zm109.5-307.5Q390-599 390-620t-14.5-35.5Q361-670 340-670t-35.5 14.5Q290-641 290-620t14.5 35.5Q319-570 340-570t35.5-14.5Z'
+);

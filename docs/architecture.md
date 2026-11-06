@@ -13,14 +13,14 @@ flowchart TB
     BG["Background script<br/>token request, cleanup on install or update"]
     ST["storage.local<br/>settings, profileCollections"]
     DB["database.json<br/>bundled card prices"]
-    ISO["Content script, isolated world<br/>render loop, price tags, trade totals, profile chip,<br/>price sort, search keys, token bar, switches and buttons"]
+    ISO["Content script, isolated world<br/>render loop, price tags, trade totals, profile chip,<br/>price sort, search keys, token bar, card poster, switches and buttons"]
     MAIN["Scripts in the page world, MAIN<br/>app-mounted, client-swap, trade-capture,<br/>avatar-confirm"]
   end
   subgraph TAB["Browser tab"]
     PAGE["Site page<br/>Vue app, Vue Router, urql and graphcache, page fetch, DOM"]
   end
   subgraph NET["Network"]
-    API["Site API and /sw.js"]
+    API["Site API, card image CDN and /sw.js"]
   end
   P -->|"saves settings"| ST
   BG -->|"removes retired keys on install or update"| ST
@@ -32,7 +32,7 @@ flowchart TB
   ISO -->|"draws into the DOM, watches it with MutationObserver"| PAGE
   MAIN -->|"swaps the site urql client for its own with exchanges in front, wraps fetch for trade capture, adds a router guard, opens the confirm modal"| PAGE
   PAGE -->|"GraphQL over HTTP"| API
-  ISO -->|"anonymous GraphQL for the profile chip"| API
+  ISO -->|"anonymous GraphQL for the profile chip and the poster art, card images for the poster"| API
   MAIN -->|"anonymous crawl for the price sort, reads /sw.js"| API
 ```
 
@@ -111,6 +111,27 @@ sequenceDiagram
   S->>H: the catalog query passes the catalog exchange
   H->>A: empty answer: asks search, up to 300 rows, and catalogRowFacts for each page
   H->>S: hands back rows in the catalog format, with the 18+ flag
+```
+
+## Card poster
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant S as Site page
+  participant C as Content script
+  participant A as Site API
+  participant N as Card image CDN
+  U->>S: selects cards with the site's own selection, long press or Select all
+  U->>C: presses the poster button
+  C->>S: reads the selected rows from the grid
+  C->>A: asks card(slug) for the original art of each selected card, no token
+  A->>C: image address, 400x600
+  C->>N: fetches each original, cache reload
+  N->>C: image bytes
+  C->>C: draws the poster on a canvas
+  U->>C: presses Download or Copy
+  C->>U: a PNG file or an image on the clipboard
 ```
 
 ## Avatar price warning

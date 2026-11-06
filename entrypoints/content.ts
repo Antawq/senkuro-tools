@@ -13,12 +13,16 @@ import '@/assets/site-fixes.css';
 import '@/assets/token-bar.css';
 import '@/assets/trade-summary.css';
 import '@/assets/trade-meta.css';
+import '@/assets/poster.css';
 import { defineContentScript } from '#imports';
 
 import { APP_MOUNTED_EVENT } from '@/utils/shared/app-mounted';
 import { loadDatabase, type Database } from '@/utils/shared/database';
 import { SENKURO_MATCHES } from '@/utils/shared/hosts';
 import { createPriceBadges } from '@/utils/badges/price-badges';
+import { isPosterButtonMissing, syncPosterButton, type PosterButtonHost } from '@/utils/poster/poster-button';
+import { closeStalePosterDialogs, openPosterDialog } from '@/utils/poster/poster-dialog';
+import { createPosterDialogHost } from '@/utils/poster/poster-host';
 import { isRefreshButtonMissing, syncRefreshButton, type RefreshHost } from '@/utils/profile/inventory-refresh';
 import {
   abortProfileLoading,
@@ -28,6 +32,7 @@ import {
   removeProfileBadge,
   updateProfileBadge,
 } from '@/utils/profile/profile-dom';
+import { fetchProfileUser } from '@/utils/profile/profile-cards';
 import { createSearchKeys } from '@/utils/search/search-keys';
 import { searchSignal } from '@/utils/search/search-event';
 import { createSearchSignals } from '@/utils/search/search-signal';
@@ -69,6 +74,22 @@ export default defineContentScript({
       reload: () => window.location.reload(),
       redraw: () => loop.schedule(),
     };
+    const posterButtonHost: PosterButtonHost = {
+      openDialog: (cards, profileSlug) =>
+        void loadDatabase().then((loadedDatabase) =>
+          openPosterDialog(
+            cards,
+            profileSlug,
+            createPosterDialogHost({
+              pageDocument: document,
+              database: loadedDatabase,
+              settings,
+              fetchNickname: (slug, signal) => fetchProfileUser(slug, undefined, signal).then((user) => user?.name ?? null),
+              nextFrame,
+            })
+          )
+        ),
+    };
     const loop = createRenderLoop(
       [
         { name: 'cards', trigger: 'cards', render: (db, cards) => badges.update(db, settings, cards) },
@@ -81,6 +102,7 @@ export default defineContentScript({
           },
         },
         { name: 'sort', render: (db) => priceSorts.forEach((priceSort) => priceSort.sync(db, settings)) },
+        { name: 'poster', render: () => syncPosterButton(document, posterButtonHost) },
       ],
       loadDatabase,
       nextFrame
@@ -111,7 +133,15 @@ export default defineContentScript({
       modalRefresh.watch(mutations);
       loop.addCards(cards);
       if (tradesChanged) loop.markTrades();
-      if (cards.length > 0 || tradesChanged || profileBadgeMissing() || isRefreshButtonMissing() || hasSortMutation(mutations)) loop.schedule();
+      if (
+        cards.length > 0 ||
+        tradesChanged ||
+        profileBadgeMissing() ||
+        isRefreshButtonMissing() ||
+        isPosterButtonMissing(document) ||
+        hasSortMutation(mutations)
+      )
+        loop.schedule();
     });
     observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributeFilter: [SHARD_VIEW_ATTRIBUTE] });
     ctx.onInvalidated(() => observer.disconnect());
@@ -158,6 +188,7 @@ export default defineContentScript({
     ctx.addEventListener(window, 'wxt:locationchange', () => {
       badges.resetPage();
       removeProfileBadge();
+      closeStalePosterDialogs(document);
       loop.schedule();
       void loop.renderAll();
     });

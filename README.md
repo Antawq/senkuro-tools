@@ -17,6 +17,7 @@ Click the extension icon to open the settings.
 - Sort by price
 - Fresh card lists
 - Cards and shards switch
+- Card poster
 - Better site search
 - Copy a card's name (off by default)
 - Avatar price warning
@@ -42,7 +43,7 @@ Download from the [latest release](https://github.com/Antawq/senkuro-tools/relea
 ## Privacy
 
 - No analytics.
-- Talks only to the supported sites and their APIs.
+- Talks only to the supported sites, their APIs and their card image CDN.
 - Prices are bundled, not fetched.
 - The token is read only while the token bar is on and is never sent anywhere.
 - Permissions: `storage`, `clipboardWrite`, `cookies` (the `access_token` cookie, for the token bar) and the six site hosts.
