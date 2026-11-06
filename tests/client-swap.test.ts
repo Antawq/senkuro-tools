@@ -32,20 +32,35 @@ const siteHooks = () => {
 
 const clientRef = (client: unknown) => ({ __v_isRef: true, value: client });
 
-const appWith = (provided: unknown, senkuro?: unknown) => ({ _context: { provides: { $urql: provided } }, ...(senkuro ? { $senkuro: senkuro } : {}) });
+const appWith = (provided: unknown, senkuro?: unknown) => ({
+  _context: { provides: { $urql: provided } },
+  ...(senkuro ? { $senkuro: senkuro } : {}),
+});
 
 const host = (exchanges: Exchange[] = []): SwapHost & { swapped: Client[] } => {
   const swapped: Client[] = [];
-  return { exchangesFor: () => exchanges, onSwapped: (client) => void swapped.push(client), swapped };
+  return {
+    exchangesFor: () => exchanges,
+    onSwapped: (client) => void swapped.push(client),
+    swapped,
+  };
 };
 
 const openPage = () => {
   const pageWindow = new Window({ url: 'https://senkuro.me/users/sena/cards' });
   pageWindow.document.body.innerHTML = '<div id="app"></div>';
   const mount = (app: unknown) => {
-    (pageWindow.document.querySelector('#app') as unknown as { __vue_app__: unknown }).__vue_app__ = app;
+    (
+      pageWindow.document.querySelector('#app') as unknown as {
+        __vue_app__: unknown;
+      }
+    ).__vue_app__ = app;
   };
-  return { pageWindow: pageWindow as unknown as PageWindow, mount, close: () => pageWindow.happyDOM.close() };
+  return {
+    pageWindow: pageWindow as unknown as PageWindow,
+    mount,
+    close: () => pageWindow.happyDOM.close(),
+  };
 };
 
 describe('swapClient', () => {
@@ -75,7 +90,9 @@ describe('swapClient', () => {
   });
 
   it('asks the site with its own default request policy when the caller names none', async () => {
-    const site = createSiteClient(() => ({ data: { viewer: { id: 'U1' } } }), { requestPolicy: 'cache-and-network' });
+    const site = createSiteClient(() => ({ data: { viewer: { id: 'U1' } } }), {
+      requestPolicy: 'cache-and-network',
+    });
     const swapped = swapClient(appWith(clientRef(site.client)), host());
     await swapped!.query(VIEWER, {}).toPromise();
     await tick();
@@ -86,7 +103,10 @@ describe('swapClient', () => {
 
   it('leaves the site as it is when the provide is not a ref, holds no client, or the client names no address', () => {
     const site = createSiteClient(() => null);
-    const noUrl = { ...site.client, createRequestOperation: () => ({ context: { url: '' } }) };
+    const noUrl = {
+      ...site.client,
+      createRequestOperation: () => ({ context: { url: '' } }),
+    };
     for (const provided of [site.client, clientRef(null), clientRef({ executeQuery: () => null }), clientRef(noUrl), undefined]) {
       const swapHost = host();
       expect(swapClient(appWith(provided), swapHost)).toBeNull();
@@ -122,7 +142,7 @@ describe('findClientRef', () => {
 describe('installClientSwap', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('swaps the moment the app is assigned, while the site still hydrates its page, and once per page', async () => {
+  it('swaps only after the site has finished hydrating its page, and once per page', async () => {
     const { pageWindow, mount, close } = openPage();
     const site = createSiteClient(() => null);
     const hooks = siteHooks();
@@ -131,19 +151,23 @@ describe('installClientSwap', () => {
     installClientSwap(pageWindow, () => swapHost);
     installClientSwap(pageWindow, () => swapHost);
     mount(appWith(ref, { hydrating: true, hooks }));
+    expect(ref.value).toBe(site.client);
+    hooks.emit('app:suspense:resolve');
     expect(ref.value).toBeInstanceOf(Client);
     expect(ref.value).not.toBe(site.client);
-    hooks.emit('app:suspense:resolve');
     expect(swapHost.swapped).toHaveLength(1);
     await close();
   });
 
-  it('swaps at once in a page whose app was assigned and was still hydrating before the script ran', async () => {
+  it('swaps once hydration finishes in a page whose app was assigned and was still hydrating before the script ran', async () => {
     const { pageWindow, mount, close } = openPage();
     const site = createSiteClient(() => null);
+    const hooks = siteHooks();
     const ref = clientRef(site.client);
-    mount(appWith(ref, { hydrating: true, hooks: siteHooks() }));
+    mount(appWith(ref, { hydrating: true, hooks }));
     installClientSwap(pageWindow, () => host());
+    expect(ref.value).toBe(site.client);
+    hooks.emit('app:suspense:resolve');
     expect(ref.value).toBeInstanceOf(Client);
     expect(ref.value).not.toBe(site.client);
     await close();
@@ -182,7 +206,9 @@ describe('installClientSwap', () => {
     pageWindow.localStorage.setItem('senkutoolsDebug', '1');
     (pageWindow as unknown as Record<symbol, true>)[Symbol.for('senkutools.catalog-search')] = true;
     installClientSwap(pageWindow, () => host());
-    expect(logged).toHaveBeenCalledWith('[SenkuTools]', 'client not swapped', { olderVersion: true });
+    expect(logged).toHaveBeenCalledWith('[SenkuTools]', 'client not swapped', {
+      olderVersion: true,
+    });
     logged.mockRestore();
     await close();
   });
