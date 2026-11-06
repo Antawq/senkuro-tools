@@ -5,7 +5,6 @@ import { fetchPosterArt, loadArtImage } from './poster-art';
 import type { PosterDialogHost } from './poster-dialog';
 import { readPosterTheme, renderPoster } from './poster-render';
 
-const DOWNLOAD_URL_LIFETIME_MS = 60_000;
 const IMAGE_FETCH_OPTIONS = { cache: 'reload', credentials: 'omit' } as const;
 
 export interface PosterHostSources {
@@ -14,10 +13,9 @@ export interface PosterHostSources {
   settings: Pick<Settings, 'commission'>;
   fetchNickname: PosterDialogHost['fetchNickname'];
   nextFrame: (run: () => void) => void;
-  runAfter: (run: () => void, delayMs: number) => void;
 }
 
-export function downloadBlob(pageDocument: Document, runAfter: PosterHostSources['runAfter'], blob: Blob, fileName: string): void {
+export function downloadBlob(pageDocument: Document, blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
   const link = element('a');
   link.href = url;
@@ -26,7 +24,7 @@ export function downloadBlob(pageDocument: Document, runAfter: PosterHostSources
   pageDocument.body.append(link);
   link.click();
   link.remove();
-  runAfter(() => URL.revokeObjectURL(url), DOWNLOAD_URL_LIFETIME_MS);
+  URL.revokeObjectURL(url);
 }
 
 export const copyImageBlob = (blob: Blob): Promise<void> => navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
@@ -49,7 +47,7 @@ export function createPosterDialogHost(sources: PosterHostSources): PosterDialog
     fetchNickname: sources.fetchNickname,
     render: (content) => renderPoster(content, readPosterTheme(pageDocument), { createCanvas: (width, height) => createCanvas(pageDocument, width, height) }),
     nextFrame: sources.nextFrame,
-    download: (blob, fileName) => downloadBlob(pageDocument, sources.runAfter, blob, fileName),
+    download: (blob, fileName) => downloadBlob(pageDocument, blob, fileName),
     copyImage: copyImageBlob,
   };
 }

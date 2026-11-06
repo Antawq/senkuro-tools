@@ -85,7 +85,6 @@ export default defineContentScript({
               settings,
               fetchNickname: (slug, signal) => fetchProfileUser(slug, undefined, signal).then((user) => user?.name ?? null),
               nextFrame,
-              runAfter: (run, delayMs) => void ctx.setTimeout(run, delayMs),
             })
           )
         ),

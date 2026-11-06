@@ -6,13 +6,12 @@ import * as render from '../utils/poster/poster-render';
 
 const ART: PosterArt = { slug: 'alpha-s', rank: 'S', url: 'https://cdn.example/alpha-s.webp', width: 400, height: 600, isExplicit: false };
 
-const sourcesOf = (runAfter: PosterHostSources['runAfter'] = () => undefined): PosterHostSources => ({
+const sourcesOf = (): PosterHostSources => ({
   pageDocument: document,
   database: {},
   settings: { commission: true },
   fetchNickname: () => Promise.resolve(null),
   nextFrame: (run) => run(),
-  runAfter,
 });
 
 beforeEach(() => {
@@ -27,26 +26,23 @@ afterEach(() => {
 describe('downloadBlob', () => {
   it('clicks a hidden link that carries the file name and the blob url, then removes it', () => {
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:poster-1');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
     const clicked: { href: string; download: string; hidden: boolean; isAttached: boolean }[] = [];
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
       clicked.push({ href: this.href, download: this.download, hidden: Boolean(this.hidden), isAttached: this.isConnected });
     });
-    downloadBlob(document, () => undefined, new Blob(['png']), 'poster.png');
+    downloadBlob(document, new Blob(['png']), 'poster.png');
     expect(clicked).toEqual([{ href: 'blob:poster-1', download: 'poster.png', hidden: true, isAttached: true }]);
     expect(document.querySelector('a')).toBeNull();
   });
 
-  it('keeps the blob url for a minute before it revokes it', () => {
+  it('revokes the blob url right after the click', () => {
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:poster-2');
-    const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
-    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
-    const waits: { run: () => void; delayMs: number }[] = [];
-    downloadBlob(document, (run, delayMs) => void waits.push({ run, delayMs }), new Blob(['png']), 'poster.png');
-    expect(waits).toHaveLength(1);
-    expect(waits[0]?.delayMs).toBe(60_000);
-    expect(revoke).not.toHaveBeenCalled();
-    waits[0]?.run();
-    expect(revoke).toHaveBeenCalledWith('blob:poster-2');
+    const order: string[] = [];
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation((url) => void order.push(`revoke ${url}`));
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => void order.push('click'));
+    downloadBlob(document, new Blob(['png']), 'poster.png');
+    expect(order).toEqual(['click', 'revoke blob:poster-2']);
   });
 });
 
