@@ -73,17 +73,9 @@ const scoreOf = (grid: PosterGrid, count: number): number =>
   Math.abs(Math.log(grid.width / grid.height) - Math.log(TARGET_ASPECT)) + (INCOMPLETE_ROW_PENALTY * (grid.rows * grid.columns - count)) / grid.columns;
 
 function bestGridOf(count: number, options: PosterLayoutOptions): PosterGrid {
-  let best = gridOf(count, 1, options);
-  let bestScore = scoreOf(best, count);
-  for (let columns = 2; columns <= Math.min(count, POSTER_MAX_COLUMNS); columns++) {
-    const grid = gridOf(count, columns, options);
-    const score = scoreOf(grid, count);
-    if (score < bestScore || (score === bestScore && grid.rows < best.rows)) {
-      best = grid;
-      bestScore = score;
-    }
-  }
-  return best;
+  const wider = Array.from({ length: Math.min(count, POSTER_MAX_COLUMNS) - 1 }, (_, index) => gridOf(count, index + 2, options));
+  const candidates: [PosterGrid, ...PosterGrid[]] = [gridOf(count, 1, options), ...wider];
+  return candidates.sort((a, b) => scoreOf(a, count) - scoreOf(b, count))[0];
 }
 
 function cellsOf(count: number, grid: PosterGrid, options: PosterLayoutOptions): PosterCell[] {
