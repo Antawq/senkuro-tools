@@ -23,6 +23,11 @@ const cardOf = (slug: string): Record<string, unknown> => ({
   image: { original: { url: urlOf(slug), width: ART_WIDTH_PX, height: ART_HEIGHT_PX } },
 });
 
+const cardWithOriginal = (slug: string, change: Record<string, unknown>): Record<string, unknown> => ({
+  ...cardOf(slug),
+  image: { original: { url: urlOf(slug), width: 1, height: 1, ...change } },
+});
+
 const jsonReply = (body: unknown): Response => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
 
 const serverOf = (answerFor: (slug: string) => unknown = cardOf, replyOf = (cards: Record<string, unknown>): unknown => ({ data: cards })) => {
@@ -93,10 +98,6 @@ describe('fetchPosterArt', () => {
   });
 
   it('leaves out a card that is missing, has no image, a url that is not https or a size that is not a positive number', async () => {
-    const cardWithOriginal = (slug: string, change: Record<string, unknown>) => ({
-      ...cardOf(slug),
-      image: { original: { url: urlOf(slug), width: 1, height: 1, ...change } },
-    });
     const answers: Record<string, unknown> = {
       'kept-s': cardOf('kept-s'),
       'gone-s': null,
@@ -110,6 +111,12 @@ describe('fetchPosterArt', () => {
     const { transport } = serverOf((slug) => answers[slug]);
     const arts = await fetchPosterArt(Object.keys(answers), transport);
     expect([...arts.keys()]).toEqual(['kept-s']);
+  });
+
+  it('keeps art that is only one pixel wide and tall', async () => {
+    const { transport } = serverOf((slug) => cardWithOriginal(slug, {}));
+    const arts = await fetchPosterArt(['tiny-s'], transport);
+    expect(arts.get('tiny-s')).toMatchObject({ width: 1, height: 1 });
   });
 
   it('splits 31 slugs into a request of 30 and a request of 1, sent one after the other', async () => {
