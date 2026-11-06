@@ -64,68 +64,60 @@ describe('readSelectedCards', () => {
 
   it('skips a selected shard row', () => {
     document.body.innerHTML = grid(row({ slug: 'card-a' }), row({ slug: 'shard-a', isShard: true }));
-    expect(readSelectedCards(document)).toEqual([{ slug: 'card-a', quantity: 1, isArtHidden: false }]);
+    expect(readSelectedCards(document)).toEqual([{ slug: 'card-a', quantity: 1 }]);
   });
 
   it('counts one card when the row has no quantity tag', () => {
     document.body.innerHTML = grid(row({ slug: 'single-c' }));
-    expect(readSelectedCards(document)).toEqual([{ slug: 'single-c', quantity: 1, isArtHidden: false }]);
+    expect(readSelectedCards(document)).toEqual([{ slug: 'single-c', quantity: 1 }]);
   });
 
   it('reads the leading number of the quantity tag', () => {
     document.body.innerHTML = grid(row({ slug: 'three-c', tag: ' 3 карты' }), row({ slug: 'twelve-d', tag: ' 12 карт' }));
     expect(readSelectedCards(document)).toEqual([
-      { slug: 'three-c', quantity: 3, isArtHidden: false },
-      { slug: 'twelve-d', quantity: 12, isArtHidden: false },
+      { slug: 'three-c', quantity: 3 },
+      { slug: 'twelve-d', quantity: 12 },
     ]);
   });
 
   it('counts one card for a locked row whose tag holds only the lock icon', () => {
     document.body.innerHTML = grid(row({ slug: 'locked-b', tag: LOCK_ICON }));
-    expect(readSelectedCards(document)).toEqual([{ slug: 'locked-b', quantity: 1, isArtHidden: false }]);
+    expect(readSelectedCards(document)).toEqual([{ slug: 'locked-b', quantity: 1 }]);
   });
 
   it('reads the number after the lock icon of a locked row with copies', () => {
     document.body.innerHTML = grid(row({ slug: 'locked-s', tag: `${LOCK_ICON} 3 карты` }));
-    expect(readSelectedCards(document)).toEqual([{ slug: 'locked-s', quantity: 3, isArtHidden: false }]);
+    expect(readSelectedCards(document)).toEqual([{ slug: 'locked-s', quantity: 3 }]);
   });
 
   it('skips a selected row without a card link or with an empty slug', () => {
     document.body.innerHTML = grid(row({ slug: null }), row({ slug: '' }), row({ slug: 'kept-a' }));
-    expect(readSelectedCards(document)).toEqual([{ slug: 'kept-a', quantity: 1, isArtHidden: false }]);
+    expect(readSelectedCards(document)).toEqual([{ slug: 'kept-a', quantity: 1 }]);
   });
 
   it('ignores selected rows outside the cards grid', () => {
     document.body.innerHTML = `<div class="modal-trade__body-result">${row({ slug: 'modal-a' })}</div>${grid(row({ slug: 'grid-a' }))}`;
-    expect(readSelectedCards(document)).toEqual([{ slug: 'grid-a', quantity: 1, isArtHidden: false }]);
+    expect(readSelectedCards(document)).toEqual([{ slug: 'grid-a', quantity: 1 }]);
   });
 
-  it('treats a card whose front draws the art image as shown', () => {
+  it('reads a card whose front draws the art image', () => {
     document.body.innerHTML = grid(row({ slug: 'image-a', art: 'image' }));
-    expect(readSelectedCards(document)).toEqual([{ slug: 'image-a', quantity: 1, isArtHidden: false }]);
+    expect(readSelectedCards(document)).toEqual([{ slug: 'image-a', quantity: 1 }]);
   });
 
-  it('treats an animated card whose front draws a video as shown', () => {
+  it('reads an animated card whose front draws a video', () => {
     document.body.innerHTML = grid(row({ slug: 'video-s', art: 'video' }));
-    expect(readSelectedCards(document)).toEqual([{ slug: 'video-s', quantity: 1, isArtHidden: false }]);
+    expect(readSelectedCards(document)).toEqual([{ slug: 'video-s', quantity: 1 }]);
   });
 
-  it('treats a card whose front has only the frame and the blurhash as hidden 18+ art', () => {
+  it('reads a card whose front has only the frame and the blurhash like any other, a hidden 18+ card included', () => {
     document.body.innerHTML = grid(row({ slug: 'hidden-a', art: 'frame', tag: ' 2 карты' }));
-    expect(readSelectedCards(document)).toEqual([{ slug: 'hidden-a', quantity: 2, isArtHidden: true }]);
+    expect(readSelectedCards(document)).toEqual([{ slug: 'hidden-a', quantity: 2 }]);
   });
 
-  it('treats a card link without a front as hidden art', () => {
+  it('reads a card link that has no front at all', () => {
     document.body.innerHTML = grid(row({ slug: 'frontless-b', art: 'missing' }));
-    expect(readSelectedCards(document)).toEqual([{ slug: 'frontless-b', quantity: 1, isArtHidden: true }]);
-  });
-
-  it('looks only at the front that is a direct child of the first card link of the row', () => {
-    const nestedFront =
-      '<a class="card-collect" href="/cards/nested-a"><div class="card-collect__wrap"><div class="card-collect__front"><img class="card-collect__img"></div></div></a>';
-    const secondLink = '<a class="card-collect" href="/cards/other-a"><div class="card-collect__front"><img class="card-collect__img"></div></a>';
-    document.body.innerHTML = grid(`<div class="card-collect-preview user-card user-card--selected">${nestedFront}${secondLink}</div>`);
-    expect(readSelectedCards(document)).toEqual([{ slug: 'nested-a', quantity: 1, isArtHidden: true }]);
+    expect(readSelectedCards(document)).toEqual([{ slug: 'frontless-b', quantity: 1 }]);
   });
 
   it('returns nothing when the page has no grid', () => {

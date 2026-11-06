@@ -5,7 +5,7 @@ import type { Settings } from '../shared/settings';
 import { closeIcon } from '../shared/svg';
 import { UNKNOWN_MARK } from '../shared/trade-value';
 import type { PosterArt } from './poster-art';
-import type { GridCard } from './poster-cards';
+import type { SelectedCard } from './poster-cards';
 import { POSTER_MAX_CARDS } from './poster-layout';
 import type { PosterContent } from './poster-render';
 
@@ -28,7 +28,6 @@ export const POSTER_TEXT = {
   nicknameFailed: 'Не удалось получить ник',
   nothingToDraw: 'Нет карт для постера',
   imagesFailed: (count: number): string => `Не загрузились картинки: ${count}`,
-  hiddenCards: (count: number): string => `Скрыто 18+: ${count}`,
   leftOut: (count: number): string => `Не поместились: ${count}`,
 } as const;
 
@@ -57,7 +56,7 @@ export interface PosterDialogHost {
   copyImage: (blob: Blob) => Promise<void>;
 }
 
-type NoteKind = 'hidden' | 'leftOut' | 'status' | 'nickname' | 'render' | 'copy';
+type NoteKind = 'leftOut' | 'status' | 'nickname' | 'render' | 'copy';
 
 interface DialogControls {
   dialog: HTMLDialogElement;
@@ -72,7 +71,7 @@ interface DialogControls {
   close: HTMLButtonElement;
 }
 
-interface ShownCard extends GridCard {
+interface ShownCard extends SelectedCard {
   image: ImageBitmap | null;
 }
 
@@ -304,7 +303,7 @@ function bindControls(session: PosterSession): void {
   controls.dialog.addEventListener('close', () => teardown(session));
 }
 
-function createSession(shown: readonly GridCard[], profileSlug: string, host: PosterDialogHost): PosterSession {
+function createSession(shown: readonly SelectedCard[], profileSlug: string, host: PosterDialogHost): PosterSession {
   return {
     host,
     controls: createControls(),
@@ -334,17 +333,15 @@ export function closeStalePosterDialogs(pageDocument: Document): void {
   });
 }
 
-export function openPosterDialog(cards: readonly GridCard[], profileSlug: string, host: PosterDialogHost): void {
+export function openPosterDialog(cards: readonly SelectedCard[], profileSlug: string, host: PosterDialogHost): void {
   closePosterDialogs(host.pageDocument);
-  const visible = cards.filter((card) => !card.isArtHidden);
-  const session = createSession(visible.slice(0, POSTER_MAX_CARDS), profileSlug, host);
+  const session = createSession(cards.slice(0, POSTER_MAX_CARDS), profileSlug, host);
   setButtonsEnabled(session.controls, false);
   bindControls(session);
   session.controls.dialog.dataset.senkutoolsPath = host.pageDocument.location.pathname;
   host.pageDocument.body.append(session.controls.dialog);
   session.controls.dialog.showModal();
-  if (cards.length > visible.length) setNote(session, 'hidden', POSTER_TEXT.hiddenCards(cards.length - visible.length));
-  if (visible.length > session.shown.length) setNote(session, 'leftOut', POSTER_TEXT.leftOut(visible.length - session.shown.length));
+  if (cards.length > session.shown.length) setNote(session, 'leftOut', POSTER_TEXT.leftOut(cards.length - session.shown.length));
   if (session.shown.length === 0) {
     setNote(session, 'status', POSTER_TEXT.nothingToDraw);
     return;

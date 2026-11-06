@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock, type MockInstance } from 'vitest';
 
 import type { PosterArt } from '../utils/poster/poster-art';
-import type { GridCard } from '../utils/poster/poster-cards';
+import type { SelectedCard } from '../utils/poster/poster-cards';
 import { POSTER_TEXT, closePosterDialogs, closeStalePosterDialogs, fileNameOf, openPosterDialog, type PosterDialogHost } from '../utils/poster/poster-dialog';
 import { POSTER_MAX_CARDS } from '../utils/poster/poster-layout';
 import type { PosterContent } from '../utils/poster/poster-render';
 
-const cardOf = (slug: string, overrides: Partial<GridCard> = {}): GridCard => ({ slug, quantity: 1, isArtHidden: false, ...overrides });
+const cardOf = (slug: string, overrides: Partial<SelectedCard> = {}): SelectedCard => ({ slug, quantity: 1, ...overrides });
 
 const artOf = (slug: string): PosterArt => ({ slug, rank: 'S', url: `https://cdn.example/${slug}.webp`, width: 400, height: 600, isExplicit: false });
 
@@ -80,7 +80,7 @@ const change = (input: HTMLInputElement, isChecked: boolean): void => {
   input.dispatchEvent(new Event('change', { bubbles: true }));
 };
 
-const openReady = async (rig: Rig, cards: readonly GridCard[] = [cardOf('alpha-s'), cardOf('beta-a')], profileSlug = 'sena'): Promise<void> => {
+const openReady = async (rig: Rig, cards: readonly SelectedCard[] = [cardOf('alpha-s'), cardOf('beta-a')], profileSlug = 'sena'): Promise<void> => {
   openPosterDialog(cards, profileSlug, rig.host);
   await settle();
   await rig.flushFrames();
@@ -127,11 +127,12 @@ describe('openPosterDialog', () => {
     expect(find<HTMLImageElement>('.senkutools-poster__image').src).toBe('blob:poster-1');
   });
 
-  it('leaves hidden 18+ cards out and says how many', async () => {
+  it('draws every selected card and adds no note about hidden ones', async () => {
     const rig = createRig();
-    await openReady(rig, [cardOf('alpha-s'), cardOf('hidden-b', { isArtHidden: true })]);
-    expect(rig.fetchArt.mock.calls[0]?.[0]).toEqual(['alpha-s']);
-    expect(note()).toContain(POSTER_TEXT.hiddenCards(1));
+    await openReady(rig, [cardOf('alpha-s'), cardOf('adult-x')]);
+    expect(rig.fetchArt.mock.calls[0]?.[0]).toEqual(['alpha-s', 'adult-x']);
+    expect(rig.contents[0]?.cards).toHaveLength(2);
+    expect(note()).toBe('');
   });
 
   it('draws the first 30 cards and says how many did not fit', async () => {
@@ -143,9 +144,9 @@ describe('openPosterDialog', () => {
     expect(note()).toContain(POSTER_TEXT.leftOut(2));
   });
 
-  it('asks for nothing when every selected card is hidden and keeps the buttons off', async () => {
+  it('asks for nothing when no card is selected and keeps the buttons off', async () => {
     const rig = createRig();
-    await openReady(rig, [cardOf('hidden-a', { isArtHidden: true })]);
+    await openReady(rig, []);
     expect(rig.fetchArt).not.toHaveBeenCalled();
     expect(note()).toContain(POSTER_TEXT.nothingToDraw);
     expect(find('.senkutools-poster__download').getAttribute('aria-disabled')).toBe('true');
@@ -189,7 +190,7 @@ describe('openPosterDialog', () => {
     expect(note()).toContain(POSTER_TEXT.imagesFailed(2));
   });
 
-  it('leaves the note empty when nothing was hidden, left out or failed', async () => {
+  it('leaves the note empty when nothing was left out or failed', async () => {
     const rig = createRig();
     await openReady(rig);
     expect(note()).toBe('');

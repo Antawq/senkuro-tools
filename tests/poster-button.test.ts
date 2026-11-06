@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { APP_MOUNTED_ATTRIBUTE } from '../utils/shared/app-mounted';
-import type { GridCard } from '../utils/poster/poster-cards';
+import type { SelectedCard } from '../utils/poster/poster-cards';
 import { POSTER_BUTTON_TEXT, POSTER_CONTROL_CLASS, isPosterButtonMissing, syncPosterButton, type PosterButtonHost } from '../utils/poster/poster-button';
 
 const FRONT = '<div class="card-collect__front"><img class="card-collect__img" alt="Card"></div>';
@@ -40,7 +40,7 @@ const hint = (): string => document.querySelector('.senkutools-poster__hint')?.t
 const rowElements = (): HTMLElement[] => [...document.querySelectorAll<HTMLElement>('.user-cards-grid > .card-collect-preview')];
 
 const hostOf = () => {
-  const openDialog = vi.fn<(cards: readonly GridCard[], profileSlug: string) => void>();
+  const openDialog = vi.fn<(cards: readonly SelectedCard[], profileSlug: string) => void>();
   const host: PosterButtonHost = { openDialog };
   return { host, openDialog };
 };

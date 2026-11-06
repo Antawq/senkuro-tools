@@ -4,7 +4,7 @@ import { posterIcon } from '../shared/svg';
 import { createToolbarControls, type ToolbarControl } from '../shared/toolbar-controls';
 import { createPanelShell, setPanelOpen } from '../shared/toolbar-panel';
 import { USER_CARD_FILTERS } from '../shared/user-card-filters';
-import { canSelectCards, countSelectedRows, profileSlugOf, readSelectedCards, type GridCard } from './poster-cards';
+import { canSelectCards, countSelectedRows, profileSlugOf, readSelectedCards, type SelectedCard } from './poster-cards';
 
 export const POSTER_BUTTON_TEXT = {
   label: 'Постер',
@@ -25,7 +25,7 @@ const GRID = '.user-cards-grid';
 const ICON_SIZE_PX = 20;
 
 export interface PosterButtonHost {
-  openDialog: (cards: readonly GridCard[], profileSlug: string) => void;
+  openDialog: (cards: readonly SelectedCard[], profileSlug: string) => void;
 }
 
 interface PosterControl extends ToolbarControl {

@@ -6,16 +6,10 @@ export interface SelectedCard {
   quantity: number;
 }
 
-export interface GridCard extends SelectedCard {
-  isArtHidden: boolean;
-}
-
 export const SELECTED_ROW_SELECTOR = `.user-cards-grid > .${CARD_ROW_CLASS}.user-card--selected`;
 
 const SHARD_ROW_CLASS = `${CARD_ROW_CLASS}--shard`;
 const QUANTITY_TAG = `.${CARD_ROW_CLASS}__status .tag`;
-const CARD_FRONT = ':scope > .card-collect__front';
-const SHOWN_ART = 'img.card-collect__img, video';
 const MORE_OPTIONS_BUTTON = 'button[aria-label="more options"]';
 const PROFILE_PATH = /^\/users\/([^/?#]+)/;
 const RESERVED_PATHS = ['settings', 'notifications', 'card-trades'];
@@ -25,14 +19,12 @@ const quantityOf = (row: Element): number => {
   return Number.isNaN(count) ? 1 : count;
 };
 
-const isArtHiddenIn = (link: Element): boolean => !link.querySelector(CARD_FRONT)?.querySelector(SHOWN_ART);
-
-export function readSelectedCards(pageDocument: Document): GridCard[] {
+export function readSelectedCards(pageDocument: Document): SelectedCard[] {
   return [...pageDocument.querySelectorAll(SELECTED_ROW_SELECTOR)].flatMap((row) => {
     if (row.classList.contains(SHARD_ROW_CLASS)) return [];
     const link = row.querySelector(CARD_LINK);
     const slug = slugFromHref(link?.getAttribute('href'));
-    return link && slug ? [{ slug, quantity: quantityOf(row), isArtHidden: isArtHiddenIn(link) }] : [];
+    return link && slug ? [{ slug, quantity: quantityOf(row) }] : [];
   });
 }
 
