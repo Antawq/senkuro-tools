@@ -12,6 +12,15 @@ describe('settings', () => {
     expect(await loadSettings()).toEqual(DEFAULT_SETTINGS);
   });
 
+  it('shows no price effect for everyone who never chose one, and keeps the choice of whoever did', async () => {
+    const effects = ['effectRed', 'effectYellow', 'effectPurple', 'effectGreen', 'effectWhite'] as const;
+    const loaded = await loadSettings();
+    expect(effects.map((key) => loaded[key])).toEqual(['', '', '', '', '']);
+    await saveSetting('effectGreen', 'price-effect-pulse');
+    const chosen = await loadSettings();
+    expect(effects.map((key) => chosen[key])).toEqual(['', '', '', 'price-effect-pulse', '']);
+  });
+
   it('keeps values saved by earlier versions under the same keys', async () => {
     await fakeBrowser.storage.local.set({ copyBtn: true });
     const settings = await loadSettings();
