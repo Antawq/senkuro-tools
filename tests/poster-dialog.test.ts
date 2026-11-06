@@ -176,17 +176,23 @@ describe('openPosterDialog', () => {
   it('draws a placeholder for a card whose image fails and counts it', async () => {
     const rig = createRig();
     rig.loadImage.mockRejectedValueOnce(new Error('bad image'));
-    await openReady(rig);
-    expect(rig.contents[0]?.cards.map((card) => card.image === null)).toEqual([true, false]);
+    await openReady(rig, [cardOf('alpha-s'), cardOf('beta-a'), cardOf('gamma-b')]);
+    expect(rig.contents[0]?.cards.map((card) => card.image === null)).toEqual([true, false, false]);
     expect(note()).toContain(POSTER_TEXT.imagesFailed(1));
   });
 
   it('counts a slug the art request did not return as a failed image', async () => {
     const rig = createRig();
     rig.fetchArt.mockResolvedValueOnce(new Map([['alpha-s', artOf('alpha-s')]]));
+    await openReady(rig, [cardOf('alpha-s'), cardOf('beta-a'), cardOf('gamma-b')]);
+    expect(rig.contents[0]?.cards.map((card) => card.image === null)).toEqual([false, true, true]);
+    expect(note()).toContain(POSTER_TEXT.imagesFailed(2));
+  });
+
+  it('leaves the note empty when nothing was hidden, left out or failed', async () => {
+    const rig = createRig();
     await openReady(rig);
-    expect(rig.contents[0]?.cards.map((card) => card.image === null)).toEqual([false, true]);
-    expect(note()).toContain(POSTER_TEXT.imagesFailed(1));
+    expect(note()).toBe('');
   });
 
   it('closes an open poster dialog before it opens the next one', async () => {
