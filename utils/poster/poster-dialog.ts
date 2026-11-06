@@ -72,18 +72,21 @@ interface DialogControls {
   close: HTMLButtonElement;
 }
 
+interface ShownCard extends GridCard {
+  image: ImageBitmap | null;
+}
+
 interface PosterSession {
   host: PosterDialogHost;
   controls: DialogControls;
   profileSlug: string;
-  shown: readonly GridCard[];
-  images: Map<string, ImageBitmap | null>;
+  shown: readonly ShownCard[];
   notes: Map<NoteKind, string>;
   abort: AbortController;
   nickname: string | null;
   blob: Blob | null;
   imageUrl: string | null;
-  renderCount: number;
+  latestRender: symbol | null;
   hasNicknameRequest: boolean;
   isReady: boolean;
   isFrameQueued: boolean;
@@ -180,7 +183,7 @@ function contentOf(session: PosterSession): PosterContent {
   return {
     cards: session.shown.map((card) => ({
       selected: { slug: card.slug, quantity: card.quantity },
-      image: session.images.get(card.slug) ?? null,
+      image: card.image,
       priceText: controls.prices.checked ? priceTextOf(card.slug, host) : null,
     })),
     heading: controls.heading.value,
@@ -198,8 +201,9 @@ function showBlob(session: PosterSession, blob: Blob): void {
 }
 
 async function runRender(session: PosterSession): Promise<void> {
-  const renderId = ++session.renderCount;
-  const isStale = (): boolean => session.isClosed || renderId !== session.renderCount;
+  const render = Symbol('render');
+  session.latestRender = render;
+  const isStale = (): boolean => session.isClosed || session.latestRender !== render;
   setNote(session, 'copy', null);
   try {
     const blob = await session.host.render(contentOf(session));
@@ -224,15 +228,13 @@ function scheduleRender(session: PosterSession): void {
 }
 
 async function loadImages(session: PosterSession, arts: Map<string, PosterArt>): Promise<number> {
-  const images = await Promise.all(
-    session.shown.map(async (card): Promise<ImageBitmap | null> => {
+  await Promise.all(
+    session.shown.map(async (card) => {
       const art = arts.get(card.slug);
-      if (!art) return null;
-      return session.host.loadImage(art).catch(() => null);
+      card.image = art ? await session.host.loadImage(art).catch(() => null) : null;
     })
   );
-  session.shown.forEach((card, index) => session.images.set(card.slug, images[index] ?? null));
-  return images.filter((image) => image === null).length;
+  return session.shown.filter((card) => card.image === null).length;
 }
 
 async function loadSession(session: PosterSession): Promise<void> {
@@ -284,7 +286,7 @@ function teardown(session: PosterSession): void {
   session.isClosed = true;
   session.abort.abort();
   if (session.imageUrl) URL.revokeObjectURL(session.imageUrl);
-  for (const image of session.images.values()) image?.close();
+  for (const card of session.shown) card.image?.close();
   session.controls.dialog.remove();
 }
 
@@ -307,14 +309,13 @@ function createSession(shown: readonly GridCard[], profileSlug: string, host: Po
     host,
     controls: createControls(),
     profileSlug,
-    shown,
-    images: new Map(),
+    shown: shown.map((card) => ({ ...card, image: null })),
     notes: new Map(),
     abort: new AbortController(),
     nickname: null,
     blob: null,
     imageUrl: null,
-    renderCount: 0,
+    latestRender: null,
     hasNicknameRequest: false,
     isReady: false,
     isFrameQueued: false,
