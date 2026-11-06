@@ -12,6 +12,8 @@
   --senkuro-fallback-surface: #202023;
   --senkuro-fallback-error: #ff7f71;
   --senkuro-gutter: 12px;
+  --senkuro-badge-pad: 0.15em 0.4em;
+  --senkuro-badge-radius: 0.25em;
 
   --senkuro-hover: 0.2s;
   --senkuro-effect-delay: 0.15s;

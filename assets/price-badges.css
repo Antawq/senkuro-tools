@@ -12,6 +12,8 @@ a.card-collect[data-senkuro-price]::after {
   z-index: 99;
   pointer-events: none;
   font-weight: bold;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
   white-space: nowrap;
   text-decoration: none;
   display: inline-block;
@@ -24,8 +26,7 @@ a.card-collect[data-senkuro-price]::after {
   margin-top: var(--s-mt, 0);
   translate: var(--s-tx, 0) var(--s-ty, 0);
   text-align: var(--s-align, left);
-  max-width: 70px;
-  overflow: hidden;
+  max-width: 100%;
   backface-visibility: hidden;
 }
 
@@ -37,8 +38,8 @@ a.card-collect[data-senkuro-price]::after {
 .card-collect-preview[data-senkuro-style='background']::after,
 a.card-collect[data-senkuro-style='background']::after {
   background-color: var(--s-bg-color, color-mix(in srgb, var(--senkuro-shade) 75%, transparent));
-  padding: var(--s-pad, 2px 6px);
-  border-radius: 4px;
+  padding: var(--senkuro-badge-pad);
+  border-radius: var(--senkuro-badge-radius);
 }
 
 .card-collect-preview__front[data-senkuro-style='outline']::after,
@@ -149,6 +150,7 @@ a.card-collect:has(> .senkutools-unpriced-badge) {
   z-index: 99;
   pointer-events: none;
   display: flex;
+  line-height: 1;
   color: var(--s-color, var(--senkuro-tier-white));
   font-size: var(--s-size, 14px);
   top: var(--s-top, auto);
@@ -158,8 +160,8 @@ a.card-collect:has(> .senkutools-unpriced-badge) {
   margin-top: var(--s-mt, 0);
   translate: var(--s-tx, 0) var(--s-ty, 0);
   background-color: var(--s-bg-color, color-mix(in srgb, var(--senkuro-shade) 75%, transparent));
-  padding: var(--s-pad, 2px 6px);
-  border-radius: 4px;
+  padding: var(--senkuro-badge-pad);
+  border-radius: var(--senkuro-badge-radius);
   backface-visibility: hidden;
 }
 
