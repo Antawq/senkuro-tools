@@ -112,9 +112,9 @@ function exportPng(canvas: HTMLCanvasElement): Promise<Blob> {
 export async function renderPoster(content: PosterContent, theme: PosterTheme, host: RenderHost): Promise<Blob> {
   const cards = content.cards.slice(0, POSTER_MAX_CARDS).map((card) => ({ ...card, caption: captionOf(card, content.shouldShowQuantity) }));
   const heading = content.heading.trim();
-  const nickname = content.nickname?.trim() ?? '';
+  const nickname = content.nickname?.trim();
   const hasCaptions = cards.some((card) => card.caption !== '');
-  const layout = layoutPoster(cards.length, { hasHeading: heading !== '', hasFooter: nickname !== '', hasCaptions });
+  const layout = layoutPoster(cards.length, { hasHeading: heading !== '', hasFooter: Boolean(nickname), hasCaptions });
   const canvas = host.createCanvas(layout.width, layout.height);
   const drawing = canvas.getContext('2d');
   if (!drawing) throw new Error('the poster canvas has no 2D context');
@@ -135,7 +135,7 @@ export async function renderPoster(content: PosterContent, theme: PosterTheme, h
     else drawPlaceholderMark(drawing, cell, theme);
     if (card.caption !== '') drawCaption(drawing, cell, card.caption, theme);
   });
-  if (nickname !== '') {
+  if (nickname) {
     drawing.font = fontOf(FOOTER_FONT_WEIGHT, FOOTER_FONT_PX, theme);
     drawing.fillStyle = theme.mutedText;
     drawBandText(drawing, layout, nickname, layout.height - POSTER_MARGIN_PX - layout.footerHeight / 2);
