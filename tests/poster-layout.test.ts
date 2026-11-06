@@ -100,6 +100,22 @@ describe('layoutPoster', () => {
     }
   });
 
+  it('makes a card as wide as the poster width allows unless the card is at its largest', () => {
+    for (const { layout } of layoutsOf(EVERY_COUNT)) {
+      const first = layout.cells[0];
+      if (!first || layout.columns < 2 || first.width >= LARGEST_CARD_WIDTH_PX) continue;
+      expect(layout.width + layout.columns).toBeGreaterThan(POSTER_MAX_WIDTH_PX);
+    }
+  });
+
+  it('ends the canvas one margin and the footer band below the last card or caption', () => {
+    for (const { options, layout } of layoutsOf(EVERY_COUNT)) {
+      const last = layout.cells.at(-1);
+      if (!last) throw new Error('the layout holds no cells');
+      expect(layout.height).toBe(bottomOf(last, options) + POSTER_MARGIN_PX + layout.footerHeight);
+    }
+  });
+
   it('centres an incomplete last row on the vertical midline', () => {
     for (const { layout } of layoutsOf(INCOMPLETE_ROW_COUNTS)) {
       const lastRow = rowsOf(layout).at(-1) ?? [];
