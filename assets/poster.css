@@ -11,6 +11,8 @@
 }
 
 .senkutools-poster {
+  --senkutools-poster-close-size: 36px;
+  --senkutools-poster-close-inset: 8px;
   width: min(960px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);
   padding: 0;
@@ -56,6 +58,7 @@
   flex: 0 0 280px;
   flex-direction: column;
   gap: 12px;
+  padding-top: var(--senkutools-poster-close-inset);
 }
 
 .senkutools-poster__field {
@@ -119,8 +122,8 @@
 
 .senkutools-poster > .senkutools-poster__close {
   position: absolute;
-  top: 8px;
-  right: max(8px, env(safe-area-inset-right));
+  top: var(--senkutools-poster-close-inset);
+  right: max(var(--senkutools-poster-close-inset), env(safe-area-inset-right));
 }
 
 @media (hover: hover) {
@@ -144,10 +147,12 @@
 @media (max-width: 768px) and (min-height: 481px) {
   .senkutools-poster__body {
     flex-direction: column;
+    padding-top: calc(var(--senkutools-poster-close-size) + 2 * var(--senkutools-poster-close-inset));
   }
 
   .senkutools-poster__controls {
     flex-basis: auto;
+    padding-top: 0;
   }
 
   .senkutools-poster__image {
@@ -164,6 +169,10 @@
     max-height: calc(100dvh - 10px);
     padding-top: 8px;
     padding-bottom: 8px;
+  }
+
+  .senkutools-poster__controls {
+    padding-top: var(--senkutools-poster-close-size);
   }
 
   .senkutools-poster__image {
