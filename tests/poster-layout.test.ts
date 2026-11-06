@@ -8,7 +8,7 @@ import {
   FOOTER_HEIGHT_PX,
   HEADING_HEIGHT_PX,
   POSTER_MARGIN_PX,
-  POSTER_MAX_CARDS,
+  POSTER_CARDS_PER_PAGE,
   POSTER_MAX_WIDTH_PX,
   layoutPoster,
   type PosterCell,
@@ -21,7 +21,7 @@ const LARGEST_CARD_WIDTH_PX = 600;
 const COLUMNS_BY_COUNT: Readonly<Record<number, number>> = { 1: 1, 2: 2, 3: 3, 4: 2, 5: 3, 6: 3, 7: 4, 8: 4, 9: 3, 12: 4 };
 const FEWEST_LARGE_COLUMNS = 4;
 const MOST_LARGE_COLUMNS = 6;
-const SMALL_POSTER_MAX_CARDS = 12;
+const SMALL_POSTER_CARDS_PER_PAGE = 12;
 const INCOMPLETE_ROW_COUNTS = [5, 7, 11];
 
 const FLAG_COMBINATIONS: PosterLayoutOptions[] = [false, true].flatMap((hasHeading) =>
@@ -29,7 +29,7 @@ const FLAG_COMBINATIONS: PosterLayoutOptions[] = [false, true].flatMap((hasHeadi
 );
 const PLAIN: PosterLayoutOptions = { hasHeading: false, hasFooter: false, hasCaptions: false };
 const DECORATED: PosterLayoutOptions = { hasHeading: true, hasFooter: true, hasCaptions: true };
-const EVERY_COUNT = Array.from({ length: POSTER_MAX_CARDS }, (_, index) => index + 1);
+const EVERY_COUNT = Array.from({ length: POSTER_CARDS_PER_PAGE }, (_, index) => index + 1);
 
 interface LaidOut {
   count: number;
@@ -57,12 +57,12 @@ const doOverlap = (a: PosterCell, b: PosterCell, options: PosterLayoutOptions): 
 
 describe('layoutPoster', () => {
   it('lays out one cell per card up to the poster limit for every count and option', () => {
-    for (const { count, layout } of layoutsOf(EVERY_COUNT)) expect(layout.cells).toHaveLength(Math.min(count, POSTER_MAX_CARDS));
+    for (const { count, layout } of layoutsOf(EVERY_COUNT)) expect(layout.cells).toHaveLength(Math.min(count, POSTER_CARDS_PER_PAGE));
   });
 
   it('keeps only the first thirty cards when more are selected', () => {
-    for (const count of [POSTER_MAX_CARDS + 1, 100]) {
-      for (const options of FLAG_COMBINATIONS) expect(layoutPoster(count, options).cells).toHaveLength(POSTER_MAX_CARDS);
+    for (const count of [POSTER_CARDS_PER_PAGE + 1, 100]) {
+      for (const options of FLAG_COMBINATIONS) expect(layoutPoster(count, options).cells).toHaveLength(POSTER_CARDS_PER_PAGE);
     }
   });
 
@@ -152,7 +152,7 @@ describe('layoutPoster', () => {
   });
 
   it('uses four to six columns for more than twelve cards', () => {
-    const largeCounts = EVERY_COUNT.filter((count) => count > SMALL_POSTER_MAX_CARDS);
+    const largeCounts = EVERY_COUNT.filter((count) => count > SMALL_POSTER_CARDS_PER_PAGE);
     for (const { layout } of layoutsOf(largeCounts)) {
       expect(layout.columns).toBeGreaterThanOrEqual(FEWEST_LARGE_COLUMNS);
       expect(layout.columns).toBeLessThanOrEqual(MOST_LARGE_COLUMNS);

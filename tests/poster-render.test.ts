@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CAPTION_HEIGHT_PX, POSTER_MARGIN_PX, POSTER_MAX_CARDS, layoutPoster, type PosterLayoutOptions } from '../utils/poster/poster-layout';
+import { CAPTION_HEIGHT_PX, POSTER_MARGIN_PX, POSTER_CARDS_PER_PAGE, layoutPoster, type PosterLayoutOptions } from '../utils/poster/poster-layout';
 import { readPosterTheme, renderPoster, type PosterCardContent, type PosterContent, type PosterTheme, type RenderHost } from '../utils/poster/poster-render';
 
 const THEME: PosterTheme = { background: '#111', surface: '#222', text: '#eee', mutedText: '#999', shadow: '#000', fontFamily: 'Inter, sans-serif' };
@@ -270,19 +270,19 @@ describe('renderPoster', () => {
   });
 
   it('sizes the canvas to the layout for one, three and thirty-one cards, drawing at most thirty', async () => {
-    for (const count of [1, 3, POSTER_MAX_CARDS + 1]) {
+    for (const count of [1, 3, POSTER_CARDS_PER_PAGE + 1]) {
       const { calls, sizes } = await render(contentOf(cardsOf(count), { heading: 'Коллекция' }));
-      const layout = layoutPoster(Math.min(count, POSTER_MAX_CARDS), { ...PLAIN, hasHeading: true });
+      const layout = layoutPoster(Math.min(count, POSTER_CARDS_PER_PAGE), { ...PLAIN, hasHeading: true });
       expect(sizes).toEqual([{ width: layout.width, height: layout.height }]);
-      expect(callsNamed(calls, 'drawImage')).toHaveLength(Math.min(count, POSTER_MAX_CARDS));
+      expect(callsNamed(calls, 'drawImage')).toHaveLength(Math.min(count, POSTER_CARDS_PER_PAGE));
     }
   });
 
   it('ignores the caption of a card past the poster limit', async () => {
-    const cards = [...cardsOf(POSTER_MAX_CARDS), cardOf(POSTER_MAX_CARDS, 5, '9.00')];
+    const cards = [...cardsOf(POSTER_CARDS_PER_PAGE), cardOf(POSTER_CARDS_PER_PAGE, 5, '9.00')];
     const { calls, sizes } = await render(contentOf(cards));
     expect(textsOf(calls)).toEqual([]);
-    expect(sizes[0]?.height).toBe(layoutPoster(POSTER_MAX_CARDS, PLAIN).height);
+    expect(sizes[0]?.height).toBe(layoutPoster(POSTER_CARDS_PER_PAGE, PLAIN).height);
   });
 
   it('rounds every card to 8.8 percent of its width', async () => {

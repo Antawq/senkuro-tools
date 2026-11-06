@@ -1,5 +1,5 @@
 import type { SelectedCard } from './poster-cards';
-import { CAPTION_HEIGHT_PX, POSTER_MARGIN_PX, POSTER_MAX_CARDS, layoutPoster, type PosterCell, type PosterLayout } from './poster-layout';
+import { CAPTION_HEIGHT_PX, POSTER_MARGIN_PX, POSTER_CARDS_PER_PAGE, layoutPoster, type PosterCell, type PosterLayout } from './poster-layout';
 
 export interface PosterCardContent {
   selected: SelectedCard;
@@ -110,7 +110,7 @@ function exportPng(canvas: HTMLCanvasElement): Promise<Blob> {
 }
 
 export async function renderPoster(content: PosterContent, theme: PosterTheme, host: RenderHost): Promise<Blob> {
-  const cards = content.cards.slice(0, POSTER_MAX_CARDS).map((card) => ({ ...card, caption: captionOf(card, content.shouldShowQuantity) }));
+  const cards = content.cards.slice(0, POSTER_CARDS_PER_PAGE).map((card) => ({ ...card, caption: captionOf(card, content.shouldShowQuantity) }));
   const heading = content.heading.trim();
   const nickname = content.nickname?.trim();
   const hasCaptions = cards.some((card) => card.caption !== '');

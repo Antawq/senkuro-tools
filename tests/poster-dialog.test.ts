@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock, type MockIn
 import type { PosterArt } from '../utils/poster/poster-art';
 import type { SelectedCard } from '../utils/poster/poster-cards';
 import { POSTER_TEXT, closePosterDialogs, closeStalePosterDialogs, fileNameOf, openPosterDialog, type PosterDialogHost } from '../utils/poster/poster-dialog';
-import { POSTER_MAX_CARDS } from '../utils/poster/poster-layout';
+import { POSTER_CARDS_PER_PAGE } from '../utils/poster/poster-layout';
 import type { PosterContent } from '../utils/poster/poster-render';
 
 const cardOf = (slug: string, overrides: Partial<SelectedCard> = {}): SelectedCard => ({ slug, quantity: 1, ...overrides });
@@ -137,10 +137,10 @@ describe('openPosterDialog', () => {
 
   it('draws the first 30 cards and says how many did not fit', async () => {
     const rig = createRig();
-    const cards = Array.from({ length: POSTER_MAX_CARDS + 2 }, (_, index) => cardOf(`card-${index}`));
+    const cards = Array.from({ length: POSTER_CARDS_PER_PAGE + 2 }, (_, index) => cardOf(`card-${index}`));
     await openReady(rig, cards);
-    expect(rig.fetchArt.mock.calls[0]?.[0]).toHaveLength(POSTER_MAX_CARDS);
-    expect(rig.contents[0]?.cards).toHaveLength(POSTER_MAX_CARDS);
+    expect(rig.fetchArt.mock.calls[0]?.[0]).toHaveLength(POSTER_CARDS_PER_PAGE);
+    expect(rig.contents[0]?.cards).toHaveLength(POSTER_CARDS_PER_PAGE);
     expect(note()).toContain(POSTER_TEXT.leftOut(2));
   });
 

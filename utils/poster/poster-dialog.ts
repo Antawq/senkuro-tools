@@ -6,7 +6,7 @@ import { closeIcon } from '../shared/svg';
 import { UNKNOWN_MARK } from '../shared/trade-value';
 import type { PosterArt } from './poster-art';
 import type { SelectedCard } from './poster-cards';
-import { POSTER_MAX_CARDS } from './poster-layout';
+import { POSTER_CARDS_PER_PAGE } from './poster-layout';
 import type { PosterContent } from './poster-render';
 
 export const POSTER_TEXT = {
@@ -335,7 +335,7 @@ export function closeStalePosterDialogs(pageDocument: Document): void {
 
 export function openPosterDialog(cards: readonly SelectedCard[], profileSlug: string, host: PosterDialogHost): void {
   closePosterDialogs(host.pageDocument);
-  const session = createSession(cards.slice(0, POSTER_MAX_CARDS), profileSlug, host);
+  const session = createSession(cards.slice(0, POSTER_CARDS_PER_PAGE), profileSlug, host);
   setButtonsEnabled(session.controls, false);
   bindControls(session);
   session.controls.dialog.dataset.senkutoolsPath = host.pageDocument.location.pathname;

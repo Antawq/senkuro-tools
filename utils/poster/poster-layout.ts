@@ -1,6 +1,6 @@
 export const CARD_SOURCE_WIDTH_PX = 400;
 export const CARD_SOURCE_HEIGHT_PX = 600;
-export const POSTER_MAX_CARDS = 30;
+export const POSTER_CARDS_PER_PAGE = 30;
 export const POSTER_MAX_WIDTH_PX = 1600;
 export const POSTER_MARGIN_PX = 48;
 export const HEADING_HEIGHT_PX = 140;
@@ -94,7 +94,7 @@ function cellsOf(count: number, grid: PosterGrid, options: PosterLayoutOptions):
 
 export function layoutPoster(count: number, options: PosterLayoutOptions): PosterLayout {
   if (!Number.isInteger(count) || count < 1) throw new RangeError(`a poster needs a whole number of cards from 1, got ${count}`);
-  const cardCount = Math.min(count, POSTER_MAX_CARDS);
+  const cardCount = Math.min(count, POSTER_CARDS_PER_PAGE);
   const grid = bestGridOf(cardCount, options);
   return {
     width: grid.width,
