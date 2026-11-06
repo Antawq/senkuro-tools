@@ -70,6 +70,12 @@ a.card-collect[data-senkuro-style='outline']::after {
   --s-color: var(--senkuro-tier-white);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  [data-senkuro-eff]::after {
+    animation: none;
+  }
+}
+
 @keyframes senkuro-pulse-text {
   0% {
     transform: translateZ(0) scale(1);
