@@ -1,6 +1,7 @@
 import type { Database } from '../shared/database';
 import { element } from '../shared/dom';
 import type { Settings } from '../shared/settings';
+import { packArchive } from './poster-archive';
 import { fetchPosterArt, loadArtImage } from './poster-art';
 import type { PosterDialogHost } from './poster-dialog';
 import { readPosterTheme, renderPoster } from './poster-render';
@@ -46,6 +47,7 @@ export function createPosterDialogHost(sources: PosterHostSources): PosterDialog
     loadImage: (art) => loadArtImage(art, { fetchImage: (url) => fetch(url, IMAGE_FETCH_OPTIONS), createBitmap: (blob) => createImageBitmap(blob) }),
     fetchNickname: sources.fetchNickname,
     render: (content) => renderPoster(content, readPosterTheme(pageDocument), { createCanvas: (width, height) => createCanvas(pageDocument, width, height) }),
+    pack: packArchive,
     nextFrame: sources.nextFrame,
     download: (blob, fileName) => downloadBlob(pageDocument, blob, fileName),
     copyImage: copyImageBlob,
