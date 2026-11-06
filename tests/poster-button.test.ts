@@ -72,6 +72,28 @@ describe('syncPosterButton', () => {
     expect(trigger().querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
   });
 
+  it('keeps the same button on every later sync', () => {
+    openPage('/users/sena/cards', rowOf('alpha-s'));
+    syncPosterButton(document, rig.host);
+    const first = trigger();
+    syncPosterButton(document, rig.host);
+    expect(trigger()).toBe(first);
+  });
+
+  it('moves the button when another filter bar becomes the first one', () => {
+    openPage('/users/sena/cards', rowOf('alpha-s'));
+    syncPosterButton(document, rig.host);
+    const oldBar = document.querySelector('.user-card__filters') as HTMLElement;
+    const newBar = document.createElement('div');
+    newBar.className = 'user-card__filters';
+    newBar.innerHTML = '<button aria-label="more options"></button>';
+    oldBar.before(newBar);
+    syncPosterButton(document, rig.host);
+    expect(oldBar.querySelector(`.${POSTER_CONTROL_CLASS}`)).toBeNull();
+    expect(newBar.querySelectorAll(`.${POSTER_CONTROL_CLASS}`)).toHaveLength(1);
+    expect(controls()).toHaveLength(1);
+  });
+
   it('stays last when another own control is added to the bar later', () => {
     openPage('/users/sena/cards', rowOf('alpha-s'));
     syncPosterButton(document, rig.host);
@@ -140,6 +162,29 @@ describe('selection dot', () => {
     rowElements()[0]?.classList.remove('user-card--selected');
     await settle();
     expect(trigger().classList.contains('button--chip')).toBe(false);
+  });
+
+  it('follows selected rows that are added to or removed from the grid', async () => {
+    openPage('/users/sena/cards', rowOf('alpha-s'));
+    syncPosterButton(document, rig.host);
+    const grid = document.querySelector('.user-cards-grid') as HTMLElement;
+    grid.insertAdjacentHTML('beforeend', rowOf('beta-a', { isSelected: true }));
+    await settle();
+    expect(trigger().classList.contains('button--chip')).toBe(true);
+    grid.lastElementChild?.remove();
+    await settle();
+    expect(trigger().classList.contains('button--chip')).toBe(false);
+  });
+
+  it('keeps one observer while the grid and the button stay the same', () => {
+    openPage('/users/sena/cards', rowOf('alpha-s'));
+    syncPosterButton(document, rig.host);
+    const disconnect = vi.spyOn(MutationObserver.prototype, 'disconnect');
+    syncPosterButton(document, rig.host);
+    syncPosterButton(document, rig.host);
+    const disconnectCount = disconnect.mock.calls.length;
+    disconnect.mockRestore();
+    expect(disconnectCount).toBe(0);
   });
 
   it('shows the dot for a selection that was made before the button was drawn', () => {
