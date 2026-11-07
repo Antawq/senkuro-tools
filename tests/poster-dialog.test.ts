@@ -759,3 +759,45 @@ describe('file names with pages', () => {
     expect(archiveNameOf('@@@')).toBe('senkutools-poster-poster.zip');
   });
 });
+
+describe('stale renders', () => {
+  it('ignores a render that finishes after the page was changed', async () => {
+    const rig = createRig();
+    let finish: (blob: Blob) => void = () => undefined;
+    rig.render.mockImplementationOnce(() => new Promise((resolve) => void (finish = resolve)));
+    await openReady(rig, cardsOf(POSTER_CARDS_PER_PAGE + 1));
+    press('next');
+    finish(new Blob(['old page'], { type: 'image/png' }));
+    await settle();
+    expect(find<HTMLImageElement>('.senkutools-poster__image').getAttribute('src')).toBeNull();
+    expect(isDisabled('.senkutools-poster__download')).toBe(true);
+    press('download');
+    expect(rig.download).not.toHaveBeenCalled();
+    await rig.flushFrames();
+    press('download');
+    expect(rig.download).toHaveBeenCalledWith(expect.any(Blob), 'senkutools-poster-sena-2.png');
+  });
+
+  it('does not render a frame that was queued for the page it was changed from', async () => {
+    const rig = createRig();
+    await openReady(rig, cardsOf(POSTER_CARDS_PER_PAGE + 1));
+    heading().value = 'Меняю';
+    heading().dispatchEvent(new Event('input', { bubbles: true }));
+    press('next');
+    await rig.flushFrames();
+    await rig.flushFrames();
+    expect(rig.contents.every((content) => content.cards.length > 0)).toBe(true);
+    expect(rig.render).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not render a queued frame after the dialog was closed', async () => {
+    const rig = createRig();
+    await openReady(rig);
+    rig.render.mockClear();
+    heading().value = 'Меняю';
+    heading().dispatchEvent(new Event('input', { bubbles: true }));
+    closePosterDialogs(document);
+    await rig.flushFrames();
+    expect(rig.render).not.toHaveBeenCalled();
+  });
+});

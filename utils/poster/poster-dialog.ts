@@ -303,7 +303,7 @@ function scheduleRender(session: PosterSession): void {
   session.isFrameQueued = true;
   session.host.nextFrame(() => {
     session.isFrameQueued = false;
-    void runRender(session);
+    if (session.isReady && !session.isClosed) void runRender(session);
   });
 }
 
@@ -334,6 +334,7 @@ function startPageLoad(session: PosterSession): void {
   closeImages(session.shown);
   session.shown = [];
   session.blob = null;
+  session.latestRender = null;
   session.isReady = false;
   session.isBusy = true;
   syncControls(session);
