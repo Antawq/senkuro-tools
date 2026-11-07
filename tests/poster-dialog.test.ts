@@ -154,6 +154,10 @@ describe('openPosterDialog', () => {
     expect(rig.fetchArt).not.toHaveBeenCalled();
     expect(note()).toContain(POSTER_TEXT.nothingToDraw);
     expect(find('.senkutools-poster__download').getAttribute('aria-disabled')).toBe('true');
+    heading().value = 'Меняю';
+    heading().dispatchEvent(new Event('input', { bubbles: true }));
+    await rig.flushFrames();
+    expect(rig.render).not.toHaveBeenCalled();
   });
 
   it('keeps the buttons off until a poster exists and never uses the disabled attribute', async () => {
@@ -712,6 +716,20 @@ describe('download all while closing or loading', () => {
     finish(new Blob(['zip'], { type: 'application/zip' }));
     await settleLong();
     expect(rig.download).not.toHaveBeenCalled();
+  });
+
+  it('does nothing while the shown page has no pictures because its art failed', async () => {
+    const fetchArt = vi.fn<PosterDialogHost['fetchArt']>((slugs) =>
+      slugs.includes('card-21') ? Promise.reject(new Error('offline')) : Promise.resolve(new Map(slugs.map((slug) => [slug, artOf(slug)])))
+    );
+    const rig = createRig({ fetchArt });
+    await openReady(rig, cardsOf(SIXTY_ONE));
+    await goTo(rig, 'next');
+    expect(note()).toBe(POSTER_TEXT.artFailed);
+    press('download-all');
+    await settleLong();
+    expect(rig.pack).not.toHaveBeenCalled();
+    expect(note()).toBe(POSTER_TEXT.artFailed);
   });
 
   it('does nothing before the first page is ready', async () => {
