@@ -503,7 +503,9 @@ describe('pages', () => {
     press('next');
     press('previous');
     press('download-all');
+    await settleLong();
     expect(fetchArt).toHaveBeenCalledTimes(2);
+    expect(position()).toBe(POSTER_TEXT.position(2, 2));
     expect(rig.pack).not.toHaveBeenCalled();
     finish(new Map(sliceOf(16, 31).map((slug) => [slug, artOf(slug)])));
     await settle();
@@ -554,12 +556,12 @@ describe('pages', () => {
   });
 });
 
-const SIXTY_ONE = 61;
+const THREE_PAGES_CARD_COUNT = 61;
 
 describe('download all', () => {
   it('renders every page with the settings of the click and downloads one zip', async () => {
     const rig = createRig();
-    await openReady(rig, cardsOf(SIXTY_ONE));
+    await openReady(rig, cardsOf(THREE_PAGES_CARD_COUNT));
     rig.render.mockClear();
     rig.loadImage.mockClear();
     heading().value = 'Меняю';
@@ -585,7 +587,7 @@ describe('download all', () => {
 
   it('reuses the bitmaps of the shown page and closes the ones it loaded for the others', async () => {
     const rig = createRig();
-    await openReady(rig, cardsOf(SIXTY_ONE));
+    await openReady(rig, cardsOf(THREE_PAGES_CARD_COUNT));
     rig.loadImage.mockClear();
     press('download-all');
     await settleLong();
@@ -597,7 +599,7 @@ describe('download all', () => {
 
   it('renders the pages in order whichever page is shown', async () => {
     const rig = createRig();
-    await openReady(rig, cardsOf(SIXTY_ONE));
+    await openReady(rig, cardsOf(THREE_PAGES_CARD_COUNT));
     await goTo(rig, 'next');
     rig.loadImage.mockClear();
     press('download-all');
@@ -609,7 +611,7 @@ describe('download all', () => {
   it('says which page it is on while it renders', async () => {
     const seen: string[] = [];
     const rig = createRig();
-    await openReady(rig, cardsOf(SIXTY_ONE));
+    await openReady(rig, cardsOf(THREE_PAGES_CARD_COUNT));
     rig.render.mockImplementation(() => {
       seen.push(note());
       return Promise.resolve(new Blob(['png'], { type: 'image/png' }));
@@ -621,7 +623,7 @@ describe('download all', () => {
 
   it('keeps the settings of the click for every page even when they change meanwhile', async () => {
     const rig = createRig();
-    await openReady(rig, cardsOf(SIXTY_ONE));
+    await openReady(rig, cardsOf(THREE_PAGES_CARD_COUNT));
     rig.render.mockClear();
     rig.render.mockImplementation(() => {
       heading().value = 'Другое';
@@ -638,7 +640,7 @@ describe('download all state', () => {
   it('keeps the pager and the buttons off while the archive is built and frees them after', async () => {
     let finish: (blob: Blob) => void = () => undefined;
     const rig = createRig();
-    await openReady(rig, cardsOf(SIXTY_ONE));
+    await openReady(rig, cardsOf(THREE_PAGES_CARD_COUNT));
     rig.pack.mockImplementation(() => new Promise((resolve) => void (finish = resolve)));
     press('download-all');
     await settleLong();
@@ -656,7 +658,7 @@ describe('download all state', () => {
 
   it('says the archive failed, downloads nothing and frees the controls when packing fails', async () => {
     const rig = createRig();
-    await openReady(rig, cardsOf(SIXTY_ONE));
+    await openReady(rig, cardsOf(THREE_PAGES_CARD_COUNT));
     rig.pack.mockRejectedValueOnce(new Error('no memory'));
     press('download-all');
     await settleLong();
@@ -668,7 +670,7 @@ describe('download all state', () => {
 
   it('says the archive failed and packs nothing when a page does not render', async () => {
     const rig = createRig();
-    await openReady(rig, cardsOf(SIXTY_ONE));
+    await openReady(rig, cardsOf(THREE_PAGES_CARD_COUNT));
     rig.render.mockRejectedValueOnce(new Error('canvas lost'));
     press('download-all');
     await settleLong();
@@ -678,7 +680,7 @@ describe('download all state', () => {
 
   it('closes the bitmaps of a page that did not render', async () => {
     const rig = createRig();
-    await openReady(rig, cardsOf(SIXTY_ONE));
+    await openReady(rig, cardsOf(THREE_PAGES_CARD_COUNT));
     rig.render.mockResolvedValueOnce(new Blob(['one'], { type: 'image/png' }));
     rig.render.mockRejectedValueOnce(new Error('canvas lost'));
     press('download-all');
@@ -690,7 +692,7 @@ describe('download all state', () => {
 describe('download all while closing or loading', () => {
   it('stops and downloads nothing when the dialog is closed during the archive', async () => {
     const rig = createRig();
-    await openReady(rig, cardsOf(SIXTY_ONE));
+    await openReady(rig, cardsOf(THREE_PAGES_CARD_COUNT));
     let finish: (blob: Blob) => void = () => undefined;
     rig.render.mockResolvedValueOnce(new Blob(['one'], { type: 'image/png' }));
     rig.render.mockImplementationOnce(() => new Promise((resolve) => void (finish = resolve)));
@@ -707,7 +709,7 @@ describe('download all while closing or loading', () => {
 
   it('downloads nothing when the dialog is closed while the archive is packed', async () => {
     const rig = createRig();
-    await openReady(rig, cardsOf(SIXTY_ONE));
+    await openReady(rig, cardsOf(THREE_PAGES_CARD_COUNT));
     let finish: (blob: Blob) => void = () => undefined;
     rig.pack.mockImplementation(() => new Promise((resolve) => void (finish = resolve)));
     press('download-all');
@@ -723,7 +725,7 @@ describe('download all while closing or loading', () => {
       slugs.includes('card-21') ? Promise.reject(new Error('offline')) : Promise.resolve(new Map(slugs.map((slug) => [slug, artOf(slug)])))
     );
     const rig = createRig({ fetchArt });
-    await openReady(rig, cardsOf(SIXTY_ONE));
+    await openReady(rig, cardsOf(THREE_PAGES_CARD_COUNT));
     await goTo(rig, 'next');
     expect(note()).toBe(POSTER_TEXT.artFailed);
     press('download-all');
@@ -734,9 +736,11 @@ describe('download all while closing or loading', () => {
 
   it('does nothing before the first page is ready', async () => {
     let finish: (arts: Map<string, PosterArt>) => void = () => undefined;
-    const fetchArt = vi.fn<PosterDialogHost['fetchArt']>(() => new Promise((resolve) => void (finish = resolve)));
+    const fetchArt = vi.fn<PosterDialogHost['fetchArt']>((slugs) =>
+      slugs.includes('card-0') ? new Promise((resolve) => void (finish = resolve)) : Promise.resolve(new Map(slugs.map((slug) => [slug, artOf(slug)])))
+    );
     const rig = createRig({ fetchArt });
-    openPosterDialog(cardsOf(SIXTY_ONE), 'sena', rig.host);
+    openPosterDialog(cardsOf(THREE_PAGES_CARD_COUNT), 'sena', rig.host);
     await settle();
     press('download-all');
     await settleLong();
@@ -748,9 +752,9 @@ describe('download all while closing or loading', () => {
 
 describe('file names with pages', () => {
   it('numbers a page with as many digits as the page count has', () => {
-    expect(fileNameOf('sena', { number: 2, total: 3 })).toBe('senkutools-poster-sena-2.png');
-    expect(fileNameOf('sena', { number: 2, total: 12 })).toBe('senkutools-poster-sena-02.png');
-    expect(fileNameOf('sena', { number: 12, total: 12 })).toBe('senkutools-poster-sena-12.png');
+    expect(fileNameOf('sena', { number: 2, count: 3 })).toBe('senkutools-poster-sena-2.png');
+    expect(fileNameOf('sena', { number: 2, count: 12 })).toBe('senkutools-poster-sena-02.png');
+    expect(fileNameOf('sena', { number: 12, count: 12 })).toBe('senkutools-poster-sena-12.png');
   });
 
   it('names the archive after the profile like the png', () => {
@@ -863,5 +867,80 @@ describe('stale renders', () => {
     closePosterDialogs(document);
     await rig.flushFrames();
     expect(rig.render).not.toHaveBeenCalled();
+  });
+});
+
+describe('review fixes', () => {
+  it('clears the preview and frees its url when the art of the next page fails', async () => {
+    const fetchArt = vi.fn<PosterDialogHost['fetchArt']>((slugs) =>
+      slugs.includes('card-16') ? Promise.reject(new Error('offline')) : Promise.resolve(new Map(slugs.map((slug) => [slug, artOf(slug)])))
+    );
+    const rig = createRig({ fetchArt });
+    await openReady(rig, cardsOf(POSTER_CARDS_PER_PAGE + 1));
+    expect(find<HTMLImageElement>('.senkutools-poster__image').getAttribute('src')).toBe('blob:poster-1');
+    await goTo(rig, 'next');
+    expect(find<HTMLImageElement>('.senkutools-poster__image').getAttribute('src')).toBeNull();
+    expect(revokeUrl).toHaveBeenCalledWith('blob:poster-1');
+  });
+
+  it('keeps the previous preview while the next page loads', async () => {
+    let finish: (arts: Map<string, PosterArt>) => void = () => undefined;
+    const fetchArt = vi.fn<PosterDialogHost['fetchArt']>((slugs) =>
+      slugs.includes('card-16') ? new Promise((resolve) => void (finish = resolve)) : Promise.resolve(new Map(slugs.map((slug) => [slug, artOf(slug)])))
+    );
+    const rig = createRig({ fetchArt });
+    await openReady(rig, cardsOf(POSTER_CARDS_PER_PAGE + 1));
+    press('next');
+    await settle();
+    expect(find<HTMLImageElement>('.senkutools-poster__image').getAttribute('src')).toBe('blob:poster-1');
+    finish(new Map(sliceOf(16, 31).map((slug) => [slug, artOf(slug)])));
+    await settle();
+  });
+
+  it('tells how many pictures the archive is missing and clears that when another page opens', async () => {
+    const missing = new Set(['card-3', 'card-30', 'card-45']);
+    const loadImage = vi.fn<PosterDialogHost['loadImage']>((art) =>
+      missing.has(art.slug) ? Promise.reject(new Error('gone')) : Promise.resolve({ width: 400, height: 600, close: vi.fn() })
+    );
+    const rig = createRig({ loadImage });
+    await openReady(rig, cardsOf(THREE_PAGES_CARD_COUNT));
+    expect(note()).toBe(POSTER_TEXT.imagesFailed(1));
+    press('download-all');
+    await settleLong();
+    expect(rig.download).toHaveBeenCalledWith(expect.objectContaining({ type: 'application/zip' }), 'senkutools-poster-sena.zip');
+    expect(note()).toContain(POSTER_TEXT.imagesFailed(3));
+    await goTo(rig, 'next');
+    expect(note()).toBe(POSTER_TEXT.imagesFailed(1));
+  });
+
+  it('leaves the archive note empty when every picture loaded', async () => {
+    const rig = createRig();
+    await openReady(rig, cardsOf(THREE_PAGES_CARD_COUNT));
+    press('download-all');
+    await settleLong();
+    expect(note()).toBe('');
+  });
+});
+
+describe('edge cases', () => {
+  it('queues no frame once the dialog is closed', async () => {
+    const rig = createRig();
+    await openReady(rig);
+    const field = heading();
+    closePosterDialogs(document);
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(rig.frames).toHaveLength(0);
+  });
+
+  it('tells about a single picture the archive is missing', async () => {
+    const loadImage = vi.fn<PosterDialogHost['loadImage']>((art) =>
+      art.slug === 'card-30' ? Promise.reject(new Error('gone')) : Promise.resolve({ width: 400, height: 600, close: vi.fn() })
+    );
+    const rig = createRig({ loadImage });
+    await openReady(rig, cardsOf(THREE_PAGES_CARD_COUNT));
+    expect(note()).toBe('');
+    press('download-all');
+    await settleLong();
+    expect(note()).toBe(POSTER_TEXT.imagesFailed(1));
   });
 });

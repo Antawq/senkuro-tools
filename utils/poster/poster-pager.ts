@@ -9,7 +9,7 @@ export interface PagerLabels {
 }
 
 export interface PagerState {
-  position: string;
+  positionText: string;
   hasPrevious: boolean;
   hasNext: boolean;
 }
@@ -18,31 +18,31 @@ export interface PagerControls {
   root: HTMLElement;
   previous: HTMLButtonElement;
   next: HTMLButtonElement;
-  position: HTMLElement;
+  positionLabel: HTMLElement;
 }
 
-function createArrow(name: 'previous' | 'next', label: string): HTMLButtonElement {
-  const button = element('button', `${ARROW_BUTTON} senkutools-poster__${name}`);
+function createArrow(blockClass: string, name: 'previous' | 'next', label: string): HTMLButtonElement {
+  const button = element('button', `${ARROW_BUTTON} ${blockClass}__${name}`);
   button.type = 'button';
   button.setAttribute('aria-label', label);
-  const icon = chevronIcon(`senkutools-poster__arrow senkutools-poster__arrow--${name}`);
+  const icon = chevronIcon(`${blockClass}__arrow ${blockClass}__arrow--${name}`);
   icon.setAttribute('aria-hidden', 'true');
   button.append(icon);
   return button;
 }
 
-export function createPager(labels: PagerLabels): PagerControls {
-  const previous = createArrow('previous', labels.previous);
-  const next = createArrow('next', labels.next);
-  const position = element('span', 'senkutools-poster__position');
-  position.setAttribute('aria-live', 'polite');
-  const root = element('div', 'senkutools-poster__pager');
-  root.append(previous, position, next);
-  return { root, previous, next, position };
+export function createPager(blockClass: string, labels: PagerLabels): PagerControls {
+  const previous = createArrow(blockClass, 'previous', labels.previous);
+  const next = createArrow(blockClass, 'next', labels.next);
+  const positionLabel = element('span', `${blockClass}__position`);
+  positionLabel.setAttribute('aria-live', 'polite');
+  const root = element('div', `${blockClass}__pager`);
+  root.append(previous, positionLabel, next);
+  return { root, previous, next, positionLabel };
 }
 
 export function syncPager(pager: PagerControls, state: PagerState): void {
-  pager.position.textContent = state.position;
+  if (pager.positionLabel.textContent !== state.positionText) pager.positionLabel.textContent = state.positionText;
   writeAttribute(pager.previous, 'aria-disabled', state.hasPrevious ? null : 'true');
   writeAttribute(pager.next, 'aria-disabled', state.hasNext ? null : 'true');
 }

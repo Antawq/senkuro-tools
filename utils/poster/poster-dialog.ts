@@ -34,8 +34,8 @@ export const POSTER_TEXT = {
   nicknameFailed: 'Не удалось получить ник',
   nothingToDraw: 'Нет карт для постера',
   imagesFailed: (count: number): string => `Не загрузились картинки: ${count}`,
-  position: (page: number, total: number): string => `Страница ${page} из ${total}`,
-  archiving: (page: number, total: number): string => `Собираю архив: ${page} из ${total}`,
+  position: (pageNumber: number, pageCount: number): string => `Страница ${pageNumber} из ${pageCount}`,
+  archiving: (pageNumber: number, pageCount: number): string => `Собираю архив: ${pageNumber} из ${pageCount}`,
 } as const;
 
 export const DIALOG_CLASS = 'senkutools-poster';
@@ -95,7 +95,22 @@ interface ContentSettings {
 
 interface PageRef {
   number: number;
-  total: number;
+  count: number;
+}
+
+interface RenderedPage {
+  blob: Blob;
+  missingImageCount: number;
+}
+
+interface RenderedPages {
+  entries: ArchiveEntry[];
+  missingImageCount: number;
+}
+
+interface BuiltArchive {
+  archive: Blob;
+  missingImageCount: number;
 }
 
 interface PosterSession {
@@ -207,7 +222,7 @@ function createControls(pageCount: number): DialogControls {
   const image = element('img', `${DIALOG_CLASS}__image`);
   image.alt = POSTER_TEXT.imageAlt;
   const isPaged = pageCount > 1;
-  const pager = isPaged ? createPager({ previous: POSTER_TEXT.previousPage, next: POSTER_TEXT.nextPage }) : null;
+  const pager = isPaged ? createPager(DIALOG_CLASS, { previous: POSTER_TEXT.previousPage, next: POSTER_TEXT.nextPage }) : null;
   const heading = createHeadingField();
   const nickname = createToggle('nickname', POSTER_TEXT.nickname, true);
   const quantity = createToggle('quantity', POSTER_TEXT.quantity, true);
@@ -252,7 +267,7 @@ function syncControls(session: PosterSession): void {
   if (controls.downloadAll) writeAttribute(controls.downloadAll, 'aria-disabled', session.isBusy || !session.isReady ? 'true' : null);
   if (controls.pager) {
     syncPager(controls.pager, {
-      position: POSTER_TEXT.position(pageIndex + 1, pages.length),
+      positionText: POSTER_TEXT.position(pageIndex + 1, pages.length),
       hasPrevious: !session.isBusy && pageIndex > 0,
       hasNext: !session.isBusy && pageIndex < pages.length - 1,
     });
@@ -264,14 +279,14 @@ const baseNameOf = (profileSlug: string): string => {
   return `senkutools-poster-${safeSlug || FILE_NAME_FALLBACK}`;
 };
 
-const pageSuffixOf = (page: PageRef | undefined): string => (page ? `-${String(page.number).padStart(String(page.total).length, '0')}` : '');
+const pageSuffixOf = (pageRef: PageRef | undefined): string => (pageRef ? `-${String(pageRef.number).padStart(String(pageRef.count).length, '0')}` : '');
 
-export const fileNameOf = (profileSlug: string, page?: PageRef): string => `${baseNameOf(profileSlug)}${pageSuffixOf(page)}.png`;
+export const fileNameOf = (profileSlug: string, pageRef?: PageRef): string => `${baseNameOf(profileSlug)}${pageSuffixOf(pageRef)}.png`;
 
 export const archiveNameOf = (profileSlug: string): string => `${baseNameOf(profileSlug)}.zip`;
 
 const pageRefOf = (session: PosterSession, index: number): PageRef | undefined =>
-  session.pages.length > 1 ? { number: index + 1, total: session.pages.length } : undefined;
+  session.pages.length > 1 ? { number: index + 1, count: session.pages.length } : undefined;
 
 function priceTextOf(slug: string, host: PosterDialogHost): string {
   const entry = host.database[slug];
@@ -340,8 +355,16 @@ const closeImages = (cards: readonly ShownCard[]): void => {
   for (const card of cards) card.image?.close();
 };
 
-async function fetchMissingArt(session: PosterSession, page: readonly SelectedCard[]): Promise<void> {
-  const missing = [...new Set(page.map((card) => card.slug))].filter((slug) => !session.arts.has(slug));
+const countMissingImages = (cards: readonly ShownCard[]): number => cards.filter((card) => card.image === null).length;
+
+function clearPreview(session: PosterSession): void {
+  if (session.imageUrl) URL.revokeObjectURL(session.imageUrl);
+  session.imageUrl = null;
+  session.controls.image.removeAttribute('src');
+}
+
+async function fetchMissingArt(session: PosterSession, pageCards: readonly SelectedCard[]): Promise<void> {
+  const missing = [...new Set(pageCards.map((card) => card.slug))].filter((slug) => !session.arts.has(slug));
   if (missing.length === 0) return;
   const arts = await session.host.fetchArt(missing, session.abort.signal);
   arts.forEach((art, slug) => session.arts.set(slug, art));
@@ -352,9 +375,9 @@ function loadCardImage(session: PosterSession, slug: string): Promise<ImageBitma
   return art ? session.host.loadImage(art).catch(() => null) : Promise.resolve(null);
 }
 
-async function loadCards(session: PosterSession, page: readonly SelectedCard[]): Promise<ShownCard[]> {
-  await fetchMissingArt(session, page);
-  const cards = await Promise.all(page.map(async (card) => ({ ...card, image: await loadCardImage(session, card.slug) })));
+async function loadCards(session: PosterSession, pageCards: readonly SelectedCard[]): Promise<ShownCard[]> {
+  await fetchMissingArt(session, pageCards);
+  const cards = await Promise.all(pageCards.map(async (card) => ({ ...card, image: await loadCardImage(session, card.slug) })));
   if (session.isClosed) closeImages(cards);
   return cards;
 }
@@ -367,36 +390,38 @@ function startPageLoad(session: PosterSession): void {
   session.isReady = false;
   session.isBusy = true;
   syncControls(session);
+  setNote(session, 'archive', null);
   setNote(session, 'status', POSTER_TEXT.loading);
 }
 
-async function loadPage(session: PosterSession, page: readonly SelectedCard[]): Promise<void> {
+async function loadPage(session: PosterSession, pageCards: readonly SelectedCard[]): Promise<void> {
   startPageLoad(session);
   let cards: ShownCard[];
   try {
-    cards = await loadCards(session, page);
+    cards = await loadCards(session, pageCards);
   } catch {
     if (session.isClosed) return;
+    clearPreview(session);
     setNote(session, 'status', POSTER_TEXT.artFailed);
     session.isBusy = false;
     syncControls(session);
     return;
   }
   if (session.isClosed) return;
-  const failedCount = cards.filter((card) => card.image === null).length;
+  const missingImageCount = countMissingImages(cards);
   session.shown = cards;
   session.isReady = true;
   session.isBusy = false;
-  setNote(session, 'status', failedCount > 0 ? POSTER_TEXT.imagesFailed(failedCount) : null);
+  setNote(session, 'status', missingImageCount > 0 ? POSTER_TEXT.imagesFailed(missingImageCount) : null);
   syncControls(session);
   scheduleRender(session);
 }
 
 function goToPage(session: PosterSession, index: number): void {
-  const page = session.pages[index];
-  if (!page || session.isBusy || session.isClosed) return;
+  const pageCards = session.pages[index];
+  if (!pageCards || session.isBusy || session.isClosed) return;
   session.pageIndex = index;
-  void loadPage(session, page);
+  void loadPage(session, pageCards);
 }
 
 function requestNickname(session: PosterSession): void {
@@ -425,38 +450,53 @@ async function pressCopy(session: PosterSession): Promise<void> {
   }
 }
 
-async function renderPage(session: PosterSession, index: number, page: readonly SelectedCard[], settings: ContentSettings): Promise<Blob> {
-  if (index === session.pageIndex) return session.host.render(contentOf(settings, session.shown, session.host));
-  const cards = await loadCards(session, page);
+async function renderCards(session: PosterSession, cards: readonly ShownCard[], settings: ContentSettings): Promise<RenderedPage> {
+  const blob = await session.host.render(contentOf(settings, cards, session.host));
+  return { blob, missingImageCount: countMissingImages(cards) };
+}
+
+async function renderPage(session: PosterSession, index: number, pageCards: readonly SelectedCard[], settings: ContentSettings): Promise<RenderedPage> {
+  if (index === session.pageIndex) return renderCards(session, session.shown, settings);
+  const cards = await loadCards(session, pageCards);
   try {
-    return await session.host.render(contentOf(settings, cards, session.host));
+    return await renderCards(session, cards, settings);
   } finally {
     closeImages(cards);
   }
 }
 
-async function renderEveryPage(session: PosterSession, settings: ContentSettings): Promise<ArchiveEntry[]> {
+async function renderEveryPage(session: PosterSession, settings: ContentSettings): Promise<RenderedPages> {
   const entries: ArchiveEntry[] = [];
-  for (const [index, page] of session.pages.entries()) {
+  let missingImageCount = 0;
+  for (const [index, pageCards] of session.pages.entries()) {
     if (session.isClosed) break;
     setNote(session, 'archive', POSTER_TEXT.archiving(index + 1, session.pages.length));
-    const blob = await renderPage(session, index, page, settings);
-    entries.push({ name: fileNameOf(session.profileSlug, pageRefOf(session, index)), blob });
+    const rendered = await renderPage(session, index, pageCards, settings);
+    entries.push({ name: fileNameOf(session.profileSlug, pageRefOf(session, index)), blob: rendered.blob });
+    missingImageCount += rendered.missingImageCount;
   }
-  return entries;
+  return { entries, missingImageCount };
+}
+
+const canStartArchive = (session: PosterSession): boolean => !session.isBusy && session.isReady && !session.isClosed;
+
+async function buildArchive(session: PosterSession): Promise<BuiltArchive | null> {
+  const rendered = await renderEveryPage(session, settingsOf(session));
+  if (session.isClosed) return null;
+  const archive = await session.host.pack(rendered.entries);
+  return session.isClosed ? null : { archive, missingImageCount: rendered.missingImageCount };
 }
 
 async function pressDownloadAll(session: PosterSession): Promise<void> {
-  if (session.isBusy || !session.isReady || session.isClosed) return;
+  if (!canStartArchive(session)) return;
   session.isBusy = true;
   syncControls(session);
   try {
-    const entries = await renderEveryPage(session, settingsOf(session));
-    if (session.isClosed) return;
-    const archive = await session.host.pack(entries);
-    if (session.isClosed) return;
-    setNote(session, 'archive', null);
-    session.host.download(archive, archiveNameOf(session.profileSlug));
+    const built = await buildArchive(session);
+    if (built) {
+      setNote(session, 'archive', built.missingImageCount > 0 ? POSTER_TEXT.imagesFailed(built.missingImageCount) : null);
+      session.host.download(built.archive, archiveNameOf(session.profileSlug));
+    }
   } catch {
     if (!session.isClosed) setNote(session, 'archive', POSTER_TEXT.archiveFailed);
   } finally {
@@ -533,11 +573,11 @@ export function openPosterDialog(cards: readonly SelectedCard[], profileSlug: st
   session.controls.dialog.dataset.senkutoolsPath = host.pageDocument.location.pathname;
   host.pageDocument.body.append(session.controls.dialog);
   session.controls.dialog.showModal();
-  const [firstPage] = pages;
-  if (!firstPage) {
+  const [firstPageCards] = pages;
+  if (!firstPageCards) {
     setNote(session, 'status', POSTER_TEXT.nothingToDraw);
     return;
   }
   if (session.controls.nickname.checked) requestNickname(session);
-  void loadPage(session, firstPage);
+  void loadPage(session, firstPageCards);
 }

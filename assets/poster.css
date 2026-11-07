@@ -74,11 +74,6 @@
   transform: rotate(-90deg);
 }
 
-.senkutools-poster__pager > [aria-disabled='true'] {
-  opacity: 0.5;
-  pointer-events: none;
-}
-
 .senkutools-poster__image {
   display: block;
   max-width: 100%;
@@ -149,7 +144,8 @@
   gap: 8px;
 }
 
-.senkutools-poster__actions > [aria-disabled='true'] {
+.senkutools-poster__actions > [aria-disabled='true'],
+.senkutools-poster__pager > [aria-disabled='true'] {
   opacity: 0.5;
   pointer-events: none;
 }

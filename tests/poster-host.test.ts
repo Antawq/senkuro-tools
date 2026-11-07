@@ -107,6 +107,12 @@ describe('createPosterDialogHost', () => {
     expect([canvas?.tagName, canvas?.width, canvas?.height]).toEqual(['CANVAS', 640, 480]);
   });
 
+  it('packs the entries it is given into a zip blob', async () => {
+    const archive = await createPosterDialogHost(sourcesOf()).pack([{ name: 'one.png', blob: new Blob(['png'], { type: 'image/png' }) }]);
+    expect(archive.type).toBe('application/zip');
+    expect(archive.size).toBeGreaterThan(3);
+  });
+
   it('hands the sources it was given to the dialog unchanged', () => {
     const sources = sourcesOf();
     const host = createPosterDialogHost(sources);
