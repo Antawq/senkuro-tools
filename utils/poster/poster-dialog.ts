@@ -330,10 +330,9 @@ async function loadCards(session: PosterSession, page: readonly SelectedCard[]):
   return cards;
 }
 
-function startPageLoad(session: PosterSession, index: number): void {
+function startPageLoad(session: PosterSession): void {
   closeImages(session.shown);
   session.shown = [];
-  session.pageIndex = index;
   session.blob = null;
   session.isReady = false;
   session.isBusy = true;
@@ -341,8 +340,8 @@ function startPageLoad(session: PosterSession, index: number): void {
   setNote(session, 'status', POSTER_TEXT.loading);
 }
 
-async function loadPage(session: PosterSession, index: number, page: readonly SelectedCard[]): Promise<void> {
-  startPageLoad(session, index);
+async function loadPage(session: PosterSession, page: readonly SelectedCard[]): Promise<void> {
+  startPageLoad(session);
   let cards: ShownCard[];
   try {
     cards = await loadCards(session, page);
@@ -366,7 +365,8 @@ async function loadPage(session: PosterSession, index: number, page: readonly Se
 function goToPage(session: PosterSession, index: number): void {
   const page = session.pages[index];
   if (!page || session.isBusy || session.isClosed) return;
-  void loadPage(session, index, page);
+  session.pageIndex = index;
+  void loadPage(session, page);
 }
 
 function requestNickname(session: PosterSession): void {
@@ -509,5 +509,5 @@ export function openPosterDialog(cards: readonly SelectedCard[], profileSlug: st
     return;
   }
   if (session.controls.nickname.checked) requestNickname(session);
-  void loadPage(session, 0, firstPage);
+  void loadPage(session, firstPage);
 }
