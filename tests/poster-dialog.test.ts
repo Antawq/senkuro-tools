@@ -760,6 +760,70 @@ describe('file names with pages', () => {
   });
 });
 
+describe('toggles', () => {
+  const boxOf = (name: string): HTMLElement => {
+    const box = toggle(name).parentElement?.querySelector<HTMLElement>('.checkbox__wrap');
+    if (!box) throw new Error(`missing the box of ${name}`);
+    return box;
+  };
+
+  const keydown = (box: HTMLElement, key: string): KeyboardEvent => {
+    const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+    box.dispatchEvent(event);
+    return event;
+  };
+
+  it('draws the toggles with the markup of the site checkbox', async () => {
+    const rig = createRig();
+    await openReady(rig);
+    const label = toggle('nickname').closest('label');
+    expect(label?.className).toBe('checkbox checkbox-size--md senkutools-poster__toggle checkbox--active');
+    const box = boxOf('nickname');
+    expect([box.getAttribute('role'), box.getAttribute('aria-label'), box.tabIndex, box.getAttribute('aria-checked')]).toEqual([
+      'checkbox',
+      POSTER_TEXT.nickname,
+      0,
+      'true',
+    ]);
+    expect(box.querySelector('.checkbox__el > .checkbox__el-icon > svg')?.getAttribute('aria-hidden')).toBe('true');
+    expect(label?.querySelector('.checkbox__label')?.textContent).toBe(POSTER_TEXT.nickname);
+  });
+
+  it('keeps the active class and aria-checked in step with the input', async () => {
+    const rig = createRig();
+    await openReady(rig);
+    const label = toggle('prices').closest('label');
+    expect([label?.classList.contains('checkbox--active'), boxOf('prices').getAttribute('aria-checked')]).toEqual([false, 'false']);
+    change(toggle('prices'), true);
+    expect([label?.classList.contains('checkbox--active'), boxOf('prices').getAttribute('aria-checked')]).toEqual([true, 'true']);
+    change(toggle('prices'), false);
+    expect([label?.classList.contains('checkbox--active'), boxOf('prices').getAttribute('aria-checked')]).toEqual([false, 'false']);
+  });
+
+  it('flips the input with Enter or Space on the box and leaves other keys alone', async () => {
+    const rig = createRig();
+    await openReady(rig);
+    const box = boxOf('prices');
+    expect(keydown(box, 'Enter').defaultPrevented).toBe(true);
+    expect(toggle('prices').checked).toBe(true);
+    expect(keydown(box, ' ').defaultPrevented).toBe(true);
+    expect(toggle('prices').checked).toBe(false);
+    expect(keydown(box, 'a').defaultPrevented).toBe(false);
+    expect(keydown(box, 'Tab').defaultPrevented).toBe(false);
+    expect(toggle('prices').checked).toBe(false);
+  });
+
+  it('renders again after a key flips a toggle', async () => {
+    const rig = createRig();
+    await openReady(rig);
+    rig.render.mockClear();
+    boxOf('prices').dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
+    await rig.flushFrames();
+    expect(rig.render).toHaveBeenCalledTimes(1);
+    expect(rig.contents.at(-1)?.cards.every((card) => card.priceText !== null)).toBe(true);
+  });
+});
+
 describe('stale renders', () => {
   it('ignores a render that finishes after the page was changed', async () => {
     const rig = createRig();

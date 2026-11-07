@@ -2,7 +2,7 @@ import { PRICE_DECIMALS, effectivePrice } from '../shared/cards';
 import type { Database } from '../shared/database';
 import { element, writeAttribute } from '../shared/dom';
 import type { Settings } from '../shared/settings';
-import { closeIcon } from '../shared/svg';
+import { closeIcon, doneIcon } from '../shared/svg';
 import { UNKNOWN_MARK } from '../shared/trade-value';
 import type { ArchiveEntry } from './poster-archive';
 import type { PosterArt } from './poster-art';
@@ -44,6 +44,7 @@ const DOWNLOAD_BUTTON = 'button button--accent button--fluid button-size--lg';
 const COPY_BUTTON = 'button button--secondary button--fluid button-size--lg';
 const CLOSE_BUTTON = 'button button--secondary button--icon button-size--md';
 const CLOSE_ICON_SIZE_PX = 20;
+const CHECK_ICON_SIZE_PX = 16;
 const HEADING_MAX_LENGTH = 60;
 const NOTE_SEPARATOR = ' · ';
 const FILE_NAME_UNSAFE = /[^a-z0-9_-]+/gi;
@@ -118,12 +119,40 @@ interface PosterSession {
   isClosed: boolean;
 }
 
+function syncToggle(label: HTMLElement, box: HTMLElement, input: HTMLInputElement): void {
+  label.classList.toggle('checkbox--active', input.checked);
+  box.setAttribute('aria-checked', String(input.checked));
+}
+
+function createToggleBox(caption: string): HTMLSpanElement {
+  const icon = element('span', 'checkbox__el-icon');
+  const check = doneIcon(CHECK_ICON_SIZE_PX);
+  check.setAttribute('aria-hidden', 'true');
+  icon.append(check);
+  const mark = element('span', 'checkbox__el');
+  mark.append(icon);
+  const box = element('span', 'checkbox__wrap');
+  box.tabIndex = 0;
+  box.setAttribute('role', 'checkbox');
+  box.setAttribute('aria-label', caption);
+  box.append(mark);
+  return box;
+}
+
 function createToggle(name: string, caption: string, isChecked: boolean): { label: HTMLLabelElement; input: HTMLInputElement } {
   const input = element('input', `${DIALOG_CLASS}__${name}`);
   input.type = 'checkbox';
   input.checked = isChecked;
-  const label = element('label', `${DIALOG_CLASS}__toggle`);
-  label.append(input, element('span', undefined, caption));
+  const box = createToggleBox(caption);
+  const label = element('label', `checkbox checkbox-size--md ${DIALOG_CLASS}__toggle`);
+  label.append(input, box, element('span', 'checkbox__label', caption));
+  syncToggle(label, box, input);
+  input.addEventListener('change', () => syncToggle(label, box, input));
+  box.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    input.click();
+  });
   return { label, input };
 }
 
