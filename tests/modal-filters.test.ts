@@ -567,4 +567,21 @@ describe('every toolbar sync together', () => {
     expect(toolbar().lastElementChild?.classList.contains('senkutools-modal-refresh')).toBe(true);
     expect(document.querySelector('.senkutools-modal-search')?.nextElementSibling?.classList.contains('senkutools-modal-refresh')).toBe(true);
   });
+
+  it('restores a lock choice through applyLock and reports user choices to onLockChange', () => {
+    const chosen: LockView[] = [];
+    const watcher = createModalFiltersWatcher({
+      nextFrame: (run) => run(),
+      getDatabase: () => currentDatabase,
+      onLockChange: (_, lock) => void chosen.push(lock),
+    });
+    document.body.innerHTML = windowHtml('partner');
+    watcher.applyLock(toolbar(), 'unlocked');
+    expect(shownIds()).toEqual(['tek-yulnia-f', 'new-card-x']);
+    expect(chosen).toEqual([]);
+    chooseLock('locked');
+    expect(chosen).toEqual(['locked']);
+    const orphan = document.createElement('div');
+    expect(() => watcher.applyLock(orphan, 'all')).not.toThrow();
+  });
 });

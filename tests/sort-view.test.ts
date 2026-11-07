@@ -1125,6 +1125,32 @@ describe('the range control in the lists', () => {
     expect(sorts).toEqual(['site']);
   });
 
+  it('reports a user range change to rememberRange and enters price sort through applyPriceSort', () => {
+    render();
+    const remembered: { toolbar: Element; range: PriceRange | null }[] = [];
+    const { sort, views, sorts, host } = setup('grid');
+    host.rememberRange = (toolbar, range) => void remembered.push({ toolbar, range });
+    sort.applyPriceSort(document.createElement('div'));
+    expect(views).toEqual([]);
+    sort.applyPriceSort(filters() as Element);
+    sort.applyPriceSort(filters() as Element);
+    expect(filters()?.getAttribute('data-senkutools-sort')).toBe('price');
+    expect(views).toEqual([true]);
+    expect(sorts).toEqual(['price']);
+    sort.sync(database, settings);
+    const [min] = fieldsIn(filters());
+    triggerIn(filters())?.click();
+    if (min) min.value = '15';
+    min?.dispatchEvent(new Event('change'));
+    expect(remembered).toEqual([{ toolbar: filters() as Element, range: { min: 15, max: null } }]);
+    document.body.innerHTML = windowHtml();
+    setHint('Выбор карт из общего каталога');
+    const picker = setup('picker');
+    picker.sort.applyPriceSort(windowToolbar() as Element);
+    expect(picker.views).toEqual([]);
+    expect(windowToolbar()?.hasAttribute('data-senkutools-sort')).toBe(false);
+  });
+
   it('says how far the list is while it loads for a range, and only Цена otherwise', () => {
     render();
     const { sort, state } = setup('grid');

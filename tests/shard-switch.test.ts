@@ -402,4 +402,19 @@ describe('createShardSwitchWatcher', () => {
     watcher.watch([mutation]);
     expect(nextFrame).toHaveBeenCalledTimes(2);
   });
+
+  it('restores a shard view through applyView and reports user choices to onSelect', () => {
+    const selected: string[] = [];
+    const watcher = createShardSwitchWatcher({ nextFrame: (run) => run(), onSelect: (_, view) => void selected.push(view) });
+    document.body.innerHTML = tradeModal(row('card') + row('shard'));
+    const toolbar = document.querySelector('.modal-trade__header-form') as Element;
+    watcher.applyView(toolbar, 'shards');
+    expect(picker().getAttribute('data-senkutools-shard-view')).toBe('shards');
+    expect(pressed()).toBe('Осколки');
+    expect(selected).toEqual([]);
+    press('Карты');
+    expect(selected).toEqual(['cards']);
+    const orphan = document.createElement('div');
+    expect(() => watcher.applyView(orphan, 'cards')).not.toThrow();
+  });
 });

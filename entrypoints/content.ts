@@ -16,8 +16,10 @@ import '@/assets/trade-meta.css';
 import '@/assets/poster.css';
 import { defineContentScript } from '#imports';
 
-import { APP_MOUNTED_EVENT } from '@/utils/shared/app-mounted';
+import { APP_MOUNTED_EVENT, isAppMounted } from '@/utils/shared/app-mounted';
 import { loadDatabase, type Database } from '@/utils/shared/database';
+import { createFilterMemory, type PlaceMemory } from '@/utils/shared/filter-memory';
+import { createFrameWait } from '@/utils/shared/frame-wait';
 import { SENKURO_MATCHES } from '@/utils/shared/hosts';
 import { createPriceBadges } from '@/utils/badges/price-badges';
 import { isPosterButtonMissing, syncPosterButton, type PosterButtonHost } from '@/utils/poster/poster-button';
@@ -43,7 +45,11 @@ import { priceOrderSignal, priceRowsSignal, priceStateSignal, priceViewSignal } 
 import { isGuardReady, requestInventoryRefresh } from '@/utils/shared/refresh-signal';
 import { loadSettings, watchSettings } from '@/utils/shared/settings';
 import { closeToolbarPanels } from '@/utils/shared/toolbar-panel';
-import { createPriceSort, hasSortMutation } from '@/utils/sort/sort-view';
+import { TOOLBAR } from '@/utils/shared/trade-modal';
+import { createMemoryCapture } from '@/utils/sort/memory-capture';
+import { createMemoryRestore } from '@/utils/sort/memory-restore';
+import { memoryPlaceOf } from '@/utils/sort/sort-places';
+import { canDrawRangeControls, createPriceSort, hasSortMutation } from '@/utils/sort/sort-view';
 import { createTokenBar } from '@/utils/token/token-bar';
 import { createModalFiltersWatcher } from '@/utils/trades/modal-filters';
 import { createModalRefreshWatcher } from '@/utils/trades/modal-refresh';
@@ -101,24 +107,59 @@ export default defineContentScript({
             syncRefreshButton(inventoryRefresh);
           },
         },
-        { name: 'sort', render: (db) => priceSorts.forEach((priceSort) => priceSort.sync(db, settings)) },
+        {
+          name: 'sort',
+          render: (db) => {
+            memoryRestore.sync();
+            priceSorts.forEach((priceSort) => priceSort.sync(db, settings));
+          },
+        },
         { name: 'poster', render: () => syncPosterButton(document, posterButtonHost) },
       ],
       loadDatabase,
       nextFrame
     );
     const badges = createPriceBadges({ touch });
+    const filterMemory = createFilterMemory();
+    const memoryCapture = createMemoryCapture(document, filterMemory, { nextFrame });
+    const rememberOnToolbar = (toolbar: Element | null, patch: Partial<PlaceMemory>) => {
+      if (!toolbar) return;
+      memoryCapture.touch(toolbar);
+      const place = memoryPlaceOf(toolbar);
+      if (place) filterMemory.update(place, patch);
+    };
     const priceSorts = LIST_SCOPES.map((scope) =>
       createPriceSort(document, scope, {
         setView: (isOn, sort) => void document.dispatchEvent(new CustomEvent(priceViewSignal.name, { detail: priceViewSignal.encode({ scope, isOn, sort }) })),
         sendOrder: (order) => void document.dispatchEvent(new CustomEvent(priceOrderSignal.name, { detail: priceOrderSignal.encode({ scope, ...order }) })),
         runAfter: (run, delayMs) => void ctx.setTimeout(run, delayMs),
         schedule: loop.schedule,
+        rememberRange: (toolbar, range) => rememberOnToolbar(toolbar, { range }),
       })
     );
     let database: Database = {};
-    const shardSwitches = createShardSwitchWatcher({ nextFrame });
-    const modalFilters = createModalFiltersWatcher({ nextFrame, getDatabase: () => database });
+    const shardSwitches = createShardSwitchWatcher({
+      nextFrame,
+      onSelect: (modal, shardView) => rememberOnToolbar(modal.querySelector(TOOLBAR), { shardView }),
+    });
+    const modalFilters = createModalFiltersWatcher({
+      nextFrame,
+      getDatabase: () => database,
+      onLockChange: (toolbar, lock) => rememberOnToolbar(toolbar, { lock }),
+    });
+    const memoryRestore = createMemoryRestore(document, filterMemory, {
+      isReady: () => isAppMounted(document),
+      hasTouched: memoryCapture.hasTouched,
+      wait: createFrameWait(nextFrame),
+      restoreOwn: (toolbar, saved) => {
+        for (const priceSort of priceSorts) {
+          if (saved.sort === 'price') priceSort.applyPriceSort(toolbar);
+          if (saved.range !== null && canDrawRangeControls(document)) priceSort.applyRange(toolbar, saved.range);
+        }
+        if (saved.shardView !== null) shardSwitches.applyView(toolbar, saved.shardView);
+        if (saved.lock !== null) modalFilters.applyLock(toolbar, saved.lock);
+      },
+    });
     const modalRefresh = createModalRefreshWatcher({
       isReady: () => isGuardReady(document),
       refresh: () => requestInventoryRefresh(document, 'picker'),
@@ -176,6 +217,7 @@ export default defineContentScript({
     ctx.addEventListener(document, 'focusin', searchView.syncView, { capture: true });
     ctx.addEventListener(document, 'input', searchView.syncView, { capture: true });
     ctx.addEventListener(document, 'click', searchView.handleClick, { capture: true });
+    ctx.addEventListener(document, 'click', memoryCapture.handleClick, { capture: true });
     ctx.addEventListener(document, 'pointerdown', (event) => closeToolbarPanels(document, event.target), { capture: true });
     for (const priceSort of priceSorts) {
       ctx.addEventListener(document, 'click', priceSort.handleClick, { capture: true });
@@ -206,6 +248,7 @@ export default defineContentScript({
       ctx.signal
     );
     void tokenBar.sync(settings.showToken);
+    void filterMemory.load().then(() => loop.schedule());
     void loop.renderAll();
     void loadDatabase().then((loaded) => {
       database = loaded;

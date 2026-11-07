@@ -22,7 +22,7 @@ const SITE_TAB = 'button button--secondary button--auto button-size--md button--
 const SITE_TAB_ACTIVE = 'tabs-tab--active';
 const GROUP_LABEL = 'Что показывать';
 
-type ShardView = 'all' | 'cards' | 'shards';
+export type ShardView = 'all' | 'cards' | 'shards';
 
 const VIEW_LABELS: Record<ShardView, string> = { all: 'Все', cards: 'Карты', shards: 'Осколки' };
 
@@ -32,8 +32,11 @@ const EMPTY_TEXTS: Record<ShardView, string | null> = { all: null, cards: 'Не�
 
 const viewsByModal = new WeakMap<Element, ShardView>();
 
+export type ShardSelect = (modal: Element, view: ShardView) => void;
+
 interface ShardSwitchHost {
   nextFrame: (run: () => void) => void;
+  onSelect?: ShardSelect;
 }
 
 const markActive = (shardSwitch: Element, view: ShardView) => {
@@ -108,7 +111,7 @@ const showView = (picker: HTMLElement, results: Element, view: ShardView) => {
   retriggerPaging(results);
 };
 
-const syncPicker = (modal: Element, picker: HTMLElement) => {
+const syncPicker = (modal: Element, picker: HTMLElement, onSelect?: ShardSelect) => {
   const results = childWithClass(picker, RESULTS_CLASS);
   if (!results || (results.querySelector(SHARD_ROW) === null && !canListShards(modal))) return clearShardSwitch(picker);
   const view = viewsByModal.get(modal) ?? 'all';
@@ -116,7 +119,8 @@ const syncPicker = (modal: Element, picker: HTMLElement) => {
     childWithClass(picker, SWITCH) ??
     createShardSwitch(view, (next) => {
       viewsByModal.set(modal, next);
-      syncPicker(modal, picker);
+      syncPicker(modal, picker, onSelect);
+      onSelect?.(modal, next);
     });
   placeShardSwitch(picker, results, shardSwitch);
   markActive(shardSwitch, view);
@@ -124,12 +128,22 @@ const syncPicker = (modal: Element, picker: HTMLElement) => {
   showView(picker, results, view);
 };
 
-export function updateShardSwitches(pageDocument: Document = document): void {
+export function updateShardSwitches(pageDocument: Document = document, onSelect?: ShardSelect): void {
   for (const modal of pageDocument.querySelectorAll(MODAL)) {
-    for (const picker of modal.querySelectorAll<HTMLElement>(PICKER)) syncPicker(modal, picker);
+    for (const picker of modal.querySelectorAll<HTMLElement>(PICKER)) syncPicker(modal, picker, onSelect);
   }
+}
+
+export function applyShardView(toolbar: Element, view: ShardView, onSelect?: ShardSelect): void {
+  const modal = toolbar.closest(MODAL);
+  if (!modal) return;
+  viewsByModal.set(modal, view);
+  for (const picker of modal.querySelectorAll<HTMLElement>(PICKER)) syncPicker(modal, picker, onSelect);
 }
 
 export const isPickerMutation = createMutationFilter(MODAL, OWN_NODES);
 
-export const createShardSwitchWatcher = ({ nextFrame }: ShardSwitchHost) => createFrameWatcher(isPickerMutation, () => updateShardSwitches(), nextFrame);
+export const createShardSwitchWatcher = ({ nextFrame, onSelect }: ShardSwitchHost) => ({
+  ...createFrameWatcher(isPickerMutation, () => updateShardSwitches(document, onSelect), nextFrame),
+  applyView: (toolbar: Element, view: ShardView) => applyShardView(toolbar, view, onSelect),
+});

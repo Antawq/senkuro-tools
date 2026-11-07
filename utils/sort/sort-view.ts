@@ -35,10 +35,12 @@ export interface SortHost {
   sendOrder: (order: PriceOrder) => void;
   runAfter: (run: () => void, delayMs: number) => void;
   schedule: () => void;
+  rememberRange?: (toolbar: Element, range: PriceRange | null) => void;
 }
 
 export interface PriceSort {
   sync: (database: Database, settings: Pick<Settings, 'commission'>) => void;
+  applyPriceSort: (toolbar: Element) => void;
   applyRange: (toolbar: Element, range: PriceRange | null) => void;
   handleClick: (event: Event) => void;
   handleState: (event: Event) => void;
@@ -180,12 +182,21 @@ function startOrSwitch(state: SortState, place: SortPlace): void {
   else switchSort(state, sort);
 }
 
-function choosePriceMode(state: SortState, { place, trigger }: ClickedPlace): void {
+function enterPriceMode(state: SortState, place: SortPlace): void {
   endPreviousPlace(state, place);
   place.toolbar.setAttribute(MODE_ATTRIBUTE, PRICE_MODE);
   startOrSwitch(state, place);
-  trigger.click();
   state.host.schedule();
+}
+
+function choosePriceMode(state: SortState, { place, trigger }: ClickedPlace): void {
+  enterPriceMode(state, place);
+  trigger.click();
+}
+
+function applyPriceSort(state: SortState, toolbar: Element): void {
+  const place = findPlaces(state.pageDocument, state.scope).find((candidate) => candidate.toolbar === toolbar);
+  if (place?.isCardList && !isPriceMode(toolbar)) enterPriceMode(state, place);
 }
 
 function leavePriceMode(state: SortState, toolbar: Element): void {
@@ -228,7 +239,8 @@ function isEmptyRange(state: SortState, place: SortPlace): boolean {
   return state.phase === 'ready' && state.place?.toolbar === place.toolbar && range !== null && sent?.shownCount === 0 && sent.rangeKey === rangeKeyOf(range);
 }
 
-const canDrawRangeControls = (pageDocument: Document): boolean => isAppMounted(pageDocument) && isGuardReady(pageDocument) && canLeaveRowsOut(pageDocument);
+export const canDrawRangeControls = (pageDocument: Document): boolean =>
+  isAppMounted(pageDocument) && isGuardReady(pageDocument) && canLeaveRowsOut(pageDocument);
 
 function syncRangeControls(state: SortState, places: SortPlace[]): void {
   const canFilter = canDrawRangeControls(state.pageDocument);
@@ -236,9 +248,10 @@ function syncRangeControls(state: SortState, places: SortPlace[]): void {
     syncRangeNote(place.listArea, isEmptyRange(state, place));
     if (!canFilter || !place.isCardList) removeRangeControl(place.toolbar);
     else
-      syncRangeControl(place.toolbar, place.mobileClass, { label: rangeLabelFor(state, place), range: readRange(place.toolbar) }, (toolbar, range) =>
-        applyRange(state, toolbar, range)
-      );
+      syncRangeControl(place.toolbar, place.mobileClass, { label: rangeLabelFor(state, place), range: readRange(place.toolbar) }, (toolbar, range) => {
+        applyRange(state, toolbar, range);
+        state.host.rememberRange?.(toolbar, range);
+      });
   }
 }
 
@@ -330,6 +343,7 @@ export function createPriceSort(pageDocument: Document, scope: ListScope, host: 
   };
   return {
     sync: (database, { commission }) => syncSort(state, { database, commission }),
+    applyPriceSort: (toolbar) => applyPriceSort(state, toolbar),
     applyRange: (toolbar, range) => applyRange(state, toolbar, range),
     handleClick: (event) => handleSortClick(state, event),
     handleState: (event) => handleViewState(state, event),

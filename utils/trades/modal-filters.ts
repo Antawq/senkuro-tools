@@ -20,9 +20,12 @@ interface ModalFilters {
   isSearchOpen: boolean;
 }
 
+export type LockSelect = (toolbar: Element, lock: LockView) => void;
+
 export interface ModalFiltersHost {
   nextFrame: (run: () => void) => void;
   getDatabase: () => Database;
+  onLockChange?: LockSelect;
 }
 
 const NO_FILTERS: ModalFilters = { lock: 'all', query: '', isSearchOpen: false };
@@ -80,32 +83,44 @@ function syncRows(modal: Element, picker: HTMLElement, filters: ModalFilters, da
   if (results && isRowFilterOn(rowFilter)) retriggerPaging(results);
 }
 
-function syncControls(modal: Element, toolbar: Element, filters: ModalFilters, resync: () => void): void {
+function syncControls(modal: Element, toolbar: Element, filters: ModalFilters, resync: () => void, onLockChange?: LockSelect): void {
   const update = (patch: Partial<ModalFilters>) => {
     filtersByModal.set(modal, { ...filtersOf(modal), ...patch });
     resync();
   };
   const searchHost: SearchHost = { change: (query) => update({ query }), toggle: (isSearchOpen) => update({ isSearchOpen }) };
-  if (isPartnerStep(modal)) syncLockControl(toolbar, filters.lock, (lock) => update({ lock }));
+  if (isPartnerStep(modal))
+    syncLockControl(toolbar, filters.lock, (lock) => {
+      update({ lock });
+      onLockChange?.(toolbar, lock);
+    });
   else removeLockControl(toolbar);
   if (isUserCardsStep(modal)) syncSearchControl(toolbar, { query: filters.query, isOpen: filters.isSearchOpen }, searchHost);
   else removeSearchControl(toolbar);
 }
 
-export function syncModalFilters(pageDocument: Document, getDatabase: () => Database): void {
-  const resync = () => syncModalFilters(pageDocument, getDatabase);
+export function syncModalFilters(pageDocument: Document, getDatabase: () => Database, onLockChange?: LockSelect): void {
+  const resync = () => syncModalFilters(pageDocument, getDatabase, onLockChange);
   for (const modal of pageDocument.querySelectorAll(MODAL)) {
     const filters = filtersOf(modal);
     const toolbar = modal.querySelector(TOOLBAR);
     const picker = modal.querySelector<HTMLElement>(PICKER);
-    if (toolbar) syncControls(modal, toolbar, filters, resync);
+    if (toolbar) syncControls(modal, toolbar, filters, resync, onLockChange);
     if (picker) syncRows(modal, picker, filters, getDatabase());
   }
 }
 
+export function applyModalLock(toolbar: Element, lock: LockView, getDatabase: () => Database, onLockChange?: LockSelect): void {
+  const modal = toolbar.closest(MODAL);
+  if (!modal) return;
+  filtersByModal.set(modal, { ...filtersOf(modal), lock });
+  syncModalFilters(toolbar.ownerDocument, getDatabase, onLockChange);
+}
+
 export const isFilterMutation = createMutationFilter(MODAL, OWN_NODES);
 
-export function createModalFiltersWatcher({ nextFrame, getDatabase }: ModalFiltersHost) {
-  const sync = () => syncModalFilters(document, getDatabase);
-  return { ...createFrameWatcher(isFilterMutation, sync, nextFrame), sync };
+export function createModalFiltersWatcher({ nextFrame, getDatabase, onLockChange }: ModalFiltersHost) {
+  const sync = () => syncModalFilters(document, getDatabase, onLockChange);
+  const applyLock = (toolbar: Element, lock: LockView) => applyModalLock(toolbar, lock, getDatabase, onLockChange);
+  return { ...createFrameWatcher(isFilterMutation, sync, nextFrame), sync, applyLock };
 }
