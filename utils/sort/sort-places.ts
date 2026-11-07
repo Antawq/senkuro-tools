@@ -1,6 +1,7 @@
+import type { MemoryPlace } from '../shared/filter-memory';
 import type { ListScope } from '../shared/list-scope';
 import { MODAL_CONTENT_SELECTOR } from '../shared/modal-selectors';
-import { MODAL, RESULTS_CLASS, TOOLBAR, isCatalogStep } from '../shared/trade-modal';
+import { MODAL, RESULTS_CLASS, TOOLBAR, isCatalogStep, windowModeOf } from '../shared/trade-modal';
 import { USER_CARD_FILTERS } from '../shared/user-card-filters';
 import { DECK, DECK_RESULTS, DECK_TOOLBAR, GRID, OPEN_TRIGGER } from './sort-dom';
 
@@ -89,6 +90,13 @@ function placeOf(toolbar: Element): SortPlace | null {
 
 export const findPlaces = (pageDocument: Document, scope: ListScope): SortPlace[] =>
   [...pageDocument.querySelectorAll(ANY_TOOLBAR)].flatMap((toolbar) => placeOf(toolbar) ?? []).filter((place) => place.scope === scope);
+
+export function memoryPlaceOf(toolbar: Element): MemoryPlace | null {
+  if (toolbar.matches(USER_CARD_FILTERS)) return 'grid';
+  if (toolbar.matches(DECK_TOOLBAR)) return 'deck';
+  const modal = toolbar.matches(WINDOW_TOOLBAR) ? withinWindow(toolbar) : null;
+  return modal ? windowModeOf(modal) : null;
+}
 
 function findTopToolbar(pageDocument: Document): Element | null {
   const modals = pageDocument.querySelectorAll(MODAL_CONTENT_SELECTOR);
