@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CAPTION_HEIGHT_PX, POSTER_MARGIN_PX, POSTER_CARDS_PER_PAGE, layoutPoster, type PosterLayoutOptions } from '../utils/poster/poster-layout';
 import { readPosterTheme, renderPoster, type PosterCardContent, type PosterContent, type PosterTheme, type RenderHost } from '../utils/poster/poster-render';
+import { SHARD_CRACKS, SHARD_DARK_STROKE, SHARD_LIGHT_STROKE, SHARD_STROKE_RATIO, parseCrackPoints, rankOfCard } from '../utils/poster/poster-shards';
 
 const THEME: PosterTheme = { background: '#111', surface: '#222', text: '#eee', mutedText: '#999', shadow: '#000', fontFamily: 'Inter, sans-serif' };
 const POSTER_BLOB = new Blob(['poster'], { type: 'image/png' });
@@ -20,9 +21,13 @@ const SHADOW_OFFSET_Y_PX = 8;
 const PLAIN: PosterLayoutOptions = { hasHeading: false, hasFooter: false, hasCaptions: false };
 const CAPTIONED: PosterLayoutOptions = { hasHeading: false, hasFooter: false, hasCaptions: true };
 
-const DRAWING_METHODS = ['save', 'restore', 'beginPath', 'roundRect', 'clip', 'fill', 'fillRect', 'drawImage', 'fillText'];
+const DRAWING_METHODS = ['save', 'restore', 'beginPath', 'roundRect', 'clip', 'fill', 'fillRect', 'drawImage', 'fillText', 'moveTo', 'lineTo', 'stroke'];
 const DRAWING_PROPERTIES = [
   'fillStyle',
+  'strokeStyle',
+  'lineWidth',
+  'lineCap',
+  'lineJoin',
   'font',
   'textAlign',
   'textBaseline',
@@ -33,7 +38,7 @@ const DRAWING_PROPERTIES = [
   'imageSmoothingEnabled',
   'imageSmoothingQuality',
 ];
-const PAINTING_METHODS = ['fill', 'fillRect', 'drawImage', 'fillText'];
+const PAINTING_METHODS = ['fill', 'fillRect', 'drawImage', 'fillText', 'stroke'];
 
 interface DrawingCall {
   name: string;
@@ -340,6 +345,46 @@ describe('renderPoster', () => {
     const { blob, requestedTypes } = await render(contentOf(cardsOf(1)));
     expect(blob).toBe(POSTER_BLOB);
     expect(requestedTypes).toEqual([PNG_TYPE]);
+  });
+
+  it('draws the full uncut card art and overlays the light and dark shard crack strokes inside the card clip', async () => {
+    const shardCard: PosterCardContent = {
+      selected: { slug: 'alpha-r', quantity: 3, shard: true },
+      image: document.createElement('img'),
+      priceText: '4.50',
+      rank: 'R',
+    };
+    const { calls } = await render(contentOf([shardCard]));
+    const cell = cellAt(CAPTIONED, 1, 0);
+    expect(callsNamed(calls, 'drawImage')[0]?.operands).toEqual([shardCard.image, cell.x, cell.y, cell.width, cell.height]);
+    const strokes = callsNamed(calls, 'stroke');
+    expect(strokes).toHaveLength(2);
+    expect(strokes.map((call) => call.state.strokeStyle)).toEqual([SHARD_LIGHT_STROKE, SHARD_DARK_STROKE]);
+    for (const stroke of strokes) {
+      expect(stroke.state).toMatchObject({
+        lineWidth: cell.width * SHARD_STROKE_RATIO,
+        lineCap: 'square',
+        lineJoin: 'miter',
+      });
+    }
+    expect(textsOf(calls)).toEqual(['×3 · 4.50']);
+  });
+
+  it('infers the shard rank from the slug or falls back to D when rank is omitted', async () => {
+    const dShard: PosterCardContent = {
+      selected: { slug: 'bronze-d', quantity: 1, shard: true },
+      image: document.createElement('img'),
+      priceText: null,
+    };
+    const { calls } = await render(contentOf([dShard]));
+    expect(callsNamed(calls, 'stroke')).toHaveLength(2);
+    expect(rankOfCard(undefined, 'hero-s')).toBe('S');
+    expect(rankOfCard('f', 'hero-f')).toBe('D');
+    expect(rankOfCard(undefined, 'unknown')).toBe('D');
+    for (const paths of Object.values(SHARD_CRACKS)) {
+      for (const pathData of paths) expect(parseCrackPoints(pathData).length).toBeGreaterThanOrEqual(2);
+    }
+    expect(parseCrackPoints('')).toEqual([]);
   });
 });
 

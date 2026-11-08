@@ -247,13 +247,59 @@ describe('pressing the button', () => {
     expect(panel().hidden).toBe(true);
   });
 
-  it('says that shards do not make a poster when only shard rows are selected', () => {
+  it('opens the dialog with shards when only shard rows are selected', () => {
     openPage('/users/sena/cards', rowOf('shard-a', { isSelected: true, isShard: true }));
     syncPosterButton(document, rig.host);
     trigger().click();
-    expect(rig.openDialog).not.toHaveBeenCalled();
-    expect(hint()).toBe(POSTER_BUTTON_TEXT.onlyShards);
-    expect(panel().hidden).toBe(false);
+    expect(rig.openDialog).toHaveBeenCalledTimes(1);
+    expect(rig.openDialog.mock.calls[0]?.[0]).toEqual([{ slug: 'shard-a', quantity: 1, shard: true }]);
+    expect(panel().hidden).toBe(true);
+  });
+
+  it('combines cards selected on the cards tab with shards selected on the shards tab, and clears both when user-actions is dismissed', async () => {
+    openPage('/users/sena/cards', rowOf('alpha-s', { isSelected: true }) + rowOf('beta-a'));
+    const actions = document.createElement('div');
+    actions.id = 'user-actions';
+    document.body.append(actions);
+    syncPosterButton(document, rig.host);
+    const grid = document.querySelector('.user-cards-grid') as HTMLElement;
+    grid.innerHTML = rowOf('shard-b', { isSelected: true, isShard: true }) + rowOf('shard-c', { isShard: true });
+    await settle();
+    expect(trigger().classList.contains('button--chip')).toBe(true);
+    trigger().click();
+    expect(rig.openDialog).toHaveBeenCalledWith(
+      [
+        { slug: 'alpha-s', quantity: 1 },
+        { slug: 'shard-b', quantity: 1, shard: true },
+      ],
+      'sena'
+    );
+    grid.innerHTML = rowOf('shard-b', { isShard: true }) + rowOf('shard-c', { isShard: true });
+    actions.remove();
+    syncPosterButton(document, rig.host);
+    expect(trigger().classList.contains('button--chip')).toBe(false);
+  });
+
+  it('keeps mixed cards and shards in page order when both appear in the same grid', () => {
+    openPage('/users/sena/cards', rowOf('shard-a', { isSelected: true, isShard: true }) + rowOf('card-b', { isSelected: true }));
+    syncPosterButton(document, rig.host);
+    trigger().click();
+    expect(rig.openDialog).toHaveBeenCalledWith(
+      [
+        { slug: 'shard-a', quantity: 1, shard: true },
+        { slug: 'card-b', quantity: 1 },
+      ],
+      'sena'
+    );
+  });
+
+  it('clears the remembered selection when the grid becomes empty without user-actions', () => {
+    openPage('/users/sena/cards', rowOf('alpha-s', { isSelected: true }));
+    syncPosterButton(document, rig.host);
+    const grid = document.querySelector('.user-cards-grid') as HTMLElement;
+    grid.innerHTML = '';
+    syncPosterButton(document, rig.host);
+    expect(trigger().classList.contains('button--chip')).toBe(false);
   });
 
   it('closes the explanation and opens the dialog once a card is selected', () => {

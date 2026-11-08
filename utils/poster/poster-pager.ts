@@ -1,7 +1,5 @@
-import { element, writeAttribute } from '../shared/dom';
+import { SITE_ICON_BUTTON, element, writeAttribute } from '../shared/dom';
 import { chevronIcon } from '../shared/svg';
-
-const ARROW_BUTTON = 'button button--secondary button--icon button-size--md';
 
 export interface PagerLabels {
   previous: string;
@@ -17,28 +15,28 @@ export interface PagerState {
 export interface PagerControls {
   root: HTMLElement;
   previous: HTMLButtonElement;
-  next: HTMLButtonElement;
   positionLabel: HTMLElement;
+  next: HTMLButtonElement;
 }
 
-function createArrow(blockClass: string, name: 'previous' | 'next', label: string): HTMLButtonElement {
-  const button = element('button', `${ARROW_BUTTON} ${blockClass}__${name}`);
+function createArrowButton(blockClass: string, direction: 'previous' | 'next', label: string): HTMLButtonElement {
+  const button = element('button', `${SITE_ICON_BUTTON} ${blockClass}__${direction}`);
   button.type = 'button';
   button.setAttribute('aria-label', label);
-  const icon = chevronIcon(`${blockClass}__arrow ${blockClass}__arrow--${name}`);
+  const icon = chevronIcon(`${blockClass}__arrow ${blockClass}__arrow--${direction}`);
   icon.setAttribute('aria-hidden', 'true');
   button.append(icon);
   return button;
 }
 
 export function createPager(blockClass: string, labels: PagerLabels): PagerControls {
-  const previous = createArrow(blockClass, 'previous', labels.previous);
-  const next = createArrow(blockClass, 'next', labels.next);
+  const root = element('div', `${blockClass}__pager`);
+  const previous = createArrowButton(blockClass, 'previous', labels.previous);
   const positionLabel = element('span', `${blockClass}__position`);
   positionLabel.setAttribute('aria-live', 'polite');
-  const root = element('div', `${blockClass}__pager`);
+  const next = createArrowButton(blockClass, 'next', labels.next);
   root.append(previous, positionLabel, next);
-  return { root, previous, next, positionLabel };
+  return { root, previous, positionLabel, next };
 }
 
 export function syncPager(pager: PagerControls, state: PagerState): void {

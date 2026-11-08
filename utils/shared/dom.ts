@@ -1,3 +1,5 @@
+export const SITE_ICON_BUTTON = 'button button--secondary button--icon button-size--md';
+
 export function writeAttribute(target: Element, name: string, attributeValue: string | null): void {
   if (attributeValue === null) target.removeAttribute(name);
   else if (target.getAttribute(name) !== attributeValue) target.setAttribute(name, attributeValue);

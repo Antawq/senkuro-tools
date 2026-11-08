@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
+import type { SelectedCard } from '../utils/poster/poster-cards';
 import { POSTER_CARDS_PER_PAGE } from '../utils/poster/poster-layout';
 import { splitIntoPages } from '../utils/poster/poster-pages';
 
 const numbers = (count: number): number[] => Array.from({ length: count }, (_, index) => index);
 
 const sizesOf = (count: number): number[] => splitIntoPages(numbers(count)).map((page) => page.length);
+
+const selectedCards = (count: number, shard = false): SelectedCard[] =>
+  Array.from({ length: count }, (_, index) => (shard ? { slug: `shard-${index}-s`, quantity: 1, shard: true } : { slug: `card-${index}-s`, quantity: 1 }));
 
 describe('splitIntoPages', () => {
   it('returns no page for no card', () => {
@@ -32,6 +36,33 @@ describe('splitIntoPages', () => {
       expect(Math.max(...pages.map((page) => page.length)) - Math.min(...pages.map((page) => page.length))).toBeLessThanOrEqual(1);
       expect(pages).toHaveLength(Math.ceil(count / POSTER_CARDS_PER_PAGE));
     }
+  });
+
+  it('keeps cards and shards together on one page when the mixed selection fits on a single poster', () => {
+    const mixed = [...selectedCards(3), ...selectedCards(2, true)];
+    expect(splitIntoPages(mixed)).toEqual([mixed]);
+  });
+
+  it('places shards on separate pages from whole cards when a mixed selection exceeds one poster', () => {
+    const whole = selectedCards(25);
+    const shards = selectedCards(10, true);
+    const pages = splitIntoPages([...whole, ...shards]);
+    expect(pages).toEqual([whole, shards]);
+  });
+
+  it('balances whole-card pages and shard pages separately when either side spans multiple pages', () => {
+    const whole = selectedCards(35);
+    const shards = selectedCards(4, true);
+    const pages = splitIntoPages([...whole, ...shards]);
+    expect(pages.map((page) => page.length)).toEqual([18, 17, 4]);
+    expect(pages[0]?.every((card) => !card.shard)).toBe(true);
+    expect(pages[1]?.every((card) => !card.shard)).toBe(true);
+    expect(pages[2]).toEqual(shards);
+  });
+
+  it('balances a shards-only selection across pages like whole cards', () => {
+    const shards = selectedCards(POSTER_CARDS_PER_PAGE + 1, true);
+    expect(splitIntoPages(shards).map((page) => page.length)).toEqual([16, 15]);
   });
 
   it('does not change the list it is given', () => {

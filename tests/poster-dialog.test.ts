@@ -943,4 +943,25 @@ describe('edge cases', () => {
     await settleLong();
     expect(note()).toBe(POSTER_TEXT.imagesFailed(1));
   });
+
+  it('forwards the shard flag and card rank to the renderer', async () => {
+    const rig = createRig();
+    await openReady(rig, [{ slug: 'alpha-s', quantity: 3, shard: true }]);
+    expect(rig.contents.at(-1)?.cards[0]).toMatchObject({
+      selected: { slug: 'alpha-s', quantity: 3, shard: true },
+      rank: 'S',
+    });
+  });
+
+  it('waits for an in-flight nickname request before rendering the archive pages', async () => {
+    let resolveNickname: (nickname: string | null) => void = () => undefined;
+    const fetchNickname = vi.fn<PosterDialogHost['fetchNickname']>(() => new Promise((resolve) => void (resolveNickname = resolve)));
+    const rig = createRig({ fetchNickname });
+    await openReady(rig, cardsOf(POSTER_CARDS_PER_PAGE + 1));
+    press('download-all');
+    await settle();
+    resolveNickname('Sena');
+    await settleLong();
+    expect(rig.render.mock.calls.slice(-2).map(([content]) => content.nickname)).toEqual(['Sena', 'Sena']);
+  });
 });

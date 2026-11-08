@@ -4,6 +4,7 @@ import { decodeSafely } from '../shared/uri';
 export interface SelectedCard {
   slug: string;
   quantity: number;
+  shard?: boolean;
 }
 
 export const SELECTED_ROW_SELECTOR = `.user-cards-grid > .${CARD_ROW_CLASS}.user-card--selected`;
@@ -20,11 +21,16 @@ const quantityOf = (row: Element): number => {
 };
 
 export function readSelectedCards(pageDocument: Document): SelectedCard[] {
+  const seen = new Set<string>();
   return [...pageDocument.querySelectorAll(SELECTED_ROW_SELECTOR)].flatMap((row) => {
-    if (row.classList.contains(SHARD_ROW_CLASS)) return [];
     const link = row.querySelector(CARD_LINK);
     const slug = slugFromHref(link?.getAttribute('href'));
-    return link && slug ? [{ slug, quantity: quantityOf(row) }] : [];
+    if (!link || !slug) return [];
+    const isShard = row.classList.contains(SHARD_ROW_CLASS);
+    const key = `${isShard ? '1' : '0'}:${slug}`;
+    if (seen.has(key)) return [];
+    seen.add(key);
+    return [isShard ? { slug, quantity: quantityOf(row), shard: true } : { slug, quantity: quantityOf(row) }];
   });
 }
 

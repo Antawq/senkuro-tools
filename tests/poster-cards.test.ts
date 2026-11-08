@@ -37,10 +37,10 @@ beforeEach(() => {
 });
 
 describe('countSelectedRows', () => {
-  it('counts selected shard rows too, so a shards-only selection is not empty', () => {
+  it('counts selected card and shard rows alike', () => {
     document.body.innerHTML = grid(row({ slug: 'a-a' }), row({ slug: 'b-a', isSelected: false }), row({ slug: 'shard-a', isShard: true }));
     expect(countSelectedRows(document)).toBe(2);
-    expect(readSelectedCards(document)).toHaveLength(1);
+    expect(readSelectedCards(document)).toHaveLength(2);
   });
 
   it('is zero when nothing is selected or the page has no grid', () => {
@@ -62,9 +62,25 @@ describe('readSelectedCards', () => {
     expect(readSelectedCards(document).map((card) => card.slug)).toEqual(['first-s', 'second-b', 'third-x']);
   });
 
-  it('skips a selected shard row', () => {
-    document.body.innerHTML = grid(row({ slug: 'card-a' }), row({ slug: 'shard-a', isShard: true }));
-    expect(readSelectedCards(document)).toEqual([{ slug: 'card-a', quantity: 1 }]);
+  it('marks a selected shard row with shard: true and reads its shard count', () => {
+    document.body.innerHTML = grid(row({ slug: 'card-a' }), row({ slug: 'shard-a', isShard: true, tag: ' 4 осколока' }));
+    expect(readSelectedCards(document)).toEqual([
+      { slug: 'card-a', quantity: 1 },
+      { slug: 'shard-a', quantity: 4, shard: true },
+    ]);
+  });
+
+  it('keeps both a whole card and a shard of the same slug while dropping duplicate rows of the same kind', () => {
+    document.body.innerHTML = grid(
+      row({ slug: 'alpha-s', tag: ' 2 карты' }),
+      row({ slug: 'alpha-s', tag: ' 5 карт' }),
+      row({ slug: 'alpha-s', isShard: true, tag: ' 3 осколока' }),
+      row({ slug: 'alpha-s', isShard: true, tag: ' 7 осколоков' })
+    );
+    expect(readSelectedCards(document)).toEqual([
+      { slug: 'alpha-s', quantity: 2 },
+      { slug: 'alpha-s', quantity: 3, shard: true },
+    ]);
   });
 
   it('counts one card when the row has no quantity tag', () => {

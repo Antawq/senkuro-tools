@@ -1,10 +1,12 @@
 import type { SelectedCard } from './poster-cards';
 import { CAPTION_HEIGHT_PX, POSTER_MARGIN_PX, POSTER_CARDS_PER_PAGE, layoutPoster, type PosterCell, type PosterLayout } from './poster-layout';
+import { drawShardCracks } from './poster-shards';
 
 export interface PosterCardContent {
   selected: SelectedCard;
   image: CanvasImageSource | null;
   priceText: string | null;
+  rank?: string;
 }
 
 export interface PosterContent {
@@ -78,12 +80,13 @@ function drawCardBase(drawing: CanvasRenderingContext2D, cell: PosterCell, theme
   drawing.restore();
 }
 
-function drawArt(drawing: CanvasRenderingContext2D, cell: PosterCell, image: CanvasImageSource): void {
+function drawArt(drawing: CanvasRenderingContext2D, cell: PosterCell, card: PosterCardContent, image: CanvasImageSource): void {
   drawing.save();
   traceCard(drawing, cell);
   drawing.clip();
   drawing.imageSmoothingQuality = 'high';
   drawing.drawImage(image, cell.x, cell.y, cell.width, cell.height);
+  if (card.selected.shard) drawShardCracks(drawing, cell, card.rank, card.selected.slug, card.selected.quantity);
   drawing.restore();
 }
 
@@ -131,7 +134,7 @@ export async function renderPoster(content: PosterContent, theme: PosterTheme, h
     const card = cards[index];
     if (!card) return;
     drawCardBase(drawing, cell, theme);
-    if (card.image) drawArt(drawing, cell, card.image);
+    if (card.image) drawArt(drawing, cell, card, card.image);
     else drawPlaceholderMark(drawing, cell, theme);
     if (card.caption !== '') drawCaption(drawing, cell, card.caption, theme);
   });

@@ -1,12 +1,11 @@
-import { element } from './dom';
+import { SITE_ICON_BUTTON, element } from './dom';
 import { refreshIcon } from './svg';
 
-const SITE_BUTTON = 'button button--secondary button--icon button-size--md';
 const SITE_DISABLED = 'button--disabled';
 const ICON_SIZE_PX = 20;
 
 export function createRefreshButton(press: () => Promise<boolean>, className?: string): HTMLButtonElement {
-  const button = element('button', className ? `${SITE_BUTTON} ${className}` : SITE_BUTTON);
+  const button = element('button', className ? `${SITE_ICON_BUTTON} ${className}` : SITE_ICON_BUTTON);
   button.type = 'button';
   const icon = refreshIcon(ICON_SIZE_PX);
   icon.setAttribute('aria-hidden', 'true');
