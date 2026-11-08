@@ -72,3 +72,12 @@
     font-size: 1.4rem;
   }
 }
+
+.user-card__filters .senkutools-modal-search__close {
+  pointer-events: none;
+  cursor: default;
+}
+
+.user-cards-grid > [data-senkutools-filtered] {
+  display: none;
+}

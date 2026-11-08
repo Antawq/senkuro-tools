@@ -25,6 +25,7 @@ import { createPriceBadges } from '@/utils/badges/price-badges';
 import { isPosterButtonMissing, syncPosterButton, type PosterButtonHost } from '@/utils/poster/poster-button';
 import { closeStalePosterDialogs, openPosterDialog } from '@/utils/poster/poster-dialog';
 import { createPosterDialogHost } from '@/utils/poster/poster-host';
+import { isInventorySearchMissing, syncInventorySearch } from '@/utils/profile/inventory-search';
 import { isRefreshButtonMissing, syncRefreshButton, type RefreshHost } from '@/utils/profile/inventory-refresh';
 import {
   abortProfileLoading,
@@ -115,6 +116,7 @@ export default defineContentScript({
           },
         },
         { name: 'poster', render: () => syncPosterButton(document, posterButtonHost) },
+        { name: 'inventorySearch', render: (db) => syncInventorySearch(document, db) },
       ],
       loadDatabase,
       nextFrame
@@ -180,6 +182,7 @@ export default defineContentScript({
         profileBadgeMissing() ||
         isRefreshButtonMissing() ||
         isPosterButtonMissing(document) ||
+        isInventorySearchMissing(document) ||
         hasSortMutation(mutations)
       )
         loop.schedule();
@@ -252,7 +255,10 @@ export default defineContentScript({
     void loop.renderAll();
     void loadDatabase().then((loaded) => {
       database = loaded;
-      if (!ctx.isInvalid) modalFilters.sync();
+      if (!ctx.isInvalid) {
+        modalFilters.sync();
+        syncInventorySearch(document, database);
+      }
     });
   },
 });
