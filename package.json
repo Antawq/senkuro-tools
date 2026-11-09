@@ -2,7 +2,7 @@
   "name": "senkutools",
   "description": "Показывает цены на карточки и инструменты аккаунта",
   "private": true,
-  "version": "3.4.1",
+  "version": "3.5.0",
   "type": "module",
   "scripts": {
     "dev": "wxt",
@@ -16,7 +16,8 @@
     "release:major": "npm version major --no-git-tag-version && npm run zip && npm run zip:firefox",
     "compile": "tsc --noEmit",
     "postinstall": "wxt prepare",
-    "test": "vitest run"
+    "test": "vitest run",
+    "submit": "wxt submit"
   },
   "devDependencies": {
     "graphql": "^16.14.2",
