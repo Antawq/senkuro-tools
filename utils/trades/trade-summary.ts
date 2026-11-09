@@ -50,6 +50,7 @@ export interface SummarySettings extends Valuation {
   showSummaryBank: boolean;
   showSummaryCards: boolean;
   showSummaryVerdict: boolean;
+  showTradeRejectReason?: boolean;
 }
 
 interface RView {
@@ -251,7 +252,7 @@ function render(place: Place, view: View, nextOrder: () => number): void {
 export function updateTradeSummaries(db: Database, settings: SummarySettings, store: TradeStore): void {
   let mounted = 0;
   const nextOrder = () => mounted++;
-  for (const place of readTradePlaces(store)) {
+  for (const place of readTradePlaces(store, Boolean(settings.showTradeRejectReason))) {
     const { host, caption, columns } = place;
     if (!columns || columns.every((column) => totalOf(column) === 0)) {
       host.querySelector(`:scope > .${SUMMARY}`)?.classList.add(CLOSED);

@@ -218,6 +218,16 @@
         </p>
 
         <label class="toggle-container toggle-container--separated">
+          <input type="checkbox" id="showTradeRejectReasonToggle" />
+          <span class="toggle-text">Причина отмены обмена (экспериментально)</span>
+        </label>
+        <p class="hint">
+          Попытка определить, почему обмен был отклонён (например, если карта ушла в другой принятый обмен). Работает нестабильно: Senkuro не передаёт причину
+          отказа в API, поэтому расширение может ошибочно показывать «ушла к...», если пользователь отклонил обмен вручную или карта когда-либо передавалась в
+          других сделках.
+        </p>
+
+        <label class="toggle-container toggle-container--separated">
           <input type="checkbox" id="showTokenToggle" />
           <span class="toggle-text">Показывать токен аккаунта</span>
         </label>

@@ -21,7 +21,8 @@ type ToggleKey =
   | 'showSummaryF'
   | 'showSummaryBank'
   | 'showSummaryCards'
-  | 'showSummaryVerdict';
+  | 'showSummaryVerdict'
+  | 'showTradeRejectReason';
 type SliderKey = 'copyBtnSize' | 'opacity' | 'fontSize' | 'summaryFontSize';
 type ChoiceKey = 'positionX' | 'positionY' | 'badgeStyle' | 'valueBasis' | 'effectRed' | 'effectPurple' | 'effectYellow' | 'effectGreen' | 'effectWhite';
 
@@ -87,6 +88,7 @@ const bindings = [
   toggle('showTokenToggle', 'showToken', TOKEN_WARNING),
   toggle('valueBySplitToggle', 'valueBySplit'),
   toggle('excludeShardsToggle', 'excludeShards'),
+  toggle('showTradeRejectReasonToggle', 'showTradeRejectReason'),
   toggle('showSummaryFToggle', 'showSummaryF'),
   toggle('showSummaryBankToggle', 'showSummaryBank'),
   toggle('showSummaryCardsToggle', 'showSummaryCards'),

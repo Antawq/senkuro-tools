@@ -162,7 +162,7 @@ const readPreviewList = (list: Element): Side => ({
   hidden: numberIn(list.querySelector('.card-preview-list-show-more')),
 });
 
-const readHistory = (store: TradeStore): Place[] =>
+const readHistory = (store: TradeStore, showTradeRejectReason: boolean = false): Place[] =>
   [...document.querySelectorAll(HISTORY)].map((host) => {
     const lists = [...host.children].filter((el) => el.matches('.card-preview-list'));
     const names = lists.map(nameOf);
@@ -171,7 +171,7 @@ const readHistory = (store: TradeStore): Place[] =>
       lists.length === TRADE_SIDES && offerList && requestList
         ? matchTrade(store.trades(), [names[0] ?? '', names[1] ?? ''], [readPreviewList(offerList), readPreviewList(requestList)])
         : null;
-    if (trade && host instanceof HTMLElement) mountTradeMeta(host, trade);
+    if (trade && host instanceof HTMLElement) mountTradeMeta(host, trade, store.trades(), showTradeRejectReason);
     return { host, placement: 'end', columns: trade ? viewerColumns(trade, store.viewerId(), names) : null };
   });
 
@@ -232,7 +232,7 @@ const readNotifications = (store: TradeStore): Place[] =>
     return [{ host, placement: 'end' as const, columns: trade ? [column('get', whole(trade.offer)), column('give', whole(trade.request))] : null }];
   });
 
-export function readTradePlaces(store: TradeStore): Place[] {
+export function readTradePlaces(store: TradeStore, showTradeRejectReason: boolean = false): Place[] {
   rememberCardLists();
-  return [...readModals(store), ...readHistory(store), ...readOffers(store), ...readNotifications(store)];
+  return [...readModals(store), ...readHistory(store, showTradeRejectReason), ...readOffers(store), ...readNotifications(store)];
 }

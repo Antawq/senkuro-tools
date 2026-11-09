@@ -19,6 +19,7 @@ export interface Trade {
   destination: Person;
   offer: CardRef[];
   request: CardRef[];
+  status?: string;
   createdAt?: string;
 }
 
@@ -68,6 +69,8 @@ interface GraphNode {
   user?: GraphUser;
   viewerDidAuthor?: boolean;
   viewer?: { user?: { id?: unknown } };
+  status?: string;
+  tradeStatus?: string;
   createdAt?: string;
 }
 
@@ -101,8 +104,18 @@ function describe(node: GraphNode): CapturedItem | null {
   if (!node.id || !offer || !request) return null;
   const kind = kindOf(node);
   if (kind === 'trade') {
+    const status = typeof node.status === 'string' ? node.status : typeof node.tradeStatus === 'string' ? node.tradeStatus : undefined;
     const createdAt = typeof node.createdAt === 'string' ? node.createdAt : undefined;
-    return { kind, id: node.id, source: person(node.source), destination: person(node.destination), offer, request, ...(createdAt ? { createdAt } : {}) };
+    return {
+      kind,
+      id: node.id,
+      source: person(node.source),
+      destination: person(node.destination),
+      offer,
+      request,
+      ...(status ? { status } : {}),
+      ...(createdAt ? { createdAt } : {}),
+    };
   }
   if (kind === 'offer') return { kind, id: node.id, author: person(node.user), viewerDidAuthor: Boolean(node.viewerDidAuthor), offer, request };
   return null;

@@ -10,3 +10,5 @@ web-ext.config.ts
 !.vscode/extensions.json
 .idea
 .env*
+beta/
+output/
