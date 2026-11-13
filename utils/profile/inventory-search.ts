@@ -140,6 +140,9 @@ export function syncInventorySearch(pageDocument: Document, database: Database):
       }),
     LATER_CONTROLS
   );
+  for (const duplicate of toolbar.querySelectorAll<HTMLElement>(`:scope > .${SEARCH_CLASS}`)) {
+    if (duplicate !== control.wrapper) duplicate.remove();
+  }
   activeToolbar = toolbar;
   if (control.input.value !== activeQuery) {
     control.input.value = activeQuery;

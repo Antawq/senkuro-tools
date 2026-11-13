@@ -1,16 +1,31 @@
+.card-collect-preview,
+.card-collect-preview *,
+a.card-collect,
+a.card-collect * {
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+
 .card-collect-preview__front[data-senkuro-price],
 .card-collect-preview[data-senkuro-price],
 a.card-collect[data-senkuro-price] {
   isolation: isolate;
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
 }
 
 .card-collect-preview__front[data-senkuro-price]::after,
-.card-collect-preview[data-senkuro-price]::after,
+.card-collect-preview[data-senkuro-price]::before,
 a.card-collect[data-senkuro-price]::after {
   content: attr(data-senkuro-price);
   position: absolute;
   z-index: 99;
   pointer-events: none;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -webkit-touch-callout: none !important;
   font-weight: bold;
   font-variant-numeric: tabular-nums;
   line-height: 1;
@@ -27,23 +42,111 @@ a.card-collect[data-senkuro-price]::after {
   translate: var(--s-tx, 0) var(--s-ty, 0);
   text-align: var(--s-align, left);
   max-width: 100%;
+  box-sizing: border-box;
   backface-visibility: hidden;
 }
 
-.card-collect-preview[data-senkuro-price]::after {
+.card-collect-preview[data-senkuro-price]::before {
   z-index: 2;
 }
 
 .card-collect-preview__front[data-senkuro-style='background']::after,
-.card-collect-preview[data-senkuro-style='background']::after,
+.card-collect-preview[data-senkuro-style='background']::before,
 a.card-collect[data-senkuro-style='background']::after {
   background-color: var(--s-bg-color, var(--senkuro-badge-shade));
   padding: var(--senkuro-badge-pad);
   border-radius: var(--senkuro-badge-radius);
 }
 
+[data-senkuro-compact='1']::before,
+[data-senkuro-compact='1']::after,
+.card-notif .card-collect-preview::before,
+.card-notif .card-collect-preview::after,
+.modal-trade__preview-el .card-collect-preview::before,
+.modal-trade__preview-el .card-collect-preview::after,
+.modal-trade__swap-cards .card-collect-preview::before,
+.modal-trade__swap-cards .card-collect-preview::after {
+  padding: 0.15em 0.35em !important;
+  border-radius: 3px !important;
+  font-size: var(--s-size, 12px) !important;
+}
+
+[data-senkuro-compact='1']:is([data-badge-pos^='left-'])::before,
+[data-senkuro-compact='1']:is([data-badge-pos^='left-'])::after,
+.card-notif .card-collect-preview:is([data-badge-pos^='left-'])::before,
+.card-notif .card-collect-preview:is([data-badge-pos^='left-'])::after,
+.modal-trade__preview-el .card-collect-preview:is([data-badge-pos^='left-'])::before,
+.modal-trade__preview-el .card-collect-preview:is([data-badge-pos^='left-'])::after,
+.modal-trade__swap-cards .card-collect-preview:is([data-badge-pos^='left-'])::before,
+.modal-trade__swap-cards .card-collect-preview:is([data-badge-pos^='left-'])::after {
+  left: 2px !important;
+}
+
+[data-senkuro-compact='1']:is([data-badge-pos^='right-'])::before,
+[data-senkuro-compact='1']:is([data-badge-pos^='right-'])::after,
+.card-notif .card-collect-preview:is([data-badge-pos^='right-'])::before,
+.card-notif .card-collect-preview:is([data-badge-pos^='right-'])::after,
+.modal-trade__preview-el .card-collect-preview:is([data-badge-pos^='right-'])::before,
+.modal-trade__preview-el .card-collect-preview:is([data-badge-pos^='right-'])::after,
+.modal-trade__swap-cards .card-collect-preview:is([data-badge-pos^='right-'])::before,
+.modal-trade__swap-cards .card-collect-preview:is([data-badge-pos^='right-'])::after {
+  right: 2px !important;
+}
+
+[data-senkuro-compact='1']:is([data-badge-pos$='-bottom'], [data-badge-pos*='-bottom:'])::before,
+[data-senkuro-compact='1']:is([data-badge-pos$='-bottom'], [data-badge-pos*='-bottom:'])::after,
+.card-notif .card-collect-preview:is([data-badge-pos$='-bottom'], [data-badge-pos*='-bottom:'])::before,
+.card-notif .card-collect-preview:is([data-badge-pos$='-bottom'], [data-badge-pos*='-bottom:'])::after,
+.modal-trade__preview-el .card-collect-preview:is([data-badge-pos$='-bottom'], [data-badge-pos*='-bottom:'])::before,
+.modal-trade__preview-el .card-collect-preview:is([data-badge-pos$='-bottom'], [data-badge-pos*='-bottom:'])::after,
+.modal-trade__swap-cards .card-collect-preview:is([data-badge-pos$='-bottom'], [data-badge-pos*='-bottom:'])::before,
+.modal-trade__swap-cards .card-collect-preview:is([data-badge-pos$='-bottom'], [data-badge-pos*='-bottom:'])::after {
+  bottom: 2px !important;
+}
+
+[data-senkuro-compact='1']:is([data-badge-pos$='-top'], [data-badge-pos*='-top:'])::before,
+[data-senkuro-compact='1']:is([data-badge-pos$='-top'], [data-badge-pos*='-top:'])::after,
+.card-notif .card-collect-preview:is([data-badge-pos$='-top'], [data-badge-pos*='-top:'])::before,
+.card-notif .card-collect-preview:is([data-badge-pos$='-top'], [data-badge-pos*='-top:'])::after,
+.modal-trade__preview-el .card-collect-preview:is([data-badge-pos$='-top'], [data-badge-pos*='-top:'])::before,
+.modal-trade__preview-el .card-collect-preview:is([data-badge-pos$='-top'], [data-badge-pos*='-top:'])::after,
+.modal-trade__swap-cards .card-collect-preview:is([data-badge-pos$='-top'], [data-badge-pos*='-top:'])::before,
+.modal-trade__swap-cards .card-collect-preview:is([data-badge-pos$='-top'], [data-badge-pos*='-top:'])::after {
+  top: 2px !important;
+}
+
+[data-senkuro-compact='1']:not([data-badge-pos])::before,
+[data-senkuro-compact='1']:not([data-badge-pos])::after {
+  left: 2px !important;
+  bottom: 2px !important;
+}
+
+.user-card--selected::after {
+  content: '' !important;
+  border: 3px solid var(--accent) !important;
+  pointer-events: none !important;
+  z-index: 10 !important;
+  border-radius: 12px !important;
+  position: absolute !important;
+  inset: -3px !important;
+  background: transparent !important;
+  padding: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  top: -3px !important;
+  bottom: -3px !important;
+  left: -3px !important;
+  right: -3px !important;
+  translate: none !important;
+  margin: 0 !important;
+  animation: none !important;
+  transform: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
 .card-collect-preview__front[data-senkuro-style='outline']::after,
-.card-collect-preview[data-senkuro-style='outline']::after,
+.card-collect-preview[data-senkuro-style='outline']::before,
 a.card-collect[data-senkuro-style='outline']::after {
   background-color: transparent;
   padding: 0;
@@ -81,7 +184,9 @@ a.card-collect[data-senkuro-style='outline']::after {
   }
 }
 
-[data-senkuro-eff='price-effect-pulse']::after {
+.card-collect-preview[data-senkuro-eff='price-effect-pulse']::before,
+.card-collect-preview__front[data-senkuro-eff='price-effect-pulse']::after,
+a.card-collect[data-senkuro-eff='price-effect-pulse']::after {
   animation: senkuro-pulse-text var(--senkuro-pulse-period) infinite alternate ease-in-out var(--senkuro-effect-delay);
   transform-origin: center;
 }
@@ -109,7 +214,9 @@ a.card-collect[data-senkuro-style='outline']::after {
   }
 }
 
-[data-senkuro-eff='price-effect-rgb']::after {
+.card-collect-preview[data-senkuro-eff='price-effect-rgb']::before,
+.card-collect-preview__front[data-senkuro-eff='price-effect-rgb']::after,
+a.card-collect[data-senkuro-eff='price-effect-rgb']::after {
   animation: senkuro-rgb var(--senkuro-rainbow-period) linear infinite var(--senkuro-effect-delay);
 }
 
@@ -122,7 +229,9 @@ a.card-collect[data-senkuro-style='outline']::after {
   }
 }
 
-[data-senkuro-eff='price-effect-tilt']::after {
+.card-collect-preview[data-senkuro-eff='price-effect-tilt']::before,
+.card-collect-preview__front[data-senkuro-eff='price-effect-tilt']::after,
+a.card-collect[data-senkuro-eff='price-effect-tilt']::after {
   animation: senkuro-tilt var(--senkuro-swing-period) infinite alternate ease-in-out var(--senkuro-effect-delay);
   transform-origin: top center;
 }
@@ -136,11 +245,14 @@ a.card-collect[data-senkuro-style='outline']::after {
   }
 }
 
-[data-senkuro-eff='price-effect-bg']::after {
+.card-collect-preview[data-senkuro-eff='price-effect-bg']::before,
+.card-collect-preview__front[data-senkuro-eff='price-effect-bg']::after,
+a.card-collect[data-senkuro-eff='price-effect-bg']::after {
   animation: senkuro-bg-pulse var(--senkuro-swing-period) infinite alternate ease-in-out var(--senkuro-effect-delay);
 }
 
 @media (prefers-reduced-motion: reduce) {
+  [data-senkuro-eff]::before,
   [data-senkuro-eff]::after {
     animation: none;
   }
@@ -202,6 +314,9 @@ a.card-collect:has(> .senkutools-unpriced-badge) {
   border: 0;
   font: inherit;
   position: absolute;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -webkit-touch-callout: none !important;
   background: color-mix(in srgb, var(--senkuro-shade) 60%, transparent);
   color: var(--senkuro-white);
   border-radius: 4px;

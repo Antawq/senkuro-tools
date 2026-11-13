@@ -78,6 +78,106 @@
   cursor: default;
 }
 
+@media (min-width: 769px) {
+  .back:has(.senkutools-modal-search) {
+    position: relative !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding-bottom: calc(var(--height-md) + 12px) !important;
+    gap: 8px !important;
+  }
+
+  .back:has(.senkutools-modal-search) > :is(.back__button, .senkutools-refresh) {
+    flex-shrink: 0 !important;
+  }
+
+  .back:has(.senkutools-modal-search) > .caption {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    hyphens: none !important;
+    margin: 0 !important;
+  }
+
+  .back:has(.senkutools-modal-search) .back-actions {
+    position: static !important;
+    margin-left: auto !important;
+    flex-shrink: 0 !important;
+  }
+
+  .user-card__filters {
+    position: static !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 4px !important;
+  }
+
+  .user-card__filters > :not(.senkutools-modal-search) {
+    height: var(--height-md) !important;
+    flex-shrink: 0 !important;
+  }
+
+  .user-card__filters .senkutools-modal-search {
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    z-index: 2 !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .back:has(.senkutools-modal-search) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .back:has(.senkutools-modal-search) > :is(.back__button, .senkutools-refresh) {
+    flex-shrink: 0;
+  }
+
+  .back:has(.senkutools-modal-search) > .caption {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    hyphens: none !important;
+    margin: 0;
+  }
+
+  .back:has(.senkutools-modal-search) .back-actions {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .user-card__filters {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px 4px;
+  }
+
+  .user-card__filters > :not(.senkutools-modal-search) {
+    order: 1;
+  }
+
+  .user-card__filters .senkutools-modal-search {
+    order: 10;
+    width: 100%;
+    flex: 1 1 100%;
+    margin-top: 4px;
+  }
+}
+
 .user-cards-grid > [data-senkutools-filtered] {
   display: none;
 }
