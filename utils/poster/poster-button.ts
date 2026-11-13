@@ -149,6 +149,9 @@ export function syncPosterButton(pageDocument: Document, host: PosterButtonHost)
   if (placedToolbar && placedToolbar !== toolbar) removePlacedControl();
   if (findOwnControl(toolbar)?.dataset.senkutoolsSlug !== slug) controls.remove(toolbar);
   const control = controls.place(toolbar, () => createControl(slug, host, pageDocument), []);
+  for (const duplicate of toolbar.querySelectorAll<HTMLElement>(`:scope > .${POSTER_CONTROL_CLASS}`)) {
+    if (duplicate !== control.wrapper) duplicate.remove();
+  }
   placedToolbar = toolbar;
   watchSelection(control, pageDocument);
 }

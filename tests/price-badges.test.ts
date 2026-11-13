@@ -319,12 +319,12 @@ describe('createPriceBadges', () => {
   it.each([
     [168, '16px'],
     [150, '16px'],
-    [144, '13px'],
-    [120, '13px'],
-    [117, '10px'],
-    [95, '10px'],
-    [93, '9px'],
-    [50, '9px'],
+    [144, '16px'],
+    [120, '14px'],
+    [117, '14px'],
+    [95, '14px'],
+    [93, '14px'],
+    [50, '12px'],
   ])('sizes the price of a %ipx card at %s', (width, expected) => {
     renderAtWidth(width);
     expect(document.querySelector<HTMLElement>('[data-senkuro-price]')?.style.getPropertyValue('--s-size')).toBe(expected);
@@ -337,9 +337,9 @@ describe('createPriceBadges', () => {
 
   it('never grows the chosen size and never goes under the smallest readable one', () => {
     for (const [width, base, expected] of [
-      [103, 24, '16px'],
+      [103, 24, '20px'],
       [168, 9, '9px'],
-      [50, 12, '9px'],
+      [50, 12, '12px'],
     ] as const) {
       document.body.innerHTML = preview();
       for (const link of document.querySelectorAll('a.card-collect')) Object.defineProperty(link, 'offsetWidth', { value: width });
@@ -433,7 +433,7 @@ describe('createPriceBadges', () => {
       expect(sizeOf()).toBe('16px');
       widthOf(linkOf(), 103);
       watch.fire(linkOf());
-      expect(sizeOf()).toBe('10px');
+      expect(sizeOf()).toBe('14px');
       expect(document.querySelector('[data-senkuro-price]')?.getAttribute('data-senkuro-price')).toBe('1.00');
     });
 
@@ -455,7 +455,7 @@ describe('createPriceBadges', () => {
       expect(link.style.getPropertyValue('--s-size')).toBe('16px');
       widthOf(link, 103);
       watch.fire(link);
-      expect(link.style.getPropertyValue('--s-size')).toBe('10px');
+      expect(link.style.getPropertyValue('--s-size')).toBe('14px');
     });
 
     it('stops watching a card that left the page and every card after a reset', () => {
@@ -479,7 +479,7 @@ describe('createPriceBadges', () => {
     it('paints, drops an undrawn card and resets without a resize observer too', () => {
       vi.stubGlobal('ResizeObserver', undefined);
       const badges = renderWatched(103);
-      expect(sizeOf()).toBe('10px');
+      expect(sizeOf()).toBe('14px');
       document.body.innerHTML = preview();
       widthOf(linkOf(), 24);
       expect(() => badges.update(db, DEFAULT_SETTINGS)).not.toThrow();

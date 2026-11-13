@@ -38,6 +38,7 @@ interface ContentSettings {
   nickname: string | null;
   shouldShowQuantity: boolean;
   shouldShowPrices: boolean;
+  isCommissionEnabled: boolean;
 }
 
 interface RenderedPage {
@@ -96,9 +97,9 @@ function syncControls(session: PosterSession): void {
 const pageRefOf = (session: PosterSession, index: number): PageRef | undefined =>
   session.pages.length > 1 ? { number: index + 1, count: session.pages.length } : undefined;
 
-function priceTextOf(slug: string, host: PosterDialogHost): string {
+function priceTextOf(slug: string, host: PosterDialogHost, isCommissionEnabled: boolean): string {
   const entry = host.database[slug];
-  return entry ? effectivePrice(entry.price, host.settings.commission).toFixed(PRICE_DECIMALS) : UNKNOWN_MARK;
+  return entry ? effectivePrice(entry.price, isCommissionEnabled).toFixed(PRICE_DECIMALS) : UNKNOWN_MARK;
 }
 
 function settingsOf(session: PosterSession): ContentSettings {
@@ -108,6 +109,7 @@ function settingsOf(session: PosterSession): ContentSettings {
     nickname: controls.nickname.checked ? session.nickname : null,
     shouldShowQuantity: controls.quantity.checked,
     shouldShowPrices: controls.prices.checked,
+    isCommissionEnabled: controls.commission.checked,
   };
 }
 
@@ -116,7 +118,7 @@ function contentOf(settings: ContentSettings, cards: readonly ShownCard[], sessi
     cards: cards.map((card) => ({
       selected: card.shard ? { slug: card.slug, quantity: card.quantity, shard: true } : { slug: card.slug, quantity: card.quantity },
       image: card.image,
-      priceText: settings.shouldShowPrices ? priceTextOf(card.slug, session.host) : null,
+      priceText: settings.shouldShowPrices ? priceTextOf(card.slug, session.host, settings.isCommissionEnabled) : null,
       rank: session.arts.get(card.slug)?.rank ?? session.host.database[card.slug]?.rank,
     })),
     heading: settings.heading,
@@ -332,7 +334,7 @@ function teardown(session: PosterSession): void {
 function bindControls(session: PosterSession): void {
   const { controls } = session;
   controls.heading.addEventListener('input', () => scheduleRender(session));
-  for (const toggle of [controls.quantity, controls.prices]) toggle.addEventListener('change', () => scheduleRender(session));
+  for (const toggle of [controls.quantity, controls.prices, controls.commission]) toggle.addEventListener('change', () => scheduleRender(session));
   controls.nickname.addEventListener('change', () => {
     if (controls.nickname.checked) requestNickname(session);
     scheduleRender(session);
@@ -349,7 +351,7 @@ function bindControls(session: PosterSession): void {
 function createSession(pages: readonly (readonly SelectedCard[])[], profileSlug: string, host: PosterDialogHost): PosterSession {
   return {
     host,
-    controls: createControls(pages.length),
+    controls: createControls(pages.length, host.settings.commission),
     profileSlug,
     pages,
     pageIndex: 0,

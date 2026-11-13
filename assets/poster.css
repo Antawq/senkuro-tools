@@ -125,6 +125,10 @@
   cursor: pointer;
 }
 
+.senkutools-poster__toggle--sub {
+  margin-left: 24px;
+}
+
 .senkutools-poster .senkutools-poster__toggle > input {
   position: absolute;
   inset: 0;

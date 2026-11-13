@@ -16,13 +16,13 @@ describe('settings', () => {
     expect(await loadSettings()).toEqual(DEFAULT_SETTINGS);
   });
 
-  it('shows no price effect for everyone who never chose one, and keeps the choice of whoever did', async () => {
+  it('shows default price effects for everyone who never chose one, and keeps the choice of whoever did', async () => {
     const effects = ['effectRed', 'effectYellow', 'effectPurple', 'effectGreen', 'effectWhite'] as const;
     const loaded = await loadSettings();
-    expect(effects.map((key) => loaded[key])).toEqual(['', '', '', '', '']);
+    expect(effects.map((key) => loaded[key])).toEqual(['price-effect-rgb', 'price-effect-pulse', 'price-effect-pulse', '', '']);
     await saveSetting('effectGreen', 'price-effect-pulse');
     const chosen = await loadSettings();
-    expect(effects.map((key) => chosen[key])).toEqual(['', '', '', 'price-effect-pulse', '']);
+    expect(effects.map((key) => chosen[key])).toEqual(['price-effect-rgb', 'price-effect-pulse', 'price-effect-pulse', 'price-effect-pulse', '']);
   });
 
   it('darkens the price badge for everyone who never chose a shade, in step with the stylesheet token', async () => {

@@ -242,6 +242,20 @@ describe('render requests', () => {
     expect(withoutCommission.contents.at(-1)?.cards.map((card) => card.priceText)).toEqual(['10.00', '?']);
   });
 
+  it('toggles commission in poster controls independently of global host settings', async () => {
+    const rig = createRig();
+    await openReady(rig);
+    change(toggle('prices'), true);
+    await rig.flushFrames();
+    expect(rig.contents.at(-1)?.cards.map((card) => card.priceText)).toEqual(['8.00', '?']);
+    change(toggle('commission'), false);
+    await rig.flushFrames();
+    expect(rig.contents.at(-1)?.cards.map((card) => card.priceText)).toEqual(['10.00', '?']);
+    change(toggle('commission'), true);
+    await rig.flushFrames();
+    expect(rig.contents.at(-1)?.cards.map((card) => card.priceText)).toEqual(['8.00', '?']);
+  });
+
   it('passes the quantity of every card and the quantity toggle to the renderer', async () => {
     const rig = createRig();
     await openReady(rig, [cardOf('alpha-s', { quantity: 3 }), cardOf('beta-a')]);

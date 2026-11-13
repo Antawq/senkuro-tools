@@ -3,19 +3,19 @@ import { BADGE_INSET, CENTER, CENTERING_SHIFT, centerGapShift, faceGap, gapKey, 
 import { CARD_LINK, PERCENT, PRICE_DECIMALS, effectivePrice, findShownName, slugFromHref } from '../shared/cards';
 import { removeCopyButton, syncCopyButton } from '../shared/copy-button';
 import type { CardEntry, Database } from '../shared/database';
-import type { BadgePositionX, BadgePositionY, Settings } from '../shared/settings';
+import { DEFAULT_SETTINGS, type BadgePositionX, type BadgePositionY, type Settings } from '../shared/settings';
 import { questionMarkIcon } from '../shared/svg';
 import { tierOf } from './tiers';
 
-const BADGE_ATTRIBUTES = ['data-senkuro-price', 'data-senkuro-style', 'data-senkuro-eff', 'data-senkuro-tier'];
+const BADGE_ATTRIBUTES = ['data-senkuro-price', 'data-senkuro-style', 'data-senkuro-eff', 'data-senkuro-tier', 'data-senkuro-compact'];
 const SMALL_CARD_WIDTH = 60;
 const MIN_PRICED_CARD_WIDTH = 30;
 const MIN_FONT = 9;
 const SIZE_STEPS = [
-  { minWidth: 150, scale: 1 },
-  { minWidth: 120, scale: 0.8 },
-  { minWidth: 95, scale: 0.65 },
-  { minWidth: 0, scale: 0.55 },
+  { minWidth: 140, scale: 1 },
+  { minWidth: 110, scale: 0.9 },
+  { minWidth: 75, scale: 0.85 },
+  { minWidth: 0, scale: 0.8 },
 ] as const;
 const BAND_EDGES = [...SIZE_STEPS.flatMap(({ minWidth }) => (minWidth > 0 ? [minWidth] : [])), SMALL_CARD_WIDTH, MIN_PRICED_CARD_WIDTH];
 const OUTLINE_OFFSETS = ['1px 1px 0', '-1px -1px 0', '1px -1px 0', '-1px 1px 0', '0px 2px 4px'];
@@ -132,7 +132,10 @@ const stepOf = (width: number): (typeof SIZE_STEPS)[number] => SIZE_STEPS.reduce
 
 const bandOf = (width: number): string => String(BAND_EDGES.filter((edge) => width >= edge).length);
 
-const fontSizeOf = ({ width }: Holders, base: number): number => Math.min(base, Math.max(MIN_FONT, Math.round(base * stepOf(width || Infinity).scale)));
+const fontSizeOf = (holders: Holders, base: number, compactBase: number = DEFAULT_SETTINGS.compactFontSize): number => {
+  if (isSmall(holders)) return compactBase;
+  return Math.min(base, Math.max(MIN_FONT, Math.round(base * stepOf(holders.width || Infinity).scale)));
+};
 
 function paint(holders: Holders, price: number, settings: Settings, shades: Shades): void {
   const { target } = holders;
@@ -142,7 +145,12 @@ function paint(holders: Holders, price: number, settings: Settings, shades: Shad
   target.setAttribute('data-senkuro-style', settings.badgeStyle);
   target.setAttribute('data-senkuro-eff', settings[tier.effect] || NO_EFFECT);
   target.setAttribute('data-senkuro-tier', tier.name);
-  target.style.setProperty('--s-size', `${fontSizeOf(holders, settings.fontSize)}px`);
+  if (isSmall(holders)) {
+    target.setAttribute('data-senkuro-compact', '1');
+  } else {
+    target.removeAttribute('data-senkuro-compact');
+  }
+  target.style.setProperty('--s-size', `${fontSizeOf(holders, settings.fontSize, settings.compactFontSize)}px`);
   if (settings.badgeStyle === 'background') {
     target.style.setProperty('--s-bg-color', shades.background);
     target.style.removeProperty('--s-outline');
@@ -227,7 +235,10 @@ function syncUnpricedBadge(holders: Holders, settings: Settings, shades: Shades)
   const { target } = holders;
   clearBadge(target);
   if (!isAppMounted(document)) return false;
-  target.style.setProperty('--s-size', `${fontSizeOf(holders, settings.fontSize)}px`);
+  if (isSmall(holders)) {
+    target.setAttribute('data-senkuro-compact', '1');
+  }
+  target.style.setProperty('--s-size', `${fontSizeOf(holders, settings.fontSize, settings.compactFontSize)}px`);
   target.style.setProperty('--s-bg-color', shades.background);
   let badge = target.querySelector<HTMLElement>(`:scope > .${UNPRICED_BADGE}`);
   if (!badge) {
