@@ -162,12 +162,23 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    justify-content: flex-end;
-    gap: 8px 4px;
+    justify-content: flex-start !important;
+    gap: 6px 4px;
   }
 
   .user-card__filters > :not(.senkutools-modal-search) {
     order: 1;
+  }
+
+  .user-card__filters .senkutools-price-filter__trigger {
+    width: var(--height-md) !important;
+    padding: 0 !important;
+    justify-content: center !important;
+  }
+
+  .user-card__filters .senkutools-price-filter__trigger > span,
+  .user-card__filters .senkutools-price-filter__trigger .senkutools-price-filter__chevron {
+    display: none !important;
   }
 
   .user-card__filters .senkutools-modal-search {
