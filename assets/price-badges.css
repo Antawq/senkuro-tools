@@ -54,88 +54,41 @@ a.card-collect[data-senkuro-style='background']::after {
 
 .card-collect-preview[data-senkuro-compact='1']::before,
 .card-collect-preview__front[data-senkuro-compact='1']::after,
-a.card-collect[data-senkuro-compact='1']::after,
-[data-senkuro-compact='1']::before,
-[data-senkuro-compact='1']::after,
-.card-notif .card-collect-preview::before,
-.card-notif .card-collect-preview::after,
-.modal-trade__preview-el .card-collect-preview::before,
-.modal-trade__preview-el .card-collect-preview::after,
-.modal-trade__swap-cards .card-collect-preview::before,
-.modal-trade__swap-cards .card-collect-preview::after {
+a.card-collect[data-senkuro-compact='1']::after {
   padding: 0.15em 0.35em;
   border-radius: 3px;
   font-size: var(--s-size, 12px);
 }
 
 .card-collect-preview[data-senkuro-compact='1']:is([data-badge-pos^='left-'])::before,
-.card-collect-preview[data-senkuro-compact='1']:is([data-badge-pos^='left-'])::after,
-[data-senkuro-compact='1']:is([data-badge-pos^='left-'])::before,
-[data-senkuro-compact='1']:is([data-badge-pos^='left-'])::after,
-.card-notif .card-collect-preview:is([data-badge-pos^='left-'])::before,
-.card-notif .card-collect-preview:is([data-badge-pos^='left-'])::after,
-.modal-trade__preview-el .card-collect-preview:is([data-badge-pos^='left-'])::before,
-.modal-trade__preview-el .card-collect-preview:is([data-badge-pos^='left-'])::after,
-.modal-trade__swap-cards .card-collect-preview:is([data-badge-pos^='left-'])::before,
-.modal-trade__swap-cards .card-collect-preview:is([data-badge-pos^='left-'])::after {
+.card-collect-preview__front[data-senkuro-compact='1']:is([data-badge-pos^='left-'])::after,
+a.card-collect[data-senkuro-compact='1']:is([data-badge-pos^='left-'])::after {
   left: 2px;
 }
 
 .card-collect-preview[data-senkuro-compact='1']:is([data-badge-pos^='right-'])::before,
-.card-collect-preview[data-senkuro-compact='1']:is([data-badge-pos^='right-'])::after,
-[data-senkuro-compact='1']:is([data-badge-pos^='right-'])::before,
-[data-senkuro-compact='1']:is([data-badge-pos^='right-'])::after,
-.card-notif .card-collect-preview:is([data-badge-pos^='right-'])::before,
-.card-notif .card-collect-preview:is([data-badge-pos^='right-'])::after,
-.modal-trade__preview-el .card-collect-preview:is([data-badge-pos^='right-'])::before,
-.modal-trade__preview-el .card-collect-preview:is([data-badge-pos^='right-'])::after,
-.modal-trade__swap-cards .card-collect-preview:is([data-badge-pos^='right-'])::before,
-.modal-trade__swap-cards .card-collect-preview:is([data-badge-pos^='right-'])::after {
+.card-collect-preview__front[data-senkuro-compact='1']:is([data-badge-pos^='right-'])::after,
+a.card-collect[data-senkuro-compact='1']:is([data-badge-pos^='right-'])::after {
   right: 2px;
 }
 
 .card-collect-preview[data-senkuro-compact='1']:is([data-badge-pos$='-bottom'], [data-badge-pos*='-bottom:'])::before,
-.card-collect-preview[data-senkuro-compact='1']:is([data-badge-pos$='-bottom'], [data-badge-pos*='-bottom:'])::after,
-[data-senkuro-compact='1']:is([data-badge-pos$='-bottom'], [data-badge-pos*='-bottom:'])::before,
-[data-senkuro-compact='1']:is([data-badge-pos$='-bottom'], [data-badge-pos*='-bottom:'])::after,
-.card-notif .card-collect-preview:is([data-badge-pos$='-bottom'], [data-badge-pos*='-bottom:'])::before,
-.card-notif .card-collect-preview:is([data-badge-pos$='-bottom'], [data-badge-pos*='-bottom:'])::after,
-.modal-trade__preview-el .card-collect-preview:is([data-badge-pos$='-bottom'], [data-badge-pos*='-bottom:'])::before,
-.modal-trade__preview-el .card-collect-preview:is([data-badge-pos$='-bottom'], [data-badge-pos*='-bottom:'])::after,
-.modal-trade__swap-cards .card-collect-preview:is([data-badge-pos$='-bottom'], [data-badge-pos*='-bottom:'])::before,
-.modal-trade__swap-cards .card-collect-preview:is([data-badge-pos$='-bottom'], [data-badge-pos*='-bottom:'])::after {
+.card-collect-preview__front[data-senkuro-compact='1']:is([data-badge-pos$='-bottom'], [data-badge-pos*='-bottom:'])::after,
+a.card-collect[data-senkuro-compact='1']:is([data-badge-pos$='-bottom'], [data-badge-pos*='-bottom:'])::after {
   bottom: 2px;
 }
 
 .card-collect-preview[data-senkuro-compact='1']:is([data-badge-pos$='-top'], [data-badge-pos*='-top:'])::before,
-.card-collect-preview[data-senkuro-compact='1']:is([data-badge-pos$='-top'], [data-badge-pos*='-top:'])::after,
-[data-senkuro-compact='1']:is([data-badge-pos$='-top'], [data-badge-pos*='-top:'])::before,
-[data-senkuro-compact='1']:is([data-badge-pos$='-top'], [data-badge-pos*='-top:'])::after,
-.card-notif .card-collect-preview:is([data-badge-pos$='-top'], [data-badge-pos*='-top:'])::before,
-.card-notif .card-collect-preview:is([data-badge-pos$='-top'], [data-badge-pos*='-top:'])::after,
-.modal-trade__preview-el .card-collect-preview:is([data-badge-pos$='-top'], [data-badge-pos*='-top:'])::before,
-.modal-trade__preview-el .card-collect-preview:is([data-badge-pos$='-top'], [data-badge-pos*='-top:'])::after,
-.modal-trade__swap-cards .card-collect-preview:is([data-badge-pos$='-top'], [data-badge-pos*='-top:'])::before,
-.modal-trade__swap-cards .card-collect-preview:is([data-badge-pos$='-top'], [data-badge-pos*='-top:'])::after {
+.card-collect-preview__front[data-senkuro-compact='1']:is([data-badge-pos$='-top'], [data-badge-pos*='-top:'])::after,
+a.card-collect[data-senkuro-compact='1']:is([data-badge-pos$='-top'], [data-badge-pos*='-top:'])::after {
   top: 2px;
 }
 
 .card-collect-preview[data-senkuro-compact='1']:not([data-badge-pos])::before,
-.card-collect-preview[data-senkuro-compact='1']:not([data-badge-pos])::after,
-[data-senkuro-compact='1']:not([data-badge-pos])::before,
-[data-senkuro-compact='1']:not([data-badge-pos])::after {
+.card-collect-preview__front[data-senkuro-compact='1']:not([data-badge-pos])::after,
+a.card-collect[data-senkuro-compact='1']:not([data-badge-pos])::after {
   left: 2px;
   bottom: 2px;
-}
-
-.card-collect-preview.user-card--selected::after {
-  content: '';
-  border: 3px solid var(--accent);
-  pointer-events: none;
-  z-index: 10;
-  border-radius: 12px;
-  position: absolute;
-  inset: -3px;
 }
 
 .card-collect-preview__front[data-senkuro-style='outline']::after,
