@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import type { Trade } from '../utils/trades/trade-capture';
+import type { Person, Trade } from '../utils/trades/trade-capture';
 import { findTradeConflict, formatFullTradeDate, formatTradeDate, mountTradeMeta, parseIso, userProfilePath } from '../utils/trades/trade-meta';
 
 const NOVEMBER = 10;
@@ -147,7 +147,7 @@ describe('findTradeConflict', () => {
     const accepted = makeTrade({
       id: 't2',
       status: 'ACCEPTED',
-      destination: { id: 'u3', slug: 'siberianqqq', name: 'Winner' } as any,
+      destination: { id: 'u3', slug: 'siberianqqq', name: 'Winner' } as Person,
     });
     const conflict = findTradeConflict(rejected, [rejected, accepted]);
     expect(conflict).toEqual({ targetName: 'Winner', targetSlug: 'siberianqqq', targetId: 'u3' });
