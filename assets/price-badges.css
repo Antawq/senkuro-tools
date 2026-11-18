@@ -1,12 +1,3 @@
-.card-collect-preview,
-.card-collect-preview *,
-a.card-collect,
-a.card-collect * {
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
-}
-
 .card-collect-preview__front[data-senkuro-price],
 .card-collect-preview[data-senkuro-price],
 a.card-collect[data-senkuro-price] {
@@ -261,7 +252,6 @@ a.card-collect:has(> .senkutools-unpriced-badge) {
   border: 0;
   font: inherit;
   position: absolute;
-  user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
   background: color-mix(in srgb, var(--senkuro-shade) 60%, transparent);

@@ -1,3 +1,9 @@
+.card-collect-preview,
+a.card-collect {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+}
+
 .card-notif__box-el .card-collect-preview__status {
   padding-inline: 2px;
 }
