@@ -245,8 +245,9 @@ a.card-collect[data-senkuro-eff='price-effect-bg']::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-senkuro-eff]::before,
-  [data-senkuro-eff]::after {
+  .card-collect-preview[data-senkuro-eff]::before,
+  .card-collect-preview__front[data-senkuro-eff]::after,
+  a.card-collect[data-senkuro-eff]::after {
     animation: none;
   }
 }

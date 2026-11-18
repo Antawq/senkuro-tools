@@ -62,6 +62,15 @@ describe('the price badge stylesheet', () => {
     expect(stylesheet.lastIndexOf("[data-senkuro-eff='price-effect-")).toBeLessThan(reduced);
     expect(stylesheet.indexOf('[data-senkuro-eff]::after', reduced)).toBeGreaterThan(reduced);
   });
+
+  it('switches off every effect holder for reduced motion with a selector of the same weight', () => {
+    const reduced = stylesheet.slice(stylesheet.indexOf('@media (prefers-reduced-motion: reduce)'));
+    const holders = [...stylesheet.matchAll(/([\w.-]+)\[data-senkuro-eff='price-effect-[a-z]+'\](::(?:before|after))/g)].map(
+      ([, holder, pseudo]) => `${holder}[data-senkuro-eff]${pseudo}`
+    );
+    expect(holders.length).toBeGreaterThan(0);
+    for (const holder of new Set(holders)) expect(reduced).toContain(holder);
+  });
 });
 
 describe('createPriceBadges', () => {
