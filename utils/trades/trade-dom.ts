@@ -6,7 +6,7 @@ import { REPLAY_EVENT, type Trade, type TradeStore } from './trade-capture';
 import { matchOffer, matchTrade, matchTradeByCounts, shows } from './trade-match';
 import { mountTradeMeta } from './trade-meta';
 
-const CARD_LIST = '.modal-content--review';
+const CARD_LIST = '.modal-review';
 const HISTORY = '.card-trade';
 const OFFER = '.offer-card';
 const NOTIFICATION = '.card-notif__info';
@@ -15,7 +15,6 @@ export const TRADE_PLACES = [MODAL, CARD_LIST, HISTORY, OFFER, NOTIFICATION].joi
 
 const INCOMING_SUBTITLE = 'Прими решение обмена';
 const NOTIFICATION_COUNTS = /Получишь\s+(\d+)\D+?Отдашь\s+(\d+)/;
-const LIST_OWNER = /\sу\s(.+)$/;
 const ROLE_LABELS = { give: 'Отдаёшь', get: 'Получаешь' } as const;
 const OFFER_CAPTIONS = { authored: 'Если примут', received: 'Если примешь' } as const;
 const TRADE_SIDES = 2;
@@ -70,10 +69,12 @@ const whole = (cards: CardRef[]): Side => ({ cards, hidden: 0 });
 
 const column = (role: Role, side: Side): Column => ({ role, label: ROLE_LABELS[role], ...side });
 
-const readPanel = (panel: Element): Side => {
-  const cards = readCards(panel.querySelector('.modal-trade__swap-cards'));
-  return { cards, hidden: Math.max(0, (numberIn(panel.querySelector('.card-info')) || cards.length) - cards.length) };
-};
+const readPreviewList = (list: Element): Side => ({
+  cards: readCards(list.querySelector('.card-preview-list__cards')),
+  hidden: numberIn(list.querySelector('.card-preview-list__el-title')),
+});
+
+const readPanel = (panel: Element): Side => readPreviewList(panel.querySelector('.card-preview-list') ?? panel);
 
 function viewerColumns(trade: Trade, viewerId: string | null, [sourceName = '', destinationName = '']: string[]): Column[] {
   if (viewerId && viewerId === trade.source.id) return [column('give', whole(trade.offer)), column('get', whole(trade.request))];
@@ -96,8 +97,8 @@ function readConstructor(modal: Element): Column[] | null {
 
 function rememberCardLists(): void {
   for (const list of document.querySelectorAll(CARD_LIST)) {
-    const owner = LIST_OWNER.exec(list.querySelector('.modal-trade__review-text')?.textContent?.trim() ?? '')?.[1];
-    if (owner) fullLists.set(owner, readCards(list.querySelector('.modal-trade__review-slider')));
+    const owner = nameOf(list.querySelector('.modal-review__top'));
+    if (owner) fullLists.set(owner, readCards(list.querySelector('.modal-review__result')));
   }
 }
 
@@ -156,11 +157,6 @@ const readModals = (store: TradeStore): Place[] =>
     const host = modal.querySelector('.modal-trade__footer');
     return host ? [{ host, placement: 'start' as const, columns: readConstructor(modal) ?? readReview(modal, store) }] : [];
   });
-
-const readPreviewList = (list: Element): Side => ({
-  cards: readCards(list.querySelector('.card-preview-list__slider')),
-  hidden: numberIn(list.querySelector('.card-preview-list-show-more')),
-});
 
 const readHistory = (store: TradeStore, showTradeRejectReason: boolean = false): Place[] =>
   [...document.querySelectorAll(HISTORY)].map((host) => {

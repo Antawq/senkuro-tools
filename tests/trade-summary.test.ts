@@ -74,11 +74,25 @@ const constructorFooter = (requests: string[], offers: string[]) => `
     <div class="modal-trade__actions"><button>Назад</button><button>К итогу</button></div>
   </div>`;
 
-const panel = (name: string, total: number, cards: string[]) => `
-  <div class="modal-trade__swap-el">
-    <div class="card-list"><div class="card-body"><div class="card-name"><span>${name}</span></div><div class="card-info">${total} карт</div></div></div>
-    <div class="modal-trade__swap-cards">${cards.slice(0, 3).join('')}<div class="modal-trade__swap-tag">Обменяет</div></div>
+const moreTile = (hidden: number) =>
+  hidden > 0
+    ? `<div class="card-preview-list__el"><div class="card-preview-list__el-title"> +${hidden}</div><div class="card-preview-list__el-text"> Посмотреть все </div></div>`
+    : '';
+
+const previewList = (name: string, total: number, cards: string[], info = '') => `
+  <div class="card-preview-list">
+    <div class="card-preview-list__top">
+      <div class="card-list"><div class="card-body"><div class="card-name"><span>${name}</span></div>${info ? `<div class="card-info">${info}</div>` : ''}</div></div>
+      <div class="card-preview-list__quantity">${total} карт</div>
+    </div>
+    <div class="card-preview-list__cards">${cards.join('')}${moreTile(total - cards.length)}</div>
   </div>`;
+
+const COLLAPSE_MORE = 3;
+
+const shownOf = (total: number, cards: string[]) => cards.slice(0, total > COLLAPSE_MORE ? COLLAPSE_MORE - 1 : COLLAPSE_MORE);
+
+const panel = (name: string, total: number, cards: string[]) => `<div class="modal-trade__swap-el">${previewList(name, total, shownOf(total, cards))}</div>`;
 
 const reviewFooter = `
   <div class="modal-trade__footer">
@@ -177,7 +191,7 @@ describe('updateTradeSummaries', () => {
     const drawn = [card('s-card', 2), card('s-card'), card('s-card')];
     el.insertAdjacentHTML('beforeend', reviewBody(panel('Я', 5, drawn), panel('Он', 1, [card('a-card')])) + reviewFooter);
     updateTradeSummaries(db, settings, store);
-    expect(summaryOf(el)?.sides[0]).toBe('Отдаёшь 972F Банк 4S 2? Карты 4S 2?');
+    expect(summaryOf(el)?.sides[0]).toBe('Отдаёшь 729F Банк 3S 3? Карты 3S 3?');
   });
 
   it('asks the page for the trades again once when an incoming trade has no data', () => {
@@ -197,11 +211,11 @@ describe('updateTradeSummaries', () => {
       reviewBody(panel('Phaivroh | WL', 4, cardsOf(phaivroh)), panel('Молюсь на Sky | WS', 5, cardsOf(sky))) + reviewFooter
     );
     const list = document.createElement('div');
-    list.className = 'modal-content modal-content--review';
-    list.innerHTML = `<div class="modal-trade__review"><div class="modal-trade__review-header"><div class="modal-trade__review-text">Которые ты просишь у Phaivroh | WL</div></div><div class="modal-trade__review-slider">${cardsOf(phaivroh).join('')}</div></div>`;
+    list.className = 'modal-content modal-content--trade scrollbar';
+    list.innerHTML = `<div class="modal-review"><div class="modal-review__top"><button type="button">Назад</button><div class="card-list"><div class="card-body"><div class="card-name"><span>Phaivroh | WL</span></div></div></div><div class="modal-review__quantity">4 карты</div></div><div class="modal-review__result scrollbar">${cardsOf(phaivroh).join('')}</div></div>`;
     document.body.append(list);
     updateTradeSummaries(db, settings, store);
-    expect(summaryOf(el)?.sides).toEqual([skySides[0], 'Отдаёшь 63F Банк 1.6B 2.2C 2? Карты 1B 2C 2?']);
+    expect(summaryOf(el)?.sides).toEqual([skySides[0], 'Отдаёшь 52.2F Банк 1.6B 1C 3? Карты 1B 1C 3?']);
   });
 
   it('marks the cards an incoming trade does not draw as gray ? and explains the mark', () => {
@@ -209,11 +223,11 @@ describe('updateTradeSummaries', () => {
     const el = modal('Прими решение обмена', reviewBody(panel('Отправитель', 6, offers), panel('Я', 1, [card('s-card')])) + reviewFooter);
     updateTradeSummaries(db, settings, store);
     expect(summaryOf(el)).toEqual({
-      sides: ['Получаешь 487F Банк 2S 1F 3? Карты 2S 1F 3?', 'Отдаёшь 243F Банк 1S Карты 1S'],
-      verdict: 'Выгода +244F (+100%)',
+      sides: ['Получаешь 486F Банк 2S 4? Карты 2S 4?', 'Отдаёшь 243F Банк 1S Карты 1S'],
+      verdict: 'Выгода +243F (+100%)',
       grayVerdict: false,
     });
-    expect((el.querySelector('.senkuro-trade-summary__cell strong.senkuro-trade-summary__unknown') as HTMLElement).textContent).toBe('487F');
+    expect((el.querySelector('.senkuro-trade-summary__cell strong.senkuro-trade-summary__unknown') as HTMLElement).textContent).toBe('486F');
     expect((el.querySelector('.senkuro-trade-summary__verdict') as HTMLElement).classList.contains('senkuro-trade-summary__verdict--gain')).toBe(true);
     expect((el.querySelector('.senkuro-trade-summary__panel > .senkuro-trade-summary__unknown') as HTMLElement).textContent).toBe(
       '? - нет цены в базе (посчитаны по 1.25)'
@@ -619,12 +633,8 @@ describe('summary variants', () => {
   });
 });
 
-const userList = (name: string, list: [string, number][], collapse: boolean) => `
-  <div class="card-preview-list">
-    <div class="card-list"><div class="card-body"><div class="card-name"><span>${name}</span></div><div class="card-info">Отдаёт после обмена</div></div></div>
-    <div class="card-preview-list__slider"><div class="card-preview-list__slider-wrap">${cardsOf(collapse ? list.slice(0, 2) : list).join('')}</div></div>
-    ${collapse && list.length > 2 ? `<button class="card-preview-list-show-more">Показать ещё ${list.length - 2} карты</button>` : ''}
-  </div>`;
+const userList = (name: string, list: [string, number][], collapse: boolean) =>
+  previewList(name, list.length, collapse ? shownOf(list.length, cardsOf(list)) : cardsOf(list), 'Отдаёт после обмена');
 
 const historyItem = (collapse: boolean) => {
   const el = document.createElement('div');
