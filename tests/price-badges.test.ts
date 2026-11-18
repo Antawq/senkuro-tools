@@ -10,6 +10,7 @@ import { visibleName } from '../utils/shared/copy-button';
 import { DEFAULT_SETTINGS } from '../utils/shared/settings';
 
 const db = { soran: { price: 1.25, name: 'Соран', rank: 'F' } };
+const LARGE_PRICE = { ...DEFAULT_SETTINGS, fontSize: 16 };
 const image = 'https://shiro.senkuro.net/cards/soran.webp';
 
 const preview = () => `
@@ -302,10 +303,10 @@ describe('createPriceBadges', () => {
     expect(holderOf().getAttribute('data-senkuro-price')).toBe('1.00');
   });
 
-  const renderAtWidth = (width: number) => {
+  const renderAtWidth = (width: number, settings = DEFAULT_SETTINGS) => {
     document.body.innerHTML = preview();
     for (const link of document.querySelectorAll('a.card-collect')) Object.defineProperty(link, 'offsetWidth', { value: width });
-    createPriceBadges({ touch: false }).update(db, DEFAULT_SETTINGS);
+    createPriceBadges({ touch: false }).update(db, settings);
   };
 
   it('leaves a thumbnail too narrow for a readable price without one', () => {
@@ -318,11 +319,12 @@ describe('createPriceBadges', () => {
     expect(document.querySelector('[data-senkuro-price]')?.getAttribute('data-senkuro-price')).toBe('1.00');
   });
 
-  it('still prices a small card that has room for the price, in a smaller font', () => {
+  it('still prices a small card that has room for the price, in the small tag at its own size', () => {
     renderAtWidth(50);
     const holder = document.querySelector<HTMLElement>('[data-senkuro-price]');
     expect(holder?.getAttribute('data-senkuro-price')).toBe('1.00');
-    expect(Number.parseFloat(holder?.style.getPropertyValue('--s-size') ?? '')).toBeLessThan(DEFAULT_SETTINGS.fontSize);
+    expect(holder?.getAttribute('data-senkuro-compact')).toBe('1');
+    expect(holder?.style.getPropertyValue('--s-size')).toBe(`${DEFAULT_SETTINGS.compactFontSize}px`);
   });
 
   it.each([
@@ -334,19 +336,20 @@ describe('createPriceBadges', () => {
     [95, '14px'],
     [93, '14px'],
     [50, '12px'],
-  ])('sizes the price of a %ipx card at %s', (width, expected) => {
-    renderAtWidth(width);
+  ])('sizes a 16px price on a %ipx card at %s', (width, expected) => {
+    renderAtWidth(width, LARGE_PRICE);
     expect(document.querySelector<HTMLElement>('[data-senkuro-price]')?.style.getPropertyValue('--s-size')).toBe(expected);
   });
 
   it('keeps the chosen size on a card whose width is not known', () => {
     renderAtWidth(0);
-    expect(document.querySelector<HTMLElement>('[data-senkuro-price]')?.style.getPropertyValue('--s-size')).toBe('16px');
+    expect(document.querySelector<HTMLElement>('[data-senkuro-price]')?.style.getPropertyValue('--s-size')).toBe('12px');
   });
 
   it('never grows the chosen size and never goes under the smallest readable one', () => {
     for (const [width, base, expected] of [
       [103, 24, '20px'],
+      [93, 12, '12px'],
       [168, 9, '9px'],
       [50, 12, '12px'],
     ] as const) {
@@ -395,7 +398,7 @@ describe('createPriceBadges', () => {
     const linkOf = () => document.querySelector('.card-collect-preview__front a.card-collect') as HTMLAnchorElement;
     const sizeOf = () => document.querySelector<HTMLElement>('[data-senkuro-price]')?.style.getPropertyValue('--s-size');
 
-    const renderWatched = (width: number, settings = DEFAULT_SETTINGS) => {
+    const renderWatched = (width: number, settings = LARGE_PRICE) => {
       document.body.innerHTML = preview();
       widthOf(linkOf(), width);
       const badges = createPriceBadges({ touch: false });
@@ -460,7 +463,7 @@ describe('createPriceBadges', () => {
         '<a class="card-collect" href="/cards/hsr-kafka-c"><div class="card-collect__front"><img class="card-collect__img" alt="Кафка"></div></a>';
       const link = document.querySelector('a.card-collect') as HTMLAnchorElement;
       widthOf(link, 168);
-      createPriceBadges({ touch: false }).update(db, DEFAULT_SETTINGS);
+      createPriceBadges({ touch: false }).update(db, LARGE_PRICE);
       expect(link.style.getPropertyValue('--s-size')).toBe('16px');
       widthOf(link, 103);
       watch.fire(link);
@@ -543,7 +546,7 @@ describe('createPriceBadges', () => {
       expect(markOf()?.classList.contains('senkutools-unpriced-badge--outline')).toBe(false);
       const card = document.querySelector('a.card-collect') as HTMLElement;
       expect(card.hasAttribute('data-senkuro-price')).toBe(false);
-      expect(card.style.getPropertyValue('--s-size')).toBe('16px');
+      expect(card.style.getPropertyValue('--s-size')).toBe('12px');
     });
 
     it('draws the question mark in the outline style when the badges use it', () => {

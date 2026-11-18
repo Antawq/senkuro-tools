@@ -10,7 +10,7 @@ import { tierOf } from './tiers';
 const BADGE_ATTRIBUTES = ['data-senkuro-price', 'data-senkuro-style', 'data-senkuro-eff', 'data-senkuro-tier', 'data-senkuro-compact'];
 const SMALL_CARD_WIDTH = 60;
 const MIN_PRICED_CARD_WIDTH = 30;
-const MIN_FONT = 9;
+const MIN_FONT = 12;
 const SIZE_STEPS = [
   { minWidth: 140, scale: 1 },
   { minWidth: 110, scale: 0.9 },
@@ -37,7 +37,10 @@ export interface PriceBadges {
 
 const shadesOf = (opacity: number) => {
   const shade = `rgb(0 0 0 / ${opacity / PERCENT})`;
-  return { background: shade, outline: OUTLINE_OFFSETS.map((offset) => `${offset} ${shade}`).join(',') };
+  return {
+    background: `color-mix(in srgb, var(--senkuro-ink) ${opacity}%, transparent)`,
+    outline: OUTLINE_OFFSETS.map((offset) => `${offset} ${shade}`).join(','),
+  };
 };
 
 function applyPosition(target: HTMLElement, positionX: BadgePositionX, positionY: BadgePositionY, gap: FaceGap): void {

@@ -38,17 +38,24 @@ a.card-collect[data-senkuro-price]::after {
 .card-collect-preview__front[data-senkuro-style='background']::after,
 .card-collect-preview[data-senkuro-style='background']::before,
 a.card-collect[data-senkuro-style='background']::after {
-  background-color: var(--s-bg-color, var(--senkuro-badge-shade));
+  display: flex;
+  align-items: center;
+  height: var(--senkuro-badge-height);
   padding: var(--senkuro-badge-pad);
+  border: 1px solid var(--senkuro-badge-edge);
   border-radius: var(--senkuro-badge-radius);
+  background-color: var(--s-bg-color, var(--senkuro-badge-shade));
+  box-shadow: var(--senkuro-badge-glow);
+  color: var(--senkuro-badge-text);
+  font-weight: 500;
+  font-variant-numeric: normal;
 }
 
-.card-collect-preview[data-senkuro-compact='1']::before,
-.card-collect-preview__front[data-senkuro-compact='1']::after,
-a.card-collect[data-senkuro-compact='1']::after {
-  padding: 0.15em 0.35em;
-  border-radius: 3px;
-  font-size: var(--s-size, 12px);
+.card-collect-preview[data-senkuro-style='background'][data-senkuro-compact='1']::before,
+.card-collect-preview__front[data-senkuro-style='background'][data-senkuro-compact='1']::after,
+a.card-collect[data-senkuro-style='background'][data-senkuro-compact='1']::after {
+  height: var(--senkuro-badge-compact-height);
+  padding: var(--senkuro-badge-compact-pad);
 }
 
 .card-collect-preview[data-senkuro-compact='1']:is([data-badge-pos^='left-'])::before,
@@ -206,8 +213,10 @@ a.card-collect:has(> .senkutools-unpriced-badge) {
   z-index: 99;
   pointer-events: none;
   display: flex;
+  align-items: center;
+  box-sizing: border-box;
   line-height: 1;
-  color: var(--s-color, var(--senkuro-tier-white));
+  color: var(--senkuro-badge-text);
   font-size: var(--s-size, 14px);
   top: var(--s-top, auto);
   bottom: var(--s-bottom, auto);
@@ -215,10 +224,18 @@ a.card-collect:has(> .senkutools-unpriced-badge) {
   right: var(--s-right, auto);
   margin-top: var(--s-mt, 0);
   translate: var(--s-tx, 0) var(--s-ty, 0);
+  height: var(--senkuro-badge-height);
   background-color: var(--s-bg-color, var(--senkuro-badge-shade));
   padding: var(--senkuro-badge-pad);
+  border: 1px solid var(--senkuro-badge-edge);
   border-radius: var(--senkuro-badge-radius);
+  box-shadow: var(--senkuro-badge-glow);
   backface-visibility: hidden;
+}
+
+[data-senkuro-compact='1'] > .senkutools-unpriced-badge {
+  height: var(--senkuro-badge-compact-height);
+  padding: var(--senkuro-badge-compact-pad);
 }
 
 .card-collect-preview > .senkutools-unpriced-badge {
@@ -226,13 +243,17 @@ a.card-collect:has(> .senkutools-unpriced-badge) {
 }
 
 .senkutools-unpriced-badge > svg {
-  width: 1em;
-  height: 1em;
+  width: var(--senkuro-badge-icon);
+  height: var(--senkuro-badge-icon);
 }
 
-.senkutools-unpriced-badge--outline {
+.senkutools-unpriced-badge.senkutools-unpriced-badge--outline {
+  height: auto;
   background-color: transparent;
   padding: 0;
+  border: 0;
+  box-shadow: none;
+  color: var(--s-color, var(--senkuro-tier-white));
 }
 
 .senkutools-unpriced-badge--outline > svg {
