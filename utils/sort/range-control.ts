@@ -187,6 +187,9 @@ export function syncRangeControl(toolbar: Element, mobileClass: string | null, v
     controls.set(toolbar, control);
   }
   if (control.wrapper.parentElement !== toolbar) insertControl(toolbar, control);
+  for (const duplicate of toolbar.querySelectorAll<HTMLElement>(`:scope > .${PRICE_FILTER_CLASS}`)) {
+    if (duplicate !== control.wrapper) duplicate.remove();
+  }
   setText(control.label, view.label);
   control.trigger.classList.toggle(SITE_APPLIED, view.range !== null);
   if (!control.panel.hidden) return;

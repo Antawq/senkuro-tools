@@ -16,6 +16,7 @@ export interface Settings {
   opacity: number;
   badgeStyle: BadgeStyle;
   fontSize: number;
+  compactFontSize: number;
   summaryFontSize: number;
   effectRed: PriceEffect;
   effectPurple: PriceEffect;
@@ -45,6 +46,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = {
   opacity: 85,
   badgeStyle: 'background',
   fontSize: 16,
+  compactFontSize: 12,
   summaryFontSize: 12,
   effectRed: '',
   effectPurple: '',

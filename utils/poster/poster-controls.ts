@@ -10,6 +10,7 @@ export const POSTER_TEXT = {
   nickname: 'Ник',
   quantity: 'Количество',
   prices: 'Цены',
+  commission: 'С комиссией',
   download: 'Скачать PNG',
   downloadAll: 'Скачать все страницы (ZIP)',
   copy: 'Копировать',
@@ -52,6 +53,7 @@ export interface DialogControls {
   nickname: HTMLInputElement;
   quantity: HTMLInputElement;
   prices: HTMLInputElement;
+  commission: HTMLInputElement;
   note: HTMLElement;
   download: HTMLButtonElement;
   copy: HTMLButtonElement;
@@ -152,7 +154,7 @@ function createActionRows(download: HTMLButtonElement, copy: HTMLButtonElement, 
   return [mainRow, allRow];
 }
 
-export function createControls(pageCount: number): DialogControls {
+export function createControls(pageCount: number, isCommissionEnabled = true): DialogControls {
   const dialog = element('dialog', DIALOG_CLASS);
   dialog.setAttribute('aria-label', POSTER_TEXT.title);
   const image = element('img', `${DIALOG_CLASS}__image`);
@@ -163,6 +165,12 @@ export function createControls(pageCount: number): DialogControls {
   const nickname = createToggle('nickname', POSTER_TEXT.nickname, true);
   const quantity = createToggle('quantity', POSTER_TEXT.quantity, true);
   const prices = createToggle('prices', POSTER_TEXT.prices, false);
+  const commission = createToggle('commission', POSTER_TEXT.commission, isCommissionEnabled);
+  commission.label.classList.add(`${DIALOG_CLASS}__toggle--sub`);
+  commission.label.hidden = !prices.input.checked;
+  prices.input.addEventListener('change', () => {
+    commission.label.hidden = !prices.input.checked;
+  });
   const note = element('p', `${DIALOG_CLASS}__note`);
   note.setAttribute('role', 'status');
   const download = createButton(DOWNLOAD_BUTTON, 'download', POSTER_TEXT.download);
@@ -170,7 +178,7 @@ export function createControls(pageCount: number): DialogControls {
   const downloadAll = isPaged ? createButton(COPY_BUTTON, 'download-all', POSTER_TEXT.downloadAll) : null;
   const form = element('form', `${DIALOG_CLASS}__controls`);
   form.addEventListener('submit', (event) => event.preventDefault());
-  form.append(heading.label, nickname.label, quantity.label, prices.label, note, ...createActionRows(download, copy, downloadAll));
+  form.append(heading.label, nickname.label, quantity.label, prices.label, commission.label, note, ...createActionRows(download, copy, downloadAll));
   const body = element('div', `${DIALOG_CLASS}__body`);
   body.append(createPreview(image, pager), form);
   const close = createCloseButton();
@@ -182,6 +190,7 @@ export function createControls(pageCount: number): DialogControls {
     nickname: nickname.input,
     quantity: quantity.input,
     prices: prices.input,
+    commission: commission.input,
     note,
     download,
     copy,

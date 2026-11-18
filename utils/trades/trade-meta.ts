@@ -18,17 +18,21 @@ export interface TradeConflict {
   targetId: string | null;
 }
 
+function findUserNumber(id: string): string | null {
+  try {
+    return atob(id).match(/^(?:USER:)?(\d+)$/)?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function userProfilePath(person?: { slug?: string | null; id?: string | null }): string {
   if (person?.slug) return `/users/${person.slug}`;
   const id = person?.id;
   if (!id) return '';
   if (/^\d+$/.test(id)) return `/users/@${id}`;
-  try {
-    const decoded = atob(id);
-    const match = decoded.match(/^(?:USER:)?(\d+)$/);
-    if (match?.[1]) return `/users/@${match[1]}`;
-  } catch {}
-  return `/users/${id}`;
+  const userNumber = findUserNumber(id);
+  return userNumber ? `/users/@${userNumber}` : `/users/${id}`;
 }
 
 export function parseIso(iso: string): Date {

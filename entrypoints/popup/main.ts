@@ -23,7 +23,7 @@ type ToggleKey =
   | 'showSummaryCards'
   | 'showSummaryVerdict'
   | 'showTradeRejectReason';
-type SliderKey = 'copyBtnSize' | 'opacity' | 'fontSize' | 'summaryFontSize';
+type SliderKey = 'copyBtnSize' | 'opacity' | 'fontSize' | 'compactFontSize' | 'summaryFontSize';
 type ChoiceKey = 'positionX' | 'positionY' | 'badgeStyle' | 'valueBasis' | 'effectRed' | 'effectPurple' | 'effectYellow' | 'effectGreen' | 'effectWhite';
 
 interface Binding {
@@ -96,6 +96,7 @@ const bindings = [
   slider('copyBtnSizeSlider', 'copyBtnSizeValue', 'px', 'copyBtnSize'),
   slider('opacitySlider', 'opacityValue', '%', 'opacity'),
   slider('fontSizeSlider', 'fontSizeValue', 'px', 'fontSize'),
+  slider('compactFontSizeSlider', 'compactFontSizeValue', 'px', 'compactFontSize'),
   slider('summaryFontSizeSlider', 'summaryFontSizeValue', 'px', 'summaryFontSize'),
   choice('positionXSelect', 'positionX'),
   choice('positionYSelect', 'positionY'),
