@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { RESET_CLASS, RESET_TEXT, isCatalogResetStale, syncCatalogReset } from '../utils/catalog/catalog-reset';
+import { APP_MOUNTED_ATTRIBUTE } from '../utils/shared/app-mounted';
 
 const catalog = ({ isDirty, isEmpty }: { isDirty: boolean; isEmpty: boolean }) => `
   <div class="catalog">
@@ -19,6 +20,7 @@ const catalog = ({ isDirty, isEmpty }: { isDirty: boolean; isEmpty: boolean }) =
 
 const open = (path: string, state: { isDirty: boolean; isEmpty: boolean }) => {
   window.history.pushState({}, '', path);
+  document.documentElement.setAttribute(APP_MOUNTED_ATTRIBUTE, '');
   document.body.innerHTML = catalog(state);
 };
 
@@ -26,6 +28,7 @@ const ownButtons = () => [...document.querySelectorAll<HTMLButtonElement>(`.${RE
 
 afterEach(() => {
   document.body.innerHTML = '';
+  document.documentElement.removeAttribute(APP_MOUNTED_ATTRIBUTE);
 });
 
 describe('syncCatalogReset', () => {
