@@ -101,3 +101,104 @@ describe('profile header layout', () => {
     expect(styleOf('.nav-mobile__left > .senkuro-profile-f-chip').marginLeft).toBe('6px');
   });
 });
+
+const previewCards = (cards: number, withTile: boolean) =>
+  `<div class="card-preview-list__cards">${'<div class="card-preview-list__card"></div>'.repeat(cards)}${withTile ? '<div class="card-preview-list__el"></div>' : ''}</div>`;
+
+const reviewStep = (cards: number, withTile: boolean) =>
+  `<div class="modal-content modal-content--trade"><div class="modal-trade__swap"><div class="modal-trade__swap-el"><div class="card-preview-list">${previewCards(cards, withTile)}</div></div></div></div>`;
+
+describe('trade window frame', () => {
+  it('paints the window and its three bands like the previous design, without the new border', () => {
+    document.head.insertAdjacentHTML('beforeend', '<style>:root{--bg-primary:rgb(1, 2, 3);--bg-quaternary:rgb(4, 5, 6)}</style>');
+    document.body.innerHTML = tradeModal('');
+    expect(styleOf('.modal-content--trade').backgroundColor).toBe('rgb(1, 2, 3)');
+    expect(styleOf('.modal-content--trade').borderWidth).toMatch(/^0(px)?$/);
+    for (const band of ['header', 'body', 'footer']) expect(styleOf(`.modal-trade__${band}`).backgroundColor).toBe('rgb(4, 5, 6)');
+    expect(styleOf('.modal-trade__body').maxHeight).toBe('398px');
+  });
+});
+
+describe('review step card fan', () => {
+  it('tilts the second card left and the third card right', () => {
+    document.body.innerHTML = reviewStep(3, false);
+    expect(styleOf('.card-preview-list__card:nth-child(2)').transform).toBe('rotate(-10deg) translate(-54px, -6px)');
+    expect(styleOf('.card-preview-list__card:nth-child(3)').transform).toBe('rotate(10deg) translate(54px, -6px)');
+    expect(styleOf('.card-preview-list__card:nth-child(2)').position).toBe('absolute');
+  });
+
+  it('keeps the first card and the view all tile upright and in the flow', () => {
+    document.body.innerHTML = reviewStep(2, true);
+    for (const upright of ['.card-preview-list__card:first-child', '.card-preview-list__el']) {
+      expect(styleOf(upright).transform).not.toContain('rotate');
+      expect(styleOf(upright).position).not.toBe('absolute');
+    }
+  });
+
+  it('leaves the card lists outside of the review step alone', () => {
+    document.body.innerHTML = `<div class="card-trade"><div class="card-preview-list">${previewCards(3, false)}</div></div>`;
+    for (const card of document.querySelectorAll<HTMLElement>('.card-preview-list__card')) expect(getComputedStyle(card).position).not.toBe('absolute');
+  });
+});
+
+describe('trade count pills', () => {
+  const summary = (state = '') => `<div class="senkuro-trade-summary${state}"></div>`;
+  const reviewPills = (footer: string) =>
+    `<div class="modal-content modal-content--trade"><div class="card-preview-list__quantity"></div><div class="modal-trade__swap-quantity"></div><div class="modal-trade__footer">${footer}</div></div>`;
+  const historyItem = (tail: string) =>
+    `<div class="card-trade"><div class="card-preview-list"><div class="card-preview-list__quantity"></div></div>${tail}</div>`;
+
+  it('are hidden in the review step while the summary shows the exchange', () => {
+    document.body.innerHTML = reviewPills(summary());
+    expect(styleOf('.card-preview-list__quantity').display).toBe('none');
+    expect(styleOf('.modal-trade__swap-quantity').display).toBe('none');
+  });
+
+  it.each([
+    ['no summary', ''],
+    ['a closed summary', summary(' senkuro-trade-summary--closed')],
+  ])('stay in the review step with %s', (_name, footer) => {
+    document.body.innerHTML = reviewPills(footer);
+    expect(styleOf('.card-preview-list__quantity').display).not.toBe('none');
+    expect(styleOf('.modal-trade__swap-quantity').display).not.toBe('none');
+  });
+
+  it('are hidden only in the history items that carry a summary', () => {
+    document.body.innerHTML = historyItem(summary()) + historyItem('') + historyItem(summary(' senkuro-trade-summary--closed'));
+    const [withSummary, withoutSummary, withClosedSummary] = [...document.querySelectorAll('.card-preview-list__quantity')].map(
+      (pill) => getComputedStyle(pill).display
+    );
+    expect(withSummary).toBe('none');
+    expect(withoutSummary).not.toBe('none');
+    expect(withClosedSummary).not.toBe('none');
+  });
+});
+
+describe('trade history card lists', () => {
+  it('lay the cards out in the grid of the previous design', () => {
+    document.body.innerHTML = `<div class="user-card-trades-grid"><div class="card-trade"><div class="card-preview-list"><div class="card-preview-list__cards"></div></div></div></div>`;
+    expect(styleOf('.card-preview-list__cards').gridTemplateColumns).toBe('repeat(auto-fill, minmax(88px, 1fr))');
+    expect(styleOf('.card-preview-list__cards').gap).toBe('8px');
+  });
+
+  it('flow the trades into as many columns as fit a minimal trade width', () => {
+    document.body.innerHTML = '<div class="user-card-trades-grid"><div class="card-trade"></div></div><div class="user-card-trades-grid" id="empty"></div>';
+    expect(styleOf('.user-card-trades-grid:not(#empty)').gridTemplateColumns).toBe('repeat(auto-fill, minmax(240px, 1fr))');
+    expect(styleOf('#empty').gridTemplateColumns).not.toBe('repeat(auto-fill, minmax(240px, 1fr))');
+  });
+
+  it('let the time label fill the row so it sits at the far end of the header', () => {
+    document.body.innerHTML =
+      '<div class="card-trade"><div class="card-preview-list"><div class="card-preview-list__top"><div class="card-list"></div></div></div></div>';
+    expect(styleOf('.card-list').flexGrow).toBe('1');
+  });
+
+  it('drop the level chip, in the review step too, and keep it on other pages', () => {
+    const list = '<div class="card-preview-list"><div class="card-type"></div></div>';
+    document.body.innerHTML = `<div class="card-trade">${list}</div><div class="modal-trade__swap-el">${list}</div><div class="profile">${list}</div>`;
+    const [history, review, elsewhere] = [...document.querySelectorAll('.card-type')].map((chip) => getComputedStyle(chip).display);
+    expect(history).toBe('none');
+    expect(review).toBe('none');
+    expect(elsewhere).not.toBe('none');
+  });
+});
