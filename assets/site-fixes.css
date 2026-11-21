@@ -100,6 +100,15 @@ a.card-collect {
   display: none;
 }
 
+.user-card-trades-grid .card-trade .card-preview-list__cards {
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 8px;
+}
+
+.card-trade .card-preview-list__top > .card-list {
+  flex: auto;
+}
+
 .client-header header:has(> .senkuro-profile-f-chip) {
   flex-wrap: wrap;
 }
