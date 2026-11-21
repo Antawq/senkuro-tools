@@ -1,5 +1,5 @@
 import { CARD_ROW_CLASS } from '../shared/cards';
-import { childWithClass, element, writeAttribute } from '../shared/dom';
+import { SITE_SEGMENT, SITE_SEGMENT_CONTENT, SITE_SEGMENT_INNER, SITE_TAB, SITE_TAB_ACTIVE, childWithClass, element, writeAttribute } from '../shared/dom';
 import { isListComplete, retriggerPaging } from '../shared/paging-sentinel';
 import { MODAL_FILTER_NODES } from '../shared/modal-filter-nodes';
 import { PRICE_FILTER_NODES } from '../shared/price-filter-nodes';
@@ -15,11 +15,6 @@ const SWITCH_BUTTON = `${SWITCH}__button`;
 export const SHARD_NOTE_CLASS = `${SWITCH}__empty`;
 const OWN_NODES = `.${SWITCH}, .${SHARD_NOTE_CLASS}, .${MODAL_REFRESH_CLASS}, ${PRICE_FILTER_NODES}, ${MODAL_FILTER_NODES}`;
 export const SHARD_VIEW_ATTRIBUTE = 'data-senkutools-shard-view';
-const SITE_SEGMENT = 'tabs tabs--segment';
-const SITE_SEGMENT_INNER = 'tabs-inner';
-const SITE_SEGMENT_CONTENT = 'tabs-cnt';
-const SITE_TAB = 'button button--secondary button--auto button-size--md button--flat tabs-tab';
-const SITE_TAB_ACTIVE = 'tabs-tab--active';
 const GROUP_LABEL = 'Что показывать';
 
 export type ShardView = 'all' | 'cards' | 'shards';

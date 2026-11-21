@@ -1,4 +1,9 @@
 export const SITE_ICON_BUTTON = 'button button--secondary button--icon button-size--md';
+export const SITE_SEGMENT = 'tabs tabs--segment';
+export const SITE_SEGMENT_INNER = 'tabs-inner';
+export const SITE_SEGMENT_CONTENT = 'tabs-cnt';
+export const SITE_TAB = 'button button--secondary button--auto button-size--md button--flat tabs-tab';
+export const SITE_TAB_ACTIVE = 'tabs-tab--active';
 
 export function writeAttribute(target: Element, name: string, attributeValue: string | null): void {
   if (attributeValue === null) target.removeAttribute(name);
