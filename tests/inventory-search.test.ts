@@ -150,3 +150,71 @@ describe('syncInventorySearch', () => {
     expect(isInventorySearchMissing(document)).toBe(false);
   });
 });
+
+const DECK_BODY_HTML = `
+  <div class="card-browse">
+    <div class="card-browse__form">
+      <div class="v-popper"></div>
+      <button id="direction" class="button button--secondary button--auto"></button>
+      <div class="v-popper"></div>
+    </div>
+    <div class="card-browse__cnt scrollbar">
+      <div class="card-browse__cnt-result">
+        ${cardRow('wh-felicity-f', 'Фелисити')}
+        ${cardRow('ych-ёлка-s', 'Ёлка')}
+        ${cardRow('nar-sasuke-a', 'Саске')}
+      </div>
+    </div>
+  </div>`;
+
+const openDeck = (path = '/decks/create') => {
+  window.history.pushState({}, '', path);
+  document.body.innerHTML = DECK_BODY_HTML;
+  setAppMounted(true);
+};
+
+const visibleDeckCards = () => [...document.querySelectorAll<HTMLElement>('.card-browse__cnt-result > .user-card:not([data-senkutools-filtered])')];
+
+describe('syncInventorySearch in the deck builder', () => {
+  it('puts the open search at the end of the deck card toolbar and filters the deck cards', () => {
+    openDeck();
+    syncInventorySearch(document, database);
+    const control = findSearchControl();
+    expect(control?.parentElement?.classList.contains('card-browse__form')).toBe(true);
+    expect(control?.nextElementSibling).toBeNull();
+    const input = findSearchInput()!;
+    input.value = 'саске';
+    input.dispatchEvent(new Event('input'));
+    expect(visibleDeckCards().map((row) => row.dataset.id)).toEqual(['nar-sasuke-a']);
+  });
+
+  it('counts the deck builder as missing its search until it is drawn', () => {
+    openDeck();
+    expect(isInventorySearchMissing(document)).toBe(true);
+    syncInventorySearch(document, database);
+    expect(isInventorySearchMissing(document)).toBe(false);
+  });
+
+  it('removes the search and the filtering when the deck card list leaves the page', () => {
+    openDeck();
+    syncInventorySearch(document, database);
+    const input = findSearchInput()!;
+    input.value = 'саске';
+    input.dispatchEvent(new Event('input'));
+    const toolbar = document.querySelector('.card-browse__form')!;
+    document.querySelector('.card-browse__cnt')?.remove();
+    syncInventorySearch(document, database);
+    expect(toolbar.querySelector(`.${SEARCH_CLASS}`)).toBeNull();
+  });
+
+  it('starts the deck builder with an empty query whatever was typed on the cards page', () => {
+    syncInventorySearch(document, database);
+    const input = findSearchInput()!;
+    input.value = 'фели';
+    input.dispatchEvent(new Event('input'));
+    openDeck();
+    syncInventorySearch(document, database);
+    expect(findSearchInput()?.value).toBe('');
+    expect(visibleDeckCards()).toHaveLength(3);
+  });
+});

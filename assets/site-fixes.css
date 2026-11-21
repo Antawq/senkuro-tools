@@ -65,3 +65,7 @@ a.card-collect {
     padding-bottom: var(--senkutools-token-bar-height, 0px);
   }
 }
+
+.card-browse__form:has(> .senkutools-modal-search) {
+  flex-wrap: wrap;
+}

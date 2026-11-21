@@ -6,7 +6,7 @@ import { childWithClass, element, writeAttribute } from '../shared/dom';
 import { isListComplete, retriggerPaging } from '../shared/paging-sentinel';
 import { closeIcon, searchIcon } from '../shared/svg';
 import { createToolbarControls, type ToolbarControl } from '../shared/toolbar-controls';
-import { USER_CARD_FILTERS } from '../shared/user-card-filters';
+import { DECK_RESULTS, DECK_TOOLBAR, USER_CARD_FILTERS } from '../shared/user-card-filters';
 import { extractProfileSlug } from './profile-cards';
 
 export const SEARCH_CLASS = 'senkutools-modal-search';
@@ -19,7 +19,6 @@ const EMPTY_CLASS = `${SEARCH_CLASS}__empty`;
 const FILTERED_ATTRIBUTE = 'data-senkutools-filtered';
 const GRID = '.user-cards-grid';
 const POSTER_CONTROL = '.senkutools-poster__control';
-const LATER_CONTROLS = [POSTER_CONTROL];
 const ICON_SIZE_PX = 16;
 export const CARDS_PATH = /^\/users\/[^/?#]+\/cards\/?$/;
 export const EMPTY_SEARCH_TEXT = 'Персонаж не найден';
@@ -27,15 +26,38 @@ export const EMPTY_SEARCH_TEXT = 'Персонаж не найден';
 interface InventorySearchControl extends ToolbarControl {
   input: HTMLInputElement;
   clear: HTMLButtonElement;
-  slug: string;
+}
+
+interface SearchPlace {
+  keyOf: (pageDocument: Document) => string | null;
+  toolbar: string;
+  grid: string;
+  laterControls: readonly string[];
+}
+
+interface SearchState {
+  key: string | null;
+  query: string;
+  toolbar: Element | null;
 }
 
 const controls = createToolbarControls<InventorySearchControl>();
-let activeSlug: string | null = null;
-let activeQuery = '';
-let activeToolbar: Element | null = null;
 
 export const findCardsSlug = (pathname: string): string | null => (CARDS_PATH.test(pathname) ? extractProfileSlug(pathname) : null);
+
+const pathnameOf = (pageDocument: Document): string => pageDocument.defaultView?.location.pathname ?? pageDocument.location?.pathname ?? '';
+
+const SEARCH_PLACES: readonly SearchPlace[] = [
+  { keyOf: (pageDocument) => findCardsSlug(pathnameOf(pageDocument)), toolbar: USER_CARD_FILTERS, grid: GRID, laterControls: [POSTER_CONTROL] },
+  {
+    keyOf: (pageDocument) => (pageDocument.querySelector(DECK_RESULTS) ? pathnameOf(pageDocument) : null),
+    toolbar: DECK_TOOLBAR,
+    grid: DECK_RESULTS,
+    laterControls: [],
+  },
+];
+
+const searchStates = new Map<SearchPlace, SearchState>(SEARCH_PLACES.map((place) => [place, { key: null, query: '', toolbar: null }]));
 
 function syncEmptyNote(grid: HTMLElement, text: string | null): void {
   const note = childWithClass(grid.parentElement ?? grid, EMPTY_CLASS);
@@ -63,7 +85,7 @@ function clearFiltering(grid: HTMLElement | null): void {
   childWithClass(grid.parentElement ?? grid, EMPTY_CLASS)?.remove();
 }
 
-function createControl(slug: string, onQueryChange: (query: string) => void): InventorySearchControl {
+function createControl(onQueryChange: (query: string) => void): InventorySearchControl {
   const wrapper = element('div', `${SEARCH_CLASS} ${OPEN_CLASS}`);
   const box = element('div', BOX_CLASS);
   const icon = element('span', CLOSE_CLASS);
@@ -105,55 +127,63 @@ function createControl(slug: string, onQueryChange: (query: string) => void): In
   });
   box.append(icon, input, clear);
   wrapper.append(box);
-  return { wrapper, input, clear, slug };
+  return { wrapper, input, clear };
 }
+
+const resetState = (state: SearchState): void => {
+  state.key = null;
+  state.query = '';
+  state.toolbar = null;
+};
 
 export function resetInventorySearchState(): void {
-  activeSlug = null;
-  activeQuery = '';
-  activeToolbar = null;
+  for (const state of searchStates.values()) resetState(state);
 }
 
-export function syncInventorySearch(pageDocument: Document, database: Database): void {
-  const pathname = pageDocument.defaultView?.location.pathname ?? pageDocument.location?.pathname ?? '';
-  const slug = findCardsSlug(pathname);
-  const toolbar = pageDocument.querySelector(USER_CARD_FILTERS);
-  const grid = pageDocument.querySelector<HTMLElement>(GRID);
-  if (!slug || !toolbar || !isAppMounted(pageDocument)) {
-    if (activeToolbar) controls.remove(activeToolbar);
+function syncPlace(place: SearchPlace, state: SearchState, pageDocument: Document, database: Database): void {
+  const key = place.keyOf(pageDocument);
+  const toolbar = pageDocument.querySelector(place.toolbar);
+  const grid = pageDocument.querySelector<HTMLElement>(place.grid);
+  if (!key || !toolbar || !isAppMounted(pageDocument)) {
+    if (state.toolbar) controls.remove(state.toolbar);
     clearFiltering(grid);
-    resetInventorySearchState();
+    resetState(state);
     return;
   }
-  if (activeSlug !== slug) {
-    if (activeToolbar && activeToolbar !== toolbar) controls.remove(activeToolbar);
-    activeSlug = slug;
-    activeQuery = '';
+  if (state.key !== key) {
+    if (state.toolbar && state.toolbar !== toolbar) controls.remove(state.toolbar);
+    state.key = key;
+    state.query = '';
   }
   const control = controls.place(
     toolbar,
     () =>
-      createControl(slug, (nextQuery) => {
-        activeQuery = nextQuery;
-        const currentGrid = pageDocument.querySelector<HTMLElement>(GRID);
-        if (currentGrid) syncRows(currentGrid, activeQuery, database);
+      createControl((nextQuery) => {
+        state.query = nextQuery;
+        const currentGrid = pageDocument.querySelector<HTMLElement>(place.grid);
+        if (currentGrid) syncRows(currentGrid, state.query, database);
       }),
-    LATER_CONTROLS
+    place.laterControls
   );
   for (const duplicate of toolbar.querySelectorAll<HTMLElement>(`:scope > .${SEARCH_CLASS}`)) {
     if (duplicate !== control.wrapper) duplicate.remove();
   }
-  activeToolbar = toolbar;
-  if (control.input.value !== activeQuery) {
-    control.input.value = activeQuery;
-    control.clear.hidden = activeQuery === '';
+  state.toolbar = toolbar;
+  if (control.input.value !== state.query) {
+    control.input.value = state.query;
+    control.clear.hidden = state.query === '';
   }
-  if (grid) syncRows(grid, activeQuery, database);
+  if (grid) syncRows(grid, state.query, database);
+}
+
+export function syncInventorySearch(pageDocument: Document, database: Database): void {
+  for (const [place, state] of searchStates) syncPlace(place, state, pageDocument, database);
 }
 
 export function isInventorySearchMissing(pageDocument: Document): boolean {
-  const pathname = pageDocument.defaultView?.location.pathname ?? pageDocument.location?.pathname ?? '';
-  const slug = findCardsSlug(pathname);
-  const toolbar = pageDocument.querySelector(USER_CARD_FILTERS);
-  return Boolean(slug && toolbar && isAppMounted(pageDocument) && toolbar.querySelector(`:scope > .${SEARCH_CLASS}`) === null);
+  if (!isAppMounted(pageDocument)) return false;
+  return SEARCH_PLACES.some((place) => {
+    const toolbar = pageDocument.querySelector(place.toolbar);
+    return Boolean(place.keyOf(pageDocument) && toolbar && toolbar.querySelector(`:scope > .${SEARCH_CLASS}`) === null);
+  });
 }

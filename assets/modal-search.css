@@ -73,7 +73,8 @@
   }
 }
 
-.user-card__filters .senkutools-modal-search__close {
+.user-card__filters .senkutools-modal-search__close,
+.card-browse__form .senkutools-modal-search__close {
   pointer-events: none;
   cursor: default;
 }
@@ -189,6 +190,7 @@
   }
 }
 
-.user-cards-grid > [data-senkutools-filtered] {
+.user-cards-grid > [data-senkutools-filtered],
+.card-browse__cnt-result > [data-senkutools-filtered] {
   display: none;
 }
