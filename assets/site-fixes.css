@@ -34,7 +34,7 @@ a.card-collect {
 }
 
 .modal-content.modal-content--trade {
-  background: var(--bg-primary);
+  background-color: var(--bg-primary);
   border-width: 0;
   border-radius: var(--border-radius-lg, 16px);
 }
@@ -42,7 +42,7 @@ a.card-collect {
 .modal-content--trade .modal-trade__header,
 .modal-content--trade .modal-trade__body,
 .modal-content--trade .modal-trade__footer {
-  background: var(--bg-quaternary);
+  background-color: var(--bg-quaternary);
 }
 
 .modal-content--trade .modal-trade__body {
