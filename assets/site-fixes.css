@@ -33,6 +33,33 @@ a.card-collect {
   flex-direction: column;
 }
 
+.modal-content.modal-content--trade {
+  background: var(--bg-primary);
+  border-width: 0;
+  border-radius: var(--border-radius-lg, 16px);
+}
+
+.modal-content--trade .modal-trade__header,
+.modal-content--trade .modal-trade__body,
+.modal-content--trade .modal-trade__footer {
+  background: var(--bg-quaternary);
+}
+
+.modal-content--trade .modal-trade__body {
+  max-height: 398px;
+}
+
+.modal-trade__preview .modal-trade__preview-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.modal-trade__swap .modal-trade__swap-icon {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
 .client-header header:has(> .senkuro-profile-f-chip) {
   flex-wrap: wrap;
 }
