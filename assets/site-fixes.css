@@ -60,6 +60,41 @@ a.card-collect {
   color: var(--text-secondary);
 }
 
+.modal-content--trade .modal-trade__swap-el {
+  padding: 14px;
+}
+
+@media (width >= 576px) {
+  .modal-content--trade .modal-trade__swap-el {
+    padding: 8px 14px;
+  }
+}
+
+.modal-trade__swap-el .card-preview-list__top {
+  justify-content: center;
+}
+
+.modal-trade__swap-el .card-preview-list__cards {
+  position: relative;
+  min-height: 170px;
+}
+
+.modal-trade__swap-el .card-preview-list__card {
+  z-index: 2;
+}
+
+.modal-trade__swap-el .card-preview-list__card:nth-child(2) {
+  z-index: 1;
+  position: absolute;
+  transform: rotate(-10deg) translate(-54px, -6px);
+}
+
+.modal-trade__swap-el .card-preview-list__card:nth-child(3) {
+  z-index: 3;
+  position: absolute;
+  transform: rotate(10deg) translate(54px, -6px);
+}
+
 .client-header header:has(> .senkuro-profile-f-chip) {
   flex-wrap: wrap;
 }
