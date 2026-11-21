@@ -127,6 +127,11 @@ describe('review step card fan', () => {
     expect(styleOf('.card-preview-list__card:nth-child(2)').position).toBe('absolute');
   });
 
+  it('moves the second card one step further left when the view all tile takes the third place', () => {
+    document.body.innerHTML = reviewStep(2, true);
+    expect(styleOf('.card-preview-list__card:nth-child(2)').transform).toBe('rotate(-10deg) translate(-108px, -6px)');
+  });
+
   it('keeps the first card and the view all tile upright and in the flow', () => {
     document.body.innerHTML = reviewStep(2, true);
     for (const upright of ['.card-preview-list__card:first-child', '.card-preview-list__el']) {

@@ -95,6 +95,10 @@ a.card-collect {
   transform: rotate(10deg) translate(54px, -6px);
 }
 
+.modal-trade__swap-el .card-preview-list__cards:has(> .card-preview-list__el:not(.card-preview-list__el--empty)) .card-preview-list__card:nth-child(2) {
+  transform: rotate(-10deg) translate(-108px, -6px);
+}
+
 .modal-content--trade:has(.senkuro-trade-summary:not(.senkuro-trade-summary--closed)) :is(.card-preview-list__quantity, .modal-trade__swap-quantity),
 .card-trade:has(> .senkuro-trade-summary:not(.senkuro-trade-summary--closed)) .card-preview-list__quantity {
   display: none;
