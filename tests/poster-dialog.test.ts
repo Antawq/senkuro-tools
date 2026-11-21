@@ -33,6 +33,7 @@ interface Rig {
   fetchNickname: Mock<PosterDialogHost['fetchNickname']>;
   render: Mock<PosterDialogHost['render']>;
   pack: Mock<PosterDialogHost['pack']>;
+  encode: Mock<PosterDialogHost['encode']>;
   download: Mock<PosterDialogHost['download']>;
   copyImage: Mock<PosterDialogHost['copyImage']>;
 }
@@ -55,6 +56,9 @@ const createRig = (overrides: Partial<PosterDialogHost> = {}): Rig => {
   const pack = vi.fn<PosterDialogHost['pack']>((entries) =>
     Promise.resolve(new Blob([entries.map((entry) => entry.name).join('|')], { type: 'application/zip' }))
   );
+  const encode = vi.fn<PosterDialogHost['encode']>((png, format) =>
+    Promise.resolve(format === 'png' ? png : new Blob([`${format}-poster`], { type: `image/${format}` }))
+  );
   const download = vi.fn<PosterDialogHost['download']>();
   const copyImage = vi.fn<PosterDialogHost['copyImage']>(() => Promise.resolve());
   const host: PosterDialogHost = {
@@ -66,6 +70,7 @@ const createRig = (overrides: Partial<PosterDialogHost> = {}): Rig => {
     fetchNickname,
     render,
     pack,
+    encode,
     nextFrame: (run) => void frames.push(run),
     download,
     copyImage,
@@ -75,7 +80,7 @@ const createRig = (overrides: Partial<PosterDialogHost> = {}): Rig => {
     frames.splice(0).forEach((run) => run());
     await settle();
   };
-  return { host, frames, contents, closes, flushFrames, fetchArt, loadImage, fetchNickname, render, pack, download, copyImage };
+  return { host, frames, contents, closes, flushFrames, fetchArt, loadImage, fetchNickname, render, pack, encode, download, copyImage };
 };
 
 const find = <T extends Element>(selector: string): T => {
@@ -166,6 +171,7 @@ describe('openPosterDialog', () => {
     const download = find<HTMLButtonElement>('.senkutools-poster__download');
     expect(download.getAttribute('aria-disabled')).toBe('true');
     press('download');
+    await settle();
     expect(rig.download).not.toHaveBeenCalled();
     await settle();
     await rig.flushFrames();
@@ -334,9 +340,53 @@ describe('buttons', () => {
     const rig = createRig();
     await openReady(rig, [cardOf('alpha-s')], '@2494');
     press('download');
+    await settle();
     expect(rig.download).toHaveBeenCalledTimes(1);
-    expect(rig.download.mock.calls[0]?.[1]).toBe('senkutools-poster-2494.png');
+    expect(rig.download.mock.calls[0]?.[1]).toBe('senkutools-poster-2494.jpg');
     expect((rig.download.mock.calls[0]?.[0] as Blob).size).toBeGreaterThan(0);
+  });
+
+  it('offers png, jpeg and webp with jpeg chosen, and downloads in the chosen format', async () => {
+    const rig = createRig();
+    await openReady(rig);
+    const formats = [...document.querySelectorAll<HTMLButtonElement>('.senkutools-poster__format')];
+    expect(formats.map((button) => [button.textContent, button.getAttribute('aria-pressed')])).toEqual([
+      ['PNG', 'false'],
+      ['JPEG', 'true'],
+      ['WebP', 'false'],
+    ]);
+    formats[2]?.click();
+    press('download');
+    await settle();
+    expect(rig.encode).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'image/png' }), 'webp');
+    expect(rig.download).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'image/webp' }), 'senkutools-poster-sena.webp');
+    formats[0]?.click();
+    press('download');
+    await settle();
+    expect(rig.download).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'image/png' }), 'senkutools-poster-sena.png');
+  });
+
+  it('names the file png when the browser falls back to png, and says so when the encoding fails', async () => {
+    const rig = createRig();
+    await openReady(rig);
+    rig.encode.mockResolvedValueOnce(new Blob(['fallback'], { type: 'image/png' }));
+    press('download');
+    await settle();
+    expect(rig.download).toHaveBeenLastCalledWith(expect.any(Blob), 'senkutools-poster-sena.png');
+    rig.encode.mockRejectedValueOnce(new Error('no canvas'));
+    press('download');
+    await settle();
+    expect(rig.download).toHaveBeenCalledTimes(1);
+    expect(note()).toContain(POSTER_TEXT.renderFailed);
+  });
+
+  it('copies the png whatever format is chosen for the download', async () => {
+    const rig = createRig();
+    await openReady(rig);
+    press('copy');
+    await settle();
+    expect(rig.copyImage).toHaveBeenCalledWith(expect.objectContaining({ type: 'image/png' }));
+    expect(rig.encode).not.toHaveBeenCalled();
   });
 
   it('says it copied the image, and says so when the copy is refused', async () => {
@@ -446,7 +496,8 @@ describe('pages', () => {
     expect(document.querySelector('.senkutools-poster__pager')).toBeNull();
     expect(document.querySelector('.senkutools-poster__download-all')).toBeNull();
     press('download');
-    expect(rig.download).toHaveBeenCalledWith(expect.any(Blob), 'senkutools-poster-sena.png');
+    await settle();
+    expect(rig.download).toHaveBeenCalledWith(expect.any(Blob), 'senkutools-poster-sena.jpg');
   });
 
   it('splits more cards into balanced pages and draws the first one without a note about the rest', async () => {
@@ -474,7 +525,8 @@ describe('pages', () => {
     expect(isDisabled('.senkutools-poster__previous')).toBe(false);
     expect(isDisabled('.senkutools-poster__next')).toBe(true);
     press('download');
-    expect(rig.download).toHaveBeenLastCalledWith(expect.any(Blob), 'senkutools-poster-sena-2.png');
+    await settle();
+    expect(rig.download).toHaveBeenLastCalledWith(expect.any(Blob), 'senkutools-poster-sena-2.jpg');
   });
 
   it('does not go past the last page or before the first one', async () => {
@@ -590,9 +642,9 @@ describe('download all', () => {
     }
     expect(rig.pack).toHaveBeenCalledTimes(1);
     expect(rig.pack.mock.calls[0]?.[0].map((entry) => entry.name)).toEqual([
-      'senkutools-poster-sena-1.png',
-      'senkutools-poster-sena-2.png',
-      'senkutools-poster-sena-3.png',
+      'senkutools-poster-sena-1.jpg',
+      'senkutools-poster-sena-2.jpg',
+      'senkutools-poster-sena-3.jpg',
     ]);
     expect(rig.download).toHaveBeenCalledTimes(1);
     expect(rig.download).toHaveBeenCalledWith(expect.objectContaining({ type: 'application/zip' }), 'senkutools-poster-sena.zip');
@@ -854,10 +906,12 @@ describe('stale renders', () => {
     expect(find<HTMLImageElement>('.senkutools-poster__image').getAttribute('src')).toBeNull();
     expect(isDisabled('.senkutools-poster__download')).toBe(true);
     press('download');
+    await settle();
     expect(rig.download).not.toHaveBeenCalled();
     await rig.flushFrames();
     press('download');
-    expect(rig.download).toHaveBeenCalledWith(expect.any(Blob), 'senkutools-poster-sena-2.png');
+    await settle();
+    expect(rig.download).toHaveBeenCalledWith(expect.any(Blob), 'senkutools-poster-sena-2.jpg');
   });
 
   it('does not render a frame that was queued for the page it was changed from', async () => {

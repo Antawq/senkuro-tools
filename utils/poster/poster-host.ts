@@ -4,6 +4,7 @@ import type { Settings } from '../shared/settings';
 import { packArchive } from './poster-archive';
 import { fetchPosterArt, loadArtImage } from './poster-art';
 import type { PosterDialogHost } from './poster-dialog';
+import { encodePoster } from './poster-format';
 import { readPosterTheme, renderPoster } from './poster-render';
 
 const IMAGE_FETCH_OPTIONS = { cache: 'reload', credentials: 'omit' } as const;
@@ -48,6 +49,11 @@ export function createPosterDialogHost(sources: PosterHostSources): PosterDialog
     fetchNickname: sources.fetchNickname,
     render: (content) => renderPoster(content, readPosterTheme(pageDocument), { createCanvas: (width, height) => createCanvas(pageDocument, width, height) }),
     pack: packArchive,
+    encode: (png, format) =>
+      encodePoster(png, format, {
+        createBitmap: (blob) => createImageBitmap(blob),
+        createCanvas: (width, height) => createCanvas(pageDocument, width, height),
+      }),
     nextFrame: sources.nextFrame,
     download: (blob, fileName) => downloadBlob(pageDocument, blob, fileName),
     copyImage: copyImageBlob,

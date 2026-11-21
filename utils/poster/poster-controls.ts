@@ -1,5 +1,6 @@
-import { SITE_ICON_BUTTON, element, writeAttribute } from '../shared/dom';
+import { SITE_ICON_BUTTON, SITE_SEGMENT, SITE_SEGMENT_CONTENT, SITE_SEGMENT_INNER, SITE_TAB, SITE_TAB_ACTIVE, element, writeAttribute } from '../shared/dom';
 import { closeIcon, doneIcon } from '../shared/svg';
+import { DEFAULT_POSTER_FORMAT, PNG_EXTENSION, POSTER_FORMATS, POSTER_FORMAT_LABELS, type PosterFormat } from './poster-format';
 import { createPager, syncPager, type PagerControls } from './poster-pager';
 
 export const POSTER_TEXT = {
@@ -11,7 +12,8 @@ export const POSTER_TEXT = {
   quantity: 'Количество',
   prices: 'Цены',
   commission: 'С комиссией',
-  download: 'Скачать PNG',
+  download: 'Скачать',
+  format: 'Формат файла',
   downloadAll: 'Скачать все страницы (ZIP)',
   copy: 'Копировать',
   close: 'Закрыть',
@@ -58,8 +60,14 @@ export interface DialogControls {
   download: HTMLButtonElement;
   copy: HTMLButtonElement;
   downloadAll: HTMLButtonElement | null;
+  format: FormatSwitch;
   pager: PagerControls | null;
   close: HTMLButtonElement;
+}
+
+export interface FormatSwitch {
+  root: HTMLElement;
+  selected: () => PosterFormat;
 }
 
 export interface ControlsState {
@@ -145,6 +153,37 @@ function createPreview(image: HTMLImageElement, pager: PagerControls | null): HT
   return preview;
 }
 
+function createFormatSwitch(): FormatSwitch {
+  const root = element('div', `${DIALOG_CLASS}__formats ${SITE_SEGMENT}`);
+  root.setAttribute('role', 'group');
+  root.setAttribute('aria-label', POSTER_TEXT.format);
+  let current = DEFAULT_POSTER_FORMAT;
+  const options = POSTER_FORMATS.map((format) => {
+    const button = createButton(SITE_TAB, 'format');
+    button.append(element('span', undefined, POSTER_FORMAT_LABELS[format]));
+    return { format, button };
+  });
+  const markSelected = (): void => {
+    for (const { format, button } of options) {
+      button.classList.toggle(SITE_TAB_ACTIVE, format === current);
+      button.setAttribute('aria-pressed', String(format === current));
+    }
+  };
+  for (const { format, button } of options) {
+    button.addEventListener('click', () => {
+      current = format;
+      markSelected();
+    });
+  }
+  const content = element('div', SITE_SEGMENT_CONTENT);
+  content.append(...options.map(({ button }) => button));
+  const inner = element('div', SITE_SEGMENT_INNER);
+  inner.append(content);
+  root.append(inner);
+  markSelected();
+  return { root, selected: () => current };
+}
+
 function createActionRows(download: HTMLButtonElement, copy: HTMLButtonElement, downloadAll: HTMLButtonElement | null): HTMLElement[] {
   const mainRow = element('div', `${DIALOG_CLASS}__actions`);
   mainRow.append(download, copy);
@@ -176,9 +215,19 @@ export function createControls(pageCount: number, isCommissionEnabled = true): D
   const download = createButton(DOWNLOAD_BUTTON, 'download', POSTER_TEXT.download);
   const copy = createButton(COPY_BUTTON, 'copy', POSTER_TEXT.copy);
   const downloadAll = isPaged ? createButton(COPY_BUTTON, 'download-all', POSTER_TEXT.downloadAll) : null;
+  const format = createFormatSwitch();
   const form = element('form', `${DIALOG_CLASS}__controls`);
   form.addEventListener('submit', (event) => event.preventDefault());
-  form.append(heading.label, nickname.label, quantity.label, prices.label, commission.label, note, ...createActionRows(download, copy, downloadAll));
+  form.append(
+    heading.label,
+    nickname.label,
+    quantity.label,
+    prices.label,
+    commission.label,
+    note,
+    format.root,
+    ...createActionRows(download, copy, downloadAll)
+  );
   const body = element('div', `${DIALOG_CLASS}__body`);
   body.append(createPreview(image, pager), form);
   const close = createCloseButton();
@@ -195,6 +244,7 @@ export function createControls(pageCount: number, isCommissionEnabled = true): D
     download,
     copy,
     downloadAll,
+    format,
     pager,
     close,
   };
@@ -220,6 +270,7 @@ const baseNameOf = (profileSlug: string): string => {
 
 const pageSuffixOf = (pageRef: PageRef | undefined): string => (pageRef ? `-${String(pageRef.number).padStart(String(pageRef.count).length, '0')}` : '');
 
-export const fileNameOf = (profileSlug: string, pageRef?: PageRef): string => `${baseNameOf(profileSlug)}${pageSuffixOf(pageRef)}.png`;
+export const fileNameOf = (profileSlug: string, pageRef?: PageRef, extension = PNG_EXTENSION): string =>
+  `${baseNameOf(profileSlug)}${pageSuffixOf(pageRef)}.${extension}`;
 
 export const archiveNameOf = (profileSlug: string): string => `${baseNameOf(profileSlug)}.zip`;

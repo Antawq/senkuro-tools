@@ -1,4 +1,5 @@
 import type { SelectedCard } from './poster-cards';
+import { PNG_TYPE, canvasBlob } from './poster-format';
 import { CAPTION_HEIGHT_PX, POSTER_MARGIN_PX, POSTER_CARDS_PER_PAGE, layoutPoster, type PosterCell, type PosterLayout } from './poster-layout';
 import { drawShardCracks } from './poster-shards';
 
@@ -43,7 +44,6 @@ const SHADOW_OFFSET_Y_PX = 8;
 const QUANTITY_SIGN = '×';
 const CAPTION_SEPARATOR = ' · ';
 const PLACEHOLDER_MARK = '?';
-const PNG_TYPE = 'image/png';
 
 const THEME_PROPERTIES = {
   background: '--senkutools-poster-background',
@@ -106,12 +106,6 @@ function drawBandText(drawing: CanvasRenderingContext2D, layout: PosterLayout, t
   drawing.fillText(text, layout.width / 2, centreY, layout.width - 2 * POSTER_MARGIN_PX);
 }
 
-function exportPng(canvas: HTMLCanvasElement): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('the poster canvas produced no image'))), PNG_TYPE);
-  });
-}
-
 export async function renderPoster(content: PosterContent, theme: PosterTheme, host: RenderHost): Promise<Blob> {
   const cards = content.cards.slice(0, POSTER_CARDS_PER_PAGE).map((card) => ({ ...card, caption: captionOf(card, content.shouldShowQuantity) }));
   const heading = content.heading.trim();
@@ -143,7 +137,7 @@ export async function renderPoster(content: PosterContent, theme: PosterTheme, h
     drawing.fillStyle = theme.mutedText;
     drawBandText(drawing, layout, nickname, layout.height - POSTER_MARGIN_PX - layout.footerHeight / 2);
   }
-  return exportPng(canvas);
+  return canvasBlob(canvas, PNG_TYPE);
 }
 
 export function readPosterTheme(pageDocument: Document): PosterTheme {

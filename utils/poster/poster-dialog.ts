@@ -5,6 +5,7 @@ import { UNKNOWN_MARK } from '../shared/trade-value';
 import type { ArchiveEntry } from './poster-archive';
 import type { PosterArt } from './poster-art';
 import type { SelectedCard } from './poster-cards';
+import { extensionOf, type PosterFormat } from './poster-format';
 import { DIALOG_CLASS, POSTER_TEXT, archiveNameOf, createControls, fileNameOf, syncDialogControls, type DialogControls, type PageRef } from './poster-controls';
 import { splitIntoPages } from './poster-pages';
 import type { PosterContent } from './poster-render';
@@ -22,6 +23,7 @@ export interface PosterDialogHost {
   fetchNickname: (slug: string, signal: AbortSignal) => Promise<string | null>;
   render: (content: PosterContent) => Promise<Blob>;
   pack: (entries: readonly ArchiveEntry[]) => Promise<Blob>;
+  encode: (png: Blob, format: PosterFormat) => Promise<Blob>;
   nextFrame: (run: () => void) => void;
   download: (blob: Blob, fileName: string) => void;
   copyImage: (blob: Blob) => Promise<void>;
@@ -248,8 +250,15 @@ function requestNickname(session: PosterSession): void {
   session.nicknameTask = session.host.fetchNickname(session.profileSlug, session.abort.signal).then(finish, () => finish(null));
 }
 
-function pressDownload(session: PosterSession): void {
-  if (session.blob) session.host.download(session.blob, fileNameOf(session.profileSlug, pageRefOf(session, session.pageIndex)));
+async function pressDownload(session: PosterSession): Promise<void> {
+  const png = session.blob;
+  if (!png) return;
+  try {
+    const blob = await session.host.encode(png, session.controls.format.selected());
+    session.host.download(blob, fileNameOf(session.profileSlug, pageRefOf(session, session.pageIndex), extensionOf(blob)));
+  } catch {
+    setNote(session, 'render', POSTER_TEXT.renderFailed);
+  }
 }
 
 async function pressCopy(session: PosterSession): Promise<void> {
@@ -279,12 +288,14 @@ async function renderPage(session: PosterSession, index: number, pageCards: read
 
 async function renderEveryPage(session: PosterSession, settings: ContentSettings): Promise<RenderedPages> {
   const entries: ArchiveEntry[] = [];
+  const format = session.controls.format.selected();
   let missingImageCount = 0;
   for (const [index, pageCards] of session.pages.entries()) {
     if (session.isClosed) break;
     setNote(session, 'archive', POSTER_TEXT.archiving(index + 1, session.pages.length));
     const rendered = await renderPage(session, index, pageCards, settings);
-    entries.push({ name: fileNameOf(session.profileSlug, pageRefOf(session, index)), blob: rendered.blob });
+    const blob = await session.host.encode(rendered.blob, format);
+    entries.push({ name: fileNameOf(session.profileSlug, pageRefOf(session, index), extensionOf(blob)), blob });
     missingImageCount += rendered.missingImageCount;
   }
   return { entries, missingImageCount };
@@ -339,7 +350,7 @@ function bindControls(session: PosterSession): void {
     if (controls.nickname.checked) requestNickname(session);
     scheduleRender(session);
   });
-  controls.download.addEventListener('click', () => pressDownload(session));
+  controls.download.addEventListener('click', () => void pressDownload(session));
   controls.copy.addEventListener('click', () => void pressCopy(session));
   controls.downloadAll?.addEventListener('click', () => void pressDownloadAll(session));
   controls.pager?.previous.addEventListener('click', () => goToPage(session, session.pageIndex - 1));
