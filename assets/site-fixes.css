@@ -4,13 +4,22 @@ a.card-collect {
   -webkit-user-select: none;
 }
 
-.card-notif__box-el .card-collect-preview__status {
-  padding-inline: 2px;
+.card-notif__box:has(> .card-notif__box-el--card .card-collect-preview__status .tag) {
+  --senkutools-notif-status-room: 24px;
+  --senkutools-notif-tag-room: 72px;
+  container-type: inline-size;
 }
 
-.card-notif__box-el .card-collect-preview__status .tag {
-  justify-content: flex-start;
-  padding-inline: 2px;
+.card-notif__box > .card-notif__box-el--card .card-collect-preview__status {
+  right: auto;
+  width: calc(100cqi - var(--senkutools-notif-status-room));
+  justify-content: flex-end;
+  align-items: center;
+  padding: 0;
+}
+
+.card-notif__box:has(> .card-notif__box-el--card .card-collect-preview__status .tag) > .card-notif__box-body {
+  padding-right: var(--senkutools-notif-tag-room);
 }
 
 @media (width < 576px) {
