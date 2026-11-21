@@ -1,6 +1,7 @@
 import { defineContentScript } from '#imports';
 import { catalogFallbackExchange } from '@/utils/catalog/catalog-fallback';
 import { installCatalogRouting } from '@/utils/catalog/catalog-search';
+import { installCharacterFilter } from '@/utils/catalog/character-filter';
 import { listRequestExchange } from '@/utils/catalog/list-requests';
 import { installInventoryGuard } from '@/utils/inventory/inventory-guard';
 import { createCursorLedger, cursorExchange } from '@/utils/inventory/list-cursors';
@@ -15,6 +16,7 @@ export default defineContentScript({
   runAt: 'document_start',
   world: 'MAIN',
   main() {
+    installCharacterFilter(document);
     installClientSwap(window, () => {
       const debug = debugLogger(window);
       const inventory = installInventoryGuard(window);

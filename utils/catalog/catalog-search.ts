@@ -4,7 +4,7 @@ const CATALOG_ROUTE_NAMES: ReadonlySet<string> = new Set(['browse-manga', 'brows
 const LIST_ROUTE_NAMES: ReadonlySet<string> = new Set(['browse-manga', 'browse-anime', 'browse-cards', 'browse-decks']);
 const QUERY_PARAMETER = 'query';
 const SEARCH_FILTER = 'search';
-const ROUTER_PROPERTY = '$router';
+export const ROUTER_PROPERTY = '$router';
 
 export interface CatalogLocation {
   name?: unknown;
@@ -29,7 +29,7 @@ export interface PageRouter {
   replace: (target: CatalogReplay) => Promise<unknown>;
 }
 
-const fieldsOf = ({ params }: CatalogLocation): unknown[] => (Array.isArray(params.fields) ? params.fields : []);
+export const fieldsOf = ({ params }: CatalogLocation): unknown[] => (Array.isArray(params.fields) ? params.fields : []);
 
 const hasSameFields = (destination: CatalogLocation, origin: CatalogLocation): boolean =>
   JSON.stringify(fieldsOf(origin)) === JSON.stringify(fieldsOf(destination));

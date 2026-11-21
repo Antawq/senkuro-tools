@@ -14,6 +14,7 @@ import '@/assets/token-bar.css';
 import '@/assets/trade-summary.css';
 import '@/assets/trade-meta.css';
 import '@/assets/poster.css';
+import '@/assets/catalog.css';
 import { defineContentScript } from '#imports';
 
 import { APP_MOUNTED_EVENT, isAppMounted } from '@/utils/shared/app-mounted';
@@ -25,6 +26,7 @@ import { createPriceBadges } from '@/utils/badges/price-badges';
 import { isPosterButtonMissing, syncPosterButton, type PosterButtonHost } from '@/utils/poster/poster-button';
 import { closeStalePosterDialogs, openPosterDialog } from '@/utils/poster/poster-dialog';
 import { createPosterDialogHost } from '@/utils/poster/poster-host';
+import { createCardSearchHost, isCardCatalogSearchMissing, syncCardCatalogSearch } from '@/utils/catalog/card-catalog-search';
 import { isCatalogResetStale, syncCatalogReset } from '@/utils/catalog/catalog-reset';
 import { isInventorySearchMissing, syncInventorySearch } from '@/utils/profile/inventory-search';
 import { isRefreshButtonMissing, syncRefreshButton, type RefreshHost } from '@/utils/profile/inventory-refresh';
@@ -98,6 +100,7 @@ export default defineContentScript({
           )
         ),
     };
+    const cardSearchHost = createCardSearchHost(document);
     const loop = createRenderLoop(
       [
         { name: 'cards', trigger: 'cards', render: (db, cards) => badges.update(db, settings, cards) },
@@ -119,6 +122,7 @@ export default defineContentScript({
         { name: 'poster', render: () => syncPosterButton(document, posterButtonHost) },
         { name: 'inventorySearch', render: (db) => syncInventorySearch(document, db) },
         { name: 'catalogReset', render: () => syncCatalogReset(document) },
+        { name: 'cardCatalogSearch', render: (db) => syncCardCatalogSearch(document, db, cardSearchHost) },
       ],
       loadDatabase,
       nextFrame
@@ -186,6 +190,7 @@ export default defineContentScript({
         isPosterButtonMissing(document) ||
         isInventorySearchMissing(document) ||
         isCatalogResetStale(document) ||
+        isCardCatalogSearchMissing(document) ||
         hasSortMutation(mutations)
       )
         loop.schedule();
