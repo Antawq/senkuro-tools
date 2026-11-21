@@ -95,6 +95,11 @@ a.card-collect {
   transform: rotate(10deg) translate(54px, -6px);
 }
 
+.modal-content--trade:has(.senkuro-trade-summary:not(.senkuro-trade-summary--closed)) :is(.card-preview-list__quantity, .modal-trade__swap-quantity),
+.card-trade:has(> .senkuro-trade-summary:not(.senkuro-trade-summary--closed)) .card-preview-list__quantity {
+  display: none;
+}
+
 .client-header header:has(> .senkuro-profile-f-chip) {
   flex-wrap: wrap;
 }
