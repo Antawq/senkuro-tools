@@ -109,6 +109,11 @@ a.card-collect {
   flex: auto;
 }
 
+.card-trade .card-preview-list .card-type,
+.modal-trade__swap-el .card-preview-list .card-type {
+  display: none;
+}
+
 .client-header header:has(> .senkuro-profile-f-chip) {
   flex-wrap: wrap;
 }
