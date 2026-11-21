@@ -34,7 +34,7 @@ a.card-collect {
 }
 
 .modal-content.modal-content--trade {
-  background-color: var(--bg-primary);
+  background-color: var(--bg-primary, Canvas);
   border-width: 0;
   border-radius: var(--border-radius-lg, 16px);
 }
@@ -42,7 +42,7 @@ a.card-collect {
 .modal-content--trade .modal-trade__header,
 .modal-content--trade .modal-trade__body,
 .modal-content--trade .modal-trade__footer {
-  background-color: var(--bg-quaternary);
+  background-color: var(--bg-quaternary, color-mix(in srgb, var(--text-primary) 7%, transparent));
 }
 
 .modal-content--trade .modal-trade__body {
@@ -55,9 +55,9 @@ a.card-collect {
 }
 
 .modal-trade__swap .modal-trade__swap-icon {
-  background-color: var(--bg-primary);
-  border: 1px solid var(--bg-secondary);
-  color: var(--text-secondary);
+  background-color: var(--bg-primary, Canvas);
+  border: 1px solid var(--bg-secondary, color-mix(in srgb, var(--text-primary) 14%, transparent));
+  color: var(--text-secondary, var(--text-primary));
 }
 
 .modal-content--trade .modal-trade__swap-el {
