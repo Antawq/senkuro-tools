@@ -2,8 +2,8 @@ import type { MemoryPlace } from '../shared/filter-memory';
 import type { ListScope } from '../shared/list-scope';
 import { MODAL_CONTENT_SELECTOR } from '../shared/modal-selectors';
 import { MODAL, RESULTS_CLASS, TOOLBAR, isCatalogStep, windowModeOf } from '../shared/trade-modal';
-import { USER_CARD_FILTERS } from '../shared/user-card-filters';
-import { DECK, DECK_RESULTS, DECK_TOOLBAR, GRID, OPEN_TRIGGER } from './sort-dom';
+import { DECK_RESULTS, DECK_TOOLBAR, USER_CARD_FILTERS } from '../shared/user-card-filters';
+import { DECK, GRID, OPEN_TRIGGER } from './sort-dom';
 
 export interface SortPlace {
   scope: ListScope;

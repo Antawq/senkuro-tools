@@ -1,10 +1,8 @@
 import { HEADER, RESULTS_CLASS, TOOLBAR } from '../shared/trade-modal';
-import { USER_CARD_FILTERS } from '../shared/user-card-filters';
+import { DECK_RESULTS, DECK_TOOLBAR, USER_CARD_FILTERS } from '../shared/user-card-filters';
 export const GRID = '.user-cards-grid';
 export const CARD = '.user-card';
 export const DECK = '.card-browse';
-export const DECK_TOOLBAR = '.card-browse__form';
-export const DECK_RESULTS = '.card-browse__cnt-result';
 const MENU_ID = 'cards-browse-order';
 export const MENU = `#${MENU_ID} .dropdown-menu--sm`;
 export const MENU_ITEM = 'label.radio--list';
