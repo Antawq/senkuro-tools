@@ -100,6 +100,11 @@ a.card-collect {
   display: none;
 }
 
+.user-card-trades-grid:has(> .card-trade) {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
 .user-card-trades-grid .card-trade .card-preview-list__cards {
   grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
   gap: 8px;
