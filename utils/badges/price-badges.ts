@@ -24,7 +24,7 @@ const NO_EFFECT = 'none';
 const BACK_FACE = '.card-collect-preview__back';
 const UNPRICED_BADGE = 'senkutools-unpriced-badge';
 const UNPRICED_OUTLINE = `${UNPRICED_BADGE}--outline`;
-const STACK_ITEM = '.offer-card__cnt-el, .modal-trade__swap-cards > .modal-trade__card';
+const STACK_ITEM = '.offer-card__cnt-el, .modal-trade__swap-el .card-preview-list__cards > .card-preview-list__card';
 const VISIBLE_EDGE: BadgePositionX = 'left';
 
 const POSITION_PROPS = ['--s-top', '--s-bottom', '--s-left', '--s-right', '--s-mt', '--s-tx', '--s-ty', '--s-align'];

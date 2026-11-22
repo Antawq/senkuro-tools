@@ -236,7 +236,7 @@ describe('createPriceBadges', () => {
   const stacked = (cls: string, layer: number) =>
     preview().replace('class="card-collect-preview"', `class="card-collect-preview ${cls}" style="z-index: ${layer}"`);
   const fan = (layers: number[]) =>
-    `<div class="modal-trade__swap-cards">${layers.map((layer) => stacked('modal-trade__card', layer)).join('')}<div class="modal-trade__swap-tag" style="z-index: 4"></div></div>`;
+    `<div class="modal-trade__swap-el"><div class="card-preview-list"><div class="card-preview-list__cards">${layers.map((layer) => stacked('card-preview-list__card', layer)).join('')}<div class="card-preview-list__el"></div></div></div></div>`;
   const offerList = (cards: number, more: boolean) =>
     `<div class="offer-card__cnt-list">${stacked('offer-card__cnt-el', 2).repeat(cards)}${more ? '<div class="offer-card__cnt-el offer-card__cnt-el-more" style="z-index: 4">+6</div>' : ''}</div>`;
   const positions = () => [...document.querySelectorAll<HTMLElement>('.card-collect-preview')].map((holder) => holder.dataset.badgePos);
