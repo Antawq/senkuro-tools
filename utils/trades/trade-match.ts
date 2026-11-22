@@ -1,5 +1,6 @@
 import type { CardRef, Side } from '../shared/trade-value';
 import type { Offer, Trade } from './trade-capture';
+import { parseIso } from './trade-meta';
 
 const sameCard = (a: CardRef | undefined, b: CardRef | undefined): boolean => a?.slug === b?.slug && a?.quantity === b?.quantity && a?.shard === b?.shard;
 
@@ -36,8 +37,20 @@ export const matchTrade = (trades: Trade[], [sourceName, destinationName]: [stri
     )
   );
 
-export const matchTradeByCounts = (trades: Trade[], sourceName: string, offerCount: number, requestCount: number): Trade | null =>
-  single(trades.filter((trade) => trade.source.name === sourceName && trade.offer.length === offerCount && trade.request.length === requestCount));
+export interface TradeNotice {
+  sourceName: string;
+  offerCount: number;
+  requestCount: number;
+  eventTime: number | null;
+}
+
+const isCreatedAt = (trade: Trade, eventTime: number): boolean => trade.createdAt !== undefined && parseIso(trade.createdAt).getTime() === eventTime;
+
+export function matchNoticedTrade(trades: Trade[], { sourceName, offerCount, requestCount, eventTime }: TradeNotice): Trade | null {
+  const candidates = trades.filter((trade) => trade.source.name === sourceName && trade.offer.length === offerCount && trade.request.length === requestCount);
+  const created = eventTime === null ? [] : candidates.filter((trade) => isCreatedAt(trade, eventTime));
+  return single(created.length > 0 ? created : candidates);
+}
 
 export const matchOffer = (offers: Offer[], authorName: string, top: Side, middle: Side): Offer | null =>
   single(

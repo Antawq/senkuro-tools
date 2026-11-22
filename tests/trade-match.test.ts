@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { CardRef, Side } from '../utils/shared/trade-value';
 import type { Offer, Trade } from '../utils/trades/trade-capture';
-import { matchOffer, matchTrade, matchTradeByCounts } from '../utils/trades/trade-match';
+import { matchNoticedTrade, matchOffer, matchTrade } from '../utils/trades/trade-match';
 
 const card = (slug: string, quantity = 1): CardRef => ({ slug, quantity, shard: false });
 const trade = (id: string, offer: CardRef[], request: CardRef[], source = 'Он', destination = 'Я'): Trade => ({
@@ -39,9 +39,28 @@ describe('matchTrade', () => {
   });
 });
 
-describe('matchTradeByCounts', () => {
+describe('matchNoticedTrade', () => {
+  const notice = (offerCount: number, requestCount: number, eventTime: number | null = null) => ({ sourceName: 'Он', offerCount, requestCount, eventTime });
+  const created = (base: Trade, createdAt: string): Trade => ({ ...base, createdAt });
+  const older = created(trade('t1', [card('a')], [card('x')]), '2026-11-21T17:49:29.618339');
+  const newer = created(trade('t2', [card('b')], [card('y')]), '2026-11-21T17:49:47.275980');
+
   it('finds a single trade of the sender with these counts', () => {
-    expect(matchTradeByCounts([trade('t1', four, [card('x')]), trade('t2', [card('a')], [card('x')])], 'Он', 4, 1)?.id).toBe('t1');
+    expect(matchNoticedTrade([trade('t1', four, [card('x')]), trade('t2', [card('a')], [card('x')])], notice(4, 1))?.id).toBe('t1');
+  });
+
+  it('tells two trades with the same counts apart by the moment the notification names', () => {
+    expect(matchNoticedTrade([older, newer], notice(1, 1, Date.parse('2026-11-21T17:49:47.275Z')))).toBe(newer);
+    expect(matchNoticedTrade([older, newer], notice(1, 1, Date.parse('2026-11-21T17:49:29.618Z')))).toBe(older);
+  });
+
+  it('stays silent on two such trades when the notification names no moment or another one', () => {
+    expect(matchNoticedTrade([older, newer], notice(1, 1))).toBeNull();
+    expect(matchNoticedTrade([older, newer], notice(1, 1, Date.parse('2026-11-20T10:00:00.000Z')))).toBeNull();
+  });
+
+  it('keeps the only candidate when its creation moment is unknown', () => {
+    expect(matchNoticedTrade([trade('t3', [card('a')], [card('x')])], notice(1, 1, Date.parse('2026-11-21T17:49:47.275Z')))?.id).toBe('t3');
   });
 });
 

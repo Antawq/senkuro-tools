@@ -752,6 +752,32 @@ describe('trade lists outside the modal', () => {
     expect(summaryOf(el)).toBeNull();
   });
 
+  it('gives each of two notifications with the same sender and counters the trade created at its moment', () => {
+    const other = {
+      ...skyTrade,
+      id: 't2',
+      offer: skyTrade.offer.map((ref) => (ref.slug === 'gu' ? { ...ref, slug: 'kan' } : ref)),
+      createdAt: '2026-11-21T17:49:29.618339',
+    };
+    store.add({ items: [{ ...skyTrade, createdAt: '2026-11-21T17:49:47.275980' }, other] });
+    const notificationAt = (datetime: string) => {
+      const el = document.createElement('div');
+      el.className = 'card-notif';
+      el.innerHTML = `
+        <div class="card-notif__source-title">Phaivroh | WL</div>
+        <div class="card-notif__info"><div class="card-notif__info-hint">Получишь 4 • Отдашь 5</div></div>
+        <time datetime="${datetime}">вчера</time>`;
+      document.body.append(el);
+      return el;
+    };
+    const newer = notificationAt('2026-11-21T17:49:47.275Z');
+    const older = notificationAt('2026-11-21T17:49:29.618Z');
+    updateTradeSummaries(db, settings, store);
+    expect(summaryOf(newer)?.sides).toEqual(skySides);
+    expect(summaryOf(older)?.sides[0]).toMatch(/^Получаешь/);
+    expect(summaryOf(older)?.sides[0]).not.toBe(skySides[0]);
+  });
+
   it('sums a trade notification by its sender and counters', () => {
     store.add({ items: [skyTrade] });
     const el = document.createElement('div');

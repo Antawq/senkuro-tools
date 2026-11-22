@@ -3,7 +3,7 @@ import { debugLogger } from '../shared/debug';
 import { MODAL } from '../shared/trade-modal';
 import type { CardRef, Side } from '../shared/trade-value';
 import { REPLAY_EVENT, type Trade, type TradeStore } from './trade-capture';
-import { matchOffer, matchTrade, matchTradeByCounts, shows } from './trade-match';
+import { matchNoticedTrade, matchOffer, matchTrade, shows } from './trade-match';
 import { mountTradeMeta } from './trade-meta';
 
 const CARD_LIST = '.modal-review';
@@ -219,12 +219,22 @@ const readOffers = (store: TradeStore): Place[] => {
   });
 };
 
+const eventTimeOf = (notification: Element | null): number | null => {
+  const time = Date.parse(notification?.querySelector('time')?.getAttribute('datetime') ?? '');
+  return Number.isFinite(time) ? time : null;
+};
+
 const readNotifications = (store: TradeStore): Place[] =>
   [...document.querySelectorAll(NOTIFICATION)].flatMap((host) => {
     const counts = [...host.querySelectorAll('.card-notif__info-hint')].map((el) => NOTIFICATION_COUNTS.exec(el.textContent ?? '')).find(Boolean);
     if (!counts) return [];
-    const sender = host.closest('.card-notif')?.querySelector('.card-notif__source-title')?.textContent?.trim() ?? '';
-    const trade = matchTradeByCounts(store.trades(), sender, Number(counts[1]), Number(counts[2]));
+    const notification = host.closest('.card-notif');
+    const trade = matchNoticedTrade(store.trades(), {
+      sourceName: notification?.querySelector('.card-notif__source-title')?.textContent?.trim() ?? '',
+      offerCount: Number(counts[1]),
+      requestCount: Number(counts[2]),
+      eventTime: eventTimeOf(notification),
+    });
     return [{ host, placement: 'end' as const, columns: trade ? [column('get', whole(trade.offer)), column('give', whole(trade.request))] : null }];
   });
 
