@@ -17,7 +17,9 @@ Click the extension icon to open the settings.
 - Sort by price
 - Fresh card lists
 - Cards and shards switch
-- Card poster
+- Card poster (PNG, JPEG or WebP)
+- Character search in your cards, trade windows, the deck builder and the card catalog
+- Filter reset in the title catalog
 - Better site search
 - Copy a card's name (off by default)
 - Avatar price warning
