@@ -4,3 +4,9 @@
   left: 0;
   z-index: 500;
 }
+
+@media (width < 992px) {
+  .senkutools-toolbar-panel .dropdown-menu {
+    width: var(--dropdown-width, max-content);
+  }
+}

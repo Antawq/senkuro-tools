@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { closeToolbarPanels, createPanelShell, setPanelOpen, VIEWPORT_MARGIN_PX } from '../utils/shared/toolbar-panel';
@@ -70,5 +74,18 @@ describe('closeToolbarPanels', () => {
     setPanelOpen(panel, trigger, true);
     closeToolbarPanels(document, null);
     expect(panel.hidden).toBe(true);
+  });
+});
+
+describe('toolbar panel stylesheet', () => {
+  it('gives the menu the width of its site size below 992px, where the site sizes only the menus of its own popper', () => {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../assets/toolbar-panel.css'), 'utf8'));
+    const narrow = [...sheet.cssRules].find((rule): rule is CSSMediaRule => rule instanceof CSSMediaRule && rule.conditionText.includes('992px'));
+    const menuRule = [...(narrow?.cssRules ?? [])].find(
+      (rule): rule is CSSStyleRule => rule instanceof CSSStyleRule && rule.selectorText === '.senkutools-toolbar-panel .dropdown-menu'
+    );
+    expect(narrow?.conditionText).toContain('width < 992px');
+    expect(menuRule?.style.getPropertyValue('width')).toBe('var(--dropdown-width, max-content)');
   });
 });
