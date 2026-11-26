@@ -42,7 +42,7 @@ a.card-collect[data-senkuro-style='background']::after {
   align-items: center;
   height: var(--senkuro-badge-height);
   padding: var(--senkuro-badge-pad);
-  border: 1px solid var(--senkuro-badge-edge);
+  border: 1px solid var(--s-edge, var(--senkuro-badge-edge));
   border-radius: var(--senkuro-badge-radius);
   background-color: var(--s-bg-color, var(--senkuro-badge-shade));
   box-shadow: var(--senkuro-badge-glow);
@@ -114,6 +114,13 @@ a.card-collect[data-senkuro-style='outline']::after {
 
 [data-senkuro-tier='white'] {
   --s-color: var(--senkuro-tier-white);
+}
+
+[data-senkuro-tier='green'],
+[data-senkuro-tier='purple'],
+[data-senkuro-tier='yellow'],
+[data-senkuro-tier='red'] {
+  --s-edge: color-mix(in srgb, var(--s-color) 45%, var(--senkuro-badge-edge));
 }
 
 @keyframes senkuro-pulse-text {

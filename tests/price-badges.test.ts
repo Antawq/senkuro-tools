@@ -59,6 +59,7 @@ describe('the price badge stylesheet', () => {
   const sheet = new CSSStyleSheet();
   sheet.replaceSync(stylesheet);
   const rules = [...sheet.cssRules].filter((rule): rule is CSSStyleRule => rule instanceof CSSStyleRule);
+  const blockOf = (opening: string) => stylesheet.slice(stylesheet.indexOf(opening)).split('}')[0] ?? '';
   const ruleOf = (selector: string) => rules.find(({ selectorText }) => selectorText === selector);
   const backgroundTagRules = rules.filter(
     ({ selectorText }) => /data-senkuro-style=.background./.test(selectorText) && /::(?:before|after)$/.test(selectorText)
@@ -79,6 +80,20 @@ describe('the price badge stylesheet', () => {
     const marker = ruleOf('.senkutools-unpriced-badge');
     expect(marker?.style.getPropertyValue('color')).toBe('var(--senkuro-badge-text)');
     expect(marker?.style.getPropertyValue('--s-color')).toBe('');
+  });
+
+  it('tints the edge of every tier above white from its text colour, and leaves the white edge to the site', () => {
+    const tinted = rules.filter((rule) => rule.style.getPropertyValue('--s-edge'));
+    expect(tinted).toHaveLength(1);
+    const [tint] = tinted;
+    for (const tier of ['green', 'purple', 'yellow', 'red']) expect(tint?.selectorText).toContain(`[data-senkuro-tier='${tier}']`);
+    expect(tint?.selectorText).not.toContain("'white'");
+    expect(tint?.style.getPropertyValue('--s-edge')).toMatch(/^color-mix\(in srgb, var\(--s-color\) \d+%, var\(--senkuro-badge-edge\)\)$/);
+    expect(blockOf("a.card-collect[data-senkuro-style='background']::after {")).toContain('border: 1px solid var(--s-edge, var(--senkuro-badge-edge));');
+  });
+
+  it('keeps the unpriced marker edge on the site border', () => {
+    expect(blockOf('.senkutools-unpriced-badge {')).toContain('border: 1px solid var(--senkuro-badge-edge);');
   });
 
   it('switches the effects off for reduced motion after every rule that starts one, so it is the rule that wins', () => {
