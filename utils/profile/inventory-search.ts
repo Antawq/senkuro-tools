@@ -110,18 +110,18 @@ function createControl(onQueryChange: (query: string) => void): InventorySearchC
     onQueryChange('');
     input.focus();
   };
-  clear.addEventListener('click', (e) => {
-    e.preventDefault();
+  clear.addEventListener('click', (event) => {
+    event.preventDefault();
     reset();
   });
   input.addEventListener('input', () => {
     clear.hidden = input.value === '';
     onQueryChange(input.value);
   });
-  wrapper.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && input.value !== '') {
-      e.preventDefault();
-      e.stopPropagation();
+  wrapper.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && input.value !== '') {
+      event.preventDefault();
+      event.stopPropagation();
       reset();
     }
   });
