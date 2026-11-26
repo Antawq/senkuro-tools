@@ -1,11 +1,11 @@
 :root {
   --senkuro-white: #ffffff;
-  --senkuro-tier-red: #f87171;
-  --senkuro-tier-yellow: #fbbf24;
-  --senkuro-tier-purple: #c084fc;
-  --senkuro-tier-green: #4ade80;
-  --senkuro-tier-white: var(--senkuro-white);
-  --senkuro-rainbow-blue: #60a5fa;
+  --senkuro-tier-red: #ffb8b5;
+  --senkuro-tier-yellow: #f9c345;
+  --senkuro-tier-purple: #dcbdff;
+  --senkuro-tier-green: #5be58b;
+  --senkuro-tier-white: var(--senkuro-badge-text);
+  --senkuro-rainbow-blue: #a7ceff;
   --senkuro-shade: rgb(0 0 0);
   --senkuro-ink: #111113;
   --senkuro-amber-shade: rgb(60 45 0);
