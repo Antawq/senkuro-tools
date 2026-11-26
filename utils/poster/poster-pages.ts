@@ -1,6 +1,6 @@
 import { POSTER_CARDS_PER_PAGE } from './poster-layout';
 
-const isShardItem = (item: unknown): boolean => typeof item === 'object' && item !== null && 'shard' in item && Boolean((item as { shard?: boolean }).shard);
+const isShardCard = (card: unknown): boolean => typeof card === 'object' && card !== null && 'shard' in card && Boolean((card as { shard?: boolean }).shard);
 
 function balancePages<T>(cards: readonly T[]): T[][] {
   if (cards.length === 0) return [];
@@ -13,8 +13,8 @@ function balancePages<T>(cards: readonly T[]): T[][] {
 
 export function splitIntoPages<T>(cards: readonly T[]): T[][] {
   if (cards.length <= POSTER_CARDS_PER_PAGE) return balancePages(cards);
-  const wholeCards = cards.filter((card) => !isShardItem(card));
-  const shardCards = cards.filter(isShardItem);
+  const wholeCards = cards.filter((card) => !isShardCard(card));
+  const shardCards = cards.filter(isShardCard);
   if (wholeCards.length > 0 && shardCards.length > 0) return [...balancePages(wholeCards), ...balancePages(shardCards)];
   return balancePages(cards);
 }
