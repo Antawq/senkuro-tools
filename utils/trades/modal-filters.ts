@@ -7,7 +7,7 @@ import { PRICE_FILTER_NODES } from '../shared/price-filter-nodes';
 import { MODAL, PICKER, RESULTS_CLASS, TOOLBAR, isPartnerStep, isUserCardsStep } from '../shared/trade-modal';
 import { EMPTY_LOCK_TEXTS, isHiddenByLock, removeLockControl, syncLockControl, type LockView } from './lock-filter';
 import { MODAL_REFRESH_CLASS } from './modal-refresh';
-import { EMPTY_SEARCH_TEXT, isHiddenBySearch, removeSearchControl, searchWordsOf, syncSearchControl, type SearchHost } from './modal-search';
+import { EMPTY_SEARCH_TEXT, isHiddenBySearch, removeSearchControl, searchWordsOf, syncSearchControl, type ModalSearchHost } from './modal-search';
 import { createFrameWatcher, createMutationFilter } from './mutation-watcher';
 import { isShardHidden, SHARD_NOTE_CLASS } from './shard-switch';
 
@@ -88,7 +88,7 @@ function syncControls(modal: Element, toolbar: Element, filters: ModalFilters, r
     filtersByModal.set(modal, { ...filtersOf(modal), ...patch });
     resync();
   };
-  const searchHost: SearchHost = { change: (query) => update({ query }), toggle: (isSearchOpen) => update({ isSearchOpen }) };
+  const searchHost: ModalSearchHost = { change: (query) => update({ query }), toggle: (isSearchOpen) => update({ isSearchOpen }) };
   if (isPartnerStep(modal))
     syncLockControl(toolbar, filters.lock, (lock) => {
       update({ lock });

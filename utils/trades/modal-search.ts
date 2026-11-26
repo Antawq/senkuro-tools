@@ -28,12 +28,12 @@ export const SEARCH_TEXT = {
   close: 'Закрыть поиск',
 } as const;
 
-export interface SearchView {
+export interface ModalSearchView {
   query: string;
   isOpen: boolean;
 }
 
-export interface SearchHost {
+export interface ModalSearchHost {
   change: (query: string) => void;
   toggle: (isOpen: boolean) => void;
 }
@@ -68,7 +68,7 @@ function createInput(): HTMLInputElement {
   return input;
 }
 
-function showView({ wrapper, trigger, box, input, clear }: SearchControl, view: SearchView): void {
+function showView({ wrapper, trigger, box, input, clear }: SearchControl, view: ModalSearchView): void {
   wrapper.classList.toggle(OPEN_CLASS, view.isOpen);
   trigger.hidden = view.isOpen;
   box.hidden = !view.isOpen;
@@ -76,7 +76,7 @@ function showView({ wrapper, trigger, box, input, clear }: SearchControl, view: 
   if (input.value !== view.query) input.value = view.query;
 }
 
-function handleKeydown(control: SearchControl, host: SearchHost, event: KeyboardEvent): void {
+function handleKeydown(control: SearchControl, host: ModalSearchHost, event: KeyboardEvent): void {
   if (event.key !== 'Escape' || control.box.hidden) return;
   event.preventDefault();
   event.stopPropagation();
@@ -85,7 +85,7 @@ function handleKeydown(control: SearchControl, host: SearchHost, event: Keyboard
   control.trigger.focus();
 }
 
-function createControl(host: SearchHost): SearchControl {
+function createControl(host: ModalSearchHost): SearchControl {
   const wrapper = element('div', SEARCH_CLASS);
   const trigger = createIconButton(`${SITE_ICON_BUTTON} ${TRIGGER_CLASS}`, SEARCH_TEXT.open, searchIcon(ICON_SIZE_PX));
   const box = element('div', BOX_CLASS);
@@ -113,7 +113,7 @@ function createControl(host: SearchHost): SearchControl {
   return control;
 }
 
-export function syncSearchControl(toolbar: Element, view: SearchView, host: SearchHost): void {
+export function syncSearchControl(toolbar: Element, view: ModalSearchView, host: ModalSearchHost): void {
   showView(
     controls.place(toolbar, () => createControl(host), LATER_CONTROLS),
     view

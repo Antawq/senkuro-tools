@@ -10,8 +10,8 @@ import {
   SEARCH_TEXT,
   searchWordsOf,
   syncSearchControl,
-  type SearchHost,
-  type SearchView,
+  type ModalSearchHost,
+  type ModalSearchView,
 } from '../utils/trades/modal-search';
 
 const database: Database = {
@@ -129,11 +129,11 @@ const input = () => document.querySelector<HTMLInputElement>('.senkutools-modal-
 const clearButton = () => document.querySelector<HTMLButtonElement>('.senkutools-modal-search__clear');
 const closeButton = () => document.querySelector<HTMLButtonElement>('.senkutools-modal-search__close');
 
-const draw = (initial: SearchView = { query: '', isOpen: false }) => {
+const draw = (initial: ModalSearchView = { query: '', isOpen: false }) => {
   let view = initial;
   const queries: string[] = [];
   const toggles: boolean[] = [];
-  const host: SearchHost = {
+  const host: ModalSearchHost = {
     change: (query) => {
       queries.push(query);
       view = { ...view, query };
@@ -291,7 +291,7 @@ describe('the search control', () => {
     draw({ query: 'ведьм', isOpen: true });
     const observer = new MutationObserver(() => undefined);
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-    const host: SearchHost = { change: vi.fn(), toggle: vi.fn() };
+    const host: ModalSearchHost = { change: vi.fn(), toggle: vi.fn() };
     syncSearchControl(toolbar(), { query: 'ведьм', isOpen: true }, host);
     syncSearchControl(toolbar(), { query: 'ведьм', isOpen: true }, host);
     expect(document.querySelectorAll('.senkutools-modal-search')).toHaveLength(1);
