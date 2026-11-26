@@ -26,10 +26,10 @@ const withoutPolicy = (context: Partial<OperationContext>): Record<string, unkno
   Object.fromEntries(Object.entries(context).filter(([name]) => name !== POLICY_OPTION));
 
 const guarded =
-  <T>(handle: (input: T) => void) =>
+  <T>(observe: (input: T) => void) =>
   (input: T): void => {
     try {
-      handle(input);
+      observe(input);
     } catch {
       return;
     }
