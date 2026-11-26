@@ -4,6 +4,11 @@ a.card-collect {
   -webkit-user-select: none;
 }
 
+.user-card--selected.card-collect-preview--shard::after {
+  inset: 0;
+  border-radius: var(--senkuro-shard-radius);
+}
+
 .card-notif__box:has(> .card-notif__box-el--card .card-collect-preview__status .tag) {
   --senkutools-notif-status-room: 24px;
   --senkutools-notif-tag-room: 72px;

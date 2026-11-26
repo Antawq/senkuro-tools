@@ -207,3 +207,18 @@ describe('trade history card lists', () => {
     expect(elsewhere).not.toBe('none');
   });
 });
+
+describe('selected cards in the profile', () => {
+  it('draw the selection frame inside a shard, which clips everything outside its box', () => {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(stylesheet('site-fixes.css'));
+    const frames = [...sheet.cssRules].filter(
+      (rule): rule is CSSStyleRule =>
+        rule instanceof CSSStyleRule && rule.selectorText.includes('::after') && rule.selectorText.includes('.user-card--selected')
+    );
+    expect(frames.map((rule) => rule.selectorText)).toEqual(['.user-card--selected.card-collect-preview--shard::after']);
+    expect(frames[0]?.style.getPropertyValue('inset')).toBe('0');
+    expect(frames[0]?.style.getPropertyValue('border-radius')).toBe('var(--senkuro-shard-radius)');
+    expect(stylesheet('tokens.css')).toContain('--senkuro-shard-radius: 8.8%;');
+  });
+});

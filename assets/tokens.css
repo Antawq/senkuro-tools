@@ -13,6 +13,7 @@
   --senkuro-fallback-surface: #202023;
   --senkuro-fallback-error: #ff7f71;
   --senkuro-gutter: 12px;
+  --senkuro-shard-radius: 8.8%;
   --senkutools-poster-background: var(--senkuro-ink);
   --senkutools-poster-surface: #1c1c21;
   --senkutools-poster-text: var(--senkuro-white);
