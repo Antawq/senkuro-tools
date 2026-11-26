@@ -17,19 +17,19 @@ const tradeAt = (createdAt?: string): Trade => ({
   ...(createdAt ? { createdAt } : {}),
 });
 
-const tradeElement = (withList = true) => {
+const tradeElement = (withStatus = true) => {
   const host = document.createElement('div');
   host.className = 'card-trade';
-  const cardList = document.createElement('div');
-  cardList.className = 'card-list';
-  if (withList) {
-    const previewList = document.createElement('div');
-    previewList.className = 'card-preview-list';
-    previewList.append(cardList);
-    host.append(previewList);
-  }
+  const previewList = document.createElement('div');
+  previewList.className = 'card-preview-list';
+  previewList.innerHTML = '<div class="card-preview-list__top"><div class="card-list"></div></div>';
+  host.append(previewList);
+  const statusEl = document.createElement('div');
+  statusEl.className = 'card-trade__status card-trade__status--pending';
+  statusEl.textContent = 'Ожидает';
+  if (withStatus) host.append(statusEl);
   document.body.append(host);
-  return { host, cardList };
+  return { host, statusEl };
 };
 
 beforeEach(() => {
@@ -168,34 +168,47 @@ describe('findTradeConflict', () => {
 describe('mountTradeMeta', () => {
   const createdAt = localIso(2026, OCTOBER, 15, 12, 0);
 
-  it('puts the time into the first card list with the full date as its title', () => {
-    const { host, cardList } = tradeElement();
+  it('puts the time into the status stripe after the status, with the full date as its title', () => {
+    const { host, statusEl } = tradeElement();
     mountTradeMeta(host, tradeAt(createdAt));
-    const chip = cardList.querySelector<HTMLElement>('.senkutools-trade-time');
-    expect(chip?.parentElement).toBe(cardList);
+    const chip = statusEl.querySelector<HTMLElement>('.senkutools-trade-time');
+    expect(chip?.parentElement).toBe(statusEl);
+    expect(statusEl.firstChild?.textContent).toBe('Ожидает');
     expect(chip?.querySelector('.senkutools-trade-time__label')?.textContent).toContain('15 окт.');
     expect(chip?.title).toBe(formatFullTradeDate(createdAt));
     expect(chip?.querySelector('svg')).not.toBeNull();
+    expect(host.querySelector('.card-preview-list .senkutools-trade-time')).toBeNull();
   });
 
-  it('puts the time into the trade itself when it has no card list', () => {
+  it('puts the time into the trade itself when it has no status stripe', () => {
     const { host } = tradeElement(false);
     mountTradeMeta(host, tradeAt(createdAt));
     expect(host.querySelector('.senkutools-trade-time')?.parentElement).toBe(host);
   });
 
-  it('keeps one chip when it is mounted again and moves it into a card list that appeared later', () => {
-    const { host } = tradeElement(false);
+  it('keeps one chip when it is mounted again and moves it into a status stripe that appeared later', () => {
+    const { host, statusEl } = tradeElement(false);
     mountTradeMeta(host, tradeAt(createdAt));
-    const previewList = document.createElement('div');
-    previewList.className = 'card-preview-list';
-    const cardList = document.createElement('div');
-    cardList.className = 'card-list';
-    previewList.append(cardList);
-    host.prepend(previewList);
+    host.append(statusEl);
     mountTradeMeta(host, tradeAt(createdAt));
     expect(host.querySelectorAll('.senkutools-trade-time')).toHaveLength(1);
-    expect(host.querySelector('.senkutools-trade-time')?.parentElement).toBe(cardList);
+    expect(host.querySelector('.senkutools-trade-time')?.parentElement).toBe(statusEl);
+  });
+
+  it('puts the conflict reason between the status and the time', () => {
+    const { host, statusEl } = tradeElement();
+    statusEl.className = 'card-trade__status card-trade__status--rejected';
+    statusEl.textContent = 'Отклонён';
+    const rejected: Trade = { ...tradeAt(createdAt), status: 'REJECTED' };
+    const accepted: Trade = {
+      ...tradeAt(createdAt),
+      id: 't2',
+      destination: { id: 'u3', name: 'LuckyGuy' },
+      request: [{ slug: 'card-c', quantity: 1, shard: false }],
+      status: 'ACCEPTED',
+    };
+    mountTradeMeta(host, rejected, [rejected, accepted], true);
+    expect([...statusEl.children].map((child) => child.className)).toEqual(['senkutools-trade-status-extra', 'senkutools-trade-time']);
   });
 
   it('rewrites the label when the time changes', () => {
@@ -212,11 +225,9 @@ describe('mountTradeMeta', () => {
   });
 
   it('mounts conflict reason with link when reject reason is enabled and trade is rejected', () => {
-    const { host } = tradeElement();
-    const statusEl = document.createElement('div');
+    const { host, statusEl } = tradeElement();
     statusEl.className = 'card-trade__status card-trade__status--rejected';
     statusEl.textContent = 'Отклонён';
-    host.append(statusEl);
 
     const trade: Trade = {
       kind: 'trade',
@@ -251,11 +262,9 @@ describe('mountTradeMeta', () => {
   });
 
   it('does not mount rejection conflict reason when disabled by default', () => {
-    const { host } = tradeElement();
-    const statusEl = document.createElement('div');
+    const { host, statusEl } = tradeElement();
     statusEl.className = 'card-trade__status card-trade__status--rejected';
     statusEl.textContent = 'Отклонён';
-    host.append(statusEl);
 
     const trade: Trade = {
       kind: 'trade',

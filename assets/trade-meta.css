@@ -1,39 +1,16 @@
 .senkutools-trade-time {
-  margin-left: auto;
-  align-self: flex-start;
   flex: none;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 7px;
-  font-size: 1.1rem;
+  margin-left: 8px;
+  font-size: 1.2rem;
   line-height: 1;
-  color: var(--text-tertiary);
-  background: color-mix(in srgb, var(--bg-tertiary) 80%, transparent);
-  border: 1px solid color-mix(in srgb, var(--text-primary) 8%, transparent);
-  border-radius: var(--border-radius-sm, 8px);
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+  opacity: 0.8;
   -webkit-user-select: none;
   white-space: nowrap;
-  pointer-events: auto;
-  transition:
-    color var(--transition, var(--senkuro-hover) ease),
-    background var(--transition, var(--senkuro-hover) ease),
-    border-color var(--transition, var(--senkuro-hover) ease);
-}
-
-.card-trade > .senkutools-trade-time {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 2;
-}
-
-@media (hover: hover) {
-  .senkutools-trade-time:hover {
-    color: var(--text-primary);
-    background: var(--bg-secondary);
-    border-color: color-mix(in srgb, var(--text-primary) 18%, transparent);
-  }
 }
 
 .senkutools-trade-time__icon {
@@ -48,6 +25,7 @@
 }
 
 .senkutools-trade-status-extra {
+  min-width: 0;
   margin-left: 0.35em;
   font-style: italic;
   font-size: 1.3rem;

@@ -10,7 +10,6 @@ const TIME_ICON_SIZE_PX = 12;
 const STATUS_EXTRA_CLASS = 'senkutools-trade-status-extra';
 const STATUS_LINK_CLASS = 'senkutools-trade-status-link';
 const STATUS_SELECTOR = ':scope > .card-trade__status';
-const FIRST_LIST_SELECTOR = ':scope > .card-preview-list:first-child .card-list';
 
 export interface TradeConflict {
   targetName: string;
@@ -112,7 +111,7 @@ export function mountTradeMeta(host: HTMLElement, trade: Trade, allTrades: Trade
   host.querySelector('.senkutools-trade-reason')?.remove();
 
   if (trade.createdAt) {
-    const targetParent = host.querySelector<HTMLElement>(FIRST_LIST_SELECTOR) ?? host;
+    const targetParent = host.querySelector<HTMLElement>(STATUS_SELECTOR) ?? host;
     let timeEl = host.querySelector<HTMLElement>(`.${TIME_CLASS}`);
     if (!timeEl) {
       timeEl = element('div', TIME_CLASS);
@@ -152,7 +151,7 @@ export function mountTradeMeta(host: HTMLElement, trade: Trade, allTrades: Trade
 
     if (!extraEl) {
       extraEl = element('span', STATUS_EXTRA_CLASS);
-      statusEl.append(extraEl);
+      statusEl.insertBefore(extraEl, statusEl.querySelector(`:scope > .${TIME_CLASS}`));
     }
 
     const expectedHref = userProfilePath({ slug: conflict.targetSlug, id: conflict.targetId });

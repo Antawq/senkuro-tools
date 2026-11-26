@@ -119,10 +119,6 @@ a.card-collect {
   gap: 8px;
 }
 
-.card-trade .card-preview-list__top > .card-list {
-  flex: auto;
-}
-
 .card-trade .card-preview-list .card-type,
 .modal-trade__swap-el .card-preview-list .card-type {
   display: none;

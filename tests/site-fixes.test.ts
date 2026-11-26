@@ -192,12 +192,6 @@ describe('trade history card lists', () => {
     expect(styleOf('#empty').gridTemplateColumns).not.toBe('repeat(auto-fill, minmax(240px, 1fr))');
   });
 
-  it('let the time label fill the row so it sits at the far end of the header', () => {
-    document.body.innerHTML =
-      '<div class="card-trade"><div class="card-preview-list"><div class="card-preview-list__top"><div class="card-list"></div></div></div></div>';
-    expect(styleOf('.card-list').flexGrow).toBe('1');
-  });
-
   it('drop the level chip, in the review step too, and keep it on other pages', () => {
     const list = '<div class="card-preview-list"><div class="card-type"></div></div>';
     document.body.innerHTML = `<div class="card-trade">${list}</div><div class="modal-trade__swap-el">${list}</div><div class="profile">${list}</div>`;
