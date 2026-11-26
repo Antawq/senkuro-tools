@@ -212,7 +212,7 @@ describe('selected cards in the profile', () => {
     );
     expect(frames.map((rule) => rule.selectorText)).toEqual(['.user-card--selected.card-collect-preview--shard::after']);
     expect(frames[0]?.style.getPropertyValue('inset')).toBe('0');
-    expect(frames[0]?.style.getPropertyValue('border-radius')).toBe('var(--senkuro-shard-radius)');
-    expect(stylesheet('tokens.css')).toContain('--senkuro-shard-radius: 8.8%;');
+    expect(frames[0]?.style.getPropertyValue('border-radius')).toBe('var(--senkutools-shard-radius)');
+    expect(stylesheet('tokens.css')).toContain('--senkutools-shard-radius: 8.8%;');
   });
 });

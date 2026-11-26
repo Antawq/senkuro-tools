@@ -6,7 +6,7 @@ a.card-collect {
 
 .user-card--selected.card-collect-preview--shard::after {
   inset: 0;
-  border-radius: var(--senkuro-shard-radius);
+  border-radius: var(--senkutools-shard-radius);
 }
 
 .card-notif__box:has(> .card-notif__box-el--card .card-collect-preview__status .tag) {

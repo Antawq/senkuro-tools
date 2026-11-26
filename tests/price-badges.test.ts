@@ -88,7 +88,7 @@ describe('the price badge stylesheet', () => {
     const [tint] = tinted;
     for (const tier of ['green', 'purple', 'yellow', 'red']) expect(tint?.selectorText).toContain(`[data-senkuro-tier='${tier}']`);
     expect(tint?.selectorText).not.toContain("'white'");
-    expect(tint?.style.getPropertyValue('--s-edge')).toMatch(/^color-mix\(in srgb, var\(--s-color\) \d+%, var\(--senkuro-badge-edge\)\)$/);
+    expect(tint?.style.getPropertyValue('--s-edge')).toBe('color-mix(in srgb, var(--s-color) var(--senkutools-tier-edge-share), var(--senkuro-badge-edge))');
     expect(blockOf("a.card-collect[data-senkuro-style='background']::after {")).toContain('border: 1px solid var(--s-edge, var(--senkuro-badge-edge));');
   });
 

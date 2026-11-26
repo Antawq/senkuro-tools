@@ -120,7 +120,7 @@ a.card-collect[data-senkuro-style='outline']::after {
 [data-senkuro-tier='purple'],
 [data-senkuro-tier='yellow'],
 [data-senkuro-tier='red'] {
-  --s-edge: color-mix(in srgb, var(--s-color) 45%, var(--senkuro-badge-edge));
+  --s-edge: color-mix(in srgb, var(--s-color) var(--senkutools-tier-edge-share), var(--senkuro-badge-edge));
 }
 
 @keyframes senkuro-pulse-text {
