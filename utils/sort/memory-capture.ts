@@ -13,7 +13,7 @@ export interface MemoryCapture {
   hasTouched: (toolbar: Element) => boolean;
 }
 
-interface Capture {
+interface MemoryCaptureState {
   pageDocument: Document;
   memory: FilterMemory;
   host: MemoryCaptureHost;
@@ -26,7 +26,7 @@ const TAB = '.tabs-tab';
 const TAB_AREA = 'section';
 const GRID_TOOLBAR = '.user-card__filters';
 
-function note(capture: Capture, toolbar: Element, read: (place: MemoryPlace) => Partial<PlaceMemory>): void {
+function note(capture: MemoryCaptureState, toolbar: Element, read: (place: MemoryPlace) => Partial<PlaceMemory>): void {
   capture.touched.add(toolbar);
   const place = memoryPlaceOf(toolbar);
   if (!place || !capture.memory.isLoaded()) return;
@@ -36,14 +36,14 @@ function note(capture: Capture, toolbar: Element, read: (place: MemoryPlace) => 
   });
 }
 
-function captureSort(capture: Capture, target: Element): void {
+function captureSort(capture: MemoryCaptureState, target: Element): void {
   const input = target.closest(`${MENU} ${MENU_ITEM}`)?.querySelector<HTMLInputElement>('input');
   const toolbar = findClickedPlace(capture.pageDocument)?.place.toolbar;
   if (!input?.value || !toolbar) return;
   note(capture, toolbar, () => ({ sort: input.value }));
 }
 
-function captureDirection(capture: Capture, target: Element): void {
+function captureDirection(capture: MemoryCaptureState, target: Element): void {
   const toolbar = target.closest(TOOLBARS);
   const button = target.closest('button');
   if (!toolbar || !button || directionButtonOf(toolbar) !== button) return;
@@ -54,7 +54,7 @@ function mergedColors(previous: readonly string[], shown: readonly string[], act
   return [...active, ...previous.filter((color) => !shown.includes(color))];
 }
 
-function readFilterPatch(capture: Capture, place: MemoryPlace, isReset: boolean): Partial<PlaceMemory> {
+function readFilterPatch(capture: MemoryCaptureState, place: MemoryPlace, isReset: boolean): Partial<PlaceMemory> {
   const body = capture.pageDocument.querySelector(FILTER_BODY);
   if (!body) return {};
   const state = readDropdown(body);
@@ -63,7 +63,7 @@ function readFilterPatch(capture: Capture, place: MemoryPlace, isReset: boolean)
   return { ranks: state.ranks, colors, isAnimated: state.isAnimated, isExplicit: state.isExplicit };
 }
 
-function captureFilters(capture: Capture, target: Element): void {
+function captureFilters(capture: MemoryCaptureState, target: Element): void {
   if (!target.closest('#trade-filter, #cards-browse-filter')) return;
   const toolbar = capture.pageDocument.querySelector(FILTER_TRIGGERS)?.closest(TOOLBARS);
   if (!toolbar || target.closest('button')?.matches('.dropdown-filter__actions button:last-child')) return;
@@ -71,7 +71,7 @@ function captureFilters(capture: Capture, target: Element): void {
   note(capture, toolbar, (place) => readFilterPatch(capture, place, isReset));
 }
 
-function captureTab(capture: Capture, target: Element): void {
+function captureTab(capture: MemoryCaptureState, target: Element): void {
   const tab = target.closest(TAB);
   const toolbar = tab?.closest(TAB_AREA)?.querySelector(GRID_TOOLBAR);
   if (!tab || !toolbar) return;
@@ -79,7 +79,7 @@ function captureTab(capture: Capture, target: Element): void {
 }
 
 export function createMemoryCapture(pageDocument: Document, memory: FilterMemory, host: MemoryCaptureHost): MemoryCapture {
-  const capture: Capture = { pageDocument, memory, host, touched: new WeakSet() };
+  const capture: MemoryCaptureState = { pageDocument, memory, host, touched: new WeakSet() };
   return {
     handleClick(event) {
       if (!event.isTrusted || !(event.target instanceof Element)) return;
