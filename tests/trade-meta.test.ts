@@ -195,6 +195,15 @@ describe('mountTradeMeta', () => {
     expect(host.querySelector('.senkutools-trade-time')?.parentElement).toBe(statusEl);
   });
 
+  it('puts the time back after the site rewrites the status text', () => {
+    const { host, statusEl } = tradeElement();
+    mountTradeMeta(host, tradeAt(createdAt));
+    statusEl.textContent = 'Принят';
+    mountTradeMeta(host, tradeAt(createdAt));
+    expect(statusEl.firstChild?.textContent).toBe('Принят');
+    expect(statusEl.querySelectorAll(':scope > .senkutools-trade-time')).toHaveLength(1);
+  });
+
   it('puts the conflict reason between the status and the time', () => {
     const { host, statusEl } = tradeElement();
     statusEl.className = 'card-trade__status card-trade__status--rejected';
