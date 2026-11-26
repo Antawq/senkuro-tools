@@ -19,10 +19,6 @@
   display: block;
 }
 
-.card-trade .card-preview-list .card-list {
-  min-width: 0;
-}
-
 .senkutools-trade-status-extra {
   min-width: 0;
   margin-left: 0.35em;
