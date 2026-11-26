@@ -174,10 +174,16 @@ describe('mountTradeMeta', () => {
     const chip = statusEl.querySelector<HTMLElement>('.senkutools-trade-time');
     expect(chip?.parentElement).toBe(statusEl);
     expect(statusEl.firstChild?.textContent).toBe('Ожидает');
-    expect(chip?.querySelector('.senkutools-trade-time__label')?.textContent).toContain('15 окт.');
-    expect(chip?.title).toBe(formatFullTradeDate(createdAt));
+    expect(chip?.querySelector('.senkutools-trade-time__label')?.textContent).toBe(`создан ${formatTradeDate(createdAt)}`);
+    expect(chip?.title).toBe(`Создан ${formatFullTradeDate(createdAt)}`);
     expect(chip?.querySelector('svg')).not.toBeNull();
     expect(host.querySelector('.card-preview-list .senkutools-trade-time')).toBeNull();
+  });
+
+  it('says the time is when the trade was created, in lower case after the status', () => {
+    const { host } = tradeElement();
+    mountTradeMeta(host, tradeAt(new Date().toISOString()));
+    expect(host.querySelector('.senkutools-trade-time__label')?.textContent).toMatch(/^создан сегодня, \d{2}:\d{2}$/);
   });
 
   it('puts the time into the trade itself when it has no status stripe', () => {

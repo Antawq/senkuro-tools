@@ -3,6 +3,8 @@ import { scheduleIcon } from '../shared/svg';
 import type { Trade } from './trade-capture';
 
 const LOCALE = 'ru-RU';
+const CREATED_LABEL = 'создан';
+const CREATED_TITLE = 'Создан';
 const TIME_CLASS = 'senkutools-trade-time';
 const TIME_LABEL_CLASS = `${TIME_CLASS}__label`;
 const TIME_ICON_CLASS = `${TIME_CLASS}__icon`;
@@ -123,9 +125,10 @@ export function mountTradeMeta(host: HTMLElement, trade: Trade, allTrades: Trade
       targetParent.append(timeEl);
     }
     const label = timeEl.querySelector(`.${TIME_LABEL_CLASS}`);
-    const timeText = formatTradeDate(trade.createdAt);
+    const date = formatTradeDate(trade.createdAt);
+    const timeText = `${CREATED_LABEL} ${date.charAt(0).toLocaleLowerCase(LOCALE)}${date.slice(1)}`;
     if (label && label.textContent !== timeText) label.textContent = timeText;
-    timeEl.title = formatFullTradeDate(trade.createdAt);
+    timeEl.title = `${CREATED_TITLE} ${formatFullTradeDate(trade.createdAt)}`;
   }
 
   const statusEl = host.querySelector<HTMLElement>(STATUS_SELECTOR);
