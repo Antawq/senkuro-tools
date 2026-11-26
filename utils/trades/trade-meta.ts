@@ -47,20 +47,20 @@ export function formatTradeDate(iso: string, now: Date = new Date()): string {
   const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
   const isYesterday = date.getFullYear() === yesterday.getFullYear() && date.getMonth() === yesterday.getMonth() && date.getDate() === yesterday.getDate();
 
-  const timeStr = date.toLocaleTimeString(LOCALE, {
+  const timeOfDay = date.toLocaleTimeString(LOCALE, {
     hour: '2-digit',
     minute: '2-digit',
   });
-  if (isSameDay) return `сегодня, ${timeStr}`;
-  if (isYesterday) return `вчера, ${timeStr}`;
+  if (isSameDay) return `сегодня, ${timeOfDay}`;
+  if (isYesterday) return `вчера, ${timeOfDay}`;
 
   const isSameYear = date.getFullYear() === now.getFullYear();
-  const dateStr = date.toLocaleDateString(LOCALE, {
+  const shortDate = date.toLocaleDateString(LOCALE, {
     day: 'numeric',
     month: 'short',
     ...(isSameYear ? {} : { year: 'numeric' }),
   });
-  return `${dateStr}, ${timeStr}`;
+  return `${shortDate}, ${timeOfDay}`;
 }
 
 export function formatFullTradeDate(iso: string): string {
@@ -77,30 +77,30 @@ export function formatFullTradeDate(iso: string): string {
 }
 
 export function findTradeConflict(trade: Trade, allTrades: Trade[]): TradeConflict | null {
-  const offerSlugs = new Set(trade.offer.map((c) => c.slug).filter((slug): slug is string => Boolean(slug)));
-  const requestSlugs = new Set(trade.request.map((c) => c.slug).filter((slug): slug is string => Boolean(slug)));
+  const offerSlugs = new Set(trade.offer.map((card) => card.slug).filter((slug): slug is string => Boolean(slug)));
+  const requestSlugs = new Set(trade.request.map((card) => card.slug).filter((slug): slug is string => Boolean(slug)));
 
   for (const other of allTrades) {
     if (other.id === trade.id) continue;
     if (other.status?.toUpperCase() !== 'ACCEPTED') continue;
 
     if (trade.source.id && other.source.id === trade.source.id) {
-      if (other.offer.some((c) => c.slug && offerSlugs.has(c.slug))) {
+      if (other.offer.some((card) => card.slug && offerSlugs.has(card.slug))) {
         return { targetName: other.destination.name, targetSlug: (other.destination as { slug?: string }).slug ?? null, targetId: other.destination.id };
       }
     }
     if (trade.source.id && other.destination.id === trade.source.id) {
-      if (other.request.some((c) => c.slug && offerSlugs.has(c.slug))) {
+      if (other.request.some((card) => card.slug && offerSlugs.has(card.slug))) {
         return { targetName: other.source.name, targetSlug: (other.source as { slug?: string }).slug ?? null, targetId: other.source.id };
       }
     }
     if (trade.destination.id && other.source.id === trade.destination.id) {
-      if (other.offer.some((c) => c.slug && requestSlugs.has(c.slug))) {
+      if (other.offer.some((card) => card.slug && requestSlugs.has(card.slug))) {
         return { targetName: other.destination.name, targetSlug: (other.destination as { slug?: string }).slug ?? null, targetId: other.destination.id };
       }
     }
     if (trade.destination.id && other.destination.id === trade.destination.id) {
-      if (other.request.some((c) => c.slug && requestSlugs.has(c.slug))) {
+      if (other.request.some((card) => card.slug && requestSlugs.has(card.slug))) {
         return { targetName: other.source.name, targetSlug: (other.source as { slug?: string }).slug ?? null, targetId: other.source.id };
       }
     }
@@ -108,75 +108,75 @@ export function findTradeConflict(trade: Trade, allTrades: Trade[]): TradeConfli
   return null;
 }
 
-function mountTradeTime(host: HTMLElement, statusEl: HTMLElement | null, createdAt: string): void {
+function mountTradeTime(host: HTMLElement, statusElement: HTMLElement | null, createdAt: string): void {
   const createdText = formatTradeDate(createdAt);
-  let timeEl = host.querySelector<HTMLElement>(`.${TIME_CLASS}`);
-  if (!statusEl || !createdText) {
-    timeEl?.remove();
+  let timeElement = host.querySelector<HTMLElement>(`.${TIME_CLASS}`);
+  if (!statusElement || !createdText) {
+    timeElement?.remove();
     return;
   }
-  if (!timeEl) {
-    timeEl = element('div', TIME_CLASS);
+  if (!timeElement) {
+    timeElement = element('div', TIME_CLASS);
     const icon = scheduleIcon(TIME_ICON_SIZE_PX);
     icon.setAttribute('class', TIME_ICON_CLASS);
-    timeEl.append(icon, element('span', TIME_LABEL_CLASS));
+    timeElement.append(icon, element('span', TIME_LABEL_CLASS));
   }
-  if (timeEl.parentElement !== statusEl) statusEl.append(timeEl);
-  const label = timeEl.querySelector(`.${TIME_LABEL_CLASS}`);
+  if (timeElement.parentElement !== statusElement) statusElement.append(timeElement);
+  const label = timeElement.querySelector(`.${TIME_LABEL_CLASS}`);
   const timeText = `${CREATED_WORD} ${createdText}`;
   if (label && label.textContent !== timeText) label.textContent = timeText;
-  timeEl.title = formatFullTradeDate(createdAt);
+  timeElement.title = formatFullTradeDate(createdAt);
 }
 
 export function mountTradeMeta(host: HTMLElement, trade: Trade, allTrades: Trade[] = [], showRejectReason: boolean = false): void {
   host.querySelector('.senkutools-trade-reason')?.remove();
 
-  const statusEl = host.querySelector<HTMLElement>(STATUS_SELECTOR);
-  mountTradeTime(host, statusEl, trade.createdAt ?? '');
+  const statusElement = host.querySelector<HTMLElement>(STATUS_SELECTOR);
+  mountTradeTime(host, statusElement, trade.createdAt ?? '');
 
-  if (statusEl) {
-    let extraEl = statusEl.querySelector<HTMLElement>(`.${STATUS_EXTRA_CLASS}`);
+  if (statusElement) {
+    let extraElement = statusElement.querySelector<HTMLElement>(`.${STATUS_EXTRA_CLASS}`);
 
     if (!showRejectReason) {
-      extraEl?.remove();
+      extraElement?.remove();
       return;
     }
 
-    const isRejected = trade.status?.toUpperCase() === 'REJECTED' || statusEl.classList.contains('card-trade__status--rejected');
+    const isRejected = trade.status?.toUpperCase() === 'REJECTED' || statusElement.classList.contains('card-trade__status--rejected');
     if (!isRejected) {
-      extraEl?.remove();
+      extraElement?.remove();
       return;
     }
 
     const conflict = findTradeConflict(trade, allTrades);
     if (!conflict) {
-      extraEl?.remove();
+      extraElement?.remove();
       return;
     }
 
-    if (!extraEl) {
-      extraEl = element('span', STATUS_EXTRA_CLASS);
-      statusEl.insertBefore(extraEl, statusEl.querySelector(`:scope > .${TIME_CLASS}`));
+    if (!extraElement) {
+      extraElement = element('span', STATUS_EXTRA_CLASS);
+      statusElement.insertBefore(extraElement, statusElement.querySelector(`:scope > .${TIME_CLASS}`));
     }
 
     const expectedHref = userProfilePath({ slug: conflict.targetSlug, id: conflict.targetId });
-    const currentLink = extraEl.querySelector<HTMLAnchorElement>(`.${STATUS_LINK_CLASS}`);
+    const currentLink = extraElement.querySelector<HTMLAnchorElement>(`.${STATUS_LINK_CLASS}`);
     const currentHref = currentLink?.getAttribute('href') ?? '';
     const currentName = currentLink?.textContent ?? '';
 
     if (!conflict.targetName) {
-      if (extraEl.textContent !== ' (ушла в другой обмен)') {
-        extraEl.replaceChildren(document.createTextNode(' (ушла в другой обмен)'));
+      if (extraElement.textContent !== ' (ушла в другой обмен)') {
+        extraElement.replaceChildren(document.createTextNode(' (ушла в другой обмен)'));
       }
     } else if (currentHref !== expectedHref || currentName !== conflict.targetName) {
-      extraEl.replaceChildren();
-      extraEl.append(document.createTextNode(' (ушла к '));
+      extraElement.replaceChildren();
+      extraElement.append(document.createTextNode(' (ушла к '));
       const link = element('a', STATUS_LINK_CLASS);
       if (expectedHref) link.setAttribute('href', expectedHref);
       link.textContent = conflict.targetName;
       link.addEventListener('click', (event) => event.stopPropagation());
-      extraEl.append(link);
-      extraEl.append(document.createTextNode(')'));
+      extraElement.append(link);
+      extraElement.append(document.createTextNode(')'));
     }
   }
 }
