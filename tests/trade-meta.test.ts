@@ -51,11 +51,11 @@ describe('formatTradeDate', () => {
   const now = new Date(2026, NOVEMBER, 5, 20, 0);
 
   it('says today with the time of the trade', () => {
-    expect(formatTradeDate(localIso(2026, NOVEMBER, 5, 17, 11), now)).toBe('Сегодня, 17:11');
+    expect(formatTradeDate(localIso(2026, NOVEMBER, 5, 17, 11), now)).toBe('сегодня, 17:11');
   });
 
   it('says yesterday with the time of the trade', () => {
-    expect(formatTradeDate(localIso(2026, NOVEMBER, 4, 17, 11), now)).toBe('Вчера, 17:11');
+    expect(formatTradeDate(localIso(2026, NOVEMBER, 4, 17, 11), now)).toBe('вчера, 17:11');
   });
 
   it('gives the day and the short month within the year', () => {
@@ -171,12 +171,12 @@ describe('mountTradeMeta', () => {
   it('puts the time into the status stripe after the status, with the full date as its title', () => {
     const { host, statusEl } = tradeElement();
     mountTradeMeta(host, tradeAt(createdAt));
-    const chip = statusEl.querySelector<HTMLElement>('.senkutools-trade-time');
-    expect(chip?.parentElement).toBe(statusEl);
+    const time = statusEl.querySelector<HTMLElement>('.senkutools-trade-time');
+    expect(time?.parentElement).toBe(statusEl);
     expect(statusEl.firstChild?.textContent).toBe('Ожидает');
-    expect(chip?.querySelector('.senkutools-trade-time__label')?.textContent).toBe(`создан ${formatTradeDate(createdAt)}`);
-    expect(chip?.title).toBe(`Создан ${formatFullTradeDate(createdAt)}`);
-    expect(chip?.querySelector('svg')).not.toBeNull();
+    expect(time?.querySelector('.senkutools-trade-time__label')?.textContent).toBe(`создан ${formatTradeDate(createdAt)}`);
+    expect(time?.title).toBe(formatFullTradeDate(createdAt));
+    expect(time?.querySelector('svg')).not.toBeNull();
     expect(host.querySelector('.card-preview-list .senkutools-trade-time')).toBeNull();
   });
 
@@ -186,13 +186,19 @@ describe('mountTradeMeta', () => {
     expect(host.querySelector('.senkutools-trade-time__label')?.textContent).toMatch(/^создан сегодня, \d{2}:\d{2}$/);
   });
 
-  it('puts the time into the trade itself when it has no status stripe', () => {
+  it('adds no time to a trade without a status stripe', () => {
     const { host } = tradeElement(false);
     mountTradeMeta(host, tradeAt(createdAt));
-    expect(host.querySelector('.senkutools-trade-time')?.parentElement).toBe(host);
+    expect(host.querySelector('.senkutools-trade-time')).toBeNull();
   });
 
-  it('keeps one chip when it is mounted again and moves it into a status stripe that appeared later', () => {
+  it('adds no time when the trade time cannot be read', () => {
+    const { host } = tradeElement();
+    mountTradeMeta(host, tradeAt('not a time'));
+    expect(host.querySelector('.senkutools-trade-time')).toBeNull();
+  });
+
+  it('keeps one time when it is mounted again and puts it into a status stripe that appeared later', () => {
     const { host, statusEl } = tradeElement(false);
     mountTradeMeta(host, tradeAt(createdAt));
     host.append(statusEl);

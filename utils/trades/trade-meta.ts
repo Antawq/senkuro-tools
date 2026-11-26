@@ -3,8 +3,7 @@ import { scheduleIcon } from '../shared/svg';
 import type { Trade } from './trade-capture';
 
 const LOCALE = 'ru-RU';
-const CREATED_LABEL = 'создан';
-const CREATED_TITLE = 'Создан';
+const CREATED_WORD = 'создан';
 const TIME_CLASS = 'senkutools-trade-time';
 const TIME_LABEL_CLASS = `${TIME_CLASS}__label`;
 const TIME_ICON_CLASS = `${TIME_CLASS}__icon`;
@@ -52,8 +51,8 @@ export function formatTradeDate(iso: string, now: Date = new Date()): string {
     hour: '2-digit',
     minute: '2-digit',
   });
-  if (isSameDay) return `Сегодня, ${timeStr}`;
-  if (isYesterday) return `Вчера, ${timeStr}`;
+  if (isSameDay) return `сегодня, ${timeStr}`;
+  if (isYesterday) return `вчера, ${timeStr}`;
 
   const isSameYear = date.getFullYear() === now.getFullYear();
   const dateStr = date.toLocaleDateString(LOCALE, {
@@ -109,29 +108,32 @@ export function findTradeConflict(trade: Trade, allTrades: Trade[]): TradeConfli
   return null;
 }
 
+function mountTradeTime(host: HTMLElement, statusEl: HTMLElement | null, createdAt: string): void {
+  const createdText = formatTradeDate(createdAt);
+  let timeEl = host.querySelector<HTMLElement>(`.${TIME_CLASS}`);
+  if (!statusEl || !createdText) {
+    timeEl?.remove();
+    return;
+  }
+  if (!timeEl) {
+    timeEl = element('div', TIME_CLASS);
+    const icon = scheduleIcon(TIME_ICON_SIZE_PX);
+    icon.setAttribute('class', TIME_ICON_CLASS);
+    timeEl.append(icon, element('span', TIME_LABEL_CLASS));
+  }
+  if (timeEl.parentElement !== statusEl) statusEl.append(timeEl);
+  const label = timeEl.querySelector(`.${TIME_LABEL_CLASS}`);
+  const timeText = `${CREATED_WORD} ${createdText}`;
+  if (label && label.textContent !== timeText) label.textContent = timeText;
+  timeEl.title = formatFullTradeDate(createdAt);
+}
+
 export function mountTradeMeta(host: HTMLElement, trade: Trade, allTrades: Trade[] = [], showRejectReason: boolean = false): void {
   host.querySelector('.senkutools-trade-reason')?.remove();
 
-  if (trade.createdAt) {
-    const targetParent = host.querySelector<HTMLElement>(STATUS_SELECTOR) ?? host;
-    let timeEl = host.querySelector<HTMLElement>(`.${TIME_CLASS}`);
-    if (!timeEl) {
-      timeEl = element('div', TIME_CLASS);
-      const icon = scheduleIcon(TIME_ICON_SIZE_PX);
-      icon.setAttribute('class', TIME_ICON_CLASS);
-      timeEl.append(icon, element('span', TIME_LABEL_CLASS));
-      targetParent.append(timeEl);
-    } else if (timeEl.parentElement !== targetParent) {
-      targetParent.append(timeEl);
-    }
-    const label = timeEl.querySelector(`.${TIME_LABEL_CLASS}`);
-    const date = formatTradeDate(trade.createdAt);
-    const timeText = `${CREATED_LABEL} ${date.charAt(0).toLocaleLowerCase(LOCALE)}${date.slice(1)}`;
-    if (label && label.textContent !== timeText) label.textContent = timeText;
-    timeEl.title = `${CREATED_TITLE} ${formatFullTradeDate(trade.createdAt)}`;
-  }
-
   const statusEl = host.querySelector<HTMLElement>(STATUS_SELECTOR);
+  mountTradeTime(host, statusEl, trade.createdAt ?? '');
+
   if (statusEl) {
     let extraEl = statusEl.querySelector<HTMLElement>(`.${STATUS_EXTRA_CLASS}`);
 
