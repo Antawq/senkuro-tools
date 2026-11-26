@@ -307,9 +307,9 @@ function updateBadges(state: BadgeState, db: Database, settings: Settings, cards
   const hasDatabase = isFilled(state, db);
   const batch = [...new Set(list)].flatMap((card) => measure(state, card, db, settings, hasDatabase) ?? []);
   const drawn = batch.filter(({ isUndrawn }) => !isUndrawn);
-  drawn.forEach((item) => position(state, item));
-  for (const item of drawn) if (item.holders.preview) item.gap = faceGap(item.holders.preview);
-  for (const item of batch) show(state, item, settings, shades);
+  drawn.forEach((measured) => position(state, measured));
+  for (const measured of drawn) if (measured.holders.preview) measured.gap = faceGap(measured.holders.preview);
+  for (const measured of batch) show(state, measured, settings, shades);
 }
 
 function refitCards(state: BadgeState, entries: ResizeObserverEntry[], watch: ResizeObserver): void {
