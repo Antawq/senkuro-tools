@@ -46,7 +46,6 @@ a.card-collect[data-senkuro-style='background']::after {
   border-radius: var(--senkuro-badge-radius);
   background-color: var(--s-bg-color, var(--senkuro-badge-shade));
   box-shadow: var(--senkuro-badge-glow);
-  color: var(--senkuro-badge-text);
   font-weight: 500;
   font-variant-numeric: normal;
 }

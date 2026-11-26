@@ -56,6 +56,30 @@ const holderOf = () => document.querySelector('.card-collect-preview') as HTMLEl
 
 describe('the price badge stylesheet', () => {
   const stylesheet = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../assets/price-badges.css'), 'utf8');
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync(stylesheet);
+  const rules = [...sheet.cssRules].filter((rule): rule is CSSStyleRule => rule instanceof CSSStyleRule);
+  const ruleOf = (selector: string) => rules.find(({ selectorText }) => selectorText === selector);
+  const backgroundTagRules = rules.filter(
+    ({ selectorText }) => /data-senkuro-style=.background./.test(selectorText) && /::(?:before|after)$/.test(selectorText)
+  );
+
+  it('leaves the text colour of the background tag to its tier, which the shared tag rule reads', () => {
+    expect(backgroundTagRules.length).toBeGreaterThan(0);
+    for (const rule of backgroundTagRules) expect(rule.style.getPropertyValue('color'), rule.selectorText).toBe('');
+    const shared = rules.find(({ selectorText }) => selectorText.startsWith('.card-collect-preview__front[data-senkuro-price]::after'));
+    expect(shared?.style.getPropertyValue('color')).toBe('var(--s-color, var(--senkuro-tier-white))');
+  });
+
+  it.each(['white', 'green', 'purple', 'yellow', 'red'])('hands the %s tier its own token', (tier) => {
+    expect(ruleOf(`[data-senkuro-tier='${tier}']`)?.style.getPropertyValue('--s-color')).toBe(`var(--senkuro-tier-${tier})`);
+  });
+
+  it('keeps the unpriced marker neutral, since it is not a tier', () => {
+    const marker = ruleOf('.senkutools-unpriced-badge');
+    expect(marker?.style.getPropertyValue('color')).toBe('var(--senkuro-badge-text)');
+    expect(marker?.style.getPropertyValue('--s-color')).toBe('');
+  });
 
   it('switches the effects off for reduced motion after every rule that starts one, so it is the rule that wins', () => {
     const reduced = stylesheet.indexOf('@media (prefers-reduced-motion: reduce)');
