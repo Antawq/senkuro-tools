@@ -2,6 +2,7 @@ import { debugLogger } from '../shared/debug';
 import { isGraphqlRequest, isStreamed } from '../shared/graphql-request';
 import { claimPage } from '../shared/page-claim';
 import { parseJson } from '../shared/json';
+import type { PageWindow } from '../shared/page-window';
 import type { CardRef } from '../shared/trade-value';
 
 export const TRADES_EVENT = 'senkutools:trades';
@@ -78,7 +79,7 @@ interface ServerPayload {
   graphql?: Record<string, { data?: unknown } | undefined>;
 }
 
-type CapturingWindow = Window & typeof globalThis & { __SENKURO__?: ServerPayload };
+type CapturingWindow = PageWindow & { __SENKURO__?: ServerPayload };
 
 const preview = (item: GraphPreview | undefined): CardRef => ({
   slug: item?.card?.slug ?? item?.slug ?? null,
