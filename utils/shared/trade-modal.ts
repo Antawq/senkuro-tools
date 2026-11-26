@@ -14,16 +14,16 @@ export const isUserCardsStep = (modal: Element): boolean => modal.querySelector(
 
 export const isPartnerStep = (modal: Element): boolean => isUserCardsStep(modal) && headerTextOf(modal).includes(PARTNER_STEP);
 
-export type WindowMode = 'trade' | 'upgrade' | 'split' | 'merge';
+export type ModalMode = 'trade' | 'upgrade' | 'split' | 'merge';
 
-const MODE_HINTS: readonly (readonly [string, WindowMode])[] = [
+const MODE_HINTS: readonly (readonly [string, ModalMode])[] = [
   ['для переплавки', 'upgrade'],
   ['для раскола', 'split'],
   ['для объединения', 'merge'],
   ['Выбери до', 'trade'],
 ];
 
-export function windowModeOf(modal: Element): WindowMode | null {
+export function modalModeOf(modal: Element): ModalMode | null {
   const header = headerTextOf(modal);
   if (header.includes(CATALOG_STEP)) return null;
   return MODE_HINTS.find(([hint]) => header.includes(hint))?.[1] ?? null;

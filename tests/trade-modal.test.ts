@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { isCatalogStep, isPartnerStep, isUserCardsStep, windowModeOf } from '../utils/shared/trade-modal';
+import { isCatalogStep, isPartnerStep, isUserCardsStep, modalModeOf } from '../utils/shared/trade-modal';
 
 const tradeWindow = (title: string, hint: string, hasList = true) => `
   <div class="modal-content modal-content--trade">
@@ -65,18 +65,18 @@ describe('the mode of a trade window', () => {
     ['Твои карточки', 'Выбери 3 одинаковые карты для объединения в 1 анимированную', 'merge'],
   ] as const)('tells %s with «%s» as %s', (title, hint, mode) => {
     document.body.innerHTML = tradeWindow(title, hint);
-    expect(windowModeOf(modal())).toBe(mode);
+    expect(modalModeOf(modal())).toBe(mode);
   });
 
   it('has no mode on the catalog step, which a trade hint also appears on', () => {
     document.body.innerHTML = tradeWindow(STEPS.catalog[0], STEPS.catalog[1]);
-    expect(windowModeOf(modal())).toBeNull();
+    expect(modalModeOf(modal())).toBeNull();
   });
 
   it('has no mode when the header is empty or says something else', () => {
     document.body.innerHTML = tradeWindow('', '');
-    expect(windowModeOf(modal())).toBeNull();
+    expect(modalModeOf(modal())).toBeNull();
     document.body.innerHTML = tradeWindow('Проверка обмена', 'Прими решение обмена', false);
-    expect(windowModeOf(modal())).toBeNull();
+    expect(modalModeOf(modal())).toBeNull();
   });
 });
