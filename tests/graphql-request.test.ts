@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isGraphqlRequest, isStreamed } from '../utils/shared/graphql-request';
+import { isGraphqlRequest, isStreamed } from '../utils/trades/graphql-request';
 
 const BASE = 'https://senkuro.me/users/sena/cards';
 

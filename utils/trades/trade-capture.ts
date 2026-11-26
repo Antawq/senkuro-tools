@@ -1,5 +1,5 @@
 import { debugLogger } from '../shared/debug';
-import { isGraphqlRequest, isStreamed } from '../shared/graphql-request';
+import { isGraphqlRequest, isStreamed } from './graphql-request';
 import { claimPage } from '../shared/page-claim';
 import { parseJson } from '../shared/json';
 import type { PageWindow } from '../shared/page-window';
