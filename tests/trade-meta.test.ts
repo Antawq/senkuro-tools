@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import type { Person, Trade } from '../utils/trades/trade-capture';
@@ -310,5 +314,15 @@ describe('mountTradeMeta', () => {
     mountTradeMeta(host, trade, [trade, accepted]);
     expect(statusEl.querySelector('.senkutools-trade-status-extra')).toBeNull();
     expect(statusEl.textContent).toBe('Отклонён');
+  });
+});
+
+describe('trade time stylesheet', () => {
+  it('draws the time in the colour of the status text, with no extra fading that would drop its contrast on the stripe', () => {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../assets/trade-meta.css'), 'utf8'));
+    const time = [...sheet.cssRules].find((rule): rule is CSSStyleRule => rule instanceof CSSStyleRule && rule.selectorText === '.senkutools-trade-time');
+    expect(time?.style.getPropertyValue('color')).toBe('inherit');
+    expect(time?.style.getPropertyValue('opacity')).toBe('');
   });
 });
