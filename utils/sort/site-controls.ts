@@ -79,9 +79,9 @@ export async function chooseSort(pageDocument: Document, toolbar: Element, field
   const trigger = sortTriggerOf(toolbar);
   if (!trigger) return false;
   trigger.click();
-  const item = await wait(() => [...pageDocument.querySelectorAll<HTMLInputElement>(`${MENU} ${MENU_ITEM} input`)].find((input) => input.value === field));
-  item?.click();
-  return item !== null;
+  const option = await wait(() => [...pageDocument.querySelectorAll<HTMLInputElement>(`${MENU} ${MENU_ITEM} input`)].find((input) => input.value === field));
+  option?.click();
+  return option !== null;
 }
 
 export function flipDirection(toolbar: Element): boolean {
